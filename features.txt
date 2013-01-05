@@ -1,0 +1,34 @@
+This is purely brainstorming, but here we go...
+
+Notes
+-----
+- All fields are encoded as big endian
+- The input and output streams need to be fairly general so we can do
+  cool stuff later
+- The "controller" will manage sessions and data encoding
+- The "driver" will take the stream of bytes and send a DNS packet
+- The server can be arbitrarily complex, but the client should be as
+  simple as possible (or able to be programmed simply)
+- Multiple sessions will require multiple instances of 'controller'
+
+Protocol
+--------
+The data will look like (remember, space is extremely
+important):
+- (uint16_t) length
+- (uint16_t) flags
+- (uint16_t) session_id
+- (uint16_t) seq number [optional]
+- (uint16_t) ack number [optional]
+- [optional fields based on flags]
+- (byte[]) data
+
+All data will be encoded as a stream of bytes, up to a certain
+agreed-upon length value. 
+
+Other stuff
+-----------
+- I'd eventually like signing/encryption
+- Compression
+- SOCKS/HTTP proxy
+

@@ -29,5 +29,5 @@ clean:
 	rm -f *.o *.exe *.stackdump dnscat
 
 dnscat: dnscat.o buffer.o tcp.o udp.o select_group.o types.o memory.o dns.o
-	${CC} ${CFLAGS} ${DNSCATFLAGS} -o dnscat dnscat.o buffer.o tcp.o udp.o select_group.o types.o memory.o dns.t
+	${CC} ${CFLAGS} ${DNSCATFLAGS} -o dnscat dnscat.o buffer.o tcp.o udp.o select_group.o types.o memory.o dns.o
 
