@@ -126,7 +126,7 @@ buffer_t *buffer_create(BYTE_ORDER_t byte_order)
 
 /* Create a new packet buffer, with data.  The data shouldn't include the packet header,
  * it will be added.  The length is the length of the data, without the header. */
-buffer_t *buffer_create_with_data(BYTE_ORDER_t byte_order, const void *data, const uint32_t length)
+buffer_t *buffer_create_with_data(BYTE_ORDER_t byte_order, const void *data, const size_t length)
 {
 	buffer_t *new_buffer = buffer_create(byte_order);
 	if(!new_buffer)
@@ -168,17 +168,17 @@ buffer_t *buffer_duplicate(buffer_t *base)
 	return new;
 }
 
-uint32_t buffer_get_length(buffer_t *buffer)
+size_t buffer_get_length(buffer_t *buffer)
 {
 	return buffer->current_length;
 }
 
-uint32_t buffer_get_current_offset(buffer_t *buffer)
+size_t buffer_get_current_offset(buffer_t *buffer)
 {
 	return buffer->position;
 }
 
-void buffer_set_current_offset(buffer_t *buffer, uint32_t position)
+void buffer_set_current_offset(buffer_t *buffer, size_t position)
 {
 	buffer->position = position;
 }
@@ -190,24 +190,24 @@ void buffer_clear(buffer_t *buffer)
 	buffer->current_length = 0;
 }
 
-void buffer_read_align(buffer_t *buffer, uint32_t align)
+void buffer_read_align(buffer_t *buffer, size_t align)
 {
 	while(buffer_get_current_offset(buffer) % align)
 		buffer_read_next_int8(buffer);
 }
 
-void buffer_write_align(buffer_t *buffer, uint32_t align)
+void buffer_write_align(buffer_t *buffer, size_t align)
 {
 	while(buffer_get_length(buffer) % align)
 		buffer_add_int8(buffer, 0);
 }
 
-void buffer_consume(buffer_t *buffer, uint32_t count)
+void buffer_consume(buffer_t *buffer, size_t count)
 {
 	buffer->position += count;
 }
 
-uint8_t *buffer_create_string(buffer_t *buffer, uint32_t *length)
+uint8_t *buffer_create_string(buffer_t *buffer, size_t *length)
 {
 	uint8_t *ret;
 
@@ -223,7 +223,7 @@ uint8_t *buffer_create_string(buffer_t *buffer, uint32_t *length)
 	return ret;
 }
 
-uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, uint32_t *length)
+uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, size_t *length)
 {
 	uint8_t *ret = buffer_create_string(buffer, length);
 
@@ -315,7 +315,7 @@ buffer_t *buffer_add_unicode(buffer_t *buffer, const char *data)
 	return buffer;
 }
 
-buffer_t *buffer_add_bytes(buffer_t *buffer, const void *data, const uint32_t length)
+buffer_t *buffer_add_bytes(buffer_t *buffer, const void *data, const size_t length)
 {
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
@@ -362,12 +362,12 @@ buffer_t *buffer_add_buffer(buffer_t *buffer, const buffer_t *source)
 	return buffer;
 }
 
-buffer_t *buffer_add_int8_at(buffer_t *buffer,      const uint8_t data, uint32_t offset)
+buffer_t *buffer_add_int8_at(buffer_t *buffer,      const uint8_t data, size_t offset)
 {
 	return buffer_add_bytes_at(buffer, &data, 1, offset);
 }
 
-buffer_t *buffer_add_int16_at(buffer_t *buffer,     const uint16_t data, uint32_t offset)
+buffer_t *buffer_add_int16_at(buffer_t *buffer,     const uint16_t data, size_t offset)
 {
 	uint16_t converted;
 
@@ -385,7 +385,7 @@ buffer_t *buffer_add_int16_at(buffer_t *buffer,     const uint16_t data, uint32_
 	return buffer_add_bytes_at(buffer, &converted, 2, offset);
 }
 
-buffer_t *buffer_add_int32_at(buffer_t *buffer,     const uint32_t data, uint32_t offset)
+buffer_t *buffer_add_int32_at(buffer_t *buffer,     const uint32_t data, size_t offset)
 {
 	uint32_t converted;
 
@@ -403,17 +403,17 @@ buffer_t *buffer_add_int32_at(buffer_t *buffer,     const uint32_t data, uint32_
 	return buffer_add_bytes_at(buffer, &converted, 4, offset);
 }
 
-buffer_t *buffer_add_ntstring_at(buffer_t *buffer,  const char *data, uint32_t offset)
+buffer_t *buffer_add_ntstring_at(buffer_t *buffer,  const char *data, size_t offset)
 {
 	return buffer_add_bytes_at(buffer, data, strlen(data) + 1, offset);
 }
 
-buffer_t *buffer_add_string_at(buffer_t *buffer,  const char *data, uint32_t offset)
+buffer_t *buffer_add_string_at(buffer_t *buffer,  const char *data, size_t offset)
 {
 	return buffer_add_bytes_at(buffer, data, strlen(data), offset);
 }
 
-buffer_t *buffer_add_unicode_at(buffer_t *buffer,   const char *data, uint32_t offset)
+buffer_t *buffer_add_unicode_at(buffer_t *buffer,   const char *data, size_t offset)
 {
 	size_t i;
 	if(!buffer->valid)
@@ -425,7 +425,7 @@ buffer_t *buffer_add_unicode_at(buffer_t *buffer,   const char *data, uint32_t o
 	return buffer;
 }
 
-buffer_t *buffer_add_bytes_at(buffer_t *buffer,     const void *data, const uint32_t length, uint32_t offset)
+buffer_t *buffer_add_bytes_at(buffer_t *buffer,     const void *data, const size_t length, size_t offset)
 {
 	/* Ensure the buffer is valid. */
 	if(!buffer->valid)
@@ -440,7 +440,7 @@ buffer_t *buffer_add_bytes_at(buffer_t *buffer,     const void *data, const uint
 	return buffer;
 }
 
-buffer_t *buffer_add_buffer_at(buffer_t *buffer,    const buffer_t *source, uint32_t offset)
+buffer_t *buffer_add_buffer_at(buffer_t *buffer,    const buffer_t *source, size_t offset)
 {
 	if(!source->valid)
 		DIE("Program attempted to use deleted buffer.");
@@ -469,28 +469,28 @@ uint32_t buffer_read_next_int32(buffer_t *buffer)
 	buffer->position += 4;
 	return ret;
 }
-char *buffer_read_next_ntstring(buffer_t *buffer, char *data_ret, uint32_t max_length)
+char *buffer_read_next_ntstring(buffer_t *buffer, char *data_ret, size_t max_length)
 {
 	buffer_read_ntstring_at(buffer, buffer->position, data_ret, max_length);
 	buffer->position += strlen(data_ret) + 1;
 
 	return data_ret;
 }
-char *buffer_read_next_unicode(buffer_t *buffer, char *data_ret, uint32_t max_length)
+char *buffer_read_next_unicode(buffer_t *buffer, char *data_ret, size_t max_length)
 {
 	buffer_read_unicode_at(buffer, buffer->position, data_ret, max_length);
 	buffer->position += (strlen(data_ret) + 1) * 2;
 
 	return data_ret;
 }
-char *buffer_read_next_unicode_data(buffer_t *buffer, char *data_ret, uint32_t length)
+char *buffer_read_next_unicode_data(buffer_t *buffer, char *data_ret, size_t length)
 {
 	buffer_read_unicode_data_at(buffer, buffer->position, data_ret, length);
 	buffer->position += length * 2;
 
 	return data_ret;
 }
-void *buffer_read_next_bytes(buffer_t *buffer, void *data, uint32_t length)
+void *buffer_read_next_bytes(buffer_t *buffer, void *data, size_t length)
 {
 	buffer_read_bytes_at(buffer, buffer->position, data, length);
 	buffer->position += length;
@@ -510,22 +510,22 @@ uint32_t buffer_peek_next_int32(buffer_t *buffer)
 {
 	return buffer_read_int32_at(buffer, buffer->position);
 }
-char *buffer_peek_next_ntstring(buffer_t *buffer, char *data_ret, uint32_t max_length)
+char *buffer_peek_next_ntstring(buffer_t *buffer, char *data_ret, size_t max_length)
 {
 	return buffer_read_ntstring_at(buffer, buffer->position, data_ret, max_length);
 }
-char *buffer_peek_next_unicode(buffer_t *buffer, char *data_ret, uint32_t max_length)
+char *buffer_peek_next_unicode(buffer_t *buffer, char *data_ret, size_t max_length)
 {
 	return buffer_read_unicode_at(buffer, buffer->position, data_ret, max_length);
 }
-void *buffer_peek_next_bytes(buffer_t *buffer, void *data, uint32_t length)
+void *buffer_peek_next_bytes(buffer_t *buffer, void *data, size_t length)
 {
 	return buffer_read_bytes_at(buffer, buffer->position, data, length);
 }
 
 
 
-uint8_t buffer_read_int8_at(buffer_t *buffer, uint32_t offset)
+uint8_t buffer_read_int8_at(buffer_t *buffer, size_t offset)
 {
 	uint8_t ret;
 
@@ -537,7 +537,7 @@ uint8_t buffer_read_int8_at(buffer_t *buffer, uint32_t offset)
 	return ret;
 }
 
-uint16_t buffer_read_int16_at(buffer_t *buffer, uint32_t offset)
+uint16_t buffer_read_int16_at(buffer_t *buffer, size_t offset)
 {
 	uint16_t ret;
 
@@ -557,7 +557,7 @@ uint16_t buffer_read_int16_at(buffer_t *buffer, uint32_t offset)
 	return ret;
 }
 
-uint32_t buffer_read_int32_at(buffer_t *buffer, uint32_t offset)
+uint32_t buffer_read_int32_at(buffer_t *buffer, size_t offset)
 {
 	uint32_t ret;
 
@@ -577,9 +577,9 @@ uint32_t buffer_read_int32_at(buffer_t *buffer, uint32_t offset)
 	return ret;
 }
 
-char *buffer_read_ntstring_at(buffer_t *buffer, uint32_t offset, char *data_ret, uint32_t max_length)
+char *buffer_read_ntstring_at(buffer_t *buffer, size_t offset, char *data_ret, size_t max_length)
 {
-	uint32_t i = 0;
+	size_t i = 0;
 	uint8_t ch;
 
 	if(!buffer->valid)
@@ -600,9 +600,9 @@ char *buffer_read_ntstring_at(buffer_t *buffer, uint32_t offset, char *data_ret,
 	return data_ret;
 }
 
-char *buffer_read_unicode_at(buffer_t *buffer, uint32_t offset, char *data_ret, uint32_t max_length)
+char *buffer_read_unicode_at(buffer_t *buffer, size_t offset, char *data_ret, size_t max_length)
 {
-	uint32_t i = 0;
+	size_t i = 0;
 	uint8_t  ch;
 
 	if(!buffer->valid)
@@ -623,9 +623,9 @@ char *buffer_read_unicode_at(buffer_t *buffer, uint32_t offset, char *data_ret, 
 	return data_ret;
 }
 
-char *buffer_read_unicode_data_at(buffer_t *buffer, uint32_t offset, char *data_ret, uint32_t length)
+char *buffer_read_unicode_data_at(buffer_t *buffer, size_t offset, char *data_ret, size_t length)
 {
-	uint32_t i = 0;
+	size_t i = 0;
 
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
@@ -642,7 +642,7 @@ char *buffer_read_unicode_data_at(buffer_t *buffer, uint32_t offset, char *data_
 	return data_ret;
 }
 
-void *buffer_read_bytes_at(buffer_t *buffer, uint32_t offset, void *data, uint32_t length)
+void *buffer_read_bytes_at(buffer_t *buffer, size_t offset, void *data, size_t length)
 {
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
@@ -671,7 +671,7 @@ NBBOOL buffer_can_read_int32(buffer_t *buffer)
 }
 NBBOOL buffer_can_read_ntstring(buffer_t *buffer)
 {
-	uint32_t i;
+	size_t i;
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
 
@@ -685,7 +685,7 @@ NBBOOL buffer_can_read_ntstring(buffer_t *buffer)
  * is why I convert it to a uint8_t. */
 NBBOOL buffer_can_read_unicode(buffer_t *buffer)
 {
-	uint32_t i;
+	size_t i;
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
 
@@ -695,7 +695,7 @@ NBBOOL buffer_can_read_unicode(buffer_t *buffer)
 
 	return FALSE;
 }
-NBBOOL buffer_can_read_bytes(buffer_t *buffer, uint32_t length)
+NBBOOL buffer_can_read_bytes(buffer_t *buffer, size_t length)
 {
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
@@ -705,24 +705,24 @@ NBBOOL buffer_can_read_bytes(buffer_t *buffer, uint32_t length)
 	return buffer_can_read_bytes_at(buffer, buffer->position, length);
 }
 
-NBBOOL buffer_can_read_int8_at(buffer_t *buffer, uint32_t offset)
+NBBOOL buffer_can_read_int8_at(buffer_t *buffer, size_t offset)
 {
 	return buffer_can_read_bytes_at(buffer, offset, 1);
 }
 
-NBBOOL buffer_can_read_int16_at(buffer_t *buffer, uint32_t offset)
+NBBOOL buffer_can_read_int16_at(buffer_t *buffer, size_t offset)
 {
 	return buffer_can_read_bytes_at(buffer, offset, 2);
 }
 
-NBBOOL buffer_can_read_int32_at(buffer_t *buffer, uint32_t offset)
+NBBOOL buffer_can_read_int32_at(buffer_t *buffer, size_t offset)
 {
 	return buffer_can_read_bytes_at(buffer, offset, 4);
 }
 
-NBBOOL buffer_can_read_ntstring_at(buffer_t *buffer, uint32_t offset, uint32_t max_length)
+NBBOOL buffer_can_read_ntstring_at(buffer_t *buffer, size_t offset, size_t max_length)
 {
-	uint32_t i;
+	size_t i;
 	NBBOOL good = TRUE;
 	NBBOOL done = FALSE;
 
@@ -738,9 +738,9 @@ NBBOOL buffer_can_read_ntstring_at(buffer_t *buffer, uint32_t offset, uint32_t m
 	return good;
 }
 
-NBBOOL buffer_can_read_unicode_at(buffer_t *buffer, uint32_t offset, uint32_t max_length)
+NBBOOL buffer_can_read_unicode_at(buffer_t *buffer, size_t offset, size_t max_length)
 {
-	uint32_t i;
+	size_t i;
 	NBBOOL good = TRUE;
 	NBBOOL done = FALSE;
 
@@ -755,7 +755,7 @@ NBBOOL buffer_can_read_unicode_at(buffer_t *buffer, uint32_t offset, uint32_t ma
 	return good;
 }
 
-NBBOOL buffer_can_read_bytes_at(buffer_t *buffer, uint32_t offset, uint32_t length)
+NBBOOL buffer_can_read_bytes_at(buffer_t *buffer, size_t offset, size_t length)
 {
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
@@ -780,8 +780,8 @@ static char get_character_from_byte(uint8_t byte)
 /* Print out the buffer in a nice format */
 void buffer_print(buffer_t *buffer)
 {
-	uint32_t length = buffer->current_length;
-	uint32_t i, j;
+	size_t length = buffer->current_length;
+	size_t i, j;
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
 	printf("Position = %d\n", buffer->position);
@@ -822,7 +822,7 @@ void buffer_print(buffer_t *buffer)
 }
 
 /* Returns a pointer to the actual buffer */
-uint8_t *buffer_get(buffer_t *buffer, uint32_t *length)
+uint8_t *buffer_get(buffer_t *buffer, size_t *length)
 {
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
@@ -833,7 +833,7 @@ uint8_t *buffer_get(buffer_t *buffer, uint32_t *length)
 #if 0
 int main(int argc, char *argv[])
 {
-	uint32_t i;
+	size_t i;
 	buffer_t *buffer;
 
 	char     unicode[8];

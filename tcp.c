@@ -11,6 +11,7 @@
 #ifdef WIN32
 #include <winsock2.h>
 #else
+#include <fcntl.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -98,6 +99,11 @@ int tcp_connect(char *host, uint16_t port)
 	}
 
 	return s;
+}
+
+void tcp_set_nonblocking(int s)
+{
+  fcntl(s, F_SETFL, O_NONBLOCK);
 }
 
 int tcp_listen(char *address, uint16_t port)

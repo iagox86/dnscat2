@@ -20,6 +20,8 @@
 #ifndef __PACKET_BUFFER_H__
 #define __PACKET_BUFFER_H__
 
+#include <stdlib.h> /* For "size_t". */
+
 #include "types.h"
 
 typedef enum
@@ -37,14 +39,14 @@ typedef struct
 	BYTE_ORDER_t byte_order;
 
 	/* The current position in the string, used when reading it. */
-	uint32_t position;
+	size_t position;
 
 	/* The maximum length of the buffer that "buffer" is pointing to.  When
 	 * space in this runs out, it's expanded  */
-	uint32_t max_length;
+	size_t max_length;
 
 	/* The current length of the buffer. */
-	uint32_t current_length;
+	size_t current_length;
 
 	/* The current buffer.  Will always point to a string of length max_length */
 	uint8_t *data;
@@ -59,7 +61,7 @@ typedef struct
 buffer_t *buffer_create(BYTE_ORDER_t byte_order);
 
 /* Create a new packet buffer, with data. */
-buffer_t *buffer_create_with_data(BYTE_ORDER_t byte_order, const void *data, const uint32_t length);
+buffer_t *buffer_create_with_data(BYTE_ORDER_t byte_order, const void *data, const size_t length);
 
 /* Destroy the buffer and free resources.  If this isn't used, memory will leak. */
 void buffer_destroy(buffer_t *buffer);
@@ -68,28 +70,28 @@ void buffer_destroy(buffer_t *buffer);
 buffer_t *buffer_duplicate(buffer_t *base);
 
 /* Get the length of the buffer. */
-uint32_t buffer_get_length(buffer_t *buffer);
+size_t buffer_get_length(buffer_t *buffer);
 
 /* Get the current location in the buffer. */
-uint32_t buffer_get_current_offset(buffer_t *buffer);
+size_t buffer_get_current_offset(buffer_t *buffer);
 /* Set the current location in the buffer. */
-void buffer_set_current_offset(buffer_t *buffer, uint32_t position);
+void buffer_set_current_offset(buffer_t *buffer, size_t position);
 /* Clear out the buffer. Memory is kept, but the contents are blanked out and the pointer is returned
  * to the beginning. */
 void buffer_clear(buffer_t *buffer);
 
 /* Align the buffer to even multiples. */
-void buffer_read_align(buffer_t *buffer, uint32_t align);
-void buffer_write_align(buffer_t *buffer, uint32_t align);
+void buffer_read_align(buffer_t *buffer, size_t align);
+void buffer_write_align(buffer_t *buffer, size_t align);
 
 /* Consume (discard) bytes. */
-void buffer_consume(buffer_t *buffer, uint32_t count);
+void buffer_consume(buffer_t *buffer, size_t count);
 
 /* Return the contents of the buffer in a newly allocated string. Fill in the length, if a pointer
  * is given. Note that this allocates memory that has to be freed! */
-uint8_t *buffer_create_string(buffer_t *buffer, uint32_t *length);
+uint8_t *buffer_create_string(buffer_t *buffer, size_t *length);
 /* Does the same thing as above, but also frees up the buffer (good for a function return). */
-uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, uint32_t *length);
+uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, size_t *length);
 
 /* Add data to the end of the buffer */
 buffer_t *buffer_add_int8(buffer_t *buffer,      const uint8_t data);
@@ -99,19 +101,19 @@ buffer_t *buffer_add_ntstring(buffer_t *buffer,  const char *data);
 buffer_t *buffer_add_string(buffer_t *buffer,    const char *data);
 /* Note: UNICODE support is a hack -- it adds every second character as a NULL, but is otherwise ASCII. */
 buffer_t *buffer_add_unicode(buffer_t *buffer,   const char *data);
-buffer_t *buffer_add_bytes(buffer_t *buffer,     const void *data, const uint32_t length);
+buffer_t *buffer_add_bytes(buffer_t *buffer,     const void *data, const size_t length);
 buffer_t *buffer_add_buffer(buffer_t *buffer,    const buffer_t *source);
 
 /* Add data to the middle of a buffer. These functions won't write past the end of the buffer, so it's
  * up to the programmer to be careful. */
-buffer_t *buffer_add_int8_at(buffer_t *buffer,      const uint8_t data, uint32_t offset);
-buffer_t *buffer_add_int16_at(buffer_t *buffer,     const uint16_t data, uint32_t offset);
-buffer_t *buffer_add_int32_at(buffer_t *buffer,     const uint32_t data, uint32_t offset);
-buffer_t *buffer_add_ntstring_at(buffer_t *buffer,  const char *data, uint32_t offset);
-buffer_t *buffer_add_string_at(buffer_t *buffer,    const char *data, uint32_t offset);
-buffer_t *buffer_add_unicode_at(buffer_t *buffer,   const char *data, uint32_t offset);
-buffer_t *buffer_add_bytes_at(buffer_t *buffer,     const void *data, const uint32_t length, uint32_t offset);
-buffer_t *buffer_add_buffer_at(buffer_t *buffer,    const buffer_t *source, uint32_t offset);
+buffer_t *buffer_add_int8_at(buffer_t *buffer,      const uint8_t data, size_t offset);
+buffer_t *buffer_add_int16_at(buffer_t *buffer,     const uint16_t data, size_t offset);
+buffer_t *buffer_add_int32_at(buffer_t *buffer,     const uint32_t data, size_t offset);
+buffer_t *buffer_add_ntstring_at(buffer_t *buffer,  const char *data, size_t offset);
+buffer_t *buffer_add_string_at(buffer_t *buffer,    const char *data, size_t offset);
+buffer_t *buffer_add_unicode_at(buffer_t *buffer,   const char *data, size_t offset);
+buffer_t *buffer_add_bytes_at(buffer_t *buffer,     const void *data, const size_t length, size_t offset);
+buffer_t *buffer_add_buffer_at(buffer_t *buffer,    const buffer_t *source, size_t offset);
 
 /* Read the next data from the buffer.  The first read will be at the beginning.
  * An assertion will fail and the program will end if read off
@@ -120,27 +122,27 @@ buffer_t *buffer_add_buffer_at(buffer_t *buffer,    const buffer_t *source, uint
 uint8_t   buffer_read_next_int8(buffer_t *buffer);
 uint16_t  buffer_read_next_int16(buffer_t *buffer);
 uint32_t  buffer_read_next_int32(buffer_t *buffer);
-char     *buffer_read_next_ntstring(buffer_t *buffer, char *data_ret, uint32_t max_length);
-char     *buffer_read_next_unicode(buffer_t *buffer, char *data_ret, uint32_t max_length);
-char     *buffer_read_next_unicode_data(buffer_t *buffer, char *data_ret, uint32_t length);
-void     *buffer_read_next_bytes(buffer_t *buffer, void *data, uint32_t length);
+char     *buffer_read_next_ntstring(buffer_t *buffer, char *data_ret, size_t max_length);
+char     *buffer_read_next_unicode(buffer_t *buffer, char *data_ret, size_t max_length);
+char     *buffer_read_next_unicode_data(buffer_t *buffer, char *data_ret, size_t length);
+void     *buffer_read_next_bytes(buffer_t *buffer, void *data, size_t length);
 
 /* Read the next data, without incrementing the current pointer. */
 uint8_t   buffer_peek_next_int8(buffer_t *buffer);
 uint16_t  buffer_peek_next_int16(buffer_t *buffer);
 uint32_t  buffer_peek_next_int32(buffer_t *buffer);
-char     *buffer_peek_next_ntstring(buffer_t *buffer, char *data_ret, uint32_t max_length);
-char     *buffer_peek_next_unicode(buffer_t *buffer, char *data_ret, uint32_t max_length);
-void     *buffer_peek_next_bytes(buffer_t *buffer, void *data, uint32_t length);
+char     *buffer_peek_next_ntstring(buffer_t *buffer, char *data_ret, size_t max_length);
+char     *buffer_peek_next_unicode(buffer_t *buffer, char *data_ret, size_t max_length);
+void     *buffer_peek_next_bytes(buffer_t *buffer, void *data, size_t length);
 
 /* Read data at the specified location in the buffer (counting the first byte as 0). */
-uint8_t   buffer_read_int8_at(buffer_t *buffer, uint32_t offset);
-uint16_t  buffer_read_int16_at(buffer_t *buffer, uint32_t offset);
-uint32_t  buffer_read_int32_at(buffer_t *buffer, uint32_t offset);
-char     *buffer_read_ntstring_at(buffer_t *buffer, uint32_t offset, char *data_ret, uint32_t max_length);
-char     *buffer_read_unicode_at(buffer_t *buffer, uint32_t offset, char *data_ret, uint32_t max_length);
-char     *buffer_read_unicode_data_at(buffer_t *buffer, uint32_t offset, char *data_ret, uint32_t length);
-void     *buffer_read_bytes_at(buffer_t *buffer, uint32_t offset, void *data, uint32_t length);
+uint8_t   buffer_read_int8_at(buffer_t *buffer, size_t offset);
+uint16_t  buffer_read_int16_at(buffer_t *buffer, size_t offset);
+uint32_t  buffer_read_int32_at(buffer_t *buffer, size_t offset);
+char     *buffer_read_ntstring_at(buffer_t *buffer, size_t offset, char *data_ret, size_t max_length);
+char     *buffer_read_unicode_at(buffer_t *buffer, size_t offset, char *data_ret, size_t max_length);
+char     *buffer_read_unicode_data_at(buffer_t *buffer, size_t offset, char *data_ret, size_t length);
+void     *buffer_read_bytes_at(buffer_t *buffer, size_t offset, void *data, size_t length);
 
 /* These NBBOOL functions check if there are enough bytes left in the buffer to remove
  * specified data.  These should always be used on the server side to verify valid
@@ -150,21 +152,21 @@ NBBOOL buffer_can_read_int16(buffer_t *buffer);
 NBBOOL buffer_can_read_int32(buffer_t *buffer);
 NBBOOL buffer_can_read_ntstring(buffer_t *buffer);
 NBBOOL buffer_can_read_unicode(buffer_t *buffer);
-NBBOOL buffer_can_read_bytes(buffer_t *buffer, uint32_t length);
+NBBOOL buffer_can_read_bytes(buffer_t *buffer, size_t length);
 
 /* These functions check if there are enough bytes in the buffer at the specified location. */
-NBBOOL buffer_can_read_int8_at(buffer_t *buffer, uint32_t offset);
-NBBOOL buffer_can_read_int16_at(buffer_t *buffer, uint32_t offset);
-NBBOOL buffer_can_read_int32_at(buffer_t *buffer, uint32_t offset);
-NBBOOL buffer_can_read_ntstring_at(buffer_t *buffer, uint32_t offset, uint32_t max_length);
-NBBOOL buffer_can_read_unicode_at(buffer_t *buffer, uint32_t offset, uint32_t max_length);
-NBBOOL buffer_can_read_bytes_at(buffer_t *buffer, uint32_t offset, uint32_t length);
+NBBOOL buffer_can_read_int8_at(buffer_t *buffer, size_t offset);
+NBBOOL buffer_can_read_int16_at(buffer_t *buffer, size_t offset);
+NBBOOL buffer_can_read_int32_at(buffer_t *buffer, size_t offset);
+NBBOOL buffer_can_read_ntstring_at(buffer_t *buffer, size_t offset, size_t max_length);
+NBBOOL buffer_can_read_unicode_at(buffer_t *buffer, size_t offset, size_t max_length);
+NBBOOL buffer_can_read_bytes_at(buffer_t *buffer, size_t offset, size_t length);
 
 /* Print out the buffer in a nice format -- useful for debugging. */
 void buffer_print(buffer_t *buffer);
 
 /* Returns a pointer to the actual buffer (I don't recommend using this). */
-uint8_t *buffer_get(buffer_t *buffer, uint32_t *length);
+uint8_t *buffer_get(buffer_t *buffer, size_t *length);
 
 
 

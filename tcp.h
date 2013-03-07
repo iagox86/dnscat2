@@ -18,6 +18,9 @@ void winsock_initialize();
  * returns -1 if it fails; otherwise, returns the new socket. */
 int    tcp_connect(char *host, uint16_t port);
 
+/* Set a socket as non-blocking. */
+void   tcp_set_nonblocking(int s);
+
 /* Puts a socket into listening mode on the given address (use '0.0.0.0' for any).
  * Returns -1 on an error, or the socket if successful. */
 int    tcp_listen(char *address, uint16_t port);

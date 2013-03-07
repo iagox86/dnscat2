@@ -12,13 +12,10 @@ CFLAGS?=-Wall -g
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-all: dnscat
-	@echo Compile should be complete
+OBJS=test.o buffer.o tcp.o udp.o select_group.o types.o memory.o dns.o driver_tcp.o controller.o
 
-install: all
-	mkdir -p /usr/local/bin
-	cp dnscat       /usr/local/bin/dnscat
-	chown root.root /usr/local/bin/dnscat
+all: test
+	@echo Compile should be complete
 
 remove:
 	rm -f /usr/local/bin/dnscat
@@ -28,6 +25,6 @@ uninstall: remove
 clean:
 	rm -f *.o *.exe *.stackdump dnscat
 
-dnscat: dnscat.o buffer.o tcp.o udp.o select_group.o types.o memory.o dns.o
-	${CC} ${CFLAGS} ${DNSCATFLAGS} -o dnscat dnscat.o buffer.o tcp.o udp.o select_group.o types.o memory.o dns.o
+test: ${OBJS}
+	${CC} ${CFLAGS} -o test ${OBJS}
 
