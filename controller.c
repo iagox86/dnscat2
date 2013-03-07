@@ -15,7 +15,7 @@ controller_t *controller_create(driver_t *driver)
   assert(driver->driver);
   assert(driver->driver_send);
   assert(driver->driver_recv);
-  assert(driver->driver_connect || driver->driver_listen);
+  assert(driver->driver_connect);
 
   c                  = safe_malloc(sizeof(controller_t));
   c->id              = current_id++;

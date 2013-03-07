@@ -5,8 +5,6 @@
 
 typedef void(init_t)(void *driver);
 typedef int(connect_t)(void *driver);
-typedef int(bind_t)(void *driver);
-typedef int(listen_t)(void *driver);
 typedef int(send_t)(void *driver, uint8_t *data, size_t length);
 typedef int(recv_t)(void *driver, uint8_t *buf, size_t buf_length);
 typedef void(close_t)(void *driver);
@@ -18,8 +16,6 @@ typedef struct
 
   init_t    *driver_init;
   connect_t *driver_connect;
-  bind_t    *driver_bind;
-  listen_t  *driver_listen;
   send_t    *driver_send;
   recv_t    *driver_recv;
   close_t   *driver_close;

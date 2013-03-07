@@ -117,8 +117,6 @@ driver_t *tcp_get_driver(char *host, uint16_t port)
 
   driver->driver_init    = driver_tcp_init;
   driver->driver_connect = driver_tcp_connect;
-  driver->driver_bind    = NULL;
-  driver->driver_listen  = NULL;
   driver->driver_send    = driver_tcp_send;
   driver->driver_recv    = driver_tcp_recv;
   driver->driver_close   = NULL;
