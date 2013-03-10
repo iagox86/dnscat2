@@ -908,7 +908,7 @@ void dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, c
 	safe_free(encoded);
 }
 
-uint8_t *dns_to_packet(dns_t *dns, uint32_t *length)
+uint8_t *dns_to_packet(dns_t *dns, size_t *length)
 {
 	uint16_t i;
 
@@ -1133,7 +1133,7 @@ dns_t *dns_create_error(uint16_t trn_id, question_t question)
 	return dns;
 }
 
-uint8_t *dns_create_error_string(uint16_t trn_id, question_t question, uint32_t *length)
+uint8_t *dns_create_error_string(uint16_t trn_id, question_t question, size_t *length)
 {
 	/* Create the packet. */
 	dns_t *dns = dns_create_error(trn_id, question);

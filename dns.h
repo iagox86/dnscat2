@@ -368,7 +368,7 @@ void     dns_add_additional_AAAA(dns_t *dns,  char *question, uint16_t class, ui
 void     dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, uint16_t class, uint32_t ttl, uint16_t flags, char *address);
 
 /* Convert a DNS request into a packet that can be sent on port 53. Memory has to be freed. */
-uint8_t *dns_to_packet(dns_t *dns, uint32_t *length);
+uint8_t *dns_to_packet(dns_t *dns, size_t *length);
 
 /* Print the DNS request. Useful for debugging. */
 void     dns_print(dns_t *dns);
@@ -376,7 +376,7 @@ void     dns_print(dns_t *dns);
 /* Create a DNS error object. */
 dns_t   *dns_create_error(uint16_t trn_id, question_t question);
 /* Create a DNS error packet, ready to send. */
-uint8_t *dns_create_error_string(uint16_t trn_id, question_t question, uint32_t *length);
+uint8_t *dns_create_error_string(uint16_t trn_id, question_t question, size_t *length);
 
 /* Get the first system DNS server. Works on Windows and any system that uses /etc/resolv.conf. */
 char *dns_get_system();
