@@ -14,14 +14,6 @@
 #include "memory.h"
 #include "types.h"
 
-typedef void(output_pipe_t)(uint8_t *data, size_t length);
-typedef int(input_pipe_t)(uint8_t *data, size_t max_length);
-
-typedef struct
-{
-  int blah;
-} unbound_controller_t;
-
 typedef struct
 {
   uint16_t id;
@@ -32,9 +24,6 @@ typedef struct
   uint8_t data_waiting;
 
   driver_t  *driver;
-
-  output_pipe_t *output;
-  input_pipe_t  *input;
 
   buffer_t *queued_data;
   buffer_t *incoming_data;

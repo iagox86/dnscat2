@@ -25,9 +25,6 @@ controller_t *controller_create(driver_t *driver)
   c->max_packet_size = driver->max_packet_size;
   c->driver          = driver;
 
-  c->output = NULL;
-  c->input = NULL;
-
   c->queued_data   = buffer_create(BO_LITTLE_ENDIAN);
   c->incoming_data = buffer_create(BO_LITTLE_ENDIAN);
 
@@ -76,11 +73,11 @@ void controller_do_actions(controller_t *c)
 
     if(in_length > 0)
     {
-      printf("in_length = %d\n", in_length);
+      printf("in_length = %zu\n", in_length);
       buffer_add_bytes(c->incoming_data, in_buffer, in_length);
     }
 
-    printf("Data received so far: %d bytes\n", buffer_get_length(c->incoming_data));
+    printf("Data received so far: %zu bytes\n", buffer_get_length(c->incoming_data));
   }
 }
 
