@@ -76,6 +76,10 @@ size_t buffer_get_length(buffer_t *buffer);
 size_t buffer_get_current_offset(buffer_t *buffer);
 /* Set the current location in the buffer. */
 void buffer_set_current_offset(buffer_t *buffer, size_t position);
+
+/* Get the number of bytes between the current offset and the end of the buffer. */
+size_t buffer_get_remaining_bytes(buffer_t *buffer);
+
 /* Clear out the buffer. Memory is kept, but the contents are blanked out and the pointer is returned
  * to the beginning. */
 void buffer_clear(buffer_t *buffer);
@@ -167,7 +171,5 @@ void buffer_print(buffer_t *buffer);
 
 /* Returns a pointer to the actual buffer (I don't recommend using this). */
 uint8_t *buffer_get(buffer_t *buffer, size_t *length);
-
-
 
 #endif

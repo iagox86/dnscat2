@@ -25,14 +25,14 @@ typedef struct
 
   driver_t  *driver;
 
-  buffer_t *queued_data;
+  buffer_t *outgoing_data;
   buffer_t *incoming_data;
 } controller_t;
 
 controller_t *controller_create(driver_t *driver);
 void controller_connect(controller_t *c);
 void controller_send(controller_t *c, uint8_t *data, size_t length);
-void controller_do_actions(controller_t *c);
+int controller_do_actions(controller_t *c);
 int controller_recv(controller_t *c, uint8_t *buffer, size_t max_length);
 void controller_cleanup(controller_t *c);
 

@@ -183,6 +183,11 @@ void buffer_set_current_offset(buffer_t *buffer, size_t position)
 	buffer->position = position;
 }
 
+size_t buffer_get_remaining_bytes(buffer_t *buffer)
+{
+  return buffer_get_length(buffer) - buffer_get_current_offset(buffer);
+}
+
 void buffer_clear(buffer_t *buffer)
 {
 	memset(buffer->data, 0, buffer->current_length);

@@ -8,7 +8,7 @@
 
 CC=gcc
 COMMON_CFLAGS=-ansi -std=c89
-CFLAGS?=-Wall -g
+CFLAGS?=-Wall -g -DTESTMEMORY
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 

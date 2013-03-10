@@ -16,24 +16,21 @@ void driver_tcp_cleanup(void *driver);
 
 driver_t *tcp_get_driver(char *host, uint16_t port)
 {
-  tcp_driver_t *tcp_driver = safe_malloc(sizeof(tcp_driver_t));
-  driver_t *driver = safe_malloc(sizeof(driver_t));
-
-  tcp_driver->s    = -1;
-  tcp_driver->host = safe_strdup(host);
-  tcp_driver->port = port;
-
+  driver_t *driver       = safe_malloc(sizeof(driver_t));
   driver->driver_init    = driver_tcp_init;
   driver->driver_connect = driver_tcp_connect;
   driver->driver_send    = driver_tcp_send;
   driver->driver_recv    = driver_tcp_recv;
   driver->driver_close   = driver_tcp_close;
   driver->driver_cleanup = driver_tcp_cleanup;
-
-  driver->driver = (void*) tcp_driver;
   driver->default_window_size = 1;
   driver->max_window_size = 1;
   driver->max_packet_size = 65535;
+
+  driver->driver = (void*) safe_malloc(sizeof(tcp_driver_t));
+  ((tcp_driver_t*)driver->driver)->s    = -1;
+  ((tcp_driver_t*)driver->driver)->host = safe_strdup(host);
+  ((tcp_driver_t*)driver->driver)->port = port;
 
   return driver;
 }
@@ -113,4 +110,8 @@ void driver_tcp_cleanup(void *driver)
   printf("DRIVER::TCP : cleanup()\n");
 
   assert(d->s == -1); /* Make sure we aren't cleaning up an active socket */
+
+  safe_free(d->host);
+  d->host = NULL;
+  safe_free(d);
 }
