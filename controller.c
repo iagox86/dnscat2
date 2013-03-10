@@ -41,7 +41,8 @@ void controller_send(controller_t *c, uint8_t *data, size_t length)
   buffer_add_bytes(c->queued_data, data, length);
 }
 
-void controller_do_actions(controller_t *c)
+/* Returns -1 on error, otherwise returns number of bytes waiting to be received */
+int controller_do_actions(controller_t *c)
 {
   if(buffer_get_length(c->queued_data) != 0)
   {
@@ -94,4 +95,10 @@ int controller_recv(controller_t *c, uint8_t *buffer, size_t max_length)
   buffer_read_next_bytes(c->incoming_data, buffer, to_read);
 
   return to_read;
+}
+
+void controller_cleanup(controller_t *c)
+{
+  c->driver->driver_close(c->driver->driver);
+  c->driver->driver_cleanup(c->driver->driver);
 }

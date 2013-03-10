@@ -27,7 +27,7 @@ driver_t *tcp_get_driver(char *host, uint16_t port)
   driver->driver_connect = driver_tcp_connect;
   driver->driver_send    = driver_tcp_send;
   driver->driver_recv    = driver_tcp_recv;
-  driver->driver_close   = NULL;
+  driver->driver_close   = driver_tcp_close;
   driver->driver_cleanup = driver_tcp_cleanup;
 
   driver->driver = (void*) tcp_driver;
@@ -110,7 +110,7 @@ void driver_tcp_cleanup(void *driver)
 {
   tcp_driver_t *d = (tcp_driver_t*) driver;
 
-  printf("DRIVER::TCP : close()\n");
+  printf("DRIVER::TCP : cleanup()\n");
 
   assert(d->s == -1); /* Make sure we aren't cleaning up an active socket */
 }

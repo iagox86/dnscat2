@@ -25,7 +25,11 @@ int main(int argc, const char *argv[])
 
   buffer_print(c->incoming_data);
 
+  controller_cleanup(c);
+
   printf("Done!\n");
+
+  print_memory();
 
   return 0;
 }

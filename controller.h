@@ -34,5 +34,6 @@ void controller_connect(controller_t *c);
 void controller_send(controller_t *c, uint8_t *data, size_t length);
 void controller_do_actions(controller_t *c);
 int controller_recv(controller_t *c, uint8_t *buffer, size_t max_length);
+void controller_cleanup(controller_t *c);
 
 #endif

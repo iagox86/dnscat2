@@ -1153,7 +1153,7 @@ char *dns_get_system()
 
 	DWORD address;
 
-	char      *straddress = malloc(16);
+	char      *straddress = safe_malloc(16);
 
 	/* Set the initial length to something we know is going to be wrong. */
 	DWORD      length  = sizeof(IP4_ARRAY);
