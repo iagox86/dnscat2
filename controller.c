@@ -41,52 +41,50 @@ void controller_send(controller_t *c, uint8_t *data, size_t length)
   buffer_add_bytes(c->outgoing_data, data, length);
 }
 
+static void controller_do_send(controller_t *c)
+{
+  /* Figure out how much data is waiting to go out */
+  size_t to_read = buffer_get_remaining_bytes(c->outgoing_data);
+  uint8_t *buffer;
+
+  if(to_read <= 0)
+    return;
+
+  /* Limit the amount of data to the max_packet_size */
+  to_read = to_read > c->max_packet_size ? c->max_packet_size : to_read;
+
+  /* Allocate a buffer and send it */
+  buffer = safe_malloc(to_read);
+  buffer_read_next_bytes(c->outgoing_data, buffer, to_read);
+  c->driver->driver_send(c->driver->driver, buffer, to_read);
+  safe_free(buffer);
+}
+
+static int controller_do_recv(controller_t *c)
+{
+  /* Read incoming data if there is any */
+  uint8_t in_buffer[1024]; /* TODO: Better size? Peek function? */
+  size_t in_length = c->driver->driver_recv(c->driver->driver, in_buffer, 1024);
+
+  if(in_length == -1)
+  {
+    fprintf(stderr, "driver_recv returned an error!\n");
+
+    return -1;
+  }
+
+  /* Add bytes to the internal byte buffer */
+  if(in_length > 0)
+    buffer_add_bytes(c->incoming_data, in_buffer, in_length);
+
+  return buffer_get_remaining_bytes(c->incoming_data);
+}
+
 /* Returns -1 on error, otherwise returns number of bytes waiting to be received */
 int controller_do_actions(controller_t *c)
 {
-  if(buffer_get_length(c->outgoing_data) != 0)
-  {
-    /* TODO: We need a better function for this */
-    size_t to_read;
-
-    uint8_t in_buffer[1024]; /* TODO: Better size? Peek function? */
-    size_t in_length;
-
-    buffer_print(c->outgoing_data);
-
-    /* Figure out how much data is waiting to go out */
-    to_read = buffer_get_remaining_bytes(c->outgoing_data);
-    if(to_read > 0)
-    {
-      uint8_t *buffer;
-
-      /* Limit the amount of data to the max_packet_size */
-      to_read = to_read > c->max_packet_size ? c->max_packet_size : to_read;
-
-      /* Allocate a buffer and send it */
-      buffer = safe_malloc(to_read);
-      buffer_read_next_bytes(c->outgoing_data, buffer, to_read);
-      c->driver->driver_send(c->driver->driver, buffer, to_read);
-      safe_free(buffer);
-    }
-
-    /* Read incoming data if there is any */
-    in_length = c->driver->driver_recv(c->driver->driver, in_buffer, 1024);
-    if(in_length == -1)
-    {
-      printf("driver_recv returned an error!\n");
-
-      return -1;
-    }
-
-    if(in_length > 0)
-    {
-      printf("in_length = %zu\n", in_length);
-      buffer_add_bytes(c->incoming_data, in_buffer, in_length);
-    }
-
-    printf("Data received so far: %zu bytes\n", buffer_get_length(c->incoming_data));
-  }
+  controller_do_send(c);
+  return controller_do_recv(c);
 }
 
 int controller_recv(controller_t *c, uint8_t *buffer, size_t max_length)

@@ -3,19 +3,18 @@ This is purely brainstorming, but here we go...
 Notes
 -----
 - All fields are encoded as big endian
-- The input and output streams need to be fairly general so we can do
-  cool stuff later
 - The "controller" will manage sessions and data encoding
 - The "driver" will take the stream of bytes and send a DNS packet
-- The server can be arbitrarily complex, but the client should be as
-  simple as possible (or able to be programmed simply)
+- The "adapter" will interface witht he outside world
+- Only the client will be in C, the server is more complex and will be
+  written in ruby
 - Multiple sessions will require multiple instances of 'controller'
 
 Protocol
 --------
 The data will look like (remember, space is extremely
 important):
-- (uint16_t) length
+- (uint16_t) length (including the length field)
 - (uint16_t) flags
 - (uint16_t) session_id
 - (uint16_t) seq number [optional]
