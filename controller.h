@@ -16,7 +16,7 @@
 
 typedef enum
 {
-  FLAG_STREAM, /* Packet contains SEQ/ACK */
+  FLAG_STREAM = 0x01, /* Packet contains SEQ/ACK */
 } flags_t;
 
 typedef struct
