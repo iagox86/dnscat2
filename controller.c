@@ -56,9 +56,9 @@ static void controller_do_send(controller_t *c)
 
   /* Allocate a buffer of the data we're sending */
   outgoing_data = safe_malloc(to_read);
-  outgoing_data_read_next_bytes(c->outgoing_data, buffer, to_read);
+  buffer_read_next_bytes(c->outgoing_data, out, to_read);
 
-  c->driver->driver_send(c->driver->driver, buffer, to_read);
+  c->driver->driver_send(c->driver->driver, out, to_read);
 
   safe_free(outgoing_data);
 }
