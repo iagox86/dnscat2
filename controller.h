@@ -14,6 +14,11 @@
 #include "memory.h"
 #include "types.h"
 
+typedef enum
+{
+  FLAG_STREAM, /* Packet contains SEQ/ACK */
+} flags_t;
+
 typedef struct
 {
   uint16_t id;

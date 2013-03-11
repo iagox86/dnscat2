@@ -45,7 +45,8 @@ static void controller_do_send(controller_t *c)
 {
   /* Figure out how much data is waiting to go out */
   size_t to_read = buffer_get_remaining_bytes(c->outgoing_data);
-  uint8_t *buffer;
+  uint8_t *outgoing_data;
+  buffer_t *out = buffer_create(BO_BIG_ENDIAN);
 
   if(to_read <= 0)
     return;
@@ -53,11 +54,13 @@ static void controller_do_send(controller_t *c)
   /* Limit the amount of data to the max_packet_size */
   to_read = to_read > c->max_packet_size ? c->max_packet_size : to_read;
 
-  /* Allocate a buffer and send it */
-  buffer = safe_malloc(to_read);
-  buffer_read_next_bytes(c->outgoing_data, buffer, to_read);
+  /* Allocate a buffer of the data we're sending */
+  outgoing_data = safe_malloc(to_read);
+  outgoing_data_read_next_bytes(c->outgoing_data, buffer, to_read);
+
   c->driver->driver_send(c->driver->driver, buffer, to_read);
-  safe_free(buffer);
+
+  safe_free(outgoing_data);
 }
 
 static int controller_do_recv(controller_t *c)
