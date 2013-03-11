@@ -12,14 +12,24 @@ Notes
 
 Protocol
 --------
-The data will look like (remember, space is extremely
-important):
-- (uint16_t) length (including the length field)
-- (uint16_t) flags
+Header (common to every packet):
+- (uint16_t) length (not including the length field)
+- (uint8_t)  message_type
 - (uint16_t) session_id
-- (uint16_t) seq number [optional]
-- (uint16_t) ack number [optional]
-- [optional fields based on flags]
+
+MESSAGE_TYPE_SYN [0x00]
+- (uint16_t) options
+- (uint16_t) initial seq number
+
+MESSAGE_TYPE_MSG: [0x01]
+- (uint16_t) seq number
+- (uint16_t) ack number
+- (byte[]) data
+
+MESSAGE_TYPE_FIN: [0x02]
+- n/a
+
+MESSAGE_TYPE_STRAIGHTUP: [0xFF] // TODO
 - (byte[]) data
 
 All data will be encoded as a stream of bytes, up to a certain
