@@ -17,11 +17,11 @@ SESSION_STATE_FINISHED = 0x02
 
 def receive_packet(s)
   length = s.read(2)
-  
+
   if(length.nil?)
     raise(IOError, "Connection closed while reading length")
   end
-  
+
   length = length.unpack("n").first
   if(length <= 0 || length > 65535)
     raise(IOError, "Invalid length value received")
