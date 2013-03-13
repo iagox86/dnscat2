@@ -16,11 +16,15 @@ SESSION_STATE_FINISHED = 0x02
 def send(s, data)
   data = [data.length].pack("n") + data
   puts(data.unpack("H*"))
-  s.send(data)
+  s.write(data)
 end
 
 s = TCPSocket.open("localhost", 2000)
-send(s, [MESSAGE_TYPE_SYN, 0x1234].pack("Cn"))
+send(s, [MESSAGE_TYPE_SYN,  # Type
+         0x1234,            # Session id
+         0x0000,            # Options
+         0x0000,            # Initial seq
+        ].pack("Cnnn"))
 
 #a = s.read()
 #s.close()

@@ -1,6 +1,6 @@
 require 'socket'
 
-require 'socket'
+require 'session'
 
 # Message types
 MESSAGE_TYPE_SYN        = 0x00
@@ -8,12 +8,9 @@ MESSAGE_TYPE_MSG        = 0x01
 MESSAGE_TYPE_FIN        = 0x02
 MESSAGE_TYPE_STRAIGHTUP = 0xFF
 
-# Session states [TODO: Do I actually need these?]
-SESSION_STATE_NEW      = 0x00
-SESSION_STATE_ACTIVE   = 0x01
-SESSION_STATE_FINISHED = 0x02
-
-@@sessions = {}
+def get_socket_string(s)
+  return "#{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})"
+end
 
 def receive_packet(s)
   length = s.read(2)
@@ -38,31 +35,17 @@ def receive_packet(s)
 end
 
 def get_session(id)
-  # Get or create the session
-  session = @@sessions[id]
-
-  if(session.nil?)
-    session = {}
-    session[:state] = SESSION_STATE_NEW
-    @@sessions[id] = session
-  end
-
-  return session
 end
 
 def parse_packet(raw)
   parsed = {}
 
-  if(raw.length < 4)
-    raise(IOError, "Packet is too short")
-  end
-
   # Get the session_id value
-  parsed[:message_type], parsed[:session_id] = raw.unpack("Cn")
+  parsed[:type], parsed[:session_id] = raw.unpack("Cn")
   raw = raw[3..-1] # Remove the first three bytes
 
   # Parse the message differently depending on what type it is
-  if(parsed[:message_type] == MESSAGE_TYPE_SYN)
+  if(parsed[:type] == MESSAGE_TYPE_SYN)
     puts("Received a SYN")
 
     parsed[:options], parsed[:seq] = raw.unpack("nn")
@@ -73,25 +56,25 @@ def parse_packet(raw)
       raise(IOError, "Extra data on the end of an SYN packet")
     end
 
-  elsif(parsed[:message_type] == MESSAGE_TYPE_MSG)
+  elsif(parsed[:type] == MESSAGE_TYPE_MSG)
     puts("Received a MSG")
 
     parsed[:seq], parsed[:ack] = raw.unpack("nn")
     raw = raw[4..-1] # Remove the first four bytes
 
-  elsif(parsed[:message_type] == MESSAGE_TYPE_FIN)
+  elsif(parsed[:type] == MESSAGE_TYPE_FIN)
     puts("Received a FIN")
 
     if(raw.length > 0)
       raise(IOError, "Extra data on the end of a FIN packet")
     end
 
-  elsif(parsed[:message_type] == MESSAGE_TYPE_STRAIGHTUP) # TODO
+  elsif(parsed[:type] == MESSAGE_TYPE_STRAIGHTUP) # TODO
     puts("Received a STRAIGHTUP")
 
     raise(Exception, "Not implemented yet")
   else
-    raise(Exception, "Unknown message type: #{parsed[:message_type]}")
+    raise(Exception, "Unknown message type: #{parsed[:type]}")
   end
 
   parsed[:data] = raw
@@ -99,21 +82,33 @@ def parse_packet(raw)
   return parsed
 end
 
-def verify_seq(session, packet)
-  if(packet[:is_stream] && packet[:seq] != session[:seq])
-    puts("Unexpected sequence number: got #{packet[:seq]}, expected #{session[:seq]}")
-    return false
+def handle_syn(packet, session)
+  if(!session.is_syn_valid())
+    raise(IOError, "SYN is invalid in this state")
   end
 
-  return true
+  # TODO: Validate packet
+  # TODO: Set initial seq
+  # TODO: Send them my initial seq
 end
 
-def update_seq(session, packet)
-  session[:seq] += packet[:data].length
+def handle_msg(packet, session)
+  if(!session.is_msg_valid())
+    raise(IOError, "MSG is invalid in this state")
+  end
+
+  # TODO: Validate the seq
+  # TODO: Update their seq
+  # TODO: Display the message, if any
+  # TODO: ACK the message
 end
 
-def destroy_session(id)
-  # TODO
+def handle_fin(packet, session)
+  if(!session.is_fin_valid())
+    raise(IOError, "FIN is invalid in this state")
+  end
+
+  session.destroy()
 end
 
 def go_tcp(s)
@@ -122,24 +117,32 @@ def go_tcp(s)
     loop do
       raw_packet = receive_packet(s)
       packet = parse_packet(raw_packet)
-      session_id = packet[:session_id]
-      session = get_session(packet[:id])
+      session = Session.find(packet[:session_id])
+
+      puts(packet.inspect)
 
       if(packet[:type] == MESSAGE_TYPE_SYN)
-        # handle_syn() # TODO
+        handle_syn(packet, session)
       elsif(packet[:type] == MESSAGE_TYPE_MSG)
-        # handle_msg() # TODO
+        handle_msg(packet, session)
       elsif(packet[:type] == MESSAGE_TYPE_FIN)
-        # handle_fin() # TODO
+        handle_fin(packet, session)
+      else
+        raise(IOError, "Unknown packet type: #{packet[:type]}")
       end
-    end
 
+      puts("Done!")
+      exit
+    end
   rescue IOError => e
     puts("Exception: #{e}")
+
     if(!session_id.nil?)
-      puts("Destroying session #{session_id}...")
-      destroy_session(session_id)
+      Session.destroy(session_id)
     end
+
+    puts(e.inspect)
+    puts(e.backtrace)
   end
 
   s.close()
@@ -149,10 +152,11 @@ server = TCPServer.new(2000)
 loop do
   Thread.start(server.accept) do |s|
     begin
-      puts("Connection: #{s.inspect}")
+      puts("Received a connection from #{get_socket_string(s)}")
       go_tcp(s)
     rescue Exception => e
-      puts("Exception: #{e}")
+      puts(e.inspect)
+      puts(e.backtrace)
     end
   end
 end
