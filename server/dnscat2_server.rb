@@ -9,8 +9,12 @@ require 'packet'
 # for any long-term session storage
 class Dnscat2
   def Dnscat2.handle_syn(packet, session)
-    puts("Handling SYN!")
-    exit
+    if(!session.syn_valid?())
+      raise(IOError, "SYN invalid in this state")
+    end
+
+    session.set_their_seq(packet.seq)
+    session.set_established()
   end
 
   def Dnscat2.go(s)
@@ -31,13 +35,8 @@ class Dnscat2
         else
           raise(IOError, "Unknown packet type: #{packet.type}")
         end
-
-        puts("Done!")
-        exit
       end
     rescue IOError => e
-      puts("Exception: #{e}")
-
       if(!session_id.nil?)
         # TODO Send a FIN if we can
         Session.destroy(session_id)
@@ -81,6 +80,7 @@ test.queue( [
               0x0000,            # Options
               0x0000,            # Initial seq
             ].pack("Cnnn"))
+
 Dnscat2.go(test)
 
 #def get_socket_string(addr)
