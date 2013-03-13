@@ -149,6 +149,7 @@ server = TCPServer.new(2000)
 loop do
   Thread.start(server.accept) do |s|
     begin
+      puts("Connection: #{s.inspect}")
       go_tcp(s)
     rescue Exception => e
       puts("Exception: #{e}")
