@@ -1,3 +1,4 @@
+
 class Session
   @@sessions = {}
 
@@ -7,7 +8,7 @@ class Session
   STATE_NEW      = 0x00
   STATE_ACTIVE   = 0x01
 
-  def init(id)
+  def initialize(id)
     @id = id
     @state = STATE_NEW
     @their_seq = 0 # TODO: Initialize based on their SYN packet
@@ -32,7 +33,7 @@ class Session
 
     if(session.nil?)
       puts("[[#{id}]] :: create")
-      @@sessions[id] = Session.new
+      @@sessions[id] = Session.new(id)
     end
 
     return session
