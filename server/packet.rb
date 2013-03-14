@@ -40,7 +40,7 @@ class Packet
     puts("Received a MSG")
 
     @seq, @ack = data.unpack("nn")
-    data = data[4..-1] # Remove the first four bytes
+    @data = data[4..-1] # Remove the first four bytes
   end
 
   def parse_fin(data)
@@ -110,5 +110,28 @@ class Packet
     puts("Received #{length} bytes!")
 
     return Packet.new(data, length)
+  end
+
+  def Packet.write(s, data)
+    length = [data.length].pack("n")
+
+    s.write(length + data)
+  end
+
+  def Packet.create_header(type, session_id)
+    return [type, session_id].pack("Cn")
+  end
+
+  def Packet.create_syn(session_id, seq, options = nil)
+    options = options.nil? ? 0 : options
+    return create_header(MESSAGE_TYPE_SYN, session_id) + [seq, options].pack("nn")
+  end
+
+  def Packet.create_msg(session_id, seq, ack, msg)
+    return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, msg].pack("nnA*")
+  end
+
+  def Packet.create_fin(session_id)
+    return create_header(MESSAGE_TYPE_FIN, session_id)
   end
 end

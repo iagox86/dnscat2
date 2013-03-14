@@ -15,6 +15,38 @@ class Dnscat2
 
     session.set_their_seq(packet.seq)
     session.set_established()
+
+    return Packet.create_syn(session.id, session.my_seq, nil)
+  end
+
+  def Dnscat2.handle_msg(packet, session)
+    if(!session.msg_valid?())
+      raise(IOError, "MSG invalid in this state")
+    end
+
+    # Validate the sequence number
+    if(packet.seq != session.their_seq)
+      puts("Bad sequence number; expected #{session.seq}, got #{packet.seq}")
+      return
+    end
+
+    # Acknowledge the data that has been received so far
+    session.ack_outgoing(packet.ack)
+
+    # Write the incoming data to the session
+    session.queue_incoming(packet.data)
+
+    # Increment the expected sequence number
+    session.increment_their_seq(packet.data.length)
+
+    # Get any data we have queued
+    data = session.read_outgoing()
+
+    # Build the new packet
+    return Packet.create_msg(session.id,
+                             session.my_seq,
+                             session.their_seq,
+                             data)
   end
 
   def Dnscat2.go(s)
@@ -26,14 +58,19 @@ class Dnscat2
 
         puts(packet.inspect)
 
+        response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)
-          handle_syn(packet, session)
+          response = handle_syn(packet, session)
         elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
-          handle_msg(packet, session)
+          response = handle_msg(packet, session)
         elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
-          handle_fin(packet, session)
+          response = handle_fin(packet, session)
         else
           raise(IOError, "Unknown packet type: #{packet.type}")
+        end
+
+        if(response)
+          Packet.write(s, response)
         end
       end
     rescue IOError => e
@@ -70,6 +107,14 @@ class Test
 
     return response
   end
+
+  def write(data)
+    puts("The server tried to send: #{data.unpack("H*")}")
+  end
+
+  def close()
+    # do nothing
+  end
 end
 
 test = Test.new
@@ -81,6 +126,23 @@ test.queue( [
               0x0000,            # Initial seq
             ].pack("Cnnn"))
 
+test.queue( [
+              Packet::MESSAGE_TYPE_SYN, # Type
+              0x4321,            # Session id
+              0x0000,            # Options
+              0x0000,            # Initial seq
+            ].pack("Cnnn"))
+
+test.queue( [
+              Packet::MESSAGE_TYPE_MSG, # Type
+              0x1234,            # Session id
+              0x0000,            # SEQ
+              0x0000,            # ACK
+              "This is some incoming data"
+            ].pack("CnnnA*"))
+
+session = Session.find(0x1234)
+session.queue_outgoing("This is some outgoing data queued up!")
 Dnscat2.go(test)
 
 #def get_socket_string(addr)
