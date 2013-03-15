@@ -7,7 +7,8 @@ require 'log'
 require 'packet'
 
 class DnscatTest
-  SESSION_QUEUE = "This is some outgoing data queued up!"
+  MY_DATA = "This is some incoming data"
+  THEIR_DATA = "This is some outgoing data queued up!"
 
   def max_packet_size()
     return 256
@@ -41,11 +42,13 @@ class DnscatTest
       :name => "Initial SYN, session 0x4321 (SEQ 0x5555 => 0x4444) (should create new session)",
     }
 
-    #                            ID          SEQ     ACK          DATA
+    #                            ID          SEQ     ACK                           DATA
     @data << {
-      :send => Packet.create_msg(session_id, my_seq, their_seq,   "This is some incoming data"),
-      :recv => ""
+      :send => Packet.create_msg(session_id, my_seq, their_seq,                    MY_DATA),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq + MY_DATA.length,   THEIR_DATA),
+      :name => "Sending some initial data",
     }
+    my_seq += MY_DATA.length # Updat my seq
 
     return # TODO: Enable more tests as we figure things out
 
@@ -120,7 +123,7 @@ class DnscatTest
   def DnscatTest.do_test()
     Session.debug_set_isn(0x4444)
     session = Session.find(0x1234)
-    session.queue_outgoing(SESSION_QUEUE)
+    session.queue_outgoing(THEIR_DATA)
     Dnscat2.go(DnscatTest.new)
   end
 end
