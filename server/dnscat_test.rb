@@ -50,12 +50,14 @@ class DnscatTest
     }
     my_seq += MY_DATA.length # Updat my seq
 
-    return # TODO: Enable more tests as we figure things out
-
     @data << {
       :send => Packet.create_msg(session_id, 1,   0,   "This is more data with a bad SEQ"),
-      :recv => ""
+      :recv => nil,
+      :name => "Sending data with a bad SEQ, this should be ignored",
     }
+
+    return # TODO: Enable more tests as we figure things out
+
     @data << {
       :send => Packet.create_msg(session_id, 100, 0,   "This is more data with a bad SEQ"),
       :recv => ""
