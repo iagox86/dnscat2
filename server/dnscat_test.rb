@@ -63,24 +63,24 @@ class DnscatTest
     my_seq += MY_DATA.length # Update my seq
 
     @data << {
-    #                            ID          SEQ         ACK  DATA
-      :send => Packet.create_msg(session_id, my_seq+1,   0,   "This is more data with a bad SEQ"),
-      :recv => nil,
-      :name => "Sending data with a bad SEQ (too low), this should be ignored",
+    #                            ID          SEQ         ACK    DATA
+      :send => Packet.create_msg(session_id, my_seq+1,   0,     "This is more data with a bad SEQ"),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq, THEIR_DATA),
+      :name => "Sending data with a bad SEQ (too low), this should trigger a re-send",
     }
 
     @data << {
     #                            ID          SEQ             ACK  DATA
       :send => Packet.create_msg(session_id, my_seq - 100,   0,   "This is more data with a bad SEQ"),
-      :recv => nil,
-      :name => "Sending data with a bad SEQ (way too low), this should be ignored",
+      :recv => Packet.create_msg(session_id, their_seq, my_seq, THEIR_DATA),
+      :name => "Sending data with a bad SEQ (way too low), this should trigger a re-send",
     }
 
     @data << {
     #                            ID          SEQ         ACK  DATA
       :send => Packet.create_msg(session_id, my_seq+100, 0,   "This is more data with a bad SEQ"),
-      :recv => nil,
-      :name => "Sending data with a bad SEQ (too high), this should be ignored",
+      :recv => Packet.create_msg(session_id, their_seq, my_seq, THEIR_DATA),
+      :name => "Sending data with a bad SEQ (too high), this should trigger a re-send",
     }
 
     @data << {
@@ -92,27 +92,26 @@ class DnscatTest
     my_seq += MY_DATA2.length
 
     @data << {
-    #                            ID          SEQ        ACK                        DATA
-      :send => Packet.create_msg(session_id, my_seq,    their_seq ^ 0xFFFF,        ""),
-      :recv => nil,
-      :name => "Sending a packet with a very bad ACK, which should be ignored",
+    #                            ID          SEQ        ACK                 DATA
+      :send => Packet.create_msg(session_id, my_seq,    their_seq ^ 0xFFFF, ""),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq,             THEIR_DATA),
+      :name => "Sending a packet with a very bad ACK, which should trigger a re-send",
     }
 
     @data << {
     #                            ID          SEQ        ACK            DATA
-      :send => Packet.create_msg(session_id, my_seq,    their_seq - 1, ""),
-      :recv => nil,
-      :name => "Sending a packet with a slightly bad ACK (one too low), which should be ignored",
+      :send => Packet.create_msg(session_id, my_seq,    their_seq - 1,      ""),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq,             THEIR_DATA),
+      :name => "Sending a packet with a slightly bad ACK (one too low), which should trigger a re-send",
     }
 
     @data << {
     #                            ID          SEQ        ACK                                DATA
       :send => Packet.create_msg(session_id, my_seq,    their_seq + THEIR_DATA.length + 1, ""),
-      :recv => nil,
-      :name => "Sending a packet with a slightly bad ACK (one too high), which should be ignored",
+      :recv => Packet.create_msg(session_id, their_seq, my_seq,                            THEIR_DATA),
+      :name => "Sending a packet with a slightly bad ACK (one too high), which should trigger a re-send",
     }
 
-    my_seq += MY_DATA2.length
     @data << {
       :send => Packet.create_msg(session_id, my_seq,        their_seq + 1, ""),
       :recv => Packet.create_msg(session_id, their_seq + 1, my_seq,        THEIR_DATA[1..-1]),

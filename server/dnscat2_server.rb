@@ -29,15 +29,19 @@ class Dnscat2
 
     # Validate the sequence number
     if(session.their_seq != packet.seq)
-      Log.log(session.id, "Bad sequence number; expected 0x%04x, got 0x%04x" % [session.their_seq, packet.seq])
-      # TODO: Re-send?
-      return
+      Log.log(session.id, "Bad sequence number; expected 0x%04x, got 0x%04x [re-sending]" % [session.their_seq, packet.seq])
+
+      # Re-send the last packet
+      old_data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
+      return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
     end
 
     if(!session.valid_ack?(packet.ack))
-      Log.log(session.id, "Impossible ACK received: 0x%04x, current SEQ is 0x%04x" % [packet.ack, session.my_seq])
-      # TODO: Re-send?
-      return
+      Log.log(session.id, "Impossible ACK received: 0x%04x, current SEQ is 0x%04x [re-sending]" % [packet.ack, session.my_seq])
+
+      # Re-send the last packet
+      old_data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
+      return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
     end
 
     # Acknowledge the data that has been received so far
@@ -49,18 +53,13 @@ class Dnscat2
     # Increment the expected sequence number
     session.increment_their_seq(packet.data.length)
 
-    # Get any data we have queued
-    data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
-
-    Log.log(session.id, "Received MSG with #{packet.data.length} bytes; responding with our own message (#{data.length} bytes)")
+    new_data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
+    Log.log(session.id, "Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
     Log.log(session.id, ">> \"#{packet.data}\"")
-    Log.log(session.id, "<< \"#{data}\"")
+    Log.log(session.id, "<< \"#{new_data}\"")
 
     # Build the new packet
-    return Packet.create_msg(session.id,
-                             session.my_seq,
-                             session.their_seq,
-                             data)
+    return Packet.create_msg(session.id, session.my_seq, session.their_seq, new_data)
   end
 
   def Dnscat2.handle_fin(packet, session, max_packet_size)
