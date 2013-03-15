@@ -99,4 +99,16 @@ class Packet
   def Packet.fin_header_size()
     return create_fin(0).length
   end
+
+  def to_s()
+    ret = ''
+
+    if(@type == MESSAGE_TYPE_SYN)
+      return "[[SYN]] :: session = %04x, seq = %04x, options = %04x" % [@session_id, @seq, @options]
+    elsif(@type == MESSAGE_TYPE_MSG)
+      return "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, @data]
+    elsif(@type == MESSAGE_TYPE_FIN)
+      return "[[FIN]] :: session = %04x" % [@session_id]
+    end
+  end
 end

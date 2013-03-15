@@ -8,6 +8,7 @@ require 'packet'
 
 class DnscatTest
   MY_DATA = "This is some incoming data"
+  MY_DATA2 = "This is some more incoming data"
   THEIR_DATA = "This is some outgoing data queued up!"
 
   def max_packet_size()
@@ -28,44 +29,59 @@ class DnscatTest
       :name => "Initial SYN (SEQ 0x%04x => 0x%04x)" % [my_seq, their_seq],
     }
 
-    #                            ID      ISN     Options
     @data << {
+    #                            ID      ISN     Options
       :send => Packet.create_syn(session_id, 0x3333, 0), # Duplicate SYN
       :recv => nil,
       :name => "Duplicate SYN (should be ignored)",
     }
 
-    #                            ID      ISN
     @data << {
+    #                            ID      ISN
       :send => Packet.create_syn(0x4321, 0x5555),
       :recv => Packet.create_syn(0x4321, 0x4444),
       :name => "Initial SYN, session 0x4321 (SEQ 0x5555 => 0x4444) (should create new session)",
     }
 
-    #                            ID          SEQ     ACK                           DATA
     @data << {
-      :send => Packet.create_msg(session_id, my_seq, their_seq,                    MY_DATA),
-      :recv => Packet.create_msg(session_id, their_seq, my_seq + MY_DATA.length,   THEIR_DATA),
+    #                            ID          SEQ        ACK                      DATA
+      :send => Packet.create_msg(session_id, my_seq,    their_seq,               MY_DATA),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq + MY_DATA.length, THEIR_DATA),
       :name => "Sending some initial data",
     }
-    my_seq += MY_DATA.length # Updat my seq
+    my_seq += MY_DATA.length # Update my seq
 
     @data << {
-      :send => Packet.create_msg(session_id, 1,   0,   "This is more data with a bad SEQ"),
+    #                            ID          SEQ         ACK  DATA
+      :send => Packet.create_msg(session_id, my_seq+1,   0,   "This is more data with a bad SEQ"),
       :recv => nil,
-      :name => "Sending data with a bad SEQ, this should be ignored",
+      :name => "Sending data with a bad SEQ (too low), this should be ignored",
     }
+
+    @data << {
+    #                            ID          SEQ             ACK  DATA
+      :send => Packet.create_msg(session_id, my_seq - 100,   0,   "This is more data with a bad SEQ"),
+      :recv => nil,
+      :name => "Sending data with a bad SEQ (way too low), this should be ignored",
+    }
+
+    @data << {
+    #                            ID          SEQ         ACK  DATA
+      :send => Packet.create_msg(session_id, my_seq+100, 0,   "This is more data with a bad SEQ"),
+      :recv => nil,
+      :name => "Sending data with a bad SEQ (too high), this should be ignored",
+    }
+
+    @data << {
+    #                            ID          SEQ        ACK                        DATA
+      :send => Packet.create_msg(session_id, my_seq,    their_seq,                 MY_DATA2),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq + MY_DATA2.length,  THEIR_DATA),
+      :name => "Sending another valid packet, but with a bad ACK, causing the server to repeat the last message"
+    }
+    my_seq += MY_DATA2.length
 
     return # TODO: Enable more tests as we figure things out
 
-    @data << {
-      :send => Packet.create_msg(session_id, 100, 0,   "This is more data with a bad SEQ"),
-      :recv => ""
-    }
-    @data << {
-      :send => Packet.create_msg(session_id, 26,  0,   "Data with proper SYN but bad ACK (should trigger re-send)"),
-      :recv => ""
-    }
     @data << {
       :send => Packet.create_msg(session_id, 83,  1,   ""),
       :recv => ""
@@ -114,8 +130,8 @@ class DnscatTest
   def send(data)
     if(data != @expected_response)
       Log.log("FAIL", @current_test)
-      puts(" >> Expected: #{@expected_response.unpack("H*")}")
-      puts(" >> Received: #{data.unpack("H*")}")
+      puts(" >> Expected: #{Packet.parse(@expected_response)}")
+      puts(" >> Received: #{Packet.parse(data)}")
     else
       Log.log("SUCCESS", @current_test)
     end
