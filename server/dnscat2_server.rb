@@ -30,7 +30,13 @@ class Dnscat2
     # Validate the sequence number
     if(session.their_seq != packet.seq)
       Log.log(session.id, "Bad sequence number; expected 0x%04x, got 0x%04x" % [session.their_seq, packet.seq])
-      # TODO: Re-ACK what we've received?
+      # TODO: Re-send?
+      return
+    end
+
+    if(!session.valid_ack?(packet.ack))
+      Log.log(session.id, "Impossible ACK received: 0x%04x, current SEQ is 0x%04x" % [packet.ack, session.my_seq])
+      # TODO: Re-send?
       return
     end
 

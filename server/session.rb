@@ -85,12 +85,15 @@ class Session
   end
 
   # TODO: Handle overflows
-  # TODO: Handle invalid ACK values
   def ack_outgoing(n)
     bytes_acked = (n - @my_seq)
     Log.log(id, "ACKing #{bytes_acked} bytes")
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
+  end
+
+  def valid_ack?(ack)
+    return (ack >= @my_seq && ack <= @my_seq + @outgoing_data.length)
   end
 
   def queue_outgoing(data)
