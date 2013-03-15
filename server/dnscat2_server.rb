@@ -143,6 +143,8 @@ test.queue(Packet.create_msg(1234, 1, 0,   "This is more data with a bad SEQ"))
 test.queue(Packet.create_msg(1234, 100, 0, "This is more data with a bad SEQ"))
 test.queue(Packet.create_msg(1234, 26, 0,  "Data with proper SYN but bad ACK (should trigger re-send)"))
 test.queue(Packet.create_msg(1234, 83, 5,  ""))
+test.queue(Packet.create_msg(1234, 83, 5,  ""))
+test.queue(Packet.create_msg(1234, 83, 5,  ""))
 test.queue(Packet.create_fin(1234))
 
 session = Session.find(1234)
