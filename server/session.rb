@@ -2,6 +2,7 @@ require 'log'
 
 class Session
   @@sessions = {}
+  @@isn = nil # nil = random
 
   attr_reader :id, :state, :their_seq, :my_seq
 
@@ -9,11 +10,15 @@ class Session
   STATE_NEW         = 0x00
   STATE_ESTABLISHED = 0x01
 
+  def Session.debug_set_isn(n)
+    @@isn = n
+  end
+
   def initialize(id)
     @id = id
     @state = STATE_NEW
-    @their_seq = 0 # TODO: Initialize based on their SYN packet
-    @my_seq    = 0 # TODO: Randomize
+    @their_seq = 0
+    @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
 
     @incoming_data = ''
     @outgoing_data = ''

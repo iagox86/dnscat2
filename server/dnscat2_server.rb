@@ -1,8 +1,5 @@
-$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
-
 require 'socket'
 
-require 'dnscat_test'
 require 'log'
 require 'packet'
 require 'session'
@@ -107,8 +104,3 @@ class Dnscat2
     s.close()
   end
 end
-
-session = Session.find(1234)
-session.queue_outgoing("This is some outgoing data queued up!")
-Dnscat2.go(DnscatTest.new)
-
