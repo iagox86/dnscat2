@@ -9,6 +9,7 @@ require 'packet'
 class DnscatTest
   MY_DATA = "This is some incoming data"
   MY_DATA2 = "This is some more incoming data"
+  MY_DATA3 = "abcdef"
   THEIR_DATA = "This is some outgoing data queued up!"
 
   def max_packet_size()
@@ -76,39 +77,48 @@ class DnscatTest
     #                            ID          SEQ        ACK                        DATA
       :send => Packet.create_msg(session_id, my_seq,    their_seq,                 MY_DATA2),
       :recv => Packet.create_msg(session_id, their_seq, my_seq + MY_DATA2.length,  THEIR_DATA),
-      :name => "Sending another valid packet, but with a bad ACK, causing the server to repeat the last message"
+      :name => "Sending another valid packet, but with a bad ACK, causing the server to repeat the last message",
     }
     my_seq += MY_DATA2.length
+
+    @data << {
+      :send => Packet.create_msg(session_id, my_seq,        their_seq + 1, ""),
+      :recv => Packet.create_msg(session_id, their_seq + 1, my_seq,        THEIR_DATA[1..-1]),
+      :name => "ACKing the first byte of their data, which should cause them to send the second byte and onwards",
+    }
+
+    @data << {
+      :send => Packet.create_msg(session_id, my_seq,        their_seq + 1, ""),
+      :recv => Packet.create_msg(session_id, their_seq + 1, my_seq,        THEIR_DATA[1..-1]),
+      :name => "ACKing just the first byte again",
+    }
+
+    @data << {
+      :send => Packet.create_msg(session_id, my_seq,        their_seq + 1,             MY_DATA3),
+      :recv => Packet.create_msg(session_id, their_seq + 1, my_seq + MY_DATA3.length,  THEIR_DATA[1..-1]),
+      :name => "Still ACKing the first byte, but sending some more of our own data",
+    }
+    my_seq += MY_DATA3.length
+
+    their_seq += THEIR_DATA.length
+    @data << {
+      :send => Packet.create_msg(session_id, my_seq,    their_seq, ''),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq,    ''),
+      :name => "ACKing their data properly, they should respond with nothing",
+    }
+
+    @data << {
+      :send => Packet.create_msg(session_id, my_seq,    their_seq, ''),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq,    ''),
+      :name => "Sending a blank MSG packet, expecting to receive a black MSG packet",
+    }
 
     return # TODO: Enable more tests as we figure things out
 
     @data << {
-      :send => Packet.create_msg(session_id, 83,  1,   ""),
-      :recv => ""
-    }
-    @data << {
-      :send => Packet.create_msg(session_id, 83,  1,   ""),
-      :recv => ""
-    }
-    @data << {
-      :send => Packet.create_msg(session_id, 83,  1,   ""),
-      :recv => ""
-    }
-    @data << {
-      :send => Packet.create_msg(session_id, 83,  1,   "a"),
-      :recv => ""
-    }
-    @data << {
-      :send => Packet.create_msg(session_id, 83,  1,   ""), # Bad SEQ
-      :recv => ""
-    }
-    @data << {
-      :send => Packet.create_msg(session_id, 84,  10,  "Hello"), # Bad SEQ
-      :recv => ""
-    }
-    @data << {
       :send => Packet.create_fin(session_id),
-      :recv => ""
+      :recv => Packet.create_fin(session_id),
+      :name => "Sending a FIN, should receive a FIN",
     }
 
     @expected_response = nil
