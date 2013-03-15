@@ -23,7 +23,7 @@ class Dnscat2
 
   def Dnscat2.handle_msg(packet, session, max_packet_size)
     if(!session.msg_valid?())
-      Log.log("MSG invalid in this state")
+      Log.log(session.id, "MSG invalid in this state")
       return nil
     end
 

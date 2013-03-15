@@ -24,6 +24,13 @@ class DnscatTest
     their_seq  = 0x4444
 
     @data << {
+    #                            ID          SEQ        ACK                      DATA
+      :send => Packet.create_msg(session_id, my_seq,    their_seq,               MY_DATA),
+      :recv => nil,
+      :name => "Sending an unexpected MSG",
+    }
+
+    @data << {
     #                            ID      ISN
       :send => Packet.create_syn(session_id, my_seq),
       :recv => Packet.create_syn(session_id, their_seq),
@@ -126,8 +133,7 @@ class DnscatTest
 
   def recv()
     if(@data.length == 0)
-      puts("Done!")
-      exit
+      raise(IOError, "Connection closed")
     end
 
     out = @data.shift
@@ -139,20 +145,31 @@ class DnscatTest
 
   def send(data)
     if(data != @expected_response)
+      @@failure += 1
       Log.log("FAIL", @current_test)
       puts(" >> Expected: #{Packet.parse(@expected_response)}")
       puts(" >> Received: #{Packet.parse(data)}")
     else
+      @@success += 1
       Log.log("SUCCESS", @current_test)
     end
     # Just ignore the data being sent
   end
 
+  def close()
+    # Do nothing
+  end
+
   def DnscatTest.do_test()
+    @@success = 0
+    @@failure = 0
+
     Session.debug_set_isn(0x4444)
     session = Session.find(0x1234)
     session.queue_outgoing(THEIR_DATA)
     Dnscat2.go(DnscatTest.new)
+
+    puts("TESTS PASSED: #{@@success} / #{@@success + @@failure}")
   end
 end
 

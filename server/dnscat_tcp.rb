@@ -13,4 +13,8 @@ class DnscatTCP
   def recv(data)
   # TODO
   end
+
+  def close()
+
+  end
 end
