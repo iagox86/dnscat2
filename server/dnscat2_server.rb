@@ -7,7 +7,7 @@ require 'session'
 # This class should be totally stateless, and rely on the Session class
 # for any long-term session storage
 class Dnscat2
-  def Dnscat2.handle_syn(packet, session, max_packet_size)
+  def Dnscat2.handle_syn(s, packet, session)
     if(!session.syn_valid?())
       Log.log(session.id, "SYN invalid in this state")
       return nil
@@ -21,7 +21,7 @@ class Dnscat2
     return Packet.create_syn(session.id, session.my_seq, nil)
   end
 
-  def Dnscat2.handle_msg(packet, session, max_packet_size)
+  def Dnscat2.handle_msg(s, packet, session)
     if(!session.msg_valid?())
       Log.log(session.id, "MSG invalid in this state")
       return nil
@@ -32,7 +32,7 @@ class Dnscat2
       Log.log(session.id, "Bad sequence number; expected 0x%04x, got 0x%04x [re-sending]" % [session.their_seq, packet.seq])
 
       # Re-send the last packet
-      old_data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
+      old_data = session.read_outgoing(s.max_packet_size - Packet.msg_header_size)
       return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
     end
 
@@ -40,7 +40,7 @@ class Dnscat2
       Log.log(session.id, "Impossible ACK received: 0x%04x, current SEQ is 0x%04x [re-sending]" % [packet.ack, session.my_seq])
 
       # Re-send the last packet
-      old_data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
+      old_data = session.read_outgoing(s.max_packet_size - Packet.msg_header_size)
       return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
     end
 
@@ -53,7 +53,7 @@ class Dnscat2
     # Increment the expected sequence number
     session.increment_their_seq(packet.data.length)
 
-    new_data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
+    new_data = session.read_outgoing(s.max_packet_size - Packet.msg_header_size)
     Log.log(session.id, "Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
     Log.log(session.id, ">> \"#{packet.data}\"")
     Log.log(session.id, "<< \"#{new_data}\"")
@@ -62,7 +62,7 @@ class Dnscat2
     return Packet.create_msg(session.id, session.my_seq, session.their_seq, new_data)
   end
 
-  def Dnscat2.handle_fin(packet, session, max_packet_size)
+  def Dnscat2.handle_fin(s, packet, session)
     if(!session.fin_valid?())
       Log.log(session.id, "FIN invalid in this state")
       return nil
@@ -85,11 +85,11 @@ class Dnscat2
 
         response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)
-          response = handle_syn(packet, session, s.max_packet_size)
+          response = handle_syn(s, packet, session)
         elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
-          response = handle_msg(packet, session, s.max_packet_size)
+          response = handle_msg(s, packet, session)
         elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
-          response = handle_fin(packet, session, s.max_packet_size)
+          response = handle_fin(s, packet, session)
         else
           raise(IOError, "Unknown packet type: #{packet.type}")
         end
