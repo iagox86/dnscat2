@@ -103,7 +103,11 @@ class Dnscat2
       end
     rescue IOError => e
       if(!session_id.nil?)
-        # TODO Send a FIN if we can
+        # Attempt to close the connection cleanly, ignoring errors
+        begin
+          s.send(Packet.create_fin(session.id))
+        rescue
+        end
         Session.destroy(session_id)
       end
 
