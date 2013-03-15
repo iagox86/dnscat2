@@ -41,13 +41,13 @@ class DnscatTest
       :name => "Initial SYN, session 0x4321 (SEQ 0x5555 => 0x4444) (should create new session)",
     }
 
-    return # TODO: Enable more tests as we figure things out
-
     #                            ID          SEQ     ACK          DATA
     @data << {
       :send => Packet.create_msg(session_id, my_seq, their_seq,   "This is some incoming data"),
       :recv => ""
     }
+
+    return # TODO: Enable more tests as we figure things out
 
     @data << {
       :send => Packet.create_msg(session_id, 1,   0,   "This is more data with a bad SEQ"),

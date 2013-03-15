@@ -25,7 +25,7 @@ class Packet
 
   def parse_syn(data)
     at_least?(data, 4)
-    @options, @seq = data.unpack("nn")
+    @seq, @options = data.unpack("nn")
     data = data[4..-1]
 
     # Verify that that was the entire packet

@@ -28,8 +28,8 @@ class Dnscat2
     end
 
     # Validate the sequence number
-    if(packet.seq != session.their_seq)
-      Log.log(session.id, "Bad sequence number; expected #{session.their_seq}, got #{packet.seq}")
+    if(session.their_seq != packet.seq)
+      Log.log(session.id, "Bad sequence number; expected 0x%04x, got 0x%04x" % [session.their_seq, packet.seq])
       # TODO: Re-ACK what we've received?
       return
     end
