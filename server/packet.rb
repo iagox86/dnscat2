@@ -5,7 +5,7 @@ class Packet
   MESSAGE_TYPE_FIN        = 0x02
   MESSAGE_TYPE_STRAIGHTUP = 0xFF
 
-  attr_reader :length, :data, :type, :session_id, :options, :seq, :ack
+  attr_reader :data, :type, :session_id, :options, :seq, :ack
 
   def at_least?(data, needed)
     if(data.length < needed)
@@ -49,10 +49,10 @@ class Packet
     raise(Exception, "Not implemented yet")
   end
 
-  def initialize(data, length)
-    # Store the length
-    @length = length
+  def initialize(data)
+    # Parse the hader
     data = parse_header(data)
+
     # Parse the message differently depending on what type it is
     if(@type == MESSAGE_TYPE_SYN)
       parse_syn(data)
@@ -67,47 +67,8 @@ class Packet
     end
   end
 
-  def Packet.read_length(s)
-    # Read the first two bytes
-    length = s.read(2)
-
-    # Verify that it was read successfully
-    if(length.nil?)
-      raise(IOError, "Couldn't read packet length")
-    end
-
-    # Treat the byte as a 2-byte big endian integer
-    length = length.unpack("n").first
-
-    # Validate that the length is a sane value (I'm not sure it's possible to
-    # fail this check)
-    if(length <= 0 || length > 65535)
-      raise(IOError, "Invalid length value received")
-    end
-
-    return length
-  end
-
-  def Packet.read_data(s, length)
-    data = s.read(length)
-    if(data.length != length)
-      raise(IOError, "Connection closed while reading data")
-    end
-
-    return data
-  end
-
-  def Packet.read(s)
-    length = read_length(s)
-    data = read_data(s, length)
-
-    return Packet.new(data, length)
-  end
-
-  def Packet.write(s, data)
-    length = [data.length].pack("n")
-
-    s.write(length + data)
+  def Packet.parse(data)
+    return Packet.new(data)
   end
 
   def Packet.create_header(type, session_id)
@@ -120,7 +81,7 @@ class Packet
   end
 
   def Packet.syn_header_size()
-    return create_syn(0, 0, nil).length + 2
+    return create_syn(0, 0, nil).length
   end
 
   def Packet.create_msg(session_id, seq, ack, msg)
@@ -128,7 +89,7 @@ class Packet
   end
 
   def Packet.msg_header_size()
-    return create_msg(0, 0, 0, "").length + 2
+    return create_msg(0, 0, 0, "").length
   end
 
   def Packet.create_fin(session_id)
@@ -136,6 +97,6 @@ class Packet
   end
 
   def Packet.fin_header_size()
-    return create_fin(0).length + 2
+    return create_fin(0).length
   end
 end

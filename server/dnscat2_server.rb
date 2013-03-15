@@ -2,6 +2,7 @@ $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'socket'
 
+require 'dnscat_test'
 require 'log'
 require 'packet'
 require 'session'
@@ -64,33 +65,33 @@ class Dnscat2
     raise(IOError, "Not implemented")
   end
 
-  def Dnscat2.go(s, max_packet_size = nil)
-    if(max_packet_size <= 16)
+  def Dnscat2.go(s)
+    if(s.max_packet_size < 16)
       raise(Exception, "max_packet_size is too small")
     end
 
     session_id = nil
     begin
       loop do
-        packet = Packet.read(s)
+        packet = Packet.parse(s.recv())
         session = Session.find(packet.session_id)
 
         response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)
-          response = handle_syn(packet, session, max_packet_size)
+          response = handle_syn(packet, session, s.max_packet_size)
         elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
-          response = handle_msg(packet, session, max_packet_size)
+          response = handle_msg(packet, session, s.max_packet_size)
         elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
-          response = handle_fin(packet, session, max_packet_size)
+          response = handle_fin(packet, session, s.max_packet_size)
         else
           raise(IOError, "Unknown packet type: #{packet.type}")
         end
 
         if(response)
-          if(response.length + 2> max_packet_size)
+          if(response.length > s.max_packet_size)
             raise(IOError, "Tried to send packet longer than max_packet_length")
           end
-          Packet.write(s, response)
+          s.send(response)
         end
       end
     rescue IOError => e
@@ -107,77 +108,7 @@ class Dnscat2
   end
 end
 
-class Test
-  def initialize()
-    @data = ''
-  end
-
-  def queue(data)
-    @data += [data.length].pack("n")
-    @data += data
-  end
-
-  def read(n)
-    if(@data.length < n)
-      #puts("[[Test]] :: Done!")
-      exit(0)
-    end
-
-    response = @data[0,n]
-    @data = @data[n..-1]
-
-    #puts("[[Test]] :: Sending #{response.unpack("H*")}")
-
-    return response
-  end
-
-  def write(data)
-    #puts("[[Test]] :: Received #{data.unpack("H*")}")
-  end
-
-  def close()
-    # do nothing
-  end
-end
-
-test = Test.new
-
-test.queue(Packet.create_syn(1234, 0, 0))
-test.queue(Packet.create_syn(1234, 0, 0)) # Duplicate SYN
-test.queue(Packet.create_syn(4321, 0, 0))
-
-#                            ID    SEQ  ACK  DATA
-test.queue(Packet.create_msg(1234, 0,   0,   "This is some incoming data"))
-test.queue(Packet.create_msg(1234, 1,   0,   "This is more data with a bad SEQ"))
-test.queue(Packet.create_msg(1234, 100, 0,   "This is more data with a bad SEQ"))
-test.queue(Packet.create_msg(1234, 26,  0,   "Data with proper SYN but bad ACK (should trigger re-send)"))
-test.queue(Packet.create_msg(1234, 83,  1,   ""))
-test.queue(Packet.create_msg(1234, 83,  1,   ""))
-test.queue(Packet.create_msg(1234, 83,  1,   ""))
-test.queue(Packet.create_msg(1234, 83,  1,   "a"))
-test.queue(Packet.create_msg(1234, 83,  1,   "")) # Bad SEQ
-test.queue(Packet.create_msg(1234, 84,  10,  "Hello")) # Bad SEQ
-test.queue(Packet.create_fin(1234))
-
 session = Session.find(1234)
 session.queue_outgoing("This is some outgoing data queued up!")
-Dnscat2.go(test, 256)
+Dnscat2.go(DnscatTest.new)
 
-#def get_socket_string(addr)
-#  return "#{addr[3]}:#{addr[1]} (#{addr[2]})"
-#end
-#
-#server = TCPServer.new(2000)
-#
-#puts("Server ready: #{get_socket_string(server.addr)}")
-#loop do
-#  Thread.start(server.accept) do |s|
-#    begin
-#      puts("Received a connection from #{get_socket_string(s.peeraddr)}")
-#      go_tcp(s)
-#    rescue Exception => e
-#      puts(e.inspect)
-#      puts(e.backtrace)
-#    end
-#  end
-#end
