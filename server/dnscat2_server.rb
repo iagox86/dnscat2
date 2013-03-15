@@ -9,7 +9,7 @@ require 'session'
 # This class should be totally stateless, and rely on the Session class
 # for any long-term session storage
 class Dnscat2
-  def Dnscat2.handle_syn(packet, session)
+  def Dnscat2.handle_syn(packet, session, max_packet_size)
     if(!session.syn_valid?())
       Log.log(session.id, "SYN invalid in this state")
       return nil
@@ -23,7 +23,7 @@ class Dnscat2
     return Packet.create_syn(session.id, session.my_seq, nil)
   end
 
-  def Dnscat2.handle_msg(packet, session)
+  def Dnscat2.handle_msg(packet, session, max_packet_size)
     if(!session.msg_valid?())
       Log.log("MSG invalid in this state")
       return nil
@@ -46,7 +46,7 @@ class Dnscat2
     session.increment_their_seq(packet.data.length)
 
     # Get any data we have queued
-    data = session.read_outgoing()
+    data = session.read_outgoing(max_packet_size - Packet.msg_header_size)
 
     Log.log(session.id, "Received MSG with #{packet.data.length} bytes; responding with our own message (#{data.length} bytes)")
     Log.log(session.id, ">> \"#{packet.data}\"")
@@ -59,12 +59,16 @@ class Dnscat2
                              data)
   end
 
-  def Dnscat2.handle_fin(packet, session)
+  def Dnscat2.handle_fin(packet, session, max_packet_size)
     Log.log(session.id, "Received a FIN, don't know how to handle it")
     raise(IOError, "Not implemented")
   end
 
-  def Dnscat2.go(s)
+  def Dnscat2.go(s, max_packet_size = nil)
+    if(max_packet_size <= 16)
+      raise(Exception, "max_packet_size is too small")
+    end
+
     session_id = nil
     begin
       loop do
@@ -73,16 +77,19 @@ class Dnscat2
 
         response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)
-          response = handle_syn(packet, session)
+          response = handle_syn(packet, session, max_packet_size)
         elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
-          response = handle_msg(packet, session)
+          response = handle_msg(packet, session, max_packet_size)
         elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
-          response = handle_fin(packet, session)
+          response = handle_fin(packet, session, max_packet_size)
         else
           raise(IOError, "Unknown packet type: #{packet.type}")
         end
 
         if(response)
+          if(response.length + 2> max_packet_size)
+            raise(IOError, "Tried to send packet longer than max_packet_length")
+          end
           Packet.write(s, response)
         end
       end
@@ -138,18 +145,23 @@ test = Test.new
 test.queue(Packet.create_syn(1234, 0, 0))
 test.queue(Packet.create_syn(1234, 0, 0)) # Duplicate SYN
 test.queue(Packet.create_syn(4321, 0, 0))
-test.queue(Packet.create_msg(1234, 0, 0,   "This is some incoming data"))
-test.queue(Packet.create_msg(1234, 1, 0,   "This is more data with a bad SEQ"))
-test.queue(Packet.create_msg(1234, 100, 0, "This is more data with a bad SEQ"))
-test.queue(Packet.create_msg(1234, 26, 0,  "Data with proper SYN but bad ACK (should trigger re-send)"))
-test.queue(Packet.create_msg(1234, 83, 5,  ""))
-test.queue(Packet.create_msg(1234, 83, 5,  ""))
-test.queue(Packet.create_msg(1234, 83, 5,  ""))
+
+#                            ID    SEQ  ACK  DATA
+test.queue(Packet.create_msg(1234, 0,   0,   "This is some incoming data"))
+test.queue(Packet.create_msg(1234, 1,   0,   "This is more data with a bad SEQ"))
+test.queue(Packet.create_msg(1234, 100, 0,   "This is more data with a bad SEQ"))
+test.queue(Packet.create_msg(1234, 26,  0,   "Data with proper SYN but bad ACK (should trigger re-send)"))
+test.queue(Packet.create_msg(1234, 83,  1,   ""))
+test.queue(Packet.create_msg(1234, 83,  1,   ""))
+test.queue(Packet.create_msg(1234, 83,  1,   ""))
+test.queue(Packet.create_msg(1234, 83,  1,   "a"))
+test.queue(Packet.create_msg(1234, 83,  1,   "")) # Bad SEQ
+test.queue(Packet.create_msg(1234, 84,  10,  "Hello")) # Bad SEQ
 test.queue(Packet.create_fin(1234))
 
 session = Session.find(1234)
 session.queue_outgoing("This is some outgoing data queued up!")
-Dnscat2.go(test)
+Dnscat2.go(test, 256)
 
 #def get_socket_string(addr)
 #  return "#{addr[3]}:#{addr[1]} (#{addr[2]})"

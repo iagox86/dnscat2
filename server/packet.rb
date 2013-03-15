@@ -119,11 +119,23 @@ class Packet
     return create_header(MESSAGE_TYPE_SYN, session_id) + [seq, options].pack("nn")
   end
 
+  def Packet.syn_header_size()
+    return create_syn(0, 0, nil).length + 2
+  end
+
   def Packet.create_msg(session_id, seq, ack, msg)
     return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, msg].pack("nnA*")
   end
 
+  def Packet.msg_header_size()
+    return create_msg(0, 0, 0, "").length + 2
+  end
+
   def Packet.create_fin(session_id)
     return create_header(MESSAGE_TYPE_FIN, session_id)
+  end
+
+  def Packet.fin_header_size()
+    return create_fin(0).length + 2
   end
 end
