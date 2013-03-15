@@ -113,8 +113,6 @@ class DnscatTest
       :name => "Sending a blank MSG packet, expecting to receive a black MSG packet",
     }
 
-    return # TODO: Enable more tests as we figure things out
-
     @data << {
       :send => Packet.create_fin(session_id),
       :recv => Packet.create_fin(session_id),
@@ -122,6 +120,8 @@ class DnscatTest
     }
 
     @expected_response = nil
+
+    return
   end
 
   def recv()

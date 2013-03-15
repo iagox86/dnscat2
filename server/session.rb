@@ -112,6 +112,6 @@ class Session
   end
 
   def destroy()
-    Sessions.destroy(@id)
+    Session.destroy(@id)
   end
 end

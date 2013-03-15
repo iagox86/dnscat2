@@ -58,8 +58,9 @@ class Dnscat2
   end
 
   def Dnscat2.handle_fin(packet, session, max_packet_size)
-    Log.log(session.id, "Received a FIN, don't know how to handle it")
-    raise(IOError, "Not implemented")
+    session.destroy()
+
+    return Packet.create_fin(session.id)
   end
 
   def Dnscat2.go(s)
