@@ -1,3 +1,4 @@
+require 'log'
 
 class Session
   @@sessions = {}
@@ -89,10 +90,8 @@ class Session
   def Session.find(id)
     # Get or create the session
     if(@@sessions[id].nil?)
-      puts("[[#{id}]] :: create")
+      Log.log(id, "Creating new session")
       @@sessions[id] = Session.new(id)
-    else
-      puts("[[#{id}]] :: found")
     end
 
     return @@sessions[id]

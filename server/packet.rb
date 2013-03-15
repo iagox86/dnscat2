@@ -24,8 +24,6 @@ class Packet
   end
 
   def parse_syn(data)
-    puts("Received a SYN")
-
     at_least?(data, 4)
     @options, @seq = data.unpack("nn")
     data = data[4..-1]
@@ -37,15 +35,11 @@ class Packet
   end
 
   def parse_msg(data)
-    puts("Received a MSG")
-
     @seq, @ack = data.unpack("nn")
     @data = data[4..-1] # Remove the first four bytes
   end
 
   def parse_fin(data)
-    puts("Received a FIN")
-
     if(data.length > 0)
       raise(IOError, "Extra data on the end of a FIN packet")
     end
@@ -106,8 +100,6 @@ class Packet
   def Packet.read(s)
     length = read_length(s)
     data = read_data(s, length)
-
-    puts("Received #{length} bytes!")
 
     return Packet.new(data, length)
   end

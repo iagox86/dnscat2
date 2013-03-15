@@ -2,16 +2,20 @@ $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'socket'
 
-require 'session'
+require 'log'
 require 'packet'
+require 'session'
 
 # This class should be totally stateless, and rely on the Session class
 # for any long-term session storage
 class Dnscat2
   def Dnscat2.handle_syn(packet, session)
     if(!session.syn_valid?())
-      raise(IOError, "SYN invalid in this state")
+      Log.log(session.id, "SYN invalid in this state")
+      return nil
     end
+
+    Log.log(session.id, "Received SYN; responding with SYN")
 
     session.set_their_seq(packet.seq)
     session.set_established()
@@ -21,12 +25,14 @@ class Dnscat2
 
   def Dnscat2.handle_msg(packet, session)
     if(!session.msg_valid?())
-      raise(IOError, "MSG invalid in this state")
+      Log.log("MSG invalid in this state")
+      return nil
     end
 
     # Validate the sequence number
     if(packet.seq != session.their_seq)
-      puts("Bad sequence number; expected #{session.seq}, got #{packet.seq}")
+      Log.log(session.id, "Bad sequence number; expected #{session.their_seq}, got #{packet.seq}")
+      # TODO: Re-ACK what we've received?
       return
     end
 
@@ -42,11 +48,20 @@ class Dnscat2
     # Get any data we have queued
     data = session.read_outgoing()
 
+    Log.log(session.id, "Received MSG with #{packet.data.length} bytes; responding with our own message (#{data.length} bytes)")
+    Log.log(session.id, ">> \"#{packet.data}\"")
+    Log.log(session.id, "<< \"#{data}\"")
+
     # Build the new packet
     return Packet.create_msg(session.id,
                              session.my_seq,
                              session.their_seq,
                              data)
+  end
+
+  def Dnscat2.handle_fin(packet, session)
+    Log.log(session.id, "Received a FIN, don't know how to handle it")
+    raise(IOError, "Not implemented")
   end
 
   def Dnscat2.go(s)
@@ -55,8 +70,6 @@ class Dnscat2
       loop do
         packet = Packet.read(s)
         session = Session.find(packet.session_id)
-
-        puts(packet.inspect)
 
         response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)
@@ -99,17 +112,20 @@ class Test
 
   def read(n)
     if(@data.length < n)
-      raise(Exception, "No data left")
+      #puts("[[Test]] :: Done!")
+      exit(0)
     end
 
     response = @data[0,n]
     @data = @data[n..-1]
 
+    #puts("[[Test]] :: Sending #{response.unpack("H*")}")
+
     return response
   end
 
   def write(data)
-    puts("The server tried to send: #{data.unpack("H*")}")
+    #puts("[[Test]] :: Received #{data.unpack("H*")}")
   end
 
   def close()
@@ -119,29 +135,17 @@ end
 
 test = Test.new
 
-test.queue( [
-              Packet::MESSAGE_TYPE_SYN,  # Type
-              0x1234,            # Session id
-              0x0000,            # Options
-              0x0000,            # Initial seq
-            ].pack("Cnnn"))
+test.queue(Packet.create_syn(1234, 0, 0))
+test.queue(Packet.create_syn(1234, 0, 0)) # Duplicate SYN
+test.queue(Packet.create_syn(4321, 0, 0))
+test.queue(Packet.create_msg(1234, 0, 0,   "This is some incoming data"))
+test.queue(Packet.create_msg(1234, 1, 0,   "This is more data with a bad SEQ"))
+test.queue(Packet.create_msg(1234, 100, 0, "This is more data with a bad SEQ"))
+test.queue(Packet.create_msg(1234, 26, 0,  "Data with proper SYN but bad ACK (should trigger re-send)"))
+test.queue(Packet.create_msg(1234, 83, 5,  ""))
+test.queue(Packet.create_fin(1234))
 
-test.queue( [
-              Packet::MESSAGE_TYPE_SYN, # Type
-              0x4321,            # Session id
-              0x0000,            # Options
-              0x0000,            # Initial seq
-            ].pack("Cnnn"))
-
-test.queue( [
-              Packet::MESSAGE_TYPE_MSG, # Type
-              0x1234,            # Session id
-              0x0000,            # SEQ
-              0x0000,            # ACK
-              "This is some incoming data"
-            ].pack("CnnnA*"))
-
-session = Session.find(0x1234)
+session = Session.find(1234)
 session.queue_outgoing("This is some outgoing data queued up!")
 Dnscat2.go(test)
 
