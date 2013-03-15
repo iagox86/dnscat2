@@ -58,8 +58,12 @@ class Dnscat2
   end
 
   def Dnscat2.handle_fin(packet, session, max_packet_size)
-    session.destroy()
+    if(!session.fin_valid?())
+      Log.log(session.id, "FIN invalid in this state")
+      return nil
+    end
 
+    session.destroy()
     return Packet.create_fin(session.id)
   end
 

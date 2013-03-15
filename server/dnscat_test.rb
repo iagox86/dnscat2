@@ -12,6 +12,9 @@ class DnscatTest
   MY_DATA3 = "abcdef"
   THEIR_DATA = "This is some outgoing data queued up!"
 
+  THEIR_ISN = 0x4444
+  MY_ISN    = 0x3333
+
   def max_packet_size()
     return 256
   end
@@ -20,8 +23,8 @@ class DnscatTest
     @data = []
 
     session_id = 0x1234
-    my_seq     = 0x3333
-    their_seq  = 0x4444
+    my_seq     = MY_ISN
+    their_seq  = THEIR_ISN
 
     @data << {
     #                            ID          SEQ        ACK                      DATA
@@ -31,14 +34,14 @@ class DnscatTest
     }
 
     @data << {
-    #                            ID      ISN
+    #                            ID          ISN
       :send => Packet.create_syn(session_id, my_seq),
       :recv => Packet.create_syn(session_id, their_seq),
       :name => "Initial SYN (SEQ 0x%04x => 0x%04x)" % [my_seq, their_seq],
     }
 
     @data << {
-    #                            ID      ISN     Options
+    #                            ID          ISN     Options
       :send => Packet.create_syn(session_id, 0x3333, 0), # Duplicate SYN
       :recv => nil,
       :name => "Duplicate SYN (should be ignored)",
@@ -121,12 +124,72 @@ class DnscatTest
     }
 
     @data << {
+    #                            ID          ISN
+      :send => Packet.create_syn(session_id, my_seq),
+      :recv => nil,
+      :name => "Attempting to send a SYN before the FIN - should be ignored",
+    }
+
+    @data << {
       :send => Packet.create_fin(session_id),
       :recv => Packet.create_fin(session_id),
       :name => "Sending a FIN, should receive a FIN",
     }
 
+    # Re-set the ISNs
+    my_seq     = MY_ISN - 1000
+    their_seq  = THEIR_ISN
+    @data << {
+    #                            ID          ISN
+      :send => Packet.create_syn(session_id, my_seq),
+      :recv => Packet.create_syn(session_id, their_seq),
+      :name => "Attempting re-use the old session id - this should work flawlessly",
+    }
+
+    @data << {
+    #                            ID          SEQ        ACK                      DATA
+      :send => Packet.create_msg(session_id, my_seq,    their_seq,               MY_DATA),
+      :recv => Packet.create_msg(session_id, their_seq, my_seq + MY_DATA.length, ""),
+      :name => "Sending initial data in the new session",
+    }
+    my_seq += MY_DATA.length # Update my seq
     @expected_response = nil
+
+    # Re-set the ISNs
+    my_seq     = MY_ISN - 1000
+    their_seq  = THEIR_ISN
+    @data << {
+    #                            ID          ISN
+      :send => Packet.create_syn(0x4411, my_seq),
+      :recv => Packet.create_syn(0x4411, their_seq),
+      :name => "Attempting re-use the old session id - this should work flawlessly",
+    }
+
+    @data << {
+    #                            ID          SEQ        ACK                      DATA
+      :send => Packet.create_msg(0x4411, my_seq,    their_seq,               MY_DATA),
+      :recv => Packet.create_msg(0x4411, their_seq, my_seq + MY_DATA.length, ""),
+      :name => "Sending initial data in the new session",
+    }
+
+    # Close both sessions
+    @data << {
+      :send => Packet.create_fin(session_id),
+      :recv => Packet.create_fin(session_id),
+      :name => "Sending a FIN, should receive a FIN",
+    }
+
+    @data << {
+      :send => Packet.create_fin(0x4411),
+      :recv => Packet.create_fin(0x4411),
+      :name => "Sending a FIN, should receive a FIN",
+    }
+
+    @data << {
+      :send => Packet.create_fin(session_id),
+      :recv => nil,
+      :name => "Sending a FIN for a session that's already closed, it should be ignored",
+    }
 
     return
   end
@@ -147,7 +210,7 @@ class DnscatTest
     if(data != @expected_response)
       @@failure += 1
       Log.log("FAIL", @current_test)
-      puts(" >> Expected: #{Packet.parse(@expected_response)}")
+      puts(" >> Expected: #{@expected_response.nil? ? "<no response> " : Packet.parse(@expected_response)}")
       puts(" >> Received: #{Packet.parse(data)}")
     else
       @@success += 1
