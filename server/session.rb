@@ -1,3 +1,14 @@
+##
+# session.rb
+# Created March, 2013
+# By Ron Bowes
+#
+# See: LICENSE.txt
+#
+# Handles dnscat2 sessions. Uses a global list of sessions (@@sessions), so
+# they aren't bound to any particular instance of this class.
+##
+
 require 'log'
 
 class Session

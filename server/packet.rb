@@ -1,3 +1,13 @@
+##
+# packet.rb
+# Created March, 2013
+# By Ron Bowes
+#
+# See: LICENSE.txt
+#
+# Builds and parses dnscat2 packets.
+##
+
 class Packet
   # Message types
   MESSAGE_TYPE_SYN        = 0x00

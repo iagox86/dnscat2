@@ -1,3 +1,10 @@
+Immediate needs:
+- Proper synchronization (mutexes)
+- A client
+- DNS
+
+Future stuff:
+- Other protocols (ping/http/etc)
 - Signing/encryption
 - Compression
 - SOCKS/HTTP proxy

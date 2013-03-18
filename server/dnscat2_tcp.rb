@@ -1,3 +1,13 @@
+##
+# dnscat2_tcp.rb
+# Created March, 2013
+# By Ron Bowes
+#
+# See: LICENSE.txt
+#
+# A TCP wrapper for the dnscat2 protocol (mostly for testing)
+##
+
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'dnscat2_server'

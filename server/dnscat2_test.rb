@@ -1,3 +1,14 @@
+##
+# dnscat2_test.rb
+# Created March, 2013
+# By Ron Bowes
+#
+# See: LICENSE.txt
+#
+# Self tests for dnscat2_server.rb - implements a fake "client" that's
+# basically just a class.
+##
+
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'dnscat2_server'

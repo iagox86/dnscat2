@@ -4,6 +4,9 @@
 # By Ron Bowes
 #
 # See: LICENSE.txt
+#
+# Implements basically the full Dnscat2 protocol. Doesn't care about
+# lower-level protocols.
 ##
 require 'log'
 require 'packet'
