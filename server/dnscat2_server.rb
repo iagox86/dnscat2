@@ -64,9 +64,10 @@ class Dnscat2
   end
 
   def Dnscat2.handle_fin(pipe, packet, session)
+    # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!session.fin_valid?())
       Log.log(session.id, "FIN invalid in this state")
-      return Packet.create_fin(session.id)
+      return nil
     end
 
     session.destroy()

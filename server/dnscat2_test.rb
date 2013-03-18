@@ -36,7 +36,7 @@ class DnscatTest
     @data << {
     #                            ID          SEQ        ACK                      DATA
       :send => Packet.create_fin(session_id),
-      :recv => Packet.create_fin(session_id),
+      :recv => nil,
       :name => "Sending an unexpected FIN (should respond with a FIN)",
     }
 
@@ -215,8 +215,8 @@ class DnscatTest
 
     @data << {
       :send => Packet.create_fin(session_id),
-      :recv => Packet.create_fin(session_id),
-      :name => "Sending a FIN for a session that's already closed, it should respond with another FIN",
+      :recv => nil,
+      :name => "Sending a FIN for a session that's already closed, it should ignore it",
     }
 
     return
