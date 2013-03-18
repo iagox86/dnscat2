@@ -5,8 +5,6 @@
 #
 # See: LICENSE.txt
 ##
-require 'socket'
-
 require 'log'
 require 'packet'
 require 'session'
@@ -77,6 +75,7 @@ class Dnscat2
       return nil
     end
 
+    Log.log(session.id, "Received FIN for session #{session.id}; closing session")
     session.destroy()
     return Packet.create_fin(session.id)
   end
@@ -124,6 +123,7 @@ class Dnscat2
         if(!session_id.nil?)
           Log.log("ERROR", "Exception thrown; attempting to close session #{session_id}...")
           Session.destroy(session_id)
+          Log.log("ERROR", "Propagating the exception...")
         end
       rescue
         # Do nothing

@@ -1,7 +1,5 @@
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
-require 'socket'
-
 require 'dnscat2_server'
 require 'log'
 require 'packet'

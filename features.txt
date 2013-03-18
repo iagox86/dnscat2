@@ -256,8 +256,6 @@ Client
 - The "adapter" will interface witht he outside world
 - Multiple connections will require multiple instances of 'controller'
 
-Other stuff
------------
 +------+
 | TODO |
 +------+
