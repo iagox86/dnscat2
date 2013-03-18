@@ -8,8 +8,9 @@ require 'session'
 # for any long-term session storage
 class Dnscat2
   def Dnscat2.handle_syn(pipe, packet, session)
+    # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!session.syn_valid?())
-      Log.log(session.id, "SYN invalid in this state")
+      Log.log(session.id, "SYN invalid in this state (ignored)")
       return nil
     end
 
@@ -23,8 +24,8 @@ class Dnscat2
 
   def Dnscat2.handle_msg(pipe, packet, session)
     if(!session.msg_valid?())
-      Log.log(session.id, "MSG invalid in this state")
-      return nil
+      Log.log(session.id, "MSG invalid in this state (responding with an error)")
+      return Packet.create_fin(session.id)
     end
 
     # Validate the sequence number
@@ -65,7 +66,7 @@ class Dnscat2
   def Dnscat2.handle_fin(pipe, packet, session)
     if(!session.fin_valid?())
       Log.log(session.id, "FIN invalid in this state")
-      return nil
+      return Packet.create_fin(session.id)
     end
 
     session.destroy()
@@ -103,11 +104,6 @@ class Dnscat2
       end
     rescue IOError => e
       if(!session_id.nil?)
-        # Attempt to close the connection cleanly, ignoring errors
-        begin
-          pipe.send(Packet.create_fin(session.id))
-        rescue
-        end
         Session.destroy(session_id)
       end
 

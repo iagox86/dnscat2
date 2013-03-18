@@ -29,8 +29,15 @@ class DnscatTest
     @data << {
     #                            ID          SEQ        ACK                      DATA
       :send => Packet.create_msg(session_id, my_seq,    their_seq,               MY_DATA),
-      :recv => nil,
-      :name => "Sending an unexpected MSG",
+      :recv => Packet.create_fin(session_id),
+      :name => "Sending an unexpected MSG (should respond with a FIN)",
+    }
+
+    @data << {
+    #                            ID          SEQ        ACK                      DATA
+      :send => Packet.create_fin(session_id),
+      :recv => Packet.create_fin(session_id),
+      :name => "Sending an unexpected FIN (should respond with a FIN)",
     }
 
     @data << {
@@ -208,8 +215,8 @@ class DnscatTest
 
     @data << {
       :send => Packet.create_fin(session_id),
-      :recv => nil,
-      :name => "Sending a FIN for a session that's already closed, it should be ignored",
+      :recv => Packet.create_fin(session_id),
+      :name => "Sending a FIN for a session that's already closed, it should respond with another FIN",
     }
 
     return
