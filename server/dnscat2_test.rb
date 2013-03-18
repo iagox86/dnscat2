@@ -252,15 +252,18 @@ class DnscatTest
   end
 
   def DnscatTest.do_test()
-    @@success = 0
-    @@failure = 0
+    begin
+      @@success = 0
+      @@failure = 0
 
-    Session.debug_set_isn(0x4444)
-    session = Session.find(0x1234)
-    session.queue_outgoing(THEIR_DATA)
-    Dnscat2.go(DnscatTest.new)
-
-    puts("TESTS PASSED: #{@@success} / #{@@success + @@failure}")
+      Session.debug_set_isn(0x4444)
+      session = Session.find(0x1234)
+      session.queue_outgoing(THEIR_DATA)
+      Dnscat2.go(DnscatTest.new)
+    rescue IOError => e
+      Log.log("RESULT", "IOError was thrown (as expected): #{e}")
+      Log.log("RESULT", "Tests passed: #{@@success} / #{@@success + @@failure}")
+    end
   end
 end
 

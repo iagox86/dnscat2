@@ -1,3 +1,10 @@
+##
+# dnscat2_server.rb
+# Created March, 2013
+# By Ron Bowes
+#
+# See: LICENSE.txt
+##
 require 'socket'
 
 require 'log'
@@ -75,14 +82,18 @@ class Dnscat2
   end
 
   def Dnscat2.go(pipe)
-    if(pipe.max_packet_size < 16)
-      raise(Exception, "max_packet_size is too small")
-    end
-
-    session_id = nil
     begin
+      if(pipe.max_packet_size < 16)
+        raise(Exception, "max_packet_size is too small")
+      end
+
+      session_id = nil
       loop do
         packet = Packet.parse(pipe.recv())
+
+        # Store the session_id in a variable so we can close it if there's a problem
+        session_id = packet.session_id
+
         session = Session.find(packet.session_id)
 
         response = nil
@@ -104,14 +115,21 @@ class Dnscat2
         end
       end
     rescue IOError => e
-      if(!session_id.nil?)
-        Session.destroy(session_id)
+      # Don't destroy the session on IOErrors, a new connection can resume the same session
+      raise(e)
+
+    rescue Exception => e
+      # Destroy the session on non-IOError exceptions
+      begin
+        if(!session_id.nil?)
+          Log.log("ERROR", "Exception thrown; attempting to close session #{session_id}...")
+          Session.destroy(session_id)
+        end
+      rescue
+        # Do nothing
       end
 
-      puts(e.inspect)
-      puts(e.backtrace)
+      raise(e)
     end
-
-    pipe.close()
   end
 end

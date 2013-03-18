@@ -14,9 +14,8 @@ class DnscatTCP
   def recv(data)
     length = @s.read(2)
     if(length.length != 2)
-      raise(IOError, "Couldn't")
+      raise(IOError, "Connection closed while reading the length")
     end
-  # TODO
   end
 
   def close()
