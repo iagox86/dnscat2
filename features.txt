@@ -1,43 +1,268 @@
-This is purely brainstorming, but here we go...
++--------------+
+| Introduction |
++--------------+
 
-Notes
------
-- All fields are encoded as big endian
-- The "controller" will manage sessions and data encoding
-- The "driver" will take the stream of bytes and send a DNS packet
-- The "adapter" will interface witht he outside world
-- Only the client will be in C, the server is more complex and will be
-  written in ruby
-- Multiple sessions will require multiple instances of 'controller'
+This document describes the dnscat2 protocol.
 
-Protocol
---------
-Header (common to every packet):
-- (uint16_t) length (not including the length field)
-- (uint8_t)  message_type
-- (uint16_t) session_id
+I'm referring to this protocol as the dnscat2 protocol, although,
+strictly speaking, it's not specific to dnscat or DNS in any way.
+Basically, I needed a protocol that could track logical connections over
+multiple lower-level connections/datagrams/whatever that aren't
+necessarily reliable and where bandwidth is extremely limited.
 
+Because this is designed for dnscat, it is poll-based - that is, the
+client sends a packet, and the server responds to it. The server can't
+know where the client is or how to initiate a connection, so that's
+taken into account.
+
+This protocol is datagram-based, has 16-bit session_id values that can
+track the connection over multiple lower level connections, and handles
+lower-level dropped/duplicated/out-of-order packets.
+
+Below, I give a few details on what's required to make this work, a
+description of how connections work, some constants used in the
+messages, and, finally, a breakdown of the messages themselves.
+
++---------+
+| License |
++---------+
+
+See LICENSE.TXT.
+
++-------------+
+| Connections |
++-------------+
+
+A valid connection starts with the client sending a SYN to the server,
+and the server responding to that SYN. From that point, until either
+side sends a FIN (or an arbitrary timeout value is reached), the
+connection is established.
+
+A FIN terminates a connection, and out-of-connection packets (for
+example, an unexpected SYN) are generally ignored.
+
+A good connection looks like this:
+
+ +----------------+
+ | Client  Server |  [[ Good connection ]]
+ +----------------+
+ |  SYN -->  |    |
+ |   |       v    |
+ |   |  <-- SYN   |
+ |   v       |    |
+ |  MSG -->  |    |
+ |   |       v    |
+ |   |  <-- MSG   |
+ |   v       |    |
+ |  MSG -->  |    |
+ |   |       v    |
+ |   |  <-- MSG   |
+ |  ...     ...   |
+ |  ...     ...   |
+ |  ...     ...   |
+ |   |       |    |
+ |   v       |    |
+ |  FIN -->  |    |
+ |           v    |
+ |      <-- FIN   |
+ +----------------+
+
+If there's an error in the connection, the server will return a FIN:
+
+ +----------------+
+ | Client  Server |  [[ Error during connection ]]
+ +----------------+
+ |  SYN -->  |    |
+ |   |       v    |
+ |   |  <-- SYN   |
+ |   v       |    |
+ |  MSG -->  |    |
+ |   |       v    |
+ |   |  <-- MSG   |
+ |   v       |    |
+ |  MSG -->  |    |
+ |   |       v    |
+ |   |  <-- FIN   |
+ |   v            |
+ | (nil)          |
+ +----------------+
+
+
+If an unexpected MSG is received, the server will respond with an error
+(FIN):
+
+ +----------------+
+ | Client  Server |  [[ Good connection ]]
+ +----------------+
+ |  MSG -->  |    |
+ |   |       v    |
+ |   |  <-- FIN   |
+ |   v            |
+ | (nil)          |
+ +----------------+
+
+If an unexpected FIN is received, the server will ignore it:
+
+ +----------------+
+ | Client  Server |  [[ Good connection ]]
+ +----------------+
+ |  FIN -->  |    |
+ |           v    |
+ |         (nil)  |
+ +----------------+
+
++-----------+
+| Constants |
++-----------+
+
+/* Message types */
+#define MESSAGE_TYPE_SYN        (0x00)
+#define MESSAGE_TYPE_MSG        (0x01)
+#define MESSAGE_TYPE_FIN        (0x02)
+#define MESSAGE_TYPE_STRAIGHTUP (0xFF)
+
+/* Options */
+/* (n/a) */
+
++----------+
+| Messages |
++----------+
+
+Note:
+- All fields are big endian.
+- It is assumed that we know the length of the datagram; if we don't, a
+  lower-level wrapper is required (eg, for TCP I prefix a 2-byte length
+  header)
+
+-----------------------
 MESSAGE_TYPE_SYN [0x00]
+-----------------------
+
+- (uint8_t)  message_type [0x00]
+- (uint16_t) session_id
 - (uint16_t) initial seq number
 - (uint16_t) options
+- (variable) other fields, as defined by 'options'
 
+(Client to server)
+- Each connection is initiated by a client sending a SYN containing a
+  random session_id and random initial sequence number to the server as
+  well as its requested options (no options are currently defined).
+- No options are currently defined, and the options field should be set
+  to 0.
+
+(Server to client)
+- The server responds with its own SYN, containing its initial sequence
+  number and its options.
+- No options are currently defined, and the options field should be set
+  to 0.
+
+(Notes)
+- Both the session_id and initial sequence number should be randomized,
+  not incremental or static or anything, to make connection-hijacking
+  attacks more difficult (the two sequence numbers and the session_id
+  give us approximately 48-bits of entropy per connection).
+
+(Out-of-state packets)
+- If a client or server receives an errant SYN, it should be ignored.
+
+------------------------
 MESSAGE_TYPE_MSG: [0x01]
-- (uint16_t) seq number
-- (uint16_t) ack number
+------------------------
+
+- (uint8_t)  message_type [0x01]
+- (uint16_t) session_id
+- (uint16_t) sequence number
+- (uint16_t) acknowledgement number
+- (variable) other fields, as defined by 'options'
 - (byte[]) data
 
+(Client to server)
+- The client should poll the server with a MSG from time to time (how
+  frequently depends on the transport protocol and how much efficiency
+  is desired).
+- The client sends its current sequence number, which is the intial
+  sequence number plus the number of bytes that have been acknowledged
+  by the server, so far.
+- The client also sends its current acknowledgement number, which is the
+  number of bytes it has successfully received from the server so far.
+- The client sends data, if any, as the rest of the datagram (zero bytes
+  of data is acceptable when polling for data).
+- If the message is not acknowledged in due time, the client should
+  re-transmit.
+- The acknowledgement message must contain proper sequence and
+  acknowledgement numbers, or it's ignored
+
+(Server to client)
+- The server responds to MSG packets with its own MSG.
+- The server's sequence number is the server's initial sequence number,
+  plus the number of bytes that have been send to (and acknowledged by)
+  the client, so far
+- The server's acknowledgement number is the client's initial sequence
+  number, plus the number of bytes successfully received so far.
+- The server's data, if any, is sent.
+- If the client's MSG contains invalid an invalid sequence or
+  acknowledgement number, the server responds with its current
+  sequence/acknowledgement/data (which will likely be a
+  re-transmission).
+
+(Out-of-state packets)
+- If a client receives an errant MSG from the server, it should be
+  ignored.
+- If a server receives an errant MSG from a client, it should respond
+  with a FIN and close the connection.
+
+------------------------
 MESSAGE_TYPE_FIN: [0x02]
-- n/a
+------------------------
 
+- (uint8_t)  message_type [0x02]
+- (uint16_t) session_id
+- (variable) other fields, as defined by 'options'
+
+(Client to server)
+- A client sends a FIN message to the server when it's completed its
+  connection.
+
+(Server to client)
+- The server responds to a client's FIN with its own FIN.
+- A server can also respond to a MSG with a FIN either when the
+  connection has been cleanly terminated, or when there's an error in
+  the connection.
+
+(Out-of-state packets)
+- Neither a client nor server should respond to an errant FIN packet,
+  because that behaviour can lead to infinite loops.
+
+-------------------------------
 MESSAGE_TYPE_STRAIGHTUP: [0xFF] // TODO
+-------------------------------
 - (byte[]) data
 
-All data will be encoded as a stream of bytes, up to a certain
-agreed-upon length value. 
+(Notes)
+- This is currently just an idea and isn't implemented.
+- The plan for this is to be a purely connectionless/datagram-style
+  message. A server would have to be specially configured to accept
+  STRAIGHTUP packets, and one would have to assume that they're only
+  going to come from a single source (since there is no associated
+  session_id or seq/ack numbers).
+
++----------------+
+| Implementation |
++----------------+
+Client
+- The "controller" will manage connections and data encoding
+- The "driver" will take the stream of bytes and send a DNS packet
+- The "adapter" will interface witht he outside world
+- Multiple connections will require multiple instances of 'controller'
 
 Other stuff
 -----------
-- I'd eventually like signing/encryption
++------+
+| TODO |
++------+
+Some ideas:
+- Signing/encryption
 - Compression
 - SOCKS/HTTP proxy
 
