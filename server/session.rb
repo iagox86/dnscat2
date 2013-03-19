@@ -22,6 +22,7 @@ class Session
   STATE_ESTABLISHED = 0x01
 
   def Session.debug_set_isn(n)
+    Log.log("WARNING", "Using debug code")
     @@isn = n
   end
 

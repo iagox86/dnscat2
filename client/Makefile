@@ -12,7 +12,7 @@ CFLAGS?=-Wall -g -DTESTMEMORY
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=test.o buffer.o tcp.o udp.o select_group.o types.o memory.o dns.o driver_tcp.o controller.o
+OBJS=test.o buffer.o tcp.o types.o memory.o dns.o session.o packet.o
 
 all: test
 	@echo Compile should be complete

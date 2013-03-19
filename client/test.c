@@ -3,11 +3,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "controller.h"
-#include "driver_tcp.h"
+#include "memory.h"
+#include "packet.h"
+#include "session.h"
 
 int main(int argc, const char *argv[])
 {
+#if 0
   controller_t *c = controller_create(tcp_get_driver("www.javaop.com", 80));
   size_t waiting;
 
@@ -31,6 +33,7 @@ int main(int argc, const char *argv[])
   /*buffer_print(c->incoming_data);*/
 
   controller_cleanup(c);
+#endif
 
   printf("Done!\n");
 
