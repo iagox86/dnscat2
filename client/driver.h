@@ -21,8 +21,6 @@ typedef struct
   close_t   *driver_close;
   cleanup_t *driver_cleanup;
 
-  uint16_t default_window_size;
-  uint16_t max_window_size;
   size_t max_packet_size;
 
 } driver_t;

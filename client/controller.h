@@ -22,7 +22,6 @@ typedef enum
 typedef struct
 {
   uint16_t id;
-  uint16_t window_size;
   uint16_t current_seq;
   uint16_t current_ack;
   size_t max_packet_size;

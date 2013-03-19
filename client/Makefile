@@ -23,7 +23,7 @@ remove:
 uninstall: remove
 
 clean:
-	rm -f *.o *.exe *.stackdump dnscat
+	rm -f *.o *.exe *.stackdump dnscat test
 
 test: ${OBJS}
 	${CC} ${CFLAGS} -o test ${OBJS}

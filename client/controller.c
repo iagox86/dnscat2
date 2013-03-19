@@ -19,7 +19,6 @@ controller_t *controller_create(driver_t *driver)
 
   c                  = safe_malloc(sizeof(controller_t));
   c->id              = current_id++;
-  c->window_size     = driver->default_window_size;
   c->current_seq     = 0;
   c->current_ack     = 0;
   c->max_packet_size = driver->max_packet_size;

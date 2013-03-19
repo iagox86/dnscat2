@@ -23,9 +23,7 @@ driver_t *tcp_get_driver(char *host, uint16_t port)
   driver->driver_recv    = driver_tcp_recv;
   driver->driver_close   = driver_tcp_close;
   driver->driver_cleanup = driver_tcp_cleanup;
-  driver->default_window_size = 1;
-  driver->max_window_size = 1;
-  driver->max_packet_size = 65535;
+  driver->max_packet_size = 1024;
 
   driver->driver = (void*) safe_malloc(sizeof(tcp_driver_t));
   ((tcp_driver_t*)driver->driver)->s    = -1;
