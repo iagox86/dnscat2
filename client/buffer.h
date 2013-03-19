@@ -96,6 +96,10 @@ void buffer_consume(buffer_t *buffer, size_t count);
 uint8_t *buffer_create_string(buffer_t *buffer, size_t *length);
 /* Does the same thing as above, but also frees up the buffer (good for a function return). */
 uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, size_t *length);
+/* Returns the conttents of the buffer - starting at the current position - in a newly allocated
+ * string. Returns the length in the length pointer. */
+uint8_t  *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length);
+
 
 /* Add data to the end of the buffer */
 buffer_t *buffer_add_int8(buffer_t *buffer,      const uint8_t data);

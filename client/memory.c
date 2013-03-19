@@ -151,6 +151,16 @@ char *safe_strdup_internal(const char *str, char *file, int line)
 	return ret;
 }
 
+void *safe_memcpy_internal(const void *data, size_t length, char *file, int line)
+{
+  uint8_t *ret;
+
+  ret = safe_malloc_internal(length, file, line);
+  memcpy(ret, data, length);
+
+  return ret;
+}
+
 void safe_free(void *ptr)
 {
 	free(ptr);

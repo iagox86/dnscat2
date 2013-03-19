@@ -9,33 +9,52 @@
 
 int main(int argc, const char *argv[])
 {
-#if 0
-  controller_t *c = controller_create(tcp_get_driver("www.javaop.com", 80));
-  size_t waiting;
+  packet_t *packet;
 
-  printf("Connecting...\n");
-  controller_connect(c);
+  uint8_t  *bytes;
+  size_t    length;
 
-  printf("Sending data...\n");
-  controller_send(c, "GET / HTTP/1.0\r\n\r\n", 18);
+  /* Create a SYN */
+  packet = packet_create_syn(0x1234, 0x0000, 0x0000);
+  packet_print(packet);
 
-  printf("Calling do_actions...\n");
-  waiting = controller_do_actions(c);
-  printf("There are %zu bytes waiting to be read...\n", waiting);
-  waiting = controller_do_actions(c);
-  printf("There are %zu bytes waiting to be read...\n", waiting);
-  sleep(1);
-  waiting = controller_do_actions(c);
-  printf("There are %zu bytes waiting to be read...\n", waiting);
-  waiting = controller_do_actions(c);
-  printf("There are %zu bytes waiting to be read...\n", waiting);
+  /* Convert it to bytes and free the original */
+  bytes = packet_to_bytes(packet, &length);
+  packet_destroy(packet);
 
-  /*buffer_print(c->incoming_data);*/
+  /* Parse the bytes from the old packet to create a new one */
+  packet = packet_parse(bytes, length);
+  packet_print(packet);
+  packet_destroy(packet);
+  safe_free(bytes);
 
-  controller_cleanup(c);
-#endif
+  /* Create a MSG */
+  packet = packet_create_msg(0x1234, 0x0000, 0x0001, "AAAAA", 5);
+  packet_print(packet);
 
-  printf("Done!\n");
+  /* Convert it to bytes and free the orignal */
+  bytes = packet_to_bytes(packet, &length);
+  packet_destroy(packet);
+
+  /* Parse the bytes from the old packet to create a new one */
+  packet = packet_parse(bytes, length);
+  packet_print(packet);
+  packet_destroy(packet);
+  safe_free(bytes);
+
+  /* Create a FIN */
+  packet = packet_create_fin(0x1234);
+  packet_print(packet);
+
+  /* Convert it to bytes and free the orignal */
+  bytes = packet_to_bytes(packet, &length);
+  packet_destroy(packet);
+  safe_free(bytes);
+
+  /* Parse the bytes from the old packet to create a new one */
+  packet = packet_parse(bytes, length);
+  packet_print(packet);
+  packet_destroy(packet);
 
   print_memory();
 

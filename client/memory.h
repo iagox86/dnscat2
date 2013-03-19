@@ -26,6 +26,9 @@ void *safe_realloc_internal(void *ptr, size_t size, char *file, int line);
 #define safe_strdup(str) safe_strdup_internal(str, __FILE__, __LINE__)
 char *safe_strdup_internal(const char *str, char *file, int line);
 
+#define safe_memcpy(str,len) safe_memcpy_internal(str, len, __FILE__, __LINE__)
+void *safe_memcpy_internal(const void *data, size_t length, char *file, int line);
+
 /* Free memory and remove it from our list of alloctaed memory. */
 void safe_free(void *ptr);
 

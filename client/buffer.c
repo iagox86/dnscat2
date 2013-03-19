@@ -20,7 +20,7 @@
 #include "types.h"
 
 /* The initial max length of the string */
-#define STARTING_LENGTH 1
+#define STARTING_LENGTH 64
 
 static uint16_t host_to_network_16(uint16_t data)
 {
@@ -235,6 +235,29 @@ uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, size_t *length)
 	buffer_destroy(buffer);
 
 	return ret;
+}
+
+uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length)
+{
+  uint8_t *ret;
+
+  if(!buffer->valid)
+    DIE("Program attempted to use a deleted buffer.");
+
+  if(buffer->current_length < buffer->position)
+    DIE("Position is outside the buffer");
+
+  /* The number of bytes remaining */
+  *length = buffer->current_length - buffer->position;
+
+  /* Allocate room for that many bytes */
+  ret = safe_malloc(*length);
+
+  /* Copy the data into the new buffer */
+  memcpy(ret, buffer->data + buffer->position, *length);
+
+  /* Return the new buffer */
+  return ret;
 }
 
 /* Add data to the end of the buffer */
