@@ -38,6 +38,9 @@
 #ifndef __SELECT_GROUP_H__
 #define __SELECT_GROUP_H__
 
+/* Updates for dnscat2 */
+#define SELECT_GROUP_VERSION "1.01"
+
 #include <stdlib.h>
 
 #ifdef WIN32
@@ -82,7 +85,7 @@ typedef SELECT_RESPONSE_t(select_recv)(void *group, int s, uint8_t *data, size_t
 typedef SELECT_RESPONSE_t(select_listen)(void *group, int s, void *param);
 typedef SELECT_RESPONSE_t(select_error)(void *group, int s, int err, void *param);
 typedef SELECT_RESPONSE_t(select_closed)(void *group, int s, void *param);
-typedef SELECT_RESPONSE_t(select_timeout)(void *group, int s, void *param);
+typedef SELECT_RESPONSE_t(select_timeout)(void *group, void *param);
 
 /* This struct is for internal use. */
 typedef struct
@@ -119,6 +122,7 @@ typedef struct
 	int biggest_socket; /* The handle to the highest-numbered socket in the list (required for select() call). */
 
 	select_timeout *timeout_callback; /* The function to call when the timeout time expires. */
+  void *timeout_param; /* A parameter that is passed to the callback function. */
 } select_group_t;
 
 /* Allocate memory for a select group */
@@ -155,7 +159,7 @@ select_error   *select_set_error(select_group_t *group, int s, select_error *cal
 select_closed  *select_set_closed(select_group_t *group, int s, select_closed *callback);
 
 /* Set the timeout callback, for when the time specified in select_group_do_select() elapses. */
-select_timeout *select_set_timeout(select_group_t *group, select_timeout *callback);
+select_timeout *select_set_timeout(select_group_t *group, select_timeout *callback, void *param);
 
 /* Remove a socket from the group. Returns non-zero if successful. */
 NBBOOL select_group_remove_socket(select_group_t *group, int s);

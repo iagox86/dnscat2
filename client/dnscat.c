@@ -17,7 +17,7 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *s)
   return SELECT_OK;
 }
 
-static SELECT_RESPONSE_t stdin_timeout(void *group, int socket, void *param)
+static SELECT_RESPONSE_t stdin_timeout(void *group, void *param)
 {
   printf("timeout\n");
   return SELECT_OK;
@@ -42,7 +42,7 @@ int main(int argc, const char *argv[])
   select_set_closed(group, stdin_handle, stdin_closed_callback);
 
   /* Add the timeout function */
-  select_set_timeout(group, stdin_timeout);
+  select_set_timeout(group, stdin_timeout, NULL);
 #endif
 
 

@@ -69,6 +69,7 @@ select_group_t *select_group_create()
 	new_group->current_size = 0;
 	new_group->maximum_size = LIST_STARTING_SIZE;
   new_group->timeout_callback = NULL;
+  new_group->timeout_param = NULL;
 
 	return new_group;
 }
@@ -209,11 +210,12 @@ select_closed *select_set_closed(select_group_t *group, int s, select_closed *ca
 	return old;
 }
 
-select_timeout *select_set_timeout(select_group_t *group, select_timeout *callback)
+select_timeout *select_set_timeout(select_group_t *group, select_timeout *callback, void *param)
 {
 	select_timeout *old;
 	old = group->timeout_callback;
 	group->timeout_callback = callback;
+  group->timeout_param = param;
 
 	return old;
 }
@@ -501,10 +503,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 			if((group->elapsed_time / timeout_ms) != ((group->elapsed_time + TIMEOUT_INTERVAL) / timeout_ms))
 			{
 				/* Timeout elapsed with no events, inform the callbacks. */
-				for(i = 0; i < group->current_size; i++)
-				{
-					if(SG_IS_ACTIVE(group, i) && group->timeout_callback)
-						select_handle_response(group, SG_SOCKET(group, i), group->timeout_callback(group, SG_SOCKET(group, i), SG_PARAM(group, i)));
+				if(group->timeout_callback)
+					group->timeout_callback(group, group->timeout_param);
 				}
 			}
 
@@ -514,8 +514,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 			/* Timeout elapsed with no events, inform the callbacks. */
 			for(i = 0; i < group->current_size; i++)
 			{
-				if(SG_IS_ACTIVE(group, i) && group->timeout_callback)
-					select_handle_response(group, SG_SOCKET(group, i), group->timeout_callback(group, SG_SOCKET(group, i), SG_PARAM(group, i)));
+				if(group->timeout_callback)
+					group->timeout_callback(group, group->timeout_param);
 			}
 #endif
 
