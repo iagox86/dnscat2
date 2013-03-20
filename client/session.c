@@ -20,13 +20,27 @@ session_t *session_create()
 void session_queue_outgoing(session_t *session, uint8_t *data, size_t length)
 {
   buffer_add_bytes(session->outgoing_data, data, length);
-  printf("There are currently %zd bytes queued\n", buffer_get_remaining_bytes(session->outgoing_data));
+  printf("There are currently %zd bytes queued (outgoing)\n", buffer_get_remaining_bytes(session->outgoing_data));
+}
+
+size_t session_read_outgoing(session_t *session, uint8_t *buffer, size_t max_length)
+{
+  size_t amount_to_read = (max_length < buffer_get_remaining_bytes(session->outgoing_data)) ? max_length : buffer_get_remaining_bytes(session->outgoing_data);
+  buffer_read_next_bytes(session->outgoing_data, buffer, amount_to_read);
+  return amount_to_read;
+}
+
+void session_queue_incoming(session_t *session, uint8_t *data, size_t length)
+{
+  buffer_add_bytes(session->outgoing_data, data, length);
+  printf("There are currently %zd bytes queued (incoming)\n", buffer_get_remaining_bytes(session->outgoing_data));
 }
 
 size_t session_read_incoming(session_t *session, uint8_t *buffer, size_t max_length)
 {
-  printf("TODO");
-  exit(1);
+  size_t amount_to_read = (max_length < buffer_get_remaining_bytes(session->incoming_data)) ? max_length : buffer_get_remaining_bytes(session->incoming_data);
+  buffer_read_next_bytes(session->incoming_data, buffer, amount_to_read);
+  return amount_to_read;
 }
 
 void session_destroy(session_t *session)
