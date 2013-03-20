@@ -26,7 +26,7 @@ typedef struct
 session_t *session_create();
 void session_destroy(session_t *session);
 
-void session_queue_outgoing(uint8_t *data, size_t length);
-size_t session_read_incoming(uint8_t *buffer, size_t max_length);
+void session_queue_outgoing(session_t *session, uint8_t *data, size_t length);
+size_t session_read_incoming(session_t *session, uint8_t *buffer, size_t max_length);
 
 #endif
