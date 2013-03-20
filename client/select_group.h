@@ -4,27 +4,34 @@
  *
  * (See LICENSE.txt)
  *
- * This module implements a simple interface to the select() function that works across Windows, Linux,
- * BSD, and Mac. Any (reasonable) number of sockets can be added and when any one of them has data,
- * callbacks are used to notify the main program.
+ * This module implements a simple interface to the select() function that
+ * works across Windows, Linux, BSD, and Mac. Any (reasonable) number of
+ * sockets can be added and when any one of them has data, callbacks are used
+ * to notify the main program.
  *
- * This library is single-threaded (except on Windows.. I'll get to that). I've compiled and tested it on
- * Linux, FreeBSD, Mac, and Windows, and it works beautifully on all of them. On any of those platforms it
- * can select just fine on stream sockets, datagram sockets, listeners, and pipes (including stdin on Windows).
+ * This library is single-threaded (except on Windows.. I'll get to that). I've
+ * compiled and tested it on Linux, FreeBSD, Mac, and Windows, and it works
+ * beautifully on all of them. On any of those platforms it can select just
+ * fine on stream sockets, datagram sockets, listeners, and pipes (including
+ * stdin on Windows).
  *
- * Windows support for pipes is a special case. Because Windows can't select() on a pipe or HANDLE, I had
- * to implement some special code. Basically, it polls -- instead of adding pipes to the select(), it times
- * out the select after a set amount of time (right now, it's 100ms). That means that every 100ms, select()
- * returns and checks if any input is waiting on the pipes. Not the greatest solution, but it isn't the
- * greatest OS for networking stuff.
+ * Windows support for pipes is a special case. Because Windows can't select()
+ * on a pipe or HANDLE, I had to implement some special code. Basically, it
+ * polls -- instead of adding pipes to the select(), it times out the select
+ * after a set amount of time (right now, it's 100ms). That means that every
+ * 100ms, select() returns and checks if any input is waiting on the pipes. Not
+ * the greatest solution, but it isn't the greatest OS for networking stuff.
  *
- * Even worse, stdin is a special case. stdin can be read through a pipe, so the polling code works great --
- * except that Windows won't echo types characters unless stdin is being actively read. Rather than
- * introducing a 100ms-delay to everything types, that would probably make me even more crazy, I created
- * the Windows-specific function get_stdin_handle(). The first time it's called, it creates a thread
- * that reads from stdin and writes to a pipe. That pipe can be added to select() and everything else
- * works the same. It's an ugly hack, I know, but when writing Ncat (http://nmap.org/ncat) David Fifield
- * came up with the same solution. Apparently, it's the best we've got.
+ * Even worse, stdin is a special case. stdin can be read through a pipe, so
+ * the polling code works great -- except that Windows won't echo types
+ * characters unless stdin is being actively read. Rather than introducing a
+ * 100ms-delay to everything types, that would probably make me even more
+ * crazy, I created the Windows-specific function get_stdin_handle(). The first
+ * time it's called, it creates a thread that reads from stdin and writes to a
+ * pipe. That pipe can be added to select() and everything else works the same.
+ * It's an ugly hack, I know, but when writing Ncat (http://nmap.org/ncat)
+ * David Fifield came up with the same solution. Apparently, it's the best
+ * we've got.
  */
 
 

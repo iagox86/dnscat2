@@ -12,9 +12,17 @@ CFLAGS?=-Wall -g -DTESTMEMORY
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=test.o buffer.o tcp.o types.o memory.o dns.o session.o packet.o
+OBJS=dnscat.o\
+		 buffer.o\
+		 tcp.o\
+		 types.o\
+		 memory.o\
+		 dns.o\
+		 session.o\
+		 packet.o\
+		 select_group.o
 
-all: test
+all: dnscat
 	@echo Compile should be complete
 
 remove:
@@ -25,6 +33,6 @@ uninstall: remove
 clean:
 	rm -f *.o *.exe *.stackdump dnscat test
 
-test: ${OBJS}
-	${CC} ${CFLAGS} -o test ${OBJS}
+dnscat: ${OBJS}
+	${CC} ${CFLAGS} -o dnscat ${OBJS}
 
