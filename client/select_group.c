@@ -41,7 +41,6 @@
 #define SG_LISTEN(sg,i) sg->select_list[i]->listen_callback
 #define SG_ERROR(sg,i) sg->select_list[i]->error_callback
 #define SG_CLOSED(sg,i) sg->select_list[i]->closed_callback
-#define SG_TIMEOUT(sg,i) sg->select_list[i]->timeout_callback
 #define SG_WAITING(sg,i) sg->select_list[i]->waiting_for
 #define SG_BUFFER(sg,i) sg->select_list[i]->buffer
 #define SG_BUFFERED(sg,i) sg->select_list[i]->buffered
@@ -69,6 +68,7 @@ select_group_t *select_group_create()
 	new_group->select_list = safe_malloc(LIST_STARTING_SIZE * sizeof(select_t));
 	new_group->current_size = 0;
 	new_group->maximum_size = LIST_STARTING_SIZE;
+  new_group->timeout_callback = NULL;
 
 	return new_group;
 }
@@ -209,16 +209,12 @@ select_closed *select_set_closed(select_group_t *group, int s, select_closed *ca
 	return old;
 }
 
-select_timeout *select_set_timeout(select_group_t *group, int s, select_timeout *callback)
+select_timeout *select_set_timeout(select_group_t *group, select_timeout *callback)
 {
-	select_t *select = find_select_by_socket(group, s);
 	select_timeout *old;
+	old = group->timeout_callback;
+	group->timeout_callback = callback;
 
-	if(select)
-	{
-		old = select->timeout_callback;
-		select->timeout_callback = callback;
-	}
 	return old;
 }
 
@@ -410,7 +406,6 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 	int select_return;
 	size_t i;
 	struct timeval select_timeout;
-	size_t count;
 
 	/* Always time out after an interval (like Ncat does) -- this lets us poll for non-Internet sockets on Windows. */
 #ifdef WIN32
@@ -423,7 +418,6 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 
 	/* Clear the current socket set */
 	FD_ZERO(&select_set);
-	count = 0;
 
 	/* Crawl over the list, adding the sockets. */
 	for(i = 0; i < group->current_size; i++)
@@ -509,8 +503,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 				/* Timeout elapsed with no events, inform the callbacks. */
 				for(i = 0; i < group->current_size; i++)
 				{
-					if(SG_IS_ACTIVE(group, i) && SG_TIMEOUT(group, i))
-						select_handle_response(group, SG_SOCKET(group, i), SG_TIMEOUT(group, i)(group, SG_SOCKET(group, i), SG_PARAM(group, i)));
+					if(SG_IS_ACTIVE(group, i) && group->timeout_callback)
+						select_handle_response(group, SG_SOCKET(group, i), group->timeout_callback(group, SG_SOCKET(group, i), SG_PARAM(group, i)));
 				}
 			}
 
@@ -520,8 +514,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 			/* Timeout elapsed with no events, inform the callbacks. */
 			for(i = 0; i < group->current_size; i++)
 			{
-				if(SG_IS_ACTIVE(group, i) && SG_TIMEOUT(group, i))
-					select_handle_response(group, SG_SOCKET(group, i), SG_TIMEOUT(group, i)(group, SG_SOCKET(group, i), SG_PARAM(group, i)));
+				if(SG_IS_ACTIVE(group, i) && group->timeout_callback)
+					select_handle_response(group, SG_SOCKET(group, i), group->timeout_callback(group, SG_SOCKET(group, i), SG_PARAM(group, i)));
 			}
 #endif
 

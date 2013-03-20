@@ -96,7 +96,6 @@ typedef struct
 	select_listen  *listen_callback;  /* The function to call when a connection arrives. */
 	select_error   *error_callback;   /* The function to call when there's an error. */
 	select_closed  *closed_callback;  /* The function to call when the connection is closed. */
-	select_timeout *timeout_callback; /* The function to call when the timeout time expires. */
 
 	size_t          waiting_for; /* The number of bytes being waited on. If set to 0, will trigger on all incoming data. */
 	uint8_t        *buffer; /* The buffer that holds the current bytes. */
@@ -118,6 +117,8 @@ typedef struct
 	uint32_t elapsed_time; /* The number of milliseconds that have elapsed; used for timeouts. */
 #endif
 	int biggest_socket; /* The handle to the highest-numbered socket in the list (required for select() call). */
+
+	select_timeout *timeout_callback; /* The function to call when the timeout time expires. */
 } select_group_t;
 
 /* Allocate memory for a select group */
@@ -154,7 +155,7 @@ select_error   *select_set_error(select_group_t *group, int s, select_error *cal
 select_closed  *select_set_closed(select_group_t *group, int s, select_closed *callback);
 
 /* Set the timeout callback, for when the time specified in select_group_do_select() elapses. */
-select_timeout *select_set_timeout(select_group_t *group, int s, select_timeout *callback);
+select_timeout *select_set_timeout(select_group_t *group, select_timeout *callback);
 
 /* Remove a socket from the group. Returns non-zero if successful. */
 NBBOOL select_group_remove_socket(select_group_t *group, int s);

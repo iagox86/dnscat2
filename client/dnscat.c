@@ -42,7 +42,7 @@ int main(int argc, const char *argv[])
   select_set_closed(group, stdin_handle, stdin_closed_callback);
 
   /* Add the timeout function */
-  select_set_timeout(group, stdin_handle, stdin_timeout);
+  select_set_timeout(group, stdin_timeout);
 #endif
 
 
