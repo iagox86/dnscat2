@@ -812,7 +812,7 @@ void buffer_print(buffer_t *buffer)
 	size_t i, j;
 	if(!buffer->valid)
 		DIE("Program attempted to use deleted buffer.");
-	printf("Position = %d\n", buffer->position);
+	printf("Position = %zd\n", buffer->position);
 
 	printf("Buffer contents:");
 	for(i = 0; i < length; i++)
@@ -828,9 +828,9 @@ void buffer_print(buffer_t *buffer)
 				}
 			}
 			if(i == buffer->position)
-				printf("\n%04X:<", i);
+				printf("\n%04zX:<", i);
 			else
-				printf("\n%04X: ", i);
+				printf("\n%04zX: ", i);
 		}
 
 		if(i == buffer->position)
@@ -846,7 +846,7 @@ void buffer_print(buffer_t *buffer)
 	for(i = length - (length % 16); i < length; i++)
 		printf("%c", get_character_from_byte(buffer->data[i]));
 
-	printf("\nLength: 0x%X (%d)\n", length, length);
+	printf("\nLength: 0x%zX (%zd)\n", length, length);
 }
 
 /* Returns a pointer to the actual buffer */

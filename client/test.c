@@ -29,7 +29,7 @@ int main(int argc, const char *argv[])
   safe_free(bytes);
 
   /* Create a MSG */
-  packet = packet_create_msg(0x1234, 0x0000, 0x0001, "AAAAA", 5);
+  packet = packet_create_msg(0x1234, 0x0000, 0x0001, (uint8_t*)"AAAAA", 5);
   packet_print(packet);
 
   /* Convert it to bytes and free the orignal */

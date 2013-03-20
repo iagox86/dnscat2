@@ -39,7 +39,7 @@ packet_t *packet_parse(uint8_t *data, size_t length)
       break;
 
     default:
-      printf("Error: unkown message type (0x%02zx)\n", packet->message_type);
+      printf("Error: unkown message type (0x%02x)\n", packet->message_type);
       exit(0);
   }
 
