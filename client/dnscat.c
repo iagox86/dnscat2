@@ -29,13 +29,15 @@ static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, 
 static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *param)
 {
   /*options_t *options = (options_t*) param;*/
+  /* TODO: send a FIN */
   printf("stdin closed\n");
   exit(0);
 }
 
-static SELECT_RESPONSE_t stdin_timeout(void *group, void *param)
+static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
   /*options_t *options = (options_t*) param;*/
+  /* TODO: send queued data, depending on the session state */
   printf("timeout\n");
   return SELECT_OK;
 }
@@ -62,9 +64,11 @@ int main(int argc, const char *argv[])
   select_set_closed(options->group, stdin_handle, stdin_closed_callback);
 
   /* Add the timeout function */
-  select_set_timeout(options->group, stdin_timeout, (void*)options);
+  select_set_timeout(options->group, timeout, (void*)options);
 #endif
 
+  /* TODO: Determine which interface we're using, create it, and somehow put it
+   * in the select_group (perhaps it can return its own select-able socket?) */
 
   while(TRUE)
   {
