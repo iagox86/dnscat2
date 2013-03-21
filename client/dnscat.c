@@ -37,7 +37,13 @@ static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, 
 {
   options_t *options = (options_t*) param;
 
+  /* Cleanup - if the buffer is empty, reset it */
+  if(buffer_get_remaining_bytes(options->outgoing_data) == 0)
+    buffer_clear(options->outgoing_data);
+
   buffer_add_bytes(options->outgoing_data, data, length);
+
+  buffer_print(options->outgoing_data);
 
   return SELECT_OK;
 }
