@@ -134,6 +134,8 @@ void driver_tcp_cleanup(void *driver)
   if(d->s != -1)
     driver_tcp_close(driver);
 
+  buffer_destroy(d->incoming_data);
+
   safe_free(d->host);
   d->host = NULL;
   safe_free(d);
