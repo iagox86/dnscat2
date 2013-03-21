@@ -20,7 +20,6 @@ OBJS=dnscat.o\
 		 dns.o\
 		 driver.o\
 		 driver_tcp.o\
-		 session.o\
 		 packet.o\
 		 select_group.o
 

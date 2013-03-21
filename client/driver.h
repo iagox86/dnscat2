@@ -23,6 +23,7 @@ typedef struct
 } driver_t;
 
 driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group);
+void driver_destroy(driver_t *driver);
 
 void   driver_send(driver_t *driver, uint8_t *data, size_t length);
 size_t driver_recv(driver_t *driver, uint8_t *buf, size_t buf_length);
