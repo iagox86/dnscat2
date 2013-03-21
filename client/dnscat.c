@@ -28,6 +28,7 @@ typedef struct
   state_t  session_state;
   uint16_t their_seq;
   uint16_t my_seq;
+  NBBOOL   stdin_closed;
 
   buffer_t *incoming_data;
   buffer_t *outgoing_data;
@@ -53,17 +54,10 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
   options_t *options = (options_t*) param;
   /* TODO: send a FIN */
 
-  printf("[[dnscat]] stdin closed\n");
+  printf("[[dnscat]] stdin closed (sending remaining %zd bytes before exiting)\n", buffer_get_remaining_bytes(options->outgoing_data));
+  options->stdin_closed = TRUE;
 
-  buffer_destroy(options->outgoing_data);
-  buffer_destroy(options->incoming_data);
-  select_group_destroy(options->group);
-  driver_destroy(options->driver);
-  safe_free(options);
-
-  print_memory();
-
-  exit(0);
+  return SELECT_REMOVE;
 }
 
 static void timeout_new_send(options_t *options)
@@ -125,7 +119,7 @@ static void timeout_established_send(options_t *options)
   packet_t *packet;
   uint8_t  *bytes;
 
-  data = buffer_read_remaining_bytes(options->outgoing_data, &length, options->driver->max_packet_size - 6, FALSE); /* TODO: Magic number */
+  data = buffer_read_remaining_bytes(options->outgoing_data, &length, options->driver->max_packet_size - 8, FALSE); /* TODO: Magic number */
   printf("[[dnscat]] :: Sending 0x%zx bytes of data...\n", length);
   packet = packet_create_msg(options->session_id, options->my_seq, options->their_seq, data, length);
 
@@ -187,6 +181,21 @@ static void timeout_established_recv(options_t *options)
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
   options_t *options = (options_t*) param;
+
+  if(options->stdin_closed && buffer_get_remaining_bytes(options->outgoing_data) == 0)
+  {
+    printf("[[dnscat]] :: Exiting\n");
+
+    buffer_destroy(options->outgoing_data);
+    buffer_destroy(options->incoming_data);
+    select_group_destroy(options->group);
+    driver_destroy(options->driver);
+    safe_free(options);
+
+    print_memory();
+
+    exit(0);
+  }
 
   switch(options->session_state)
   {
