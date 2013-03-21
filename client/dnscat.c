@@ -60,10 +60,21 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
   exit(0);
 }
 
-static SELECT_RESPONSE_t timeout(void *group, void *param)
+static void timeout_state_new(options_t *options)
 {
-  options_t *options = (options_t*) param;
+  /* Send a syn */
+  packet_t *packet = packet_create_syn(options->session_id, options->my_seq, 0);
+  size_t   length;
+  uint8_t *bytes = packet_to_bytes(packet, &length);
 
+  driver_send(options->driver, bytes, length);
+
+  safe_free(bytes);
+  packet_destroy(packet);
+}
+
+static void timeout_state_established(options_t *options)
+{
   uint8_t *out_data;
   size_t   out_length;
   uint8_t *in_data;
@@ -82,7 +93,24 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
     printf("Received %zd bytes: %s\n", in_length, in_data);
     safe_free(in_data);
   }
+}
 
+static SELECT_RESPONSE_t timeout(void *group, void *param)
+{
+  options_t *options = (options_t*) param;
+
+  switch(options->session_state)
+  {
+    case SESSION_STATE_NEW:
+      timeout_state_new(options);
+      break;
+    case SESSION_STATE_ESTABLISHED:
+      timeout_state_established(options);
+      break;
+    default:
+      printf("We ended up in an unknown state!\n");
+      exit(1);
+  }
 
   return SELECT_OK;
 }
