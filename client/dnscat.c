@@ -44,8 +44,6 @@ static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, 
 
   buffer_add_bytes(options->outgoing_data, data, length);
 
-  buffer_print(options->outgoing_data);
-
   return SELECT_OK;
 }
 
@@ -152,12 +150,19 @@ static void timeout_established_recv(options_t *options)
         {
           options->their_seq += packet->body.msg.data_length;
 
-          /* TODO: Verify the ACK */
-          buffer_consume(options->outgoing_data, packet->body.msg.ack - options->my_seq);
-          options->my_seq = packet->body.msg.ack;
+          /* Verify the ACK is sane */
+          if(packet->body.msg.ack <= options->my_seq + buffer_get_remaining_bytes(options->outgoing_data))
+          {
+            buffer_consume(options->outgoing_data, packet->body.msg.ack - options->my_seq);
+            options->my_seq = packet->body.msg.ack;
 
-          if(packet->body.msg.data_length > 0)
-            printf("[[data]] :: %s [0x%zx bytes]\n", packet->body.msg.data, packet->body.msg.data_length);
+            if(packet->body.msg.data_length > 0)
+              printf("[[data]] :: %s [0x%zx bytes]\n", packet->body.msg.data, packet->body.msg.data_length);
+          }
+          else
+          {
+            printf("[[WARNING]] :: Bad ACK received\n");
+          }
         }
         else
         {

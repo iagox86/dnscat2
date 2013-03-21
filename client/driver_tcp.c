@@ -35,7 +35,6 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
     buffer_clear(driver->buffer);
 
   buffer_add_bytes(driver->buffer, data, length);
-  buffer_print(driver->buffer);
 
   return SELECT_OK;
 }
