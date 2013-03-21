@@ -512,11 +512,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 			group->elapsed_time = (group->elapsed_time + TIMEOUT_INTERVAL);
 #else
 			/* Timeout elapsed with no events, inform the callbacks. */
-			for(i = 0; i < group->current_size; i++)
-			{
-				if(group->timeout_callback)
-					group->timeout_callback(group, group->timeout_param);
-			}
+		if(group->timeout_callback)
+			group->timeout_callback(group, group->timeout_param);
 #endif
 
 		}

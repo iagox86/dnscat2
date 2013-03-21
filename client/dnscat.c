@@ -5,6 +5,8 @@
 
 #include "select_group.h"
 
+#include "driver.h"
+#include "driver_tcp.h"
 #include "memory.h"
 #include "packet.h"
 #include "session.h"
@@ -14,6 +16,7 @@ typedef struct
 {
   select_group_t *group;
   session_t *session;
+  driver_t *driver;
 } options_t;
 
 static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
@@ -36,9 +39,13 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
 
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
-  /*options_t *options = (options_t*) param;*/
+  options_t *options = (options_t*) param;
+  /*uint8_t data[1024];
+  size_t length = session_read_outgoing(options->session, data, 1024); */
+
   /* TODO: send queued data, depending on the session state */
-  printf("timeout\n");
+  driver_send(options->driver, "Hello\n", 6);
+
   return SELECT_OK;
 }
 
@@ -66,6 +73,9 @@ int main(int argc, const char *argv[])
   /* Add the timeout function */
   select_set_timeout(options->group, timeout, (void*)options);
 #endif
+
+  /* Create the TCP driver */
+  options->driver = driver_get_tcp("localhost", 2000, options->group);
 
   /* TODO: Determine which interface we're using, create it, and somehow put it
    * in the select_group (perhaps it can return its own select-able socket?) */
