@@ -98,7 +98,7 @@ uint8_t *buffer_create_string(buffer_t *buffer, size_t *length);
 uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, size_t *length);
 /* Returns the conttents of the buffer - starting at the current position - in a newly allocated
  * string. Returns the length in the length pointer. If max_bytes is -1, all bytes are returned. */
-uint8_t  *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t max_bytes);
+uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t max_bytes, NBBOOL consume);
 
 
 /* Add data to the end of the buffer */

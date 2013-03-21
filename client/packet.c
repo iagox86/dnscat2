@@ -31,7 +31,7 @@ packet_t *packet_parse(uint8_t *data, size_t length)
     case MESSAGE_TYPE_MSG:
       packet->body.msg.seq     = buffer_read_next_int16(buffer);
       packet->body.msg.ack     = buffer_read_next_int16(buffer);
-      packet->body.msg.data    = buffer_read_remaining_bytes(buffer, &packet->body.msg.data_length, -1);
+      packet->body.msg.data    = buffer_read_remaining_bytes(buffer, &packet->body.msg.data_length, -1, FALSE);
       break;
 
     case MESSAGE_TYPE_FIN:

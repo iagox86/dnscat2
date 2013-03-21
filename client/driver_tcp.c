@@ -72,8 +72,6 @@ void driver_tcp_send(void *driver, uint8_t *data, size_t length)
     select_set_closed(d->group, d->s, closed_callback);
   }
 
-  printf("[[TCP]] :: send(%zu bytes)\n", length);
-
   assert(d->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
@@ -97,25 +95,26 @@ uint8_t *driver_tcp_recv(void *driver, size_t *length, size_t max_length)
   size_t returned_length;
   tcp_driver_t *d = (tcp_driver_t*) driver;
 
+  buffer_print(d->buffer);
+
   if(buffer_get_remaining_bytes(d->buffer) >= 2)
   {
     expected_length = buffer_peek_next_int16(d->buffer);
-    printf("Waiting for %zx bytes...\n", expected_length);
-    printf("We have %zx bytes...\n", buffer_get_remaining_bytes(d->buffer) - 2);
-
+    printf("Waiting for %d bytes...\n", expected_length);
     if(buffer_get_remaining_bytes(d->buffer) - 2 >= expected_length)
     {
       /* Consume the value we already know */
       buffer_read_next_int16(d->buffer);
 
       /* Read the rest of the buffer. */
-      ret = buffer_read_remaining_bytes(d->buffer, &returned_length, expected_length);
+      ret = buffer_read_remaining_bytes(d->buffer, &returned_length, expected_length, FALSE);
+      /* Consume the bytes from the buffer */
+      buffer_consume(d->buffer, expected_length);
 
       assert(expected_length == returned_length); /* Make sure the right number of bytes are returned by the buffer */
 
       *length = returned_length;
 
-      buffer_print(d->buffer);
       return ret;
     }
   }

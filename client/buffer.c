@@ -237,7 +237,7 @@ uint8_t *buffer_create_string_and_destroy(buffer_t *buffer, size_t *length)
 	return ret;
 }
 
-uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t max_bytes)
+uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t max_bytes, NBBOOL consume)
 {
   uint8_t *ret;
 
@@ -257,7 +257,10 @@ uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t ma
   ret = safe_malloc(*length);
 
   /* Copy the data into the new buffer */
-  buffer_read_next_bytes(buffer, ret, *length);
+  if(consume)
+    buffer_read_next_bytes(buffer, ret, *length);
+  else
+    buffer_peek_next_bytes(buffer, ret, *length);
 
   /* Return the new buffer */
   return ret;
