@@ -52,6 +52,9 @@ static SELECT_RESPONSE_t closed_callback(void *group, int s, void *param)
 void driver_tcp_send(void *driver, uint8_t *data, size_t length)
 {
   tcp_driver_t *d = (tcp_driver_t*) driver;
+  buffer_t     *buffer;
+  uint8_t      *encoded_data;
+  size_t        encoded_length;
 
   if(d->s == -1)
   {
@@ -74,12 +77,16 @@ void driver_tcp_send(void *driver, uint8_t *data, size_t length)
 
   printf("[[TCP]] :: send(%zu bytes)\n", length);
 
-  assert(d->s != -1);
-  assert(data);
-  assert(length > 0);
+  assert(d->s != -1); /* Make sure we have a valid socket. */
+  assert(data); /* Make sure they aren't trying to send NULL. */
+  assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
 
-  /* TODO: Send length */
-  if(tcp_send(d->s, data, length) == -1)
+  buffer = buffer_create(BO_BIG_ENDIAN);
+  buffer_add_int16(buffer, length);
+  buffer_add_bytes(buffer, data, length);
+  encoded_data = buffer_create_string_and_destroy(buffer, &encoded_length);
+
+  if(tcp_send(d->s, encoded_data, encoded_length) == -1)
   {
     printf("[[TCP]] send error, closing socket!\n");
     driver_tcp_close(driver);

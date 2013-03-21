@@ -13,6 +13,10 @@ typedef struct
 
   select_group_t *group;
   buffer_t *incoming_data;
+
+  /* These are for buffering data until we get a full packet */
+  buffer_t *current_receive_buffer;
+  uint16_t  current_receive_length;
 } tcp_driver_t;
 
 tcp_driver_t *tcp_driver_create(char *host, uint16_t port, select_group_t *group);

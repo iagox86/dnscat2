@@ -3,10 +3,12 @@
  * By Ron Bowes
  */
 
+#include <assert.h>
+
+#include "driver_tcp.h"
 #include "memory.h"
 
 #include "driver.h"
-#include "driver_tcp.h"
 
 driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group)
 {
@@ -32,6 +34,7 @@ void driver_destroy(driver_t *driver)
 
 void driver_send(driver_t *driver, uint8_t *data, size_t length)
 {
+  assert(length <= driver->max_packet_size); /* Make sure we aren't sending a packet that's too big */
   driver->driver_send(driver->driver, data, length);
 }
 
