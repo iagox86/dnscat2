@@ -257,7 +257,7 @@ uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t ma
   ret = safe_malloc(*length);
 
   /* Copy the data into the new buffer */
-  memcpy(ret, buffer->data + buffer->position, *length);
+  buffer_read_next_bytes(buffer, ret, *length);
 
   /* Return the new buffer */
   return ret;
@@ -796,6 +796,10 @@ NBBOOL buffer_can_read_bytes_at(buffer_t *buffer, size_t offset, size_t length)
 /*	printf("Offset = %d\n", offset);
 	printf("Length = %d\n", length);
 	printf("Current length = %d\n", buffer->current_length);  */
+
+  /* A special case - we can always read zero-length strings {*/
+  if(length == 0)
+    return TRUE;
 
 	return (offset + length - 1) < buffer->current_length;
 }

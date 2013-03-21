@@ -21,7 +21,7 @@ tcp_driver_t *tcp_driver_create(char *host, uint16_t port, select_group_t *group
   tcp_driver->host  = safe_strdup(host);
   tcp_driver->port  = port;
   tcp_driver->group = group;
-  tcp_driver->incoming_data = buffer_create(BO_BIG_ENDIAN);
+  tcp_driver->buffer = buffer_create(BO_BIG_ENDIAN);
 
   return tcp_driver;
 }
@@ -30,10 +30,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 {
   tcp_driver_t *driver = (tcp_driver_t*)param;
 
-  printf("[[TCP]] :: Received %zu bytes", length);
-
-  buffer_add_bytes(driver->incoming_data, data, length);
-  buffer_print(driver->incoming_data);
+  buffer_add_bytes(driver->buffer, data, length);
 
   return SELECT_OK;
 }
@@ -93,29 +90,39 @@ void driver_tcp_send(void *driver, uint8_t *data, size_t length)
   }
 }
 
-/* TODO: This should only receive from the buffer, and only if it's a full packet */
-size_t driver_tcp_recv(void *driver, uint8_t *buf, size_t buf_length)
+uint8_t *driver_tcp_recv(void *driver, size_t *length, size_t max_length)
 {
-  ssize_t len;
+  uint8_t *ret;
+  size_t expected_length;
+  size_t returned_length;
   tcp_driver_t *d = (tcp_driver_t*) driver;
 
-  printf("[[TCP] :: recv(up to %zu bytes)\n", buf_length);
-
-  assert(d->s != -1);
-  assert(buf);
-  assert(buf_length > 0);
-
-  /* TODO: Receive length */
-  len = tcp_recv(d->s, buf, buf_length);
-  if(len == -1)
+  if(buffer_get_remaining_bytes(d->buffer) >= 2)
   {
-    printf("[[TCP]] :: Error: couldn't receive data, closing connection\n");
-    driver_tcp_close(driver);
+    expected_length = buffer_peek_next_int16(d->buffer);
+    printf("Waiting for %zx bytes...\n", expected_length);
+    printf("We have %zx bytes...\n", buffer_get_remaining_bytes(d->buffer) - 2);
 
-    return -1;
+    if(buffer_get_remaining_bytes(d->buffer) - 2 >= expected_length)
+    {
+      /* Consume the value we already know */
+      buffer_read_next_int16(d->buffer);
+
+      /* Read the rest of the buffer. */
+      ret = buffer_read_remaining_bytes(d->buffer, &returned_length, expected_length);
+
+      assert(expected_length == returned_length); /* Make sure the right number of bytes are returned by the buffer */
+
+      *length = returned_length;
+
+      buffer_print(d->buffer);
+      return ret;
+    }
   }
 
-  return len;
+  /* By default, return NULL */
+  *length = 0;
+  return NULL;
 }
 
 void driver_tcp_close(void *driver)
@@ -141,7 +148,7 @@ void driver_tcp_cleanup(void *driver)
   if(d->s != -1)
     driver_tcp_close(driver);
 
-  buffer_destroy(d->incoming_data);
+  buffer_destroy(d->buffer);
 
   safe_free(d->host);
   d->host = NULL;

@@ -63,16 +63,26 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
   options_t *options = (options_t*) param;
-  size_t length;
-  uint8_t *data;
 
-  data = buffer_read_remaining_bytes(options->outgoing_data, &length, options->driver->max_packet_size - 5); /* TODO: Magic number */
+  uint8_t *out_data;
+  size_t   out_length;
+  uint8_t *in_data;
+  size_t   in_length;
+
+  out_data = buffer_read_remaining_bytes(options->outgoing_data, &out_length, options->driver->max_packet_size - 5); /* TODO: Magic number */
 
   /* TODO: handle session state properly */
-  if(length > 0)
-    driver_send(options->driver, data, length);
+  if(out_length > 0)
+    driver_send(options->driver, out_data, out_length);
+  safe_free(out_data);
 
-  safe_free(data);
+  in_data = driver_recv(options->driver, &in_length, -1);
+  if(in_data)
+  {
+    printf("Received %zd bytes: %s\n", in_length, in_data);
+    safe_free(in_data);
+  }
+
 
   return SELECT_OK;
 }
