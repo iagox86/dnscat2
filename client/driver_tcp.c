@@ -95,12 +95,9 @@ uint8_t *driver_tcp_recv(void *driver, size_t *length, size_t max_length)
   size_t returned_length;
   tcp_driver_t *d = (tcp_driver_t*) driver;
 
-  buffer_print(d->buffer);
-
   if(buffer_get_remaining_bytes(d->buffer) >= 2)
   {
     expected_length = buffer_peek_next_int16(d->buffer);
-    printf("Waiting for %d bytes...\n", expected_length);
     if(buffer_get_remaining_bytes(d->buffer) - 2 >= expected_length)
     {
       /* Consume the value we already know */
