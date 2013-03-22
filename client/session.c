@@ -85,7 +85,11 @@ static void do_recv_stuff(session_t *session)
         }
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
-          printf("[[dnscat]] :: Connection terminated by server\n");
+          printf("[[dnscat]] :: Connection closed\n");
+
+          /* Clean up and exit */
+          session_destroy(session);
+
           exit(0);
         }
         else
@@ -135,7 +139,11 @@ static void do_recv_stuff(session_t *session)
         }
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
-          printf("[[dnscat]] :: Connection terminated by server\n");
+          printf("[[dnscat]] :: Connection closed\n");
+
+          /* Clean up and exit */
+          session_destroy(session);
+
           exit(0);
         }
         else
@@ -197,11 +205,7 @@ static void do_close_stuff(session_t *session)
   packet_destroy(packet);
 
   /* Alert the user */
-  printf("[[dnscat]] :: Buffers are clear, cleaning up and exiting\n");
-
-  /* Clean up and exit */
-  session_destroy(session);
-  exit(0);
+  printf("[[dnscat]] :: Buffers are clear, sending a FIN\n");
 }
 
 void session_do_actions(session_t *session)
