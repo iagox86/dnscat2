@@ -4,15 +4,16 @@
  *
  * (See LICENSE.txt)
  *
- * This module implements a reasonably functional DNS library that can build or parse DNS packets
- * in a platform-agnostic way. It implements a number of record types (A, NS, CNAME, MX, TXT, and
- * AAAA), and can add and parse questions or answers.
+ * This module implements a reasonably functional DNS library that can build or
+ * parse DNS packets in a platform-agnostic way. It implements a number of
+ * record types (A, NS, CNAME, MX, TXT, and AAAA), and can add and parse
+ * questions or answers.
  *
- * On Windows, due to IPv6 parsing being unavailable on older systems, I disable AAAA records
- * entirely.
+ * On Windows, due to IPv6 parsing being unavailable on older systems, I
+ * disable AAAA records entirely.
  *
- * In the future I may opt to add more record types and stronger parsing, but for now this was
- * enough.
+ * In the future I may opt to add more record types and stronger parsing, but
+ * for now this was enough.
  */
 
 #ifndef __DNS_H__

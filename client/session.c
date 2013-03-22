@@ -41,11 +41,6 @@ void session_send(session_t *session, uint8_t *data, size_t length)
   buffer_add_bytes(session->outgoing_data, data, length);
 }
 
-void session_recv(session_t *session, uint8_t *data, size_t length)
-{
-  buffer_add_bytes(session->incoming_data, data, length);
-}
-
 void session_close(session_t *session)
 {
   session->is_closed = TRUE;
@@ -126,6 +121,7 @@ static void do_recv_stuff(session_t *session)
               /* Print the data, if we received any */
               if(packet->body.msg.data_length > 0)
                 printf("[[data]] :: %s [0x%zx bytes]\n", packet->body.msg.data, packet->body.msg.data_length);
+              /* TODO: Do something better with this. */
             }
             else
             {

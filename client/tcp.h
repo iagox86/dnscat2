@@ -4,8 +4,10 @@
  *
  * (See LICENSE.txt)
  *
- * Platform-independent module for creating/sending TCP sockets for IPv4 TCP connections.
+ * Platform-independent module for creating/sending TCP sockets for IPv4 TCP
+ * connections.
  */
+
 #ifndef __TCP_H__
 #define __TCP_H__
 
