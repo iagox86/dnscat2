@@ -21,7 +21,8 @@ OBJS=dnscat.o\
 		 driver.o\
 		 driver_tcp.o\
 		 packet.o\
-		 select_group.o
+		 select_group.o\
+		 session.o
 
 all: dnscat
 	@echo Compile should be complete

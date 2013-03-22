@@ -2,6 +2,8 @@
 #define __DRIVER_H__
 
 #include <stdint.h>
+
+#include "packet.h"
 #include "select_group.h"
 
 typedef void(send_t)(void *driver, uint8_t *data, size_t length);
@@ -26,6 +28,8 @@ driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group);
 void driver_destroy(driver_t *driver);
 
 void     driver_send(driver_t *driver, uint8_t *data, size_t length);
-uint8_t *driver_recv(driver_t *driver, size_t *length, size_t max_length);
+void     driver_send_packet(driver_t *driver, packet_t *packet);
+uint8_t  *driver_recv(driver_t *driver, size_t *length, size_t max_length);
+packet_t *driver_recv_packet(driver_t *driver);
 
 #endif
