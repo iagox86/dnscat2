@@ -20,7 +20,7 @@ session_t *session_create(driver_t *driver)
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
   session->my_seq        = rand() & 0xFFFF;
-  session->stdin_closed  = FALSE;
+  session->is_closed     = FALSE;
   session->driver        = driver;
 
   session->incoming_data = buffer_create(BO_BIG_ENDIAN);
@@ -44,6 +44,11 @@ void session_send(session_t *session, uint8_t *data, size_t length)
 void session_recv(session_t *session, uint8_t *data, size_t length)
 {
   buffer_add_bytes(session->incoming_data, data, length);
+}
+
+void session_close(session_t *session)
+{
+  session->is_closed = TRUE;
 }
 
 NBBOOL session_is_data_queued(session_t *session)
@@ -184,6 +189,21 @@ static void do_send_stuff(session_t *session)
   }
 }
 
+static void do_close_stuff(session_t *session)
+{
+  /* Send the FIN */
+  packet_t *packet = packet_create_fin(session->id);
+  driver_send_packet(session->driver, packet);
+  packet_destroy(packet);
+
+  /* Alert the user */
+  printf("[[dnscat]] :: Buffers are clear, cleaning up and exiting\n");
+
+  /* Clean up and exit */
+  session_destroy(session);
+  exit(0);
+}
+
 void session_do_actions(session_t *session)
 {
   /* Cleanup the incoming/outgoing buffers, if we can */
@@ -192,5 +212,9 @@ void session_do_actions(session_t *session)
   /* Receive if we can, then send if we can */
   do_recv_stuff(session);
   do_send_stuff(session);
+
+  /* If the session is closed and no data is queued, close properly */
+  if(session->is_closed && buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
+    do_close_stuff(session);
 }
 

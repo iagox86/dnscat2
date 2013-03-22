@@ -18,7 +18,7 @@ typedef struct
   session_state_t state;
   uint16_t        their_seq;
   uint16_t        my_seq;
-  NBBOOL          stdin_closed;
+  NBBOOL          is_closed;
 
   buffer_t       *incoming_data;
   buffer_t       *outgoing_data;
@@ -26,8 +26,11 @@ typedef struct
 
 session_t *session_create(driver_t *driver);
 void       session_destroy(session_t *session);
+
 void       session_send(session_t *session, uint8_t *data, size_t length);
 void       session_recv(session_t *session, uint8_t *data, size_t length);
+void       session_close(session_t *session);
+
 NBBOOL     session_is_data_queued(session_t *session);
 void       session_do_actions(session_t *session);
 
