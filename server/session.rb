@@ -112,6 +112,16 @@ class Session
     @outgoing_data = @outgoing_data + data
   end
 
+  # Queues outgoing data on all sessions (this is more for debugging, to make
+  # it easier to send on all teh things
+  def Session.queue_all_outgoing(data)
+    Log.log("dnscat", "Queueing #{data.length} bytes on #{@@sessions.size} sessions...")
+
+    @@sessions.each_pair do |id, s|
+      s.queue_outgoing(data)
+    end
+  end
+
   def Session.find(id)
     # Get or create the session
     if(@@sessions[id].nil?)

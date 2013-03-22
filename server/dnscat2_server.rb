@@ -84,6 +84,18 @@ class Dnscat2
   end
 
   def Dnscat2.go(pipe)
+    # Create a thread that listens on stdin and sends the data everywhere
+    Thread.new do
+      begin
+        loop do
+          Session.queue_all_outgoing(gets())
+        end
+      rescue Exception => e
+        puts(e)
+        exit
+      end
+    end
+
     begin
       if(pipe.max_packet_size < 16)
         raise(Exception, "max_packet_size is too small")
