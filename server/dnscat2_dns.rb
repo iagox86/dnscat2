@@ -25,7 +25,8 @@ class DnscatDNS
     return 32 # TODO: do this better
   end
 
-  def initialize()
+  def initialize(domain)
+    @domain = domain
   end
 
   # I have to re-implement RubyDNS::start_server() in order to disable the
@@ -57,11 +58,18 @@ class DnscatDNS
   end
 
   def recv()
+    domain = @domain
+
     start_dns_server() do
-      match(/.*/, IN::TXT) do |transaction|
-        puts("Transaction:")
-        puts(transaction.inspect)
-        transaction.respond!("hello")
+      match(/\.#{Regexp.escape(domain)}$/, IN::TXT) do |transaction|
+        name = transaction.name.gsub(/\.#{Regexp.escape(domain)}$/, '')
+        name = name.gsub(/\./, '')
+puts("Received: #{name}")
+        name = [name].pack("H*")
+        response = yield(name)
+        response = "#{response.unpack("H*").pop}.#{domain}"
+puts("Sending:  #{response}")
+        transaction.respond!(response)
       end
     end
   end
@@ -71,8 +79,9 @@ class DnscatDNS
   end
 end
 
+domain = "skullseclabs.org"
 begin
-  driver = DnscatDNS.new()
+  driver = DnscatDNS.new(domain)
   Dnscat2.go(driver)
 rescue IOError => e
   puts("IOError caught: #{e.inspect}")
