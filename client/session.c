@@ -165,7 +165,7 @@ static void do_send_stuff(session_t *session)
     case SESSION_STATE_ESTABLISHED:
       /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
       data = buffer_read_remaining_bytes(session->outgoing_data, &length, session->driver->max_packet_size - 8, FALSE); /* TODO: Magic number */
-      printf("[[dnscat]] :: Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %d bytes of data...\n", session->my_seq, session->their_seq, length);
+      printf("[[dnscat]] :: Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...\n", session->my_seq, session->their_seq, length);
 
       /* Create a packet with that data */
       packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, length);
