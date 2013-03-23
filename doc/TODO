@@ -2,6 +2,7 @@ Immediate needs:
 - Proper synchronization (mutexes)
 - DNS
 - Client isn't validating the response from recv() properly (if you ctrl-c the server, the client aborts)
+- Rename the appropriate classses in the server to 'driver'
 
 Future stuff:
 - Other protocols (ping/http/etc)

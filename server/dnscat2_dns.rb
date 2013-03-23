@@ -8,61 +8,79 @@
 # The DNS dnscat server.
 ##
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
+$LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib'
 
-require 'rubygems'
+#require 'rubydns/lib/rubydns'
 require 'rubydns'
 
 require 'dnscat2_server'
 require 'log'
 
-#      # Create a DNS server if we don't have one already
-#  IN = Resolv::DNS::Resource::IN
-#      RubyDNS::run_server(:listen => [[:udp, "0.0.0.0", 53]]) do
-#        match(/.*/, IN::A) do |transaction|
-#          transaction.respond!("1.2.3.4")
-#        end
-#        match(/.*/, IN::MX) do |transaction|
-#          transaction.respond!(1, ["www.google.ca"])
-#        end
-#        match(/.*/, IN::TXT) do |transaction|
-#          transaction.respond!("hello")
-#        end
-#      end
+
 
 class DnscatDNS
+  IN = Resolv::DNS::Resource::IN
 
   def max_packet_size()
     return 32 # TODO: do this better
   end
 
   def initialize()
-    Thread.new() do
-    end
   end
 
-  def send(data)
-    # TODO
-    data = [data.length, data].pack("nA*")
-    @s.write(data)
+  # I have to re-implement RubyDNS::start_server() in order to disable the
+  # annoying logging (I'd love to have a better way!)
+  def start_dns_server(options = {}, &block)
+    server = RubyDNS::Server.new(&block)
+    server.logger.level = Logger::FATAL
+    server.logger.info "Starting RubyDNS server (v#{RubyDNS::VERSION})..."
+
+    options[:listen] ||= [[:udp, "0.0.0.0", 53], [:tcp, "0.0.0.0", 53]]
+
+    EventMachine.run do
+      server.fire(:setup)
+
+      # Setup server sockets
+      options[:listen].each do |spec|
+        server.logger.info "Listening on #{spec.join(':')}"
+        if spec[0] == :udp
+          EventMachine.open_datagram_socket(spec[1], spec[2], RubyDNS::UDPHandler, server)
+        elsif spec[0] == :tcp
+          EventMachine.start_server(spec[1], spec[2], RubyDNS::TCPHandler, server)
+        end
+      end
+
+      server.fire(:start)
+    end
+
+    server.fire(:stop)
   end
 
   def recv()
-    length = @s.read(2)
-    if(length.nil? || length.length != 2)
-      raise(IOError, "Connection closed while reading the length")
+    start_dns_server() do
+      match(/.*/, IN::TXT) do |transaction|
+        puts("Transaction:")
+        puts(transaction.inspect)
+        transaction.respond!("hello")
+      end
     end
-    length = length.unpack("n").shift
-
-    data = @s.read(length)
-    if(data.nil? || data.length != length)
-      raise(IOError, "Connection closed while reading packet")
-    end
-
-    return data
   end
 
   def close()
     @s.close
   end
+end
+
+begin
+  driver = DnscatDNS.new()
+  Dnscat2.go(driver)
+rescue IOError => e
+  puts("IOError caught: #{e.inspect}")
+  puts(e.inspect)
+  puts(e.backtrace)
+rescue Exception => e
+  puts("Exception caught: #{e.inspect}")
+  puts(e.inspect)
+  puts(e.backtrace)
 end
 
