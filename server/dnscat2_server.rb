@@ -104,7 +104,6 @@ class Dnscat2
       session_id = nil
 
       pipe.recv() do |data|
-puts("Received #{data.length} bytes...")
         packet = Packet.parse(data)
 
         # Store the session_id in a variable so we can close it if there's a problem
