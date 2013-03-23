@@ -232,15 +232,19 @@ class DnscatTest
   end
 
   def recv()
-    if(@data.length == 0)
-      raise(IOError, "Connection closed")
+    loop do
+      if(@data.length == 0)
+        raise(IOError, "Connection closed")
+      end
+
+      out = @data.shift
+      @expected_response = out[:recv]
+      @current_test = out[:name]
+
+      response = yield out[:send]
+
+      send(response)
     end
-
-    out = @data.shift
-    @expected_response = out[:recv]
-    @current_test = out[:name]
-
-    return out[:send]
   end
 
   def send(data)

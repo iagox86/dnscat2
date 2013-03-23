@@ -38,6 +38,9 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
   printf("[[dnscat]] stdin closed (sending remaining %zd bytes before exiting)\n", buffer_get_remaining_bytes(options->session->outgoing_data));
   options->session->stdin_closed = TRUE;
 
+  print_memory();
+  exit(0);
+
   return SELECT_REMOVE;
 }
 
