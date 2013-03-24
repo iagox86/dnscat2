@@ -102,8 +102,9 @@ class Dnscat2
       end
 
       session_id = nil
-      loop do
-        packet = Packet.parse(pipe.recv())
+
+      pipe.recv() do |data|
+        packet = Packet.parse(data)
 
         # Store the session_id in a variable so we can close it if there's a problem
         session_id = packet.session_id
@@ -125,8 +126,9 @@ class Dnscat2
           if(response.length > pipe.max_packet_size)
             raise(IOError, "Tried to send packet longer than max_packet_length")
           end
-          pipe.send(response)
         end
+
+        response
       end
     rescue IOError => e
       # Don't destroy the session on IOErrors, a new connection can resume the same session

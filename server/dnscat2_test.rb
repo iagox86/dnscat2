@@ -190,7 +190,6 @@ class DnscatTest
       :name => "Sending initial data in the new session",
     }
     my_seq += MY_DATA.length # Update my seq
-    @expected_response = nil
 
     # Re-set the ISNs
     my_seq     = MY_ISN - 1000
@@ -232,27 +231,27 @@ class DnscatTest
   end
 
   def recv()
-    if(@data.length == 0)
-      raise(IOError, "Connection closed")
+    loop do
+      if(@data.length == 0)
+        raise(IOError, "Connection closed")
+      end
+
+      out = @data.shift
+      response = yield(out[:send])
+
+      if(response != out[:recv])
+        @@failure += 1
+        Log.log("FAIL", out[:name])
+        puts(" >> Expected: #{out[:recv].nil? ? "<no response> " : Packet.parse(out[:recv])}")
+        puts(" >> Received: #{Packet.parse(data)}")
+      else
+        @@success += 1
+        Log.log("SUCCESS", out[:name])
+      end
     end
-
-    out = @data.shift
-    @expected_response = out[:recv]
-    @current_test = out[:name]
-
-    return out[:send]
   end
 
   def send(data)
-    if(data != @expected_response)
-      @@failure += 1
-      Log.log("FAIL", @current_test)
-      puts(" >> Expected: #{@expected_response.nil? ? "<no response> " : Packet.parse(@expected_response)}")
-      puts(" >> Received: #{Packet.parse(data)}")
-    else
-      @@success += 1
-      Log.log("SUCCESS", @current_test)
-    end
     # Just ignore the data being sent
   end
 

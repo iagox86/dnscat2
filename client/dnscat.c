@@ -37,6 +37,9 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
 
   session_close(options->session);
 
+  print_memory();
+  exit(0);
+
   return SELECT_REMOVE;
 }
 

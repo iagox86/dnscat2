@@ -23,35 +23,31 @@ class DnscatTCP
     @s = s
   end
 
-  def send(data)
-    data = [data.length, data].pack("nA*")
-    @s.write(data)
-  end
-
   def recv()
-    length = @s.read(2)
-    if(length.nil? || length.length != 2)
-      raise(IOError, "Connection closed while reading the length")
-    end
-    length = length.unpack("n").shift
+    loop do
+      length = @s.read(2)
+      if(length.nil? || length.length != 2)
+        raise(IOError, "Connection closed while reading the length")
+      end
+      length = length.unpack("n").shift
 
-    data = @s.read(length)
-    if(data.nil? || data.length != length)
-      raise(IOError, "Connection closed while reading packet")
-    end
+      incoming = @s.read(length)
+      if(incoming.nil? || incoming.length != length)
+        raise(IOError, "Connection closed while reading packet")
+      end
 
-    return data
+      outgoing = yield(incoming)
+      if(!outgoing.nil?)
+        outgoing = [outgoing.length, outgoing].pack("nA*")
+        @s.write(outgoing)
+      end
+    end
   end
 
   def close()
     @s.close
   end
 end
-
-# TODO: Remove this
-#require 'session'
-#Session.debug_set_isn(0x4444)
-# TODO: Remove this
 
 port = 2000
 

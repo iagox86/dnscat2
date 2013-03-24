@@ -1,7 +1,7 @@
 Immediate needs:
 - Proper synchronization (mutexes)
-- A client
 - DNS
+- Client isn't validating the response from recv() properly (if you ctrl-c the server, the client aborts)
 
 Future stuff:
 - Other protocols (ping/http/etc)

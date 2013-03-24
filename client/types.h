@@ -19,10 +19,6 @@
 #include <stdint.h>
 #endif
 
-#define NBTOOL_NAME         "nbtool"
-#define NBTOOL_VERSION      "0.05alpha2"
-#define NBTOOL_NAME_VERSION NBTOOL_NAME" v"NBTOOL_VERSION
-
 #ifndef TRUE
 typedef enum
 {
