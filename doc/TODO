@@ -3,6 +3,7 @@ Immediate needs:
 - DNS
 - Client isn't validating the response from recv() properly (if you ctrl-c the server, the client aborts)
 - Rename the appropriate classses in the server to 'driver'
+- Change the DNS class to use size_t when appropriate
 
 Future stuff:
 - Other protocols (ping/http/etc)
