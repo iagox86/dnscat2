@@ -4,9 +4,9 @@
  *
  * (See LICENSE.txt)
  *
- * Implements functions for managing memory. Optionally (based on defining TEST_MEMORY)
- * keeps track of all memory allocated and prints out a summary at the end. Great for
- * finding memory leaks.
+ * Implements functions for managing memory. Optionally (based on defining
+ * TEST_MEMORY) keeps track of all memory allocated and prints out a summary at
+ * the end. Great for finding memory leaks.
  */
 
 #ifndef __MEMORY_H__

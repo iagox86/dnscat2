@@ -32,11 +32,10 @@ static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, 
 static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *param)
 {
   options_t *options = (options_t*) param;
-  /* TODO: send a FIN */
 
-  /* TODO: Close stdin a cleaner way */
-  printf("[[dnscat]] stdin closed (sending remaining %zd bytes before exiting)\n", buffer_get_remaining_bytes(options->session->outgoing_data));
-  options->session->stdin_closed = TRUE;
+  printf("[[dnscat]] :: STDIN is closed, sending remaining data\n");
+
+  session_close(options->session);
 
   print_memory();
   exit(0);

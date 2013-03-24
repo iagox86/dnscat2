@@ -4,21 +4,22 @@
  *
  * (See LICENSE.txt)
  *
- * This is a generic class for buffering (marshalling) data that in many ways dates back
- * to my days as a Battle.net developers. It gives programmers an easy way to prepare
- * data to be sent on the network, as well as a simplified way to build strings in a
- * language where string building isn't always straight forward. In many ways, it's like
- * the pack()/unpack() functions from Perl.
+ * This is a generic class for buffering (marshalling) data that in many ways
+ * dates back to my days as a Battle.net developers. It gives programmers an
+ * easy way to prepare data to be sent on the network, as well as a simplified
+ * way to build strings in a language where string building isn't always
+ * straight forward. In many ways, it's like the pack()/unpack() functions from
+ * Perl.
  *
- * I've strived to keep this implementation the same on every platform. You'll notice
- * that there's no Windows-specific code here, and also that all calculations will work
- * on both a little- or big-endian system. The only time you won't get the same results
- * is when you create a buffer with the type BO_HOST, which always uses the host's byte
- * ordering. I don't recommend that.
+ * I've strived to keep this implementation the same on every platform. You'll
+ * notice that there's no Windows-specific code here, and also that all
+ * calculations will work on both a little- or big-endian system. The only time
+ * you won't get the same results is when you create a buffer with the type
+ * BO_HOST, which always uses the host's byte ordering. I don't recommend that.
  */
 
-#ifndef __PACKET_BUFFER_H__
-#define __PACKET_BUFFER_H__
+#ifndef __BUFFER_H__
+#define __BUFFER_H__
 
 #include <stdlib.h> /* For "size_t". */
 
