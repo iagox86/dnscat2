@@ -36,6 +36,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
   /* TODO */
   printf("TODO: Parse the incoming DNS packet\n");
   dns_print(dns);
+  exit(0);
 
   dns_destroy(dns);
 

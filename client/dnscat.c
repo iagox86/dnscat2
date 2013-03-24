@@ -6,7 +6,9 @@
 #include "select_group.h"
 
 #include "driver.h"
+#include "driver_dns.h"
 #include "driver_tcp.h"
+
 #include "memory.h"
 #include "packet.h"
 #include "session.h"
@@ -61,7 +63,8 @@ int main(int argc, const char *argv[])
   options->group = select_group_create();
 
   /* Set up the session */
-  options->session = session_create(driver_get_tcp("localhost", 2000, options->group));
+/*options->session = session_create(driver_get_tcp("localhost", 2000, options->group));*/
+  options->session = session_create(driver_get_dns("localhost", 53, options->group));
 
   /* Create the STDIN socket */
 #ifdef WIN32

@@ -5,9 +5,11 @@
 
 #include <assert.h>
 
-#include "driver_tcp.h"
 #include "memory.h"
 #include "packet.h"
+
+#include "driver_dns.h"
+#include "driver_tcp.h"
 
 #include "driver.h"
 
@@ -23,6 +25,21 @@ driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group)
   driver->driver          = tcp_driver_create(host, port, group);
 
   /* Set the tcp_driver_t options */
+
+  return driver;
+}
+
+driver_t *driver_get_dns(char *host, uint16_t port, select_group_t *group)
+{
+  /* Set the tcp-specific options for the driver */
+  driver_t *driver        = safe_malloc(sizeof(driver_t));
+  driver->driver_send     = driver_dns_send;
+  driver->driver_recv     = driver_dns_recv;
+  driver->driver_close    = driver_dns_close;
+  driver->driver_cleanup  = driver_dns_cleanup;
+  driver->max_packet_size = 32;
+  driver->driver          = dns_driver_create(host, port, group);
+
 
   return driver;
 }
