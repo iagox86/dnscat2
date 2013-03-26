@@ -63,7 +63,8 @@ int main(int argc, const char *argv[])
   options->group = select_group_create();
 
   /* Set up the session */
-/*options->session = session_create(driver_get_tcp("localhost", 2000, options->group));*/
+  /*options->session = session_create(driver_get_tcp("localhost", 2000, options->group));*/
+  /*options->session = session_create(driver_get_dns("4.2.2.1", 53, options->group));*/
   options->session = session_create(driver_get_dns("localhost", 53, options->group));
 
   /* Create the STDIN socket */

@@ -118,6 +118,8 @@ void driver_dns_send(void *driver, uint8_t *data, size_t length)
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
   dns = dns_create();
+  dns->trn_id = rand() % 0xFFFF; /* Randomize the transaction id. */
+  dns->flags = 0x0100; /* Enable recursion (TODO: Constants) */
   dns_add_question(dns, encoded_bytes, DNS_TYPE_TEXT, 0x0001);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
