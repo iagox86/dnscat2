@@ -23,6 +23,7 @@ dns_driver_t *dns_driver_create(char *dns_host, uint16_t dns_port, select_group_
   dns_driver->dns_port = dns_port;
   dns_driver->group    = group;
 
+  /* TODO: This should be a list or something, not a buffer */
   dns_driver->incoming_data = buffer_create(BO_BIG_ENDIAN);
 
   return dns_driver;
@@ -30,13 +31,46 @@ dns_driver_t *dns_driver_create(char *dns_host, uint16_t dns_port, select_group_
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
-  dns_driver_t *driver = (dns_driver_t*)param;
+  dns_driver_t *d = (dns_driver_t*)param;
   dns_t *dns = dns_create_from_packet(data, length);
 
   /* TODO */
-  printf("TODO: Parse the incoming DNS packet\n");
-  dns_print(dns);
-  exit(0);
+  if(dns->flags & 0x000f)
+  {
+    /* TODO: Handle errors more gracefully */
+    printf("DNS Error!\n");
+    /*exit(1); */
+  }
+  else if(dns->question_count != 1)
+  {
+    printf("DNS returned the wrong number of response fields.\n");
+    exit(1);
+  }
+  else if(dns->answer_count != 1)
+  {
+    printf("DNS returned the wrong number of response fields.\n");
+    exit(1);
+  }
+  else if(dns->answers[0].type == DNS_TYPE_TEXT)
+  {
+    char *answer = (char*)dns->answers[0].answer->TEXT.text;
+    char buf[3] = "\0\0\0";
+    size_t i;
+
+    /* TODO: This is very, very bad */
+    for(i = 0; answer[i] != '.'; i+= 2)
+    {
+      buf[0] = answer[i];
+      buf[1] = answer[i + 1];
+
+      buffer_add_int8(d->incoming_data, strtol(buf, NULL, 16));
+    }
+  }
+  else
+  {
+    printf("Unknown DNS type returned\n");
+    exit(1);
+  }
 
   dns_destroy(dns);
 
@@ -101,25 +135,15 @@ uint8_t *driver_dns_recv(void *driver, size_t *length, size_t max_length)
 
   dns_driver_t *d = (dns_driver_t*) driver;
 
-  if(buffer_get_remaining_bytes(d->incoming_data) >= 2)
+  if(buffer_get_remaining_bytes(d->incoming_data) > 0)
   {
-    expected_length = buffer_peek_next_int16(d->incoming_data);
-    if(buffer_get_remaining_bytes(d->incoming_data) - 2 >= expected_length)
-    {
-      /* Consume the value we already know */
-      buffer_read_next_int16(d->incoming_data);
+    /* Read the rest of the buffer. */
+    ret = buffer_read_remaining_bytes(d->incoming_data, length, -1, FALSE);
 
-      /* Read the rest of the buffer. */
-      ret = buffer_read_remaining_bytes(d->incoming_data, &returned_length, expected_length, FALSE);
-      /* Consume the bytes from the buffer */
-      buffer_consume(d->incoming_data, expected_length);
+    /* Consume the bytes from the buffer */
+    buffer_consume(d->incoming_data, *length);
 
-      assert(expected_length == returned_length); /* Make sure the right number of bytes are returned by the buffer */
-
-      *length = returned_length;
-
-      return ret;
-    }
+    return ret;
   }
 
   /* By default, return NULL */
