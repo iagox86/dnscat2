@@ -85,6 +85,7 @@ class Dnscat2
 
   def Dnscat2.go(pipe)
     # Create a thread that listens on stdin and sends the data everywhere
+    # TODO: We need a better way to manage different sessions
     Thread.new do
       begin
         loop do
@@ -128,7 +129,7 @@ class Dnscat2
           end
         end
 
-        response
+        response # Return it, in a way
       end
     rescue IOError => e
       # Don't destroy the session on IOErrors, a new connection can resume the same session

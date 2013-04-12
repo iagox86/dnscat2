@@ -1,3 +1,4 @@
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,11 +16,20 @@
 #include "time.h"
 #include "types.h"
 
+/* Default options */
+#define DEFAULT_DNS_SERVER "localhost"
+#define DEFAULT_DNS_PORT   53
+#define DEFAULT_DOMAIN     "skullseclabs.org"
+
 typedef struct
 {
   select_group_t *group;
   session_t      *session;
   NBBOOL          stdin_is_closed;
+
+  char           *dns_server;
+  uint16_t        dns_port;
+  char           *domain;
 } options_t;
 
 static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
@@ -54,18 +64,64 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
   return SELECT_OK;
 }
 
-int main(int argc, const char *argv[])
+int main(int argc, char *argv[])
 {
-  options_t *options = (options_t*)safe_malloc(sizeof(options_t));
+  char        c;
+  int         option_index;
+  const char *option_name;
+  options_t  *options = (options_t*)safe_malloc(sizeof(options_t));
+
+  struct option long_options[] =
+  {
+    {"domain", required_argument, 0, 0}, /* Domain name */
+    {"d",      required_argument, 0, 0},
+  };
+
   srand(time(NULL));
+
+  /* Default the options to 0 */
+  memset(options, 0, sizeof(options));
 
   /* Create the select_group */
   options->group = select_group_create();
 
+  /* Default options */
+  options->dns_server = DEFAULT_DNS_SERVER;
+  options->dns_port   = DEFAULT_DNS_PORT;
+  options->domain     = DEFAULT_DOMAIN;
+
+  /* Parse the command line options. */
+  opterr = 0;
+  while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != EOF)
+  {
+    switch(c)
+    {
+      case 0:
+        option_name = long_options[option_index].name;
+
+        if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
+        {
+          options->domain = optarg;
+        }
+        else
+        {
+          printf("Unknown option: %s\n", option_name);
+          exit(1);
+          /* TODO: Usage */
+        }
+        break;
+
+      case '?':
+      default:
+        printf("Unknown option\n");
+        exit(1);
+        /* TODO: Usage */
+        break;
+    }
+  }
+
   /* Set up the session */
-  /*options->session = session_create(driver_get_tcp("localhost", 2000, options->group));*/
-  /*options->session = session_create(driver_get_dns("4.2.2.1", 53, options->group));*/
-  options->session = session_create(driver_get_dns("localhost", 53, options->group));
+  options->session = session_create(driver_get_dns(options->dns_server, options->dns_port, options->group));
 
   /* Create the STDIN socket */
 #ifdef WIN32

@@ -67,8 +67,12 @@ class DnscatDNS
 puts("Received: #{name}")
         name = [name].pack("H*")
         response = yield(name)
-        response = "#{response.unpack("H*").pop}.#{domain}"
 puts("Sending:  #{response}")
+        if(response.nil?)
+          # TODO: nil response
+        else
+          response = "#{response.unpack("H*").pop}.#{domain}"
+        end
         transaction.respond!(response)
       end
     end
