@@ -429,5 +429,7 @@ char *dns_get_system();
 /* Runs dnstest and exits. Useful for --test parameters on any of the dns* programs. */
 void dns_do_test(char *domain);
 
+int      dns_is_error(dns_t *dns);
+
 #endif
 

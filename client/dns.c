@@ -253,13 +253,25 @@ dns_t *dns_create_from_packet(uint8_t *packet, uint32_t length)
 	uint16_t i;
 	buffer_t *buffer = buffer_create_with_data(BO_NETWORK, packet, length);
 	dns_t *dns = dns_create_internal();
+  uint16_t flags;
 
 	dns->trn_id           = buffer_read_next_int16(buffer);
-	dns->flags            = buffer_read_next_int16(buffer);
+	flags                 = buffer_read_next_int16(buffer);
 	dns->question_count   = buffer_read_next_int16(buffer);
 	dns->answer_count     = buffer_read_next_int16(buffer);
 	dns->authority_count  = buffer_read_next_int16(buffer);
 	dns->additional_count = buffer_read_next_int16(buffer);
+
+  /* Parse the 'flags' field:
+   * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+   * |                               1  1  1  1  1  1|
+   * | 0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5|
+   * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+   * |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+   * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+ */
+  dns->opcode = flags & 0x7800;
+  dns->flags  = flags & 0x8780;
+  dns->rcode  = flags & 0x000F;
 
 	if(dns->question_count)
 	{
@@ -1308,3 +1320,7 @@ void dns_do_test(char *domain)
     exit(0);
 }
 
+int dns_is_error(dns_t *dns)
+{
+  return dns->rcode != 0;
+}
