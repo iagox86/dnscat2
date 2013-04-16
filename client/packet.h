@@ -41,6 +41,7 @@ typedef struct
 typedef struct
 {
   message_type_t message_type;
+  uint16_t packet_id;
   uint16_t session_id;
 
   union
@@ -55,9 +56,9 @@ typedef struct
 packet_t *packet_parse(uint8_t *data, size_t length);
 
 /* Create a packet with the given characteristics. */
-packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options);
-packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
-packet_t *packet_create_fin(uint16_t session_id);
+packet_t *packet_create_syn(uint16_t packet_id, uint16_t session_id, uint16_t seq, uint16_t options);
+packet_t *packet_create_msg(uint16_t packet_id, uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
+packet_t *packet_create_fin(uint16_t packet_id, uint16_t session_id);
 
 /* Free the packet data structures. */
 void packet_destroy(packet_t *packet);

@@ -166,7 +166,7 @@ static void do_send_stuff(session_t *session)
   {
     case SESSION_STATE_NEW:
       printf("[[dnscat]] :: Sending a SYN packet (SEQ = 0x%04x)...\n", session->my_seq);
-      packet = packet_create_syn(session->id, session->my_seq, 0);
+      packet = packet_create_syn(rand() % 0xFFFF, session->id, session->my_seq, 0);
       driver_send_packet(session->driver, packet);
       packet_destroy(packet);
       break;
@@ -177,7 +177,7 @@ static void do_send_stuff(session_t *session)
       printf("[[dnscat]] :: Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...\n", session->my_seq, session->their_seq, length);
 
       /* Create a packet with that data */
-      packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, length);
+      packet = packet_create_msg(rand() % 0xFFFF, session->id, session->my_seq, session->their_seq, data, length);
 
       /* Send the packet */
       driver_send_packet(session->driver, packet);
@@ -196,7 +196,7 @@ static void do_send_stuff(session_t *session)
 static void do_close_stuff(session_t *session)
 {
   /* Send the FIN */
-  packet_t *packet = packet_create_fin(session->id);
+  packet_t *packet = packet_create_fin(rand() % 0xFFFF, session->id);
   driver_send_packet(session->driver, packet);
   packet_destroy(packet);
 

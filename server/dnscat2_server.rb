@@ -27,13 +27,13 @@ class Dnscat2
     session.set_their_seq(packet.seq)
     session.set_established()
 
-    return Packet.create_syn(session.id, session.my_seq, nil)
+    return Packet.create_syn(packet.packet_id, session.id, session.my_seq, nil)
   end
 
   def Dnscat2.handle_msg(pipe, packet, session)
     if(!session.msg_valid?())
       Log.log(session.id, "MSG invalid in this state (responding with an error)")
-      return Packet.create_fin(session.id)
+      return Packet.create_fin(packet.packet_id, session.id)
     end
 
     # Validate the sequence number
@@ -42,7 +42,7 @@ class Dnscat2
 
       # Re-send the last packet
       old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
-      return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
+      return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
     end
 
     if(!session.valid_ack?(packet.ack))
@@ -50,7 +50,7 @@ class Dnscat2
 
       # Re-send the last packet
       old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
-      return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
+      return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
     end
 
     # Acknowledge the data that has been received so far
@@ -68,7 +68,7 @@ class Dnscat2
     Log.log(session.id, "<< \"#{new_data}\"")
 
     # Build the new packet
-    return Packet.create_msg(session.id, session.my_seq, session.their_seq, new_data)
+    return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
   end
 
   def Dnscat2.handle_fin(pipe, packet, session)
@@ -80,7 +80,7 @@ class Dnscat2
 
     Log.log(session.id, "Received FIN for session #{session.id}; closing session")
     session.destroy()
-    return Packet.create_fin(session.id)
+    return Packet.create_fin(packet.packet_id, session.id)
   end
 
   def Dnscat2.go(pipe)

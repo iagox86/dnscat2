@@ -19,6 +19,7 @@ packet_t *packet_parse(uint8_t *data, size_t length)
   }
 
   packet->message_type = buffer_read_next_int8(buffer);
+  packet->packet_id    = buffer_read_next_int16(buffer);
   packet->session_id   = buffer_read_next_int16(buffer);
 
   switch(packet->message_type)
@@ -48,10 +49,11 @@ packet_t *packet_parse(uint8_t *data, size_t length)
   return packet;
 }
 
-packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options)
+packet_t *packet_create_syn(uint16_t packet_id, uint16_t session_id, uint16_t seq, uint16_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
   packet->message_type     = MESSAGE_TYPE_SYN;
+  packet->packet_id        = packet_id;
   packet->session_id       = session_id;
   packet->body.syn.seq     = seq;
   packet->body.syn.options = options;
@@ -59,11 +61,12 @@ packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options)
   return packet;
 }
 
-packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length)
+packet_t *packet_create_msg(uint16_t packet_id, uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->message_type         = MESSAGE_TYPE_MSG;
+  packet->packet_id            = packet_id;
   packet->session_id           = session_id;
   packet->body.msg.seq         = seq;
   packet->body.msg.ack         = ack;
@@ -73,12 +76,13 @@ packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uin
   return packet;
 }
 
-packet_t *packet_create_fin(uint16_t session_id)
+packet_t *packet_create_fin(uint16_t packet_id, uint16_t session_id)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
-  packet->message_type         = MESSAGE_TYPE_FIN;
-  packet->session_id           = session_id;
+  packet->message_type     = MESSAGE_TYPE_FIN;
+  packet->packet_id        = packet_id;
+  packet->session_id       = session_id;
 
   return packet;
 }
@@ -88,6 +92,7 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
 
   buffer_add_int8(buffer, packet->message_type);
+  buffer_add_int16(buffer, packet->packet_id);
   buffer_add_int16(buffer, packet->session_id);
 
   switch(packet->message_type)
@@ -117,11 +122,11 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
 void packet_print(packet_t *packet)
 {
   if(packet->message_type == MESSAGE_TYPE_SYN)
-    printf("[[SYN]] :: session = %04x, seq = %04x, options = %04x\n", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+    printf("[[SYN]] :: packet_id = %04x, session = %04x, seq = %04x, options = %04x\n", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
   else if(packet->message_type == MESSAGE_TYPE_MSG)
-    printf("[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"\n", packet->session_id, packet->body.msg.seq, packet->body.msg.ack, packet->body.msg.data);
+    printf("[[MSG]] :: packet_id = %04x, session = %04x, seq = %04x, ack = %04x, data = \"%s\"\n", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack, packet->body.msg.data);
   else if(packet->message_type == MESSAGE_TYPE_FIN)
-    printf("[[FIN]] :: session = %04x\n", packet->session_id);
+    printf("[[FIN]] :: packet_id = %04x, session = %04x\n", packet->packet_id, packet->session_id);
   else
   {
     printf("Unknown packet type!\n");

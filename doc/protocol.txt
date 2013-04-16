@@ -133,12 +133,17 @@ Note:
 - It is assumed that we know the length of the datagram; if we don't, a
   lower-level wrapper is required (eg, for TCP I prefix a 2-byte length
   header)
+- The packet_id field used throughout is simply echoed back from the
+  server to the client - the client can choose it any way it likes
+  (random, sequential, always the same, whatever). This helps with
+  protocols where caching is an issue (like DNS).
 
 -----------------------
 MESSAGE_TYPE_SYN [0x00]
 -----------------------
 
 - (uint8_t)  message_type [0x00]
+- (uint16_t) packet_id
 - (uint16_t) session_id
 - (uint16_t) initial seq number
 - (uint16_t) options
@@ -171,6 +176,7 @@ MESSAGE_TYPE_MSG: [0x01]
 ------------------------
 
 - (uint8_t)  message_type [0x01]
+- (uint16_t) packet_id
 - (uint16_t) session_id
 - (uint16_t) sequence number
 - (uint16_t) acknowledgement number
@@ -217,6 +223,7 @@ MESSAGE_TYPE_FIN: [0x02]
 ------------------------
 
 - (uint8_t)  message_type [0x02]
+- (uint16_t) packet_id
 - (uint16_t) session_id
 - (variable) other fields, as defined by 'options'
 
