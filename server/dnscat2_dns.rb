@@ -67,7 +67,7 @@ class DnscatDNS
 puts("Received: #{name}")
         name = [name].pack("H*")
         response = yield(name)
-puts("Sending:  #{response}")
+puts("Sending:  #{response.unpack("H*")}")
         if(response.nil?)
           puts("Sending nil response...")
           response = domain

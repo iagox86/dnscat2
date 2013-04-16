@@ -110,10 +110,12 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
           }
           else if(!isxdigit((int)answer[i]))
           {
+            /* ignore */
             printf("WARNING: Answer contained an invalid digit: '%c'\n", answer[i]);
           }
           else if(!isxdigit((int)answer[i+1]))
           {
+            /* ignore */
             printf("WARNING: Answer contained an invalid digit: '%c'\n", answer[i+1]);
           }
           else
