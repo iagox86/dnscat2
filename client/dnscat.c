@@ -45,7 +45,7 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
 {
   options_t *options = (options_t*) param;
 
-  printf("[[dnscat]] :: STDIN is closed, sending remaining data\n");
+  fprintf(stderr, "[[dnscat]] :: STDIN is closed, sending remaining data\n");
 
   session_close(options->session);
 
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-          printf("Unknown option: %s\n", option_name);
+          fprintf(stderr, "Unknown option: %s\n", option_name);
           exit(1);
           /* TODO: Usage */
         }
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 
       case '?':
       default:
-        printf("Unknown option\n");
+        fprintf(stderr, "Unknown option\n");
         exit(1);
         /* TODO: Usage */
         break;
@@ -131,10 +131,10 @@ int main(int argc, char *argv[])
   }
 
   /* Tell the user what's going on */
-  printf("Options selected:\n");
-  printf(" DNS Server: %s\n", options->dns_server);
-  printf(" DNS Port:   %d\n", options->dns_port);
-  printf(" Domain:     %s\n", options->domain);
+  fprintf(stderr, "Options selected:\n");
+  fprintf(stderr, " DNS Server: %s\n", options->dns_server);
+  fprintf(stderr, " DNS Port:   %d\n", options->dns_port);
+  fprintf(stderr, " Domain:     %s\n", options->domain);
 
   /* Set up the session */
   options->session = session_create(driver_get_dns(options->domain, options->dns_server, options->dns_port, options->group));

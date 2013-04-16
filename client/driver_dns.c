@@ -44,33 +44,33 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
     switch(dns->rcode)
     {
       case DNS_RCODE_FORMAT_ERROR:
-        printf("DNS ERROR: RCODE_FORMAT_ERROR\n");
+        fprintf(stderr, "DNS ERROR: RCODE_FORMAT_ERROR\n");
         break;
       case DNS_RCODE_SERVER_FAILURE:
-        printf("DNS ERROR: RCODE_SERVER_FAILURE\n");
+        fprintf(stderr, "DNS ERROR: RCODE_SERVER_FAILURE\n");
         break;
       case DNS_RCODE_NAME_ERROR:
-        printf("DNS ERROR: RCODE_NAME_ERROR\n");
+        fprintf(stderr, "DNS ERROR: RCODE_NAME_ERROR\n");
         break;
       case DNS_RCODE_NOT_IMPLEMENTED:
-        printf("DNS ERROR: RCODE_NOT_IMPLEMENTED\n");
+        fprintf(stderr, "DNS ERROR: RCODE_NOT_IMPLEMENTED\n");
         break;
       case DNS_RCODE_REFUSED:
-        printf("DNS ERROR: RCODE_REFUSED\n");
+        fprintf(stderr, "DNS ERROR: RCODE_REFUSED\n");
         break;
       default:
-        printf("DNS ERROR: Unknown error code (0x%04x)\n", dns->rcode);
+        fprintf(stderr, "DNS ERROR: Unknown error code (0x%04x)\n", dns->rcode);
         break;
     }
   }
   else if(dns->question_count != 1)
   {
-    printf("DNS returned the wrong number of response fields.\n");
+    fprintf(stderr, "DNS returned the wrong number of response fields.\n");
     exit(1);
   }
   else if(dns->answer_count != 1)
   {
-    printf("DNS returned the wrong number of response fields.\n");
+    fprintf(stderr, "DNS returned the wrong number of response fields.\n");
     exit(1);
   }
   else if(dns->answers[0].type == DNS_TYPE_TEXT)
@@ -81,10 +81,10 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 
     answer = dns->answers[0].answer->TEXT.text;
 
-    printf("Received: %s\n", answer);
+    fprintf(stderr, "Received: %s\n", answer);
     if(!strcmp(answer, driver->domain))
     {
-      printf("WARNING: Received a 'nil' answer; ignoring\n");
+      fprintf(stderr, "WARNING: Received a 'nil' answer; ignoring\n");
     }
     else
     {
@@ -92,7 +92,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
       char *domain = strstr(answer, driver->domain);
       if(!domain)
       {
-        printf("ERROR: Answer didn't contain the domain\n");
+        fprintf(stderr, "ERROR: Answer didn't contain the domain\n");
       }
       else
       {
@@ -106,17 +106,17 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
           }
           else if(answer[i+1] == '.')
           {
-            printf("WARNING: Answer contained an odd number of digits\n");
+            fprintf(stderr, "WARNING: Answer contained an odd number of digits\n");
           }
           else if(!isxdigit((int)answer[i]))
           {
             /* ignore */
-            printf("WARNING: Answer contained an invalid digit: '%c'\n", answer[i]);
+            fprintf(stderr, "WARNING: Answer contained an invalid digit: '%c'\n", answer[i]);
           }
           else if(!isxdigit((int)answer[i+1]))
           {
             /* ignore */
-            printf("WARNING: Answer contained an invalid digit: '%c'\n", answer[i+1]);
+            fprintf(stderr, "WARNING: Answer contained an invalid digit: '%c'\n", answer[i+1]);
           }
           else
           {
@@ -132,7 +132,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
   }
   else
   {
-    printf("Unknown DNS type returned\n");
+    fprintf(stderr, "Unknown DNS type returned\n");
     exit(1);
   }
 
@@ -158,7 +158,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
 
     if(driver->s == -1)
     {
-      printf("[[DNS]] :: couldn't create socket!\n");
+      fprintf(stderr, "[[DNS]] :: couldn't create socket!\n");
       return;
     }
 
@@ -181,7 +181,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
   buffer_add_ntstring(buffer, ".skullseclabs.org");
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
-  printf("SEND: %s\n", encoded_bytes);
+  fprintf(stderr, "SEND: %s\n", encoded_bytes);
   dns = dns_create(rand() % 0xFFFF, DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
   dns_add_question(dns, encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
@@ -218,7 +218,7 @@ void driver_dns_close(void *d)
 {
   dns_driver_t *driver = (dns_driver_t*) d;
 
-  printf("[[UDP]] :: close()\n");
+  fprintf(stderr, "[[UDP]] :: close()\n");
 
   assert(driver->s && driver->s != -1); /* We can't close a closed socket */
 
@@ -231,7 +231,7 @@ void driver_dns_cleanup(void *d)
 {
   dns_driver_t *driver = (dns_driver_t*) d;
 
-  printf("[[DNS]] :: cleanup()\n");
+  fprintf(stderr, "[[DNS]] :: cleanup()\n");
 
   /* Ensure the driver is closed */
   if(driver->s != -1)
