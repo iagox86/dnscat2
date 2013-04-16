@@ -69,7 +69,8 @@ puts("Received: #{name}")
         response = yield(name)
 puts("Sending:  #{response}")
         if(response.nil?)
-          # TODO: nil response
+          puts("Sending nil response...")
+          response = domain
         else
           response = "#{response.unpack("H*").pop}.#{domain}"
         end
