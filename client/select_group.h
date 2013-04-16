@@ -62,20 +62,20 @@
 /* Different types of sockets, which will affect different aspects. */
 typedef enum
 {
-	SOCKET_TYPE_STREAM,   /* No special treatment (anything can technically use this one).  */
-	SOCKET_TYPE_DATAGRAM, /* Uses recvfrom() and passes along the socket address). */
-	SOCKET_TYPE_LISTEN,   /* Listening implies a stream. */
+  SOCKET_TYPE_STREAM,   /* No special treatment (anything can technically use this one).  */
+  SOCKET_TYPE_DATAGRAM, /* Uses recvfrom() and passes along the socket address). */
+  SOCKET_TYPE_LISTEN,   /* Listening implies a stream. */
 #ifdef WIN32
-	SOCKET_TYPE_PIPE    /* For use on Windows, only, is handled separately. */
+  SOCKET_TYPE_PIPE    /* For use on Windows, only, is handled separately. */
 #endif
 } SOCKET_TYPE_t;
 
 /* Possible return values from callback functions. */
 typedef enum
 {
-	SELECT_OK,           /* Everything went well. */
-	SELECT_REMOVE,       /* Remove the socket from the list. */
-	SELECT_CLOSE_REMOVE, /* Close the socket and remove it from the list. */
+  SELECT_OK,           /* Everything went well. */
+  SELECT_REMOVE,       /* Remove the socket from the list. */
+  SELECT_CLOSE_REMOVE, /* Close the socket and remove it from the list. */
 } SELECT_RESPONSE_t;
 
 /* Define callback function types. I have to make the first parameter 'void*' because the struct hasn't been defined
@@ -90,38 +90,38 @@ typedef SELECT_RESPONSE_t(select_timeout)(void *group, void *param);
 /* This struct is for internal use. */
 typedef struct
 {
-	int             s; /* The socket. */
+  int             s; /* The socket. */
 #ifdef WIN32
-	HANDLE          pipe; /* A pipe (used for Windows' named pipes. */
+  HANDLE          pipe; /* A pipe (used for Windows' named pipes. */
 #endif
-	SOCKET_TYPE_t   type; /* Datagram, stream, etc. */
-	select_recv    *recv_callback;    /* The function to call when data arrives. */
-	select_listen  *listen_callback;  /* The function to call when a connection arrives. */
-	select_error   *error_callback;   /* The function to call when there's an error. */
-	select_closed  *closed_callback;  /* The function to call when the connection is closed. */
+  SOCKET_TYPE_t   type; /* Datagram, stream, etc. */
+  select_recv    *recv_callback;    /* The function to call when data arrives. */
+  select_listen  *listen_callback;  /* The function to call when a connection arrives. */
+  select_error   *error_callback;   /* The function to call when there's an error. */
+  select_closed  *closed_callback;  /* The function to call when the connection is closed. */
 
-	size_t          waiting_for; /* The number of bytes being waited on. If set to 0, will trigger on all incoming data. */
-	uint8_t        *buffer; /* The buffer that holds the current bytes. */
-	size_t          buffered; /* The number of bytes currently stored in the buffer. */
+  size_t          waiting_for; /* The number of bytes being waited on. If set to 0, will trigger on all incoming data. */
+  uint8_t        *buffer; /* The buffer that holds the current bytes. */
+  size_t          buffered; /* The number of bytes currently stored in the buffer. */
 
-	NBBOOL         active; /* Set to 'false' when the socket is 'deleted'. It's easier than physically removing it from
-	                         * the list, so until I implement something heavy weight this will work. */
+  NBBOOL         active; /* Set to 'false' when the socket is 'deleted'. It's easier than physically removing it from
+                           * the list, so until I implement something heavy weight this will work. */
 
-	void           *param; /* Used to store a piece of arbitrary data that's sent to the callbacks. */
+  void           *param; /* Used to store a piece of arbitrary data that's sent to the callbacks. */
 } select_t;
 
 /* This is the primary struct for this module. */
 typedef struct
 {
-	select_t **select_list; /* A list of the select_t objects. */
-	size_t current_size; /* The current number of "select_t"s in the list. */
-	size_t maximum_size; /* The maximum number of "select_t"s in the list before realloc() has to expand it. */
+  select_t **select_list; /* A list of the select_t objects. */
+  size_t current_size; /* The current number of "select_t"s in the list. */
+  size_t maximum_size; /* The maximum number of "select_t"s in the list before realloc() has to expand it. */
 #ifdef WIN32
-	uint32_t elapsed_time; /* The number of milliseconds that have elapsed; used for timeouts. */
+  uint32_t elapsed_time; /* The number of milliseconds that have elapsed; used for timeouts. */
 #endif
-	int biggest_socket; /* The handle to the highest-numbered socket in the list (required for select() call). */
+  int biggest_socket; /* The handle to the highest-numbered socket in the list (required for select() call). */
 
-	select_timeout *timeout_callback; /* The function to call when the timeout time expires. */
+  select_timeout *timeout_callback; /* The function to call when the timeout time expires. */
   void *timeout_param; /* A parameter that is passed to the callback function. */
 } select_group_t;
 

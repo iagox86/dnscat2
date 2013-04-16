@@ -22,8 +22,8 @@
 #ifndef TRUE
 typedef enum
 {
-	FALSE,
-	TRUE
+  FALSE,
+  TRUE
 } NBBOOL;
 #else
 typedef int NBBOOL;

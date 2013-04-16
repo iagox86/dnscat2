@@ -27,34 +27,34 @@
 
 typedef enum
 {
-	BO_HOST,          /* Use the byte order of the host (bad idea -- changes on systems. */
-	BO_NETWORK,       /* Use network byte order which, as it turns out, is big endian. */
-	BO_LITTLE_ENDIAN, /* Use big endian byte ordering (0x12345678 => 78 56 34 12). */
-	BO_BIG_ENDIAN,    /* Use big endian byte ordering (0x12345678 => 12 34 56 78). */
+  BO_HOST,          /* Use the byte order of the host (bad idea -- changes on systems. */
+  BO_NETWORK,       /* Use network byte order which, as it turns out, is big endian. */
+  BO_LITTLE_ENDIAN, /* Use big endian byte ordering (0x12345678 => 78 56 34 12). */
+  BO_BIG_ENDIAN,    /* Use big endian byte ordering (0x12345678 => 12 34 56 78). */
 } BYTE_ORDER_t;
 
 /* This struct shouldn't be accessed directly */
 typedef struct
 {
-	/* Byte order to use */
-	BYTE_ORDER_t byte_order;
+  /* Byte order to use */
+  BYTE_ORDER_t byte_order;
 
-	/* The current position in the string, used when reading it. */
-	size_t position;
+  /* The current position in the string, used when reading it. */
+  size_t position;
 
-	/* The maximum length of the buffer that "buffer" is pointing to.  When
-	 * space in this runs out, it's expanded  */
-	size_t max_length;
+  /* The maximum length of the buffer that "buffer" is pointing to.  When
+   * space in this runs out, it's expanded  */
+  size_t max_length;
 
-	/* The current length of the buffer. */
-	size_t current_length;
+  /* The current length of the buffer. */
+  size_t current_length;
 
-	/* The current buffer.  Will always point to a string of length max_length */
-	uint8_t *data;
+  /* The current buffer.  Will always point to a string of length max_length */
+  uint8_t *data;
 
-	/* Set to FALSE when the packet is destroyed, to make sure I don't accidentally
-	 * re-use it (again) */
-	NBBOOL valid;
+  /* Set to FALSE when the packet is destroyed, to make sure I don't accidentally
+   * re-use it (again) */
+  NBBOOL valid;
 
 } buffer_t;
 

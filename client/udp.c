@@ -24,78 +24,78 @@
 
 int udp_create_socket(uint16_t port, char *local_address)
 {
-	int    s;
-	int    value = 1;
-	struct sockaddr_in sox;
+  int    s;
+  int    value = 1;
+  struct sockaddr_in sox;
 
-	s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-	if(s < 0)
-		nbdie("udp: couldn't create socket");
+  if(s < 0)
+    nbdie("udp: couldn't create socket");
 
-	if(setsockopt(s, SOL_SOCKET, SO_BROADCAST, (void*)&value, sizeof(int)) < 0)
-		nbdie("udp: couldn't set socket to SO_BROADCAST");
+  if(setsockopt(s, SOL_SOCKET, SO_BROADCAST, (void*)&value, sizeof(int)) < 0)
+    nbdie("udp: couldn't set socket to SO_BROADCAST");
 
-	sox.sin_addr.s_addr = inet_addr(local_address);
-	sox.sin_family      = AF_INET;
-	sox.sin_port        = htons(port);
+  sox.sin_addr.s_addr = inet_addr(local_address);
+  sox.sin_family      = AF_INET;
+  sox.sin_port        = htons(port);
 
     if(sox.sin_addr.s_addr == INADDR_NONE)
-		nbdie("udp: couldn't parse local address");
+    nbdie("udp: couldn't parse local address");
 
-	if(bind(s, (struct sockaddr *)&sox, sizeof(struct sockaddr_in)) < 0)
-		nbdie("udp: couldn't bind to port (are you running as root?)");
+  if(bind(s, (struct sockaddr *)&sox, sizeof(struct sockaddr_in)) < 0)
+    nbdie("udp: couldn't bind to port (are you running as root?)");
 
-	return s;
+  return s;
 }
 
 size_t udp_read(int s, void *buffer, size_t buffer_length, struct sockaddr_in *from)
 {
-	size_t received;
-	socklen_t fromlen = sizeof(struct sockaddr_in);
+  size_t received;
+  socklen_t fromlen = sizeof(struct sockaddr_in);
 
-	memset(from, 0, sizeof(struct sockaddr));
+  memset(from, 0, sizeof(struct sockaddr));
 
-	received = recvfrom(s, buffer, buffer_length, 0, (struct sockaddr *)from, &fromlen);
+  received = recvfrom(s, buffer, buffer_length, 0, (struct sockaddr *)from, &fromlen);
 
-	if( received < 0 )
-		nbdie("udp: couldn't receive data");
+  if( received < 0 )
+    nbdie("udp: couldn't receive data");
 
-	return received;
+  return received;
 }
 
 void udp_send(int sock, char *address, uint16_t port, void *data, size_t length)
 {
-	int    result;
-	struct sockaddr_in serv_addr;
-	struct hostent *server;
+  int    result;
+  struct sockaddr_in serv_addr;
+  struct hostent *server;
 
-	/* Look up the host */
-	server = gethostbyname(address);
-	if(!server)
-	{
-		fprintf(stderr, "Couldn't find host %s\n", address);
-	}
-	else
-	{
-		/* Set up the server address */
-		memset(&serv_addr, '\0', sizeof(serv_addr));
-		serv_addr.sin_family = AF_INET;
-		serv_addr.sin_port   = htons(port);
-		memcpy(&serv_addr.sin_addr, server->h_addr_list[0], server->h_length);
+  /* Look up the host */
+  server = gethostbyname(address);
+  if(!server)
+  {
+    fprintf(stderr, "Couldn't find host %s\n", address);
+  }
+  else
+  {
+    /* Set up the server address */
+    memset(&serv_addr, '\0', sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port   = htons(port);
+    memcpy(&serv_addr.sin_addr, server->h_addr_list[0], server->h_length);
 
-		result = sendto(sock, data, length, 0, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr_in));
+    result = sendto(sock, data, length, 0, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr_in));
 
-		if( result < 0 )
-			nbdie("udp: couldn't send data");
-	}
+    if( result < 0 )
+      nbdie("udp: couldn't send data");
+  }
 }
 
 int udp_close(int s)
 {
 #ifdef WIN32
-	return closesocket(s);
+  return closesocket(s);
 #else
-	return close(s);
+  return close(s);
 #endif
 }
