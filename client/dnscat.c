@@ -130,6 +130,12 @@ int main(int argc, char *argv[])
     }
   }
 
+  /* Tell the user what's going on */
+  printf("Options selected:\n");
+  printf(" DNS Server: %s\n", options->dns_server);
+  printf(" DNS Port:   %d\n", options->dns_port);
+  printf(" Domain:     %s\n", options->domain);
+
   /* Set up the session */
   options->session = session_create(driver_get_dns(options->domain, options->dns_server, options->dns_port, options->group));
 

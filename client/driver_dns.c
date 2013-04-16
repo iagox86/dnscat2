@@ -141,10 +141,10 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
   return SELECT_OK;
 }
 
-void driver_dns_send(void *driver, uint8_t *data, size_t length)
+void driver_dns_send(void *d, uint8_t *data, size_t length)
 {
   size_t        i;
-  dns_driver_t *d = (dns_driver_t*) driver;
+  dns_driver_t *driver = (dns_driver_t*) d;
   dns_t        *dns;
   buffer_t     *buffer;
   uint8_t      *encoded_bytes;
@@ -152,22 +152,22 @@ void driver_dns_send(void *driver, uint8_t *data, size_t length)
   uint8_t      *dns_bytes;
   uint32_t      dns_length;
 
-  if(d->s == -1)
+  if(driver->s == -1)
   {
-    d->s = udp_create_socket(0, "0.0.0.0");
+    driver->s = udp_create_socket(0, "0.0.0.0");
 
-    if(d->s == -1)
+    if(driver->s == -1)
     {
       printf("[[DNS]] :: couldn't create socket!\n");
       return;
     }
 
     /* If it succeeds, add it to the select_group */
-    select_group_add_socket(d->group, d->s, SOCKET_TYPE_STREAM, d);
-    select_set_recv(d->group, d->s, recv_callback);
+    select_group_add_socket(driver->group, driver->s, SOCKET_TYPE_STREAM, d);
+    select_set_recv(driver->group, driver->s, recv_callback);
   }
 
-  assert(d->s != -1); /* Make sure we have a valid socket. */
+  assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
 
@@ -181,29 +181,30 @@ void driver_dns_send(void *driver, uint8_t *data, size_t length)
   buffer_add_ntstring(buffer, ".skullseclabs.org");
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
+  printf("SEND: %s\n", encoded_bytes);
   dns = dns_create(rand() % 0xFFFF, DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
   dns_add_question(dns, encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
-  udp_send(d->s, d->dns_host, d->dns_port, dns_bytes, dns_length);
+  udp_send(driver->s, driver->dns_host, driver->dns_port, dns_bytes, dns_length);
 
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
 }
 
-uint8_t *driver_dns_recv(void *driver, size_t *length, size_t max_length)
+uint8_t *driver_dns_recv(void *d, size_t *length, size_t max_length)
 {
   uint8_t *ret;
 
-  dns_driver_t *d = (dns_driver_t*) driver;
+  dns_driver_t *driver = (dns_driver_t*) d;
 
-  if(buffer_get_remaining_bytes(d->incoming_data) > 0)
+  if(buffer_get_remaining_bytes(driver->incoming_data) > 0)
   {
     /* Read the rest of the buffer. */
-    ret = buffer_read_remaining_bytes(d->incoming_data, length, -1, FALSE);
+    ret = buffer_read_remaining_bytes(driver->incoming_data, length, -1, FALSE);
 
     /* Consume the bytes from the buffer */
-    buffer_consume(d->incoming_data, *length);
+    buffer_consume(driver->incoming_data, *length);
 
     return ret;
   }
@@ -213,32 +214,32 @@ uint8_t *driver_dns_recv(void *driver, size_t *length, size_t max_length)
   return NULL;
 }
 
-void driver_dns_close(void *driver)
+void driver_dns_close(void *d)
 {
-  dns_driver_t *d = (dns_driver_t*) driver;
+  dns_driver_t *driver = (dns_driver_t*) d;
 
   printf("[[UDP]] :: close()\n");
 
-  assert(d->s && d->s != -1); /* We can't close a closed socket */
+  assert(driver->s && driver->s != -1); /* We can't close a closed socket */
 
   /* Remove from the select_group */
-  select_group_remove_and_close_socket(d->group, d->s);
-  d->s = -1;
+  select_group_remove_and_close_socket(driver->group, driver->s);
+  driver->s = -1;
 }
 
-void driver_dns_cleanup(void *driver)
+void driver_dns_cleanup(void *d)
 {
-  dns_driver_t *d = (dns_driver_t*) driver;
+  dns_driver_t *driver = (dns_driver_t*) d;
 
   printf("[[DNS]] :: cleanup()\n");
 
   /* Ensure the driver is closed */
-  if(d->s != -1)
+  if(driver->s != -1)
     driver_dns_close(driver);
 
-  buffer_destroy(d->incoming_data);
+  buffer_destroy(driver->incoming_data);
 
-  safe_free(d->domain);
-  safe_free(d->dns_host);
+  safe_free(driver->domain);
+  safe_free(driver->dns_host);
   safe_free(d);
 }
