@@ -29,7 +29,7 @@ driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group)
   return driver;
 }
 
-driver_t *driver_get_dns(char *host, uint16_t port, select_group_t *group)
+driver_t *driver_get_dns(char *domain, char *host, uint16_t port, select_group_t *group)
 {
   /* Set the tcp-specific options for the driver */
   driver_t *driver        = safe_malloc(sizeof(driver_t));
@@ -38,8 +38,7 @@ driver_t *driver_get_dns(char *host, uint16_t port, select_group_t *group)
   driver->driver_close    = driver_dns_close;
   driver->driver_cleanup  = driver_dns_cleanup;
   driver->max_packet_size = 32;
-  driver->driver          = dns_driver_create(host, port, group);
-
+  driver->driver          = dns_driver_create(domain, host, port, group);
 
   return driver;
 }

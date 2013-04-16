@@ -50,7 +50,7 @@ typedef struct
 
 /* Create an instance of driver_t for TCP connections. */
 driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group);
-driver_t *driver_get_dns(char *host, uint16_t port, select_group_t *group);
+driver_t *driver_get_dns(char *domain, char *host, uint16_t port, select_group_t *group);
 
 /* Destroy an instance of driver_t - this can be any protocol. */
 void driver_destroy(driver_t *driver);

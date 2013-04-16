@@ -3,8 +3,10 @@
  * By Ron Bowes
  */
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "buffer.h"
@@ -15,13 +17,14 @@
 
 #include "driver_dns.h"
 
-dns_driver_t *dns_driver_create(char *dns_host, uint16_t dns_port, select_group_t *group)
+dns_driver_t *dns_driver_create(char *domain, char *dns_host, uint16_t dns_port, select_group_t *group)
 {
   dns_driver_t *dns_driver = (dns_driver_t*)safe_malloc(sizeof(dns_driver_t));
-  dns_driver->s        = -1;
-  dns_driver->dns_host = safe_strdup(dns_host);
-  dns_driver->dns_port = dns_port;
-  dns_driver->group    = group;
+  dns_driver->s            = -1;
+  dns_driver->domain       = safe_strdup(domain);
+  dns_driver->dns_host     = safe_strdup(dns_host);
+  dns_driver->dns_port     = dns_port;
+  dns_driver->group        = group;
 
   /* TODO: This should be a list or something, not a buffer */
   dns_driver->incoming_data = buffer_create(BO_BIG_ENDIAN);
@@ -31,15 +34,34 @@ dns_driver_t *dns_driver_create(char *dns_host, uint16_t dns_port, select_group_
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
-  dns_driver_t *d = (dns_driver_t*)param;
-  dns_t *dns = dns_create_from_packet(data, length);
+  dns_driver_t *driver = param;
+  dns_t        *dns    = dns_create_from_packet(data, length);
 
   /* TODO */
-  if(dns->flags & 0x000f)
+  if(dns->rcode != DNS_RCODE_SUCCESS)
   {
     /* TODO: Handle errors more gracefully */
-    printf("DNS Error!\n");
-    /*exit(1); */
+    switch(dns->rcode)
+    {
+      case DNS_RCODE_FORMAT_ERROR:
+        printf("DNS ERROR: RCODE_FORMAT_ERROR\n");
+        break;
+      case DNS_RCODE_SERVER_FAILURE:
+        printf("DNS ERROR: RCODE_SERVER_FAILURE\n");
+        break;
+      case DNS_RCODE_NAME_ERROR:
+        printf("DNS ERROR: RCODE_NAME_ERROR\n");
+        break;
+      case DNS_RCODE_NOT_IMPLEMENTED:
+        printf("DNS ERROR: RCODE_NOT_IMPLEMENTED\n");
+        break;
+      case DNS_RCODE_REFUSED:
+        printf("DNS ERROR: RCODE_REFUSED\n");
+        break;
+      default:
+        printf("DNS ERROR: Unknown error code (0x%04x)\n", dns->rcode);
+        break;
+    }
   }
   else if(dns->question_count != 1)
   {
@@ -53,17 +75,57 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
   }
   else if(dns->answers[0].type == DNS_TYPE_TEXT)
   {
-    char *answer = (char*)dns->answers[0].answer->TEXT.text;
-    char buf[3] = "\0\0\0";
+    char *answer;
+    char buf[3];
     size_t i;
 
-    /* TODO: This is very, very bad */
-    for(i = 0; answer[i] != '.'; i+= 2)
-    {
-      buf[0] = answer[i];
-      buf[1] = answer[i + 1];
+    answer = dns->answers[0].answer->TEXT.text;
 
-      buffer_add_int8(d->incoming_data, strtol(buf, NULL, 16));
+    printf("Received: %s\n", answer);
+    if(!strcmp(answer, driver->domain))
+    {
+      printf("WARNING: Received a 'nil' answer; ignoring\n");
+    }
+    else
+    {
+      /* Find the domain, which should be at the end of the string */
+      char *domain = strstr(answer, driver->domain);
+      if(!domain)
+      {
+        printf("ERROR: Answer didn't contain the domain\n");
+      }
+      else
+      {
+        /* Loop through the part of the answer before the 'domain' */
+        for(i = 0; answer + i < domain; i += 2)
+        {
+          /* Validate the answer */
+          if(answer[i] == '.')
+          {
+            /* ignore */
+          }
+          else if(answer[i+1] == '.')
+          {
+            printf("WARNING: Answer contained an odd number of digits\n");
+          }
+          else if(!isxdigit((int)answer[i]))
+          {
+            printf("WARNING: Answer contained an invalid digit: '%c'\n", answer[i]);
+          }
+          else if(!isxdigit((int)answer[i+1]))
+          {
+            printf("WARNING: Answer contained an invalid digit: '%c'\n", answer[i+1]);
+          }
+          else
+          {
+            buf[0] = answer[i];
+            buf[1] = answer[i + 1];
+            buf[2] = '\0';
+
+            buffer_add_int8(driver->incoming_data, strtol(buf, NULL, 16));
+          }
+        }
+      }
     }
   }
   else
@@ -174,7 +236,7 @@ void driver_dns_cleanup(void *driver)
 
   buffer_destroy(d->incoming_data);
 
+  safe_free(d->domain);
   safe_free(d->dns_host);
-  d->dns_host = NULL;
   safe_free(d);
 }

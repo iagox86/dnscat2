@@ -75,6 +75,8 @@ int main(int argc, char *argv[])
   {
     {"domain", required_argument, 0, 0}, /* Domain name */
     {"d",      required_argument, 0, 0},
+    {"host",   required_argument, 0, 0}, /* DNS server */
+    {"port",   required_argument, 0, 0}, /* DNS port */
   };
 
   srand(time(NULL));
@@ -103,6 +105,14 @@ int main(int argc, char *argv[])
         {
           options->domain = optarg;
         }
+        else if(!strcmp(option_name, "host"))
+        {
+          options->dns_server = optarg;
+        }
+        else if(!strcmp(option_name, "port"))
+        {
+          options->dns_port = atoi(optarg);
+        }
         else
         {
           printf("Unknown option: %s\n", option_name);
@@ -121,7 +131,7 @@ int main(int argc, char *argv[])
   }
 
   /* Set up the session */
-  options->session = session_create(driver_get_dns(options->dns_server, options->dns_port, options->group));
+  options->session = session_create(driver_get_dns(options->domain, options->dns_server, options->dns_port, options->group));
 
   /* Create the STDIN socket */
 #ifdef WIN32
