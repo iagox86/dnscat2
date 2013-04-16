@@ -64,8 +64,8 @@ class Dnscat2
 
     new_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
     Log.log(session.id, "Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
-    Log.log(session.id, ">> \"#{packet.data}\"")
-    Log.log(session.id, "<< \"#{new_data}\"")
+
+    puts("#{session.id} :: #{packet.data}")
 
     # Build the new packet
     return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
@@ -92,7 +92,7 @@ class Dnscat2
           Session.queue_all_outgoing(gets())
         end
       rescue Exception => e
-        puts(e)
+        $stderr.puts(e)
         exit
       end
     end
