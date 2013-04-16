@@ -10,7 +10,7 @@
 ##
 class Log
   def Log.log(title, message)
-    puts("[[#{title}]] :: #{message}")
+    $stderr.puts("[[#{title}]] :: #{message}")
   end
 end
 

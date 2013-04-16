@@ -64,10 +64,10 @@ class DnscatDNS
       match(/\.#{Regexp.escape(domain)}$/, IN::TXT) do |transaction|
         name = transaction.name.gsub(/\.#{Regexp.escape(domain)}$/, '')
         name = name.gsub(/\./, '')
-puts("Received: #{name}")
+#puts("Received: #{name}")
         name = [name].pack("H*")
         response = yield(name)
-puts("Sending:  #{response.unpack("H*")}")
+#puts("Sending:  #{response.unpack("H*")}")
         if(response.nil?)
           puts("Sending nil response...")
           response = domain
