@@ -117,10 +117,8 @@ void driver_dns_send(void *driver, uint8_t *data, size_t length)
   buffer_add_ntstring(buffer, ".skullseclabs.org");
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
-  dns = dns_create();
-  dns->trn_id = rand() % 0xFFFF; /* Randomize the transaction id. */
-  dns->flags = 0x0100; /* Enable recursion (TODO: Constants) */
-  dns_add_question(dns, encoded_bytes, DNS_TYPE_TEXT, 0x0001);
+  dns = dns_create(rand() % 0xFFFF, DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
+  dns_add_question(dns, encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
   udp_send(d->s, d->dns_host, d->dns_port, dns_bytes, dns_length);
@@ -132,8 +130,6 @@ void driver_dns_send(void *driver, uint8_t *data, size_t length)
 uint8_t *driver_dns_recv(void *driver, size_t *length, size_t max_length)
 {
   uint8_t *ret;
-  size_t expected_length;
-  size_t returned_length;
 
   dns_driver_t *d = (dns_driver_t*) driver;
 

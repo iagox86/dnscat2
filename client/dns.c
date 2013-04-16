@@ -5,6 +5,7 @@
  * (See LICENSE.txt)
  */
 
+#include <assert.h>
 #include <ctype.h> /* For isspace(). */
 #include <stdio.h>
 #include <stdlib.h>
@@ -227,10 +228,22 @@ buffer_t *buffer_add_ipv6_address(buffer_t *buffer, char *address)
 	return buffer;
 }
 
-dns_t *dns_create()
+static dns_t *dns_create_internal()
 {
 	dns_t *dns = (dns_t*) safe_malloc(sizeof(dns_t));
 	memset(dns, 0, sizeof(dns_t));
+
+  return dns;
+}
+
+dns_t *dns_create(uint16_t trn_id, dns_opcode_t opcode, dns_flag_t flags, dns_rcode_t rcode)
+{
+  dns_t *dns = dns_create_internal();
+
+  dns->trn_id = trn_id;
+  dns->opcode = opcode;
+  dns->flags  = flags;
+  dns->rcode  = rcode;
 
 	return dns;
 }
@@ -239,7 +252,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, uint32_t length)
 {
 	uint16_t i;
 	buffer_t *buffer = buffer_create_with_data(BO_NETWORK, packet, length);
-	dns_t *dns = dns_create();
+	dns_t *dns = dns_create_internal();
 
 	dns->trn_id           = buffer_read_next_int16(buffer);
 	dns->flags            = buffer_read_next_int16(buffer);
@@ -620,7 +633,7 @@ uint16_t dns_get_flags(dns_t *dns)
 	return dns->flags;
 }
 
-void dns_add_question(dns_t *dns, char *name, uint16_t type, uint16_t class)
+void dns_add_question(dns_t *dns, char *name, dns_type_t type, dns_class_t class)
 {
 	/* Increment the question count. */
 	dns->question_count = dns->question_count + 1;
@@ -638,7 +651,7 @@ void dns_add_question(dns_t *dns, char *name, uint16_t type, uint16_t class)
 	(dns->questions[dns->question_count - 1]).class = class;
 }
 
-void dns_add_netbios_question(dns_t *dns, char *name, uint8_t name_type, char *scope, uint16_t type, uint16_t class)
+void dns_add_netbios_question(dns_t *dns, char *name, uint8_t name_type, char *scope, dns_type_t type, dns_class_t class)
 {
 	/* Create a buffer where we're going to build our complete name. */
 	buffer_t *buffer = buffer_create(BO_NETWORK);
@@ -678,7 +691,7 @@ void dns_add_netbios_question(dns_t *dns, char *name, uint8_t name_type, char *s
 	safe_free(encoded);
 }
 
-static void dns_add_answer(dns_t *dns, char *question, uint16_t type, uint16_t class, uint32_t ttl, answer_types_t *answer)
+static void dns_add_answer(dns_t *dns, char *question, dns_type_t type, dns_class_t class, uint32_t ttl, answer_types_t *answer)
 {
 	/* Increment the answer count. */
 	dns->answer_count = dns->answer_count + 1;
@@ -699,28 +712,28 @@ static void dns_add_answer(dns_t *dns, char *question, uint16_t type, uint16_t c
 
 }
 
-void dns_add_answer_A(dns_t *dns, char *question, uint16_t class, uint32_t ttl, char *address)
+void dns_add_answer_A(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *address)
 {
 	answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
 	answer->A.address      = safe_strdup(address);
 	dns_add_answer(dns, question, DNS_TYPE_A, class, ttl, answer);
 }
 
-void dns_add_answer_NS(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, char *name)
+void dns_add_answer_NS(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, char *name)
 {
 	answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
 	answer->NS.name        = safe_strdup(name);
 	dns_add_answer(dns, question, DNS_TYPE_NS, class, ttl, answer);
 }
 
-void dns_add_answer_CNAME(dns_t *dns, char *question, uint16_t class, uint32_t ttl, char *name)
+void dns_add_answer_CNAME(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *name)
 {
 	answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
 	answer->CNAME.name     = safe_strdup(name);
 	dns_add_answer(dns, question, DNS_TYPE_CNAME, class, ttl, answer);
 }
 
-void dns_add_answer_MX(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, uint16_t preference, char *name)
+void dns_add_answer_MX(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, uint16_t preference, char *name)
 {
 	answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
 	answer->MX.preference  = preference;
@@ -728,7 +741,7 @@ void dns_add_answer_MX(dns_t *dns,    char *question, uint16_t class, uint32_t t
 	dns_add_answer(dns, question, DNS_TYPE_MX, class, ttl, answer);
 }
 
-void dns_add_answer_TEXT(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, uint8_t *text, uint8_t length)
+void dns_add_answer_TEXT(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, uint8_t *text, uint8_t length)
 {
 	answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
 	uint8_t *text_copy     = safe_malloc(length);
@@ -739,7 +752,7 @@ void dns_add_answer_TEXT(dns_t *dns,  char *question, uint16_t class, uint32_t t
 }
 
 #ifndef WIN32
-void dns_add_answer_AAAA(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, char *address)
+void dns_add_answer_AAAA(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, char *address)
 {
 	answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
 	answer->AAAA.address   = safe_strdup(address);
@@ -747,7 +760,7 @@ void dns_add_answer_AAAA(dns_t *dns,  char *question, uint16_t class, uint32_t t
 }
 #endif
 
-void dns_add_answer_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, uint16_t class, uint32_t ttl, uint16_t flags, char *address)
+void dns_add_answer_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, dns_class_t class, uint32_t ttl, uint16_t flags, char *address)
 {
 	/* Create a buffer where we're going to build our complete question. */
 	buffer_t       *buffer = buffer_create(BO_NETWORK);
@@ -794,7 +807,7 @@ void dns_add_answer_NB(dns_t *dns,  char *question, uint8_t question_type, char 
 }
 
 /* This is pretty much identical to dns_add_answer. */
-static void dns_add_additional(dns_t *dns, char *question, uint16_t type, uint16_t class, uint32_t ttl, additional_types_t *additional)
+static void dns_add_additional(dns_t *dns, char *question, dns_type_t type, dns_class_t class, uint32_t ttl, additional_types_t *additional)
 {
 	/* Increment the additional count. */
 	dns->additional_count = dns->additional_count + 1;
@@ -814,28 +827,28 @@ static void dns_add_additional(dns_t *dns, char *question, uint16_t type, uint16
 	(dns->additionals[dns->additional_count - 1]).additional = additional;
 }
 
-void dns_add_additional_A(dns_t *dns, char *question, uint16_t class, uint32_t ttl, char *address)
+void dns_add_additional_A(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *address)
 {
 	additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
 	additional->A.address      = safe_strdup(address);
 	dns_add_additional(dns, question, DNS_TYPE_A, class, ttl, additional);
 }
 
-void dns_add_additional_NS(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, char *name)
+void dns_add_additional_NS(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, char *name)
 {
 	additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
 	additional->NS.name        = safe_strdup(name);
 	dns_add_additional(dns, question, DNS_TYPE_NS, class, ttl, additional);
 }
 
-void dns_add_additional_CNAME(dns_t *dns, char *question, uint16_t class, uint32_t ttl, char *name)
+void dns_add_additional_CNAME(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *name)
 {
 	additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
 	additional->CNAME.name     = safe_strdup(name);
 	dns_add_additional(dns, question, DNS_TYPE_CNAME, class, ttl, additional);
 }
 
-void dns_add_additional_MX(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, uint16_t preference, char *name)
+void dns_add_additional_MX(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, uint16_t preference, char *name)
 {
 	additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
 	additional->MX.preference  = preference;
@@ -843,7 +856,7 @@ void dns_add_additional_MX(dns_t *dns,    char *question, uint16_t class, uint32
 	dns_add_additional(dns, question, DNS_TYPE_MX, class, ttl, additional);
 }
 
-void dns_add_additional_TEXT(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, uint8_t *text, uint8_t length)
+void dns_add_additional_TEXT(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, uint8_t *text, uint8_t length)
 {
 	additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
 	uint8_t *text_copy     = safe_malloc(length);
@@ -854,7 +867,7 @@ void dns_add_additional_TEXT(dns_t *dns,  char *question, uint16_t class, uint32
 }
 
 #ifndef WIN32
-void dns_add_additional_AAAA(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, char *address)
+void dns_add_additional_AAAA(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, char *address)
 {
 	additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
 	additional->AAAA.address   = safe_strdup(address);
@@ -862,7 +875,7 @@ void dns_add_additional_AAAA(dns_t *dns,  char *question, uint16_t class, uint32
 }
 #endif
 
-void dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, uint16_t class, uint32_t ttl, uint16_t flags, char *address)
+void dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, dns_class_t class, uint32_t ttl, uint16_t flags, char *address)
 {
 	/* Create a buffer where we're going to build our complete question. */
 	buffer_t       *buffer = buffer_create(BO_NETWORK);
@@ -911,13 +924,28 @@ void dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, c
 uint8_t *dns_to_packet(dns_t *dns, size_t *length)
 {
 	uint16_t i;
+  uint16_t flags;
 
 	/* Create the buffer. */
 	buffer_t *buffer = buffer_create(BO_NETWORK);
 
+  /* Validate and format the flags:
+   * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+   * |                               1  1  1  1  1  1|
+   * | 0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5|
+   * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+   * |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+   * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+   */
+  assert((dns->opcode & 0x7800) == dns->opcode);
+  assert((dns->rcode  & 0x000F) == dns->rcode);
+  assert((dns->flags  & 0x8780) == dns->flags);
+
+  flags = dns->opcode | dns->flags | dns->rcode;
+
 	/* Marshall the base stuff. */
 	buffer_add_int16(buffer, dns->trn_id);
-	buffer_add_int16(buffer, dns->flags);
+	buffer_add_int16(buffer, flags);
 	buffer_add_int16(buffer, dns->question_count);
 	buffer_add_int16(buffer, dns->answer_count);
 	buffer_add_int16(buffer, dns->authority_count);
@@ -1121,11 +1149,7 @@ void dns_print(dns_t *dns)
 dns_t *dns_create_error(uint16_t trn_id, question_t question)
 {
 	/* Create the DNS packet. */
-	dns_t *dns = dns_create();
-
-	/* Set the transaction id and flags. */
-	dns->trn_id = trn_id;
-	dns->flags  = 0x8003; /* TODO: Customizable error message. */
+	dns_t *dns = dns_create(trn_id, DNS_OPCODE_QUERY, DNS_FLAG_QR, DNS_RCODE_NAME_ERROR);
 
 	/* Echo back the question. */
 	dns_add_question(dns, question.name, question.type, question.class);

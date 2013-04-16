@@ -129,10 +129,10 @@ typedef enum
 	DNS_TYPE_MAILA      = 0x00fe,
 	DNS_TYPE_ALL        = 0x00ff,
 	DNS_TYPE_ANY        = 0x00ff,
-} dns_types_t;
+} dns_type_t;
 #else
 /* Do a typedif so we can still use the name. */
-typedef int dns_types_t;
+typedef int dns_type_t;
 
 /* Declare our two custom types. */
 #ifndef DNS_TYPE_NB
@@ -141,15 +141,57 @@ typedef int dns_types_t;
 #ifndef DNS_TYPE_NBSTAT
 #define DNS_TYPE_NBSTAT     0x0021
 #endif
-
 #endif
+
+typedef enum
+{
+  DNS_CLASS_IN = 1, /* The Internet */
+  DNS_CLASS_CS = 2, /* The CSNET class (Obsolete - used only for examples in some obsolete RFCs) */
+  DNS_CLASS_CH = 3, /* The CHAOS class */
+  DNS_CLASS_HS = 4, /* Hesiod [Dyer 87] */
+} dns_class_t;
+
+/* Here are how the opcodes, flags, and rcodes are laid out:
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ * |                               1  1  1  1  1  1|
+ * | 0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5|
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ * |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ */
+typedef enum
+{
+  DNS_OPCODE_QUERY  = 0x0000,
+  DNS_OPCODE_IQUERY = 0x0800,
+  DNS_OPCODE_STATUS = 0x1000,
+} dns_opcode_t;
+
+typedef enum
+{
+  DNS_FLAG_QR = 0x8000, /* Query response */
+  DNS_FLAG_AA = 0x0400, /* Authoritative answer */
+  DNS_FLAG_TC = 0x0200, /* Truncation */
+  DNS_FLAG_RD = 0x0100, /* Recursion desired */
+  DNS_FLAG_RA = 0x0080, /* Recursion available */
+} dns_flag_t;
+
+typedef enum
+{
+  DNS_RCODE_SUCCESS         = 0x0000,
+  DNS_RCODE_FORMAT_ERROR    = 0x0001,
+  DNS_RCODE_SERVER_FAILURE  = 0x0002,
+  DNS_RCODE_NAME_ERROR      = 0x0003,
+  DNS_RCODE_NOT_IMPLEMENTED = 0x0004,
+  DNS_RCODE_REFUSED         = 0x0005,
+} dns_rcode_t;
+
 
 /* A DNS question. Questions are simple, they just have a name, type, and class. */
 typedef struct
 {
 	char *name;
-	uint16_t type;
-	uint16_t class;
+	dns_type_t  type;
+	dns_class_t class;
 } question_t;
 
 /* An answer for an A packet. */
@@ -226,8 +268,8 @@ typedef union
 typedef struct
 {
 	char           *question;
-	dns_types_t     type;
-	uint16_t        class;
+	dns_type_t      type;
+	dns_class_t     class;
 	uint32_t        ttl;
 	answer_types_t *answer;
 } answer_t;
@@ -305,8 +347,8 @@ typedef union
 typedef struct
 {
 	char           *question;
-	dns_types_t     type;
-	uint16_t        class;
+	dns_type_t      type;
+	dns_class_t     class;
 	uint32_t        ttl;
 	additional_types_t *additional;
 } additional_t;
@@ -314,22 +356,24 @@ typedef struct
 /* Define an entire DNS packet. */
 typedef struct
 {
-	uint16_t trn_id;
-	uint16_t flags;
+	uint16_t     trn_id;
+  dns_opcode_t opcode;
+	dns_flag_t   flags;
+  dns_rcode_t  rcode;
 
 	uint16_t question_count;
 	uint16_t answer_count;
 	uint16_t authority_count;
 	uint16_t additional_count;
 
-	question_t *questions;
-	answer_t *answers;
-	authority_t *authorities;
+	question_t   *questions;
+	answer_t     *answers;
+	authority_t  *authorities;
 	additional_t *additionals;
 } dns_t;
 
 /* Allocate memory for a blank dns structure. Should be freed with dns_free(). */
-dns_t   *dns_create();
+dns_t   *dns_create(uint16_t trn_id, dns_opcode_t opcode, dns_flag_t flags, dns_rcode_t rcode);
 
 /* Take a DNS packet as a stream of bytes, and create a dns_t structure from it.
  * Should also be cleaned up with dns_destroy(). */
@@ -340,33 +384,33 @@ void     dns_destroy(dns_t *dns);
 
 /* Add a question to the DNS packet. A DNS packet can have any number of questions, but
  * I normally limit it to one at a time. */
-void     dns_add_question(dns_t *dns, char *name, uint16_t type, uint16_t class);
+void     dns_add_question(dns_t *dns, char *name, dns_type_t type, dns_class_t class);
 
 /* Add a NetBIOS question to the DNS packet. This is similar to a normal question but
  * with a couple extra fields and an encoded name. */
-void dns_add_netbios_question(dns_t *dns, char *name, uint8_t name_type, char *scope, uint16_t type, uint16_t class);
+void     dns_add_netbios_question(dns_t *dns, char *name, uint8_t name_type, char *scope, dns_type_t type, dns_class_t class);
 
 /* These functions add answers of the various types. */
-void     dns_add_answer_A(dns_t *dns,     char *question, uint16_t class, uint32_t ttl, char *address);
-void     dns_add_answer_NS(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, char *name);
-void     dns_add_answer_CNAME(dns_t *dns, char *question, uint16_t class, uint32_t ttl, char *name);
-void     dns_add_answer_MX(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, uint16_t preference, char *name);
-void     dns_add_answer_TEXT(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, uint8_t *text, uint8_t length);
+void     dns_add_answer_A(dns_t *dns,     char *question, dns_class_t class, uint32_t ttl, char *address);
+void     dns_add_answer_NS(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, char *name);
+void     dns_add_answer_CNAME(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *name);
+void     dns_add_answer_MX(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, uint16_t preference, char *name);
+void     dns_add_answer_TEXT(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, uint8_t *text, uint8_t length);
 #ifndef WIN32
-void     dns_add_answer_AAAA(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, char *address);
+void     dns_add_answer_AAAA(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, char *address);
 #endif
-void     dns_add_answer_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, uint16_t class, uint32_t ttl, uint16_t flags, char *address);
+void     dns_add_answer_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, dns_class_t class, uint32_t ttl, uint16_t flags, char *address);
 
 /* These functions add additionals of the various types. */
-void     dns_add_additional_A(dns_t *dns,     char *question, uint16_t class, uint32_t ttl, char *address);
-void     dns_add_additional_NS(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, char *name);
-void     dns_add_additional_CNAME(dns_t *dns, char *question, uint16_t class, uint32_t ttl, char *name);
-void     dns_add_additional_MX(dns_t *dns,    char *question, uint16_t class, uint32_t ttl, uint16_t preference, char *name);
-void     dns_add_additional_TEXT(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, uint8_t *text, uint8_t length);
+void     dns_add_additional_A(dns_t *dns,     char *question, dns_class_t class, uint32_t ttl, char *address);
+void     dns_add_additional_NS(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, char *name);
+void     dns_add_additional_CNAME(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *name);
+void     dns_add_additional_MX(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, uint16_t preference, char *name);
+void     dns_add_additional_TEXT(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, uint8_t *text, uint8_t length);
 #ifndef WIN32
-void     dns_add_additional_AAAA(dns_t *dns,  char *question, uint16_t class, uint32_t ttl, char *address);
+void     dns_add_additional_AAAA(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, char *address);
 #endif
-void     dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, uint16_t class, uint32_t ttl, uint16_t flags, char *address);
+void     dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, char *scope, dns_class_t class, uint32_t ttl, uint16_t flags, char *address);
 
 /* Convert a DNS request into a packet that can be sent on port 53. Memory has to be freed. */
 uint8_t *dns_to_packet(dns_t *dns, size_t *length);
