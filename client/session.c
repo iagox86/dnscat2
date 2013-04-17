@@ -16,10 +16,8 @@
 session_t *session_create(driver_t *driver)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
-  session->id            = rand() & 0xFFFF;
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
-  session->my_seq        = rand() & 0xFFFF;
   session->is_closed     = FALSE;
   session->driver        = driver;
 
@@ -170,6 +168,11 @@ static void do_send_stuff(session_t *session)
   switch(session->state)
   {
     case SESSION_STATE_NEW:
+      /* Create a new id / sequence number before sending the packet. That way,
+       * lost SYN packets don't mess up future sessions. */
+      session->id = rand() % 0xFFFF;
+      session->my_seq = rand() % 0xFFFF;
+
       fprintf(stderr, "[[dnscat]] :: Sending a SYN packet (SEQ = 0x%04x)...\n", session->my_seq);
       packet = packet_create_syn(rand() % 0xFFFF, session->id, session->my_seq, 0);
       driver_send_packet(session->driver, packet);

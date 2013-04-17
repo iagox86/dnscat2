@@ -155,6 +155,10 @@ MESSAGE_TYPE_SYN [0x00]
   well as its requested options (no options are currently defined).
 - No options are currently defined, and the options field should be set
   to 0.
+- If the client doesn't get a response, it should choose a new
+  session_id before retransmitting
+  - (this resolves a potential issue where a Server->Client SYN is lost,
+    and the server thinks a session is running while the client doesn't)
 
 (Server to client)
 - The server responds with its own SYN, containing its initial sequence

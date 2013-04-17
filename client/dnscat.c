@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
     {"d",      required_argument, 0, 0},
     {"host",   required_argument, 0, 0}, /* DNS server */
     {"port",   required_argument, 0, 0}, /* DNS port */
+    {0,        0,                 0, 0}  /* End */
   };
 
   srand(time(NULL));
