@@ -8,7 +8,12 @@
 # Implements basically the full Dnscat2 protocol. Doesn't care about
 # lower-level protocols.
 ##
+
+$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
+$LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib'
+
 require 'log'
+require 'optparse'
 require 'packet'
 require 'session'
 
@@ -151,3 +156,14 @@ class Dnscat2
     end
   end
 end
+
+require 'slop'
+
+opts = Slop.parse do
+  banner 'Usage: dnscat2_server.rb [options]'
+
+  on 'd', 'debug', 'Set the debug level', argument: :required, as: :integer
+end
+
+# if ARGV is `--name Lee -v`
+puts opts.to_hash   #=> {:name=>"Lee", :password=>nil, :verbose=>true}

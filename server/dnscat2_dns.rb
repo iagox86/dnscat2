@@ -62,18 +62,25 @@ class DnscatDNS
 
     start_dns_server() do
       match(/\.#{Regexp.escape(domain)}$/, IN::TXT) do |transaction|
+puts("Received: #{transaction.name}")
         name = transaction.name.gsub(/\.#{Regexp.escape(domain)}$/, '')
         name = name.gsub(/\./, '')
+<<<<<<< HEAD
 #puts("Received: #{name}")
         name = [name].pack("H*")
         response = yield(name)
 #puts("Sending:  #{response.unpack("H*")}")
+=======
+        name = [name].pack("H*")
+        response = yield(name)
+>>>>>>> Started adding commandline options to dnscat_server.rb
         if(response.nil?)
           puts("Sending nil response...")
           response = domain
         else
           response = "#{response.unpack("H*").pop}.#{domain}"
         end
+puts("Sending:  #{response}")
         transaction.respond!(response)
       end
     end
