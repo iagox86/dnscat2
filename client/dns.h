@@ -373,7 +373,7 @@ typedef struct
 } dns_t;
 
 /* Allocate memory for a blank dns structure. Should be freed with dns_free(). */
-dns_t   *dns_create(uint16_t trn_id, dns_opcode_t opcode, dns_flag_t flags, dns_rcode_t rcode);
+dns_t   *dns_create(dns_opcode_t opcode, dns_flag_t flags, dns_rcode_t rcode);
 
 /* Take a DNS packet as a stream of bytes, and create a dns_t structure from it.
  * Should also be cleaned up with dns_destroy(). */

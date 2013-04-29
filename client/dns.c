@@ -236,11 +236,11 @@ static dns_t *dns_create_internal()
   return dns;
 }
 
-dns_t *dns_create(uint16_t trn_id, dns_opcode_t opcode, dns_flag_t flags, dns_rcode_t rcode)
+dns_t *dns_create(dns_opcode_t opcode, dns_flag_t flags, dns_rcode_t rcode)
 {
   dns_t *dns = dns_create_internal();
 
-  dns->trn_id = trn_id;
+  dns->trn_id = rand() & 0xFFFF;
   dns->opcode = opcode;
   dns->flags  = flags;
   dns->rcode  = rcode;
@@ -1161,7 +1161,8 @@ void dns_print(dns_t *dns)
 dns_t *dns_create_error(uint16_t trn_id, question_t question)
 {
   /* Create the DNS packet. */
-  dns_t *dns = dns_create(trn_id, DNS_OPCODE_QUERY, DNS_FLAG_QR, DNS_RCODE_NAME_ERROR);
+  dns_t *dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_QR, DNS_RCODE_NAME_ERROR);
+  dns->trn_id = trn_id;
 
   /* Echo back the question. */
   dns_add_question(dns, question.name, question.type, question.class);

@@ -182,7 +182,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
   fprintf(stderr, "SEND: %s\n", encoded_bytes);
-  dns = dns_create(rand() % 0xFFFF, DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
+  dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
   dns_add_question(dns, encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 

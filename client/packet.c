@@ -49,11 +49,11 @@ packet_t *packet_parse(uint8_t *data, size_t length)
   return packet;
 }
 
-packet_t *packet_create_syn(uint16_t packet_id, uint16_t session_id, uint16_t seq, uint16_t options)
+packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
   packet->message_type     = MESSAGE_TYPE_SYN;
-  packet->packet_id        = packet_id;
+  packet->packet_id        = rand() % 0xFFFF;
   packet->session_id       = session_id;
   packet->body.syn.seq     = seq;
   packet->body.syn.options = options;
@@ -61,12 +61,12 @@ packet_t *packet_create_syn(uint16_t packet_id, uint16_t session_id, uint16_t se
   return packet;
 }
 
-packet_t *packet_create_msg(uint16_t packet_id, uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length)
+packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->message_type         = MESSAGE_TYPE_MSG;
-  packet->packet_id            = packet_id;
+  packet->packet_id            = rand() % 0xFFFF;
   packet->session_id           = session_id;
   packet->body.msg.seq         = seq;
   packet->body.msg.ack         = ack;
@@ -76,12 +76,12 @@ packet_t *packet_create_msg(uint16_t packet_id, uint16_t session_id, uint16_t se
   return packet;
 }
 
-packet_t *packet_create_fin(uint16_t packet_id, uint16_t session_id)
+packet_t *packet_create_fin(uint16_t session_id)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->message_type     = MESSAGE_TYPE_FIN;
-  packet->packet_id        = packet_id;
+  packet->packet_id        = rand() % 0xFFFF;
   packet->session_id       = session_id;
 
   return packet;
@@ -94,7 +94,7 @@ size_t packet_get_syn_size()
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_syn(0, 0, 0, 0);
+    packet_t *p = packet_create_syn(0, 0, 0);
     uint8_t *data = packet_to_bytes(p, &size);
     safe_free(data);
     packet_destroy(p);
@@ -110,7 +110,7 @@ size_t packet_get_msg_size()
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_msg(0, 0, 0, 0, "", 0);
+    packet_t *p = packet_create_msg(0, 0, 0, "", 0);
     uint8_t *data = packet_to_bytes(p, &size);
     safe_free(data);
     packet_destroy(p);
@@ -126,7 +126,7 @@ size_t packet_get_fin_size()
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_fin(0, 0);
+    packet_t *p = packet_create_fin(0);
     uint8_t *data = packet_to_bytes(p, &size);
     safe_free(data);
     packet_destroy(p);
