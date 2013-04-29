@@ -55,7 +55,7 @@ typedef struct
 } driver_t;
 
 /* Create an instance of driver_t for TCP connections. */
-/*driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group, driver_callback_t *callback);*/
+driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group);
 driver_t *driver_get_dns(char *domain, char *host, uint16_t port, select_group_t *group);
 
 /* Destroy an instance of driver_t - this can be any protocol. */
@@ -65,20 +65,10 @@ void driver_destroy(driver_t *driver);
  * calling driver_recv(), use safe_free() to free the memory.) */
 void     driver_send(driver_t *driver, uint8_t *data, size_t length);
 
-#if 0
-/* We don't need this anymore because of the callbacks. */
-uint8_t  *driver_recv(driver_t *driver, size_t *length, size_t max_length);
-#endif
-
 /* Send or receive data - as a packet_t object - through the driver. (Note:
  * after calling driver_recv_packet(), use packet_destroy() to delete it.) */
 void     driver_send_packet(driver_t *driver, packet_t *packet);
 
 void     driver_register_callback(driver_t *driver, driver_callback_t *callback, void *callback_param);
-
-#if 0
-/* We don't need this anymore because of the callbacks. */
-packet_t *driver_recv_packet(driver_t *driver);
-#endif
 
 #endif

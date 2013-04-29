@@ -139,6 +139,8 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
           uint8_t *data = buffer_create_string(incoming_data, &length);
 
           driver->callback(data, length, driver->callback_param);
+
+          safe_free(data);
         }
         buffer_destroy(incoming_data);
       }

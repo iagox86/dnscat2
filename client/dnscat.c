@@ -168,6 +168,7 @@ int main(int argc, char *argv[])
 
   /* Set up the session */
   options->session = session_create(driver_get_dns(options->domain, options->dns_server, options->dns_port, options->group));
+  /*options->session = session_create(driver_get_tcp("localhost", 2000, options->group));*/
 
   /* Create the STDIN socket */
 #ifdef WIN32

@@ -7,10 +7,9 @@ Immediate needs:
 - Create a consistent "log" class for the client
 - TEST on Linux :: Catch ctrl-c and send a FIN
 - Client should give up after a certain number of failed SYNs
-- Client needs to process packets differently - the driver should immediately
-  hand the packet to the session, and the session should manage how and when to
-  send them
 - Implement other DNS types (A, AAAA, CNAME, etc)
+- Make output suck less
+- Figure out if all the client callbacks are actually needed
 
 
 Future stuff:

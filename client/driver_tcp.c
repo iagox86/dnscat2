@@ -36,8 +36,42 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 
   buffer_add_bytes(driver->buffer, data, length);
 
+  /* If we have at least a length value */
+  if(buffer_get_remaining_bytes(driver->buffer) >= 2)
+  {
+    /* Read the length. */
+    uint16_t expected_length = buffer_peek_next_int16(driver->buffer);
+
+    /* Check if we have the full length. */
+    if(buffer_get_remaining_bytes(driver->buffer) - 2 >= expected_length)
+    {
+      uint8_t *data;
+      size_t   returned_length;
+
+      /* Consume the value we already know */
+      buffer_read_next_int16(driver->buffer);
+
+      /* Read the rest of the buffer. */
+      data = buffer_read_remaining_bytes(driver->buffer, &returned_length, expected_length, TRUE);
+
+      /* Sanity check. */
+      assert(expected_length == returned_length);
+
+      /* Do the callback. */
+      driver->callback(data, returned_length, driver->callback_param);
+
+      /* Free it. */
+      safe_free(data);
+
+      /* Clear the buffer if it's empty. */
+      if(buffer_get_remaining_bytes(driver->buffer) == 0)
+        buffer_clear(driver->buffer);
+    }
+  }
+
   return SELECT_OK;
 }
+
 
 static SELECT_RESPONSE_t closed_callback(void *group, int s, void *param)
 {
@@ -92,40 +126,6 @@ void driver_tcp_send(void *driver, uint8_t *data, size_t length)
   }
 }
 
-uint8_t *driver_tcp_recv(void *driver, size_t *length, size_t max_length)
-{
-  uint8_t *ret;
-  size_t expected_length;
-  size_t returned_length;
-  tcp_driver_t *d = (tcp_driver_t*) driver;
-
-  if(buffer_get_remaining_bytes(d->buffer) >= 2)
-  {
-    expected_length = buffer_peek_next_int16(d->buffer);
-    if(buffer_get_remaining_bytes(d->buffer) - 2 >= expected_length)
-    {
-      /* Consume the value we already know */
-      buffer_read_next_int16(d->buffer);
-
-      /* Read the rest of the buffer. */
-      ret = buffer_read_remaining_bytes(d->buffer, &returned_length, expected_length, FALSE);
-
-      /* Consume the bytes from the buffer */
-      buffer_consume(d->buffer, expected_length);
-
-      assert(expected_length == returned_length); /* Make sure the right number of bytes are returned by the buffer */
-
-      *length = returned_length;
-
-      return ret;
-    }
-  }
-
-  /* By default, return NULL */
-  *length = 0;
-  return NULL;
-}
-
 void driver_tcp_close(void *driver)
 {
   tcp_driver_t *d = (tcp_driver_t*) driver;
@@ -154,4 +154,12 @@ void driver_tcp_cleanup(void *driver)
   safe_free(d->host);
   d->host = NULL;
   safe_free(d);
+}
+
+void driver_tcp_register_callback(void *d, driver_callback_t *callback, void *callback_param)
+{
+  tcp_driver_t *driver = (tcp_driver_t*) d;
+
+  driver->callback       = callback;
+  driver->callback_param = callback_param;
 }

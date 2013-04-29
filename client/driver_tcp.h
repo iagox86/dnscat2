@@ -26,17 +26,21 @@ typedef struct
   select_group_t *group;
   buffer_t *incoming_data;
 
-  /* These are for buffering data until we get a full packet */
+  /* This is for buffering data until we get a full packet */
   buffer_t *buffer;
+
+  driver_callback_t *callback;
+  void              *callback_param;
 } tcp_driver_t;
 
 /* Create a driver */
 tcp_driver_t *tcp_driver_create(char *host, uint16_t port, select_group_t *group);
 
 /* The four callback functions required for a driver to function. */
-void driver_tcp_send(void *driver, uint8_t *data, size_t length);
+void     driver_tcp_send(void *driver, uint8_t *data, size_t length);
 uint8_t *driver_tcp_recv(void *driver, size_t *length, size_t max_length);
-void driver_tcp_close(void *driver);
-void driver_tcp_cleanup(void *driver);
+void     driver_tcp_close(void *driver);
+void     driver_tcp_cleanup(void *driver);
+void     driver_tcp_register_callback(void *driver, driver_callback_t *callback, void *callback_param);
 
 #endif

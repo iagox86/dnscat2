@@ -12,18 +12,19 @@ CFLAGS?=-Wall -g -DTESTMEMORY
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=dnscat.o\
-		 buffer.o\
-		 tcp.o\
-		 types.o\
-		 memory.o\
-		 dns.o\
-		 driver.o\
-		 driver_dns.o\
-		 packet.o\
+OBJS=dnscat.o      \
+		 buffer.o      \
+		 tcp.o         \
+		 types.o       \
+		 memory.o      \
+		 dns.o         \
+		 driver.o      \
+		 driver_dns.o  \
+		 driver_tcp.o  \
+		 packet.o      \
 		 select_group.o\
-		 session.o\
-		 udp.o
+		 session.o     \
+		 udp.o         \
 
 all: dnscat
 	@echo Compile should be complete

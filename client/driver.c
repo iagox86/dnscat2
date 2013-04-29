@@ -10,28 +10,24 @@
 #include "packet.h"
 
 #include "driver_dns.h"
-/*#include "driver_tcp.h"*/
+#include "driver_tcp.h"
 
 #include "driver.h"
 
-#if 0
-driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group, driver_callback_t *callback)
+driver_t *driver_get_tcp(char *host, uint16_t port, select_group_t *group)
 {
   /* Set the tcp-specific options for the driver */
-  driver_t *driver        = safe_malloc(sizeof(driver_t));
-  driver->driver_send     = driver_tcp_send;
-  driver->driver_recv     = driver_tcp_recv;
-  driver->driver_close    = driver_tcp_close;
-  driver->driver_cleanup  = driver_tcp_cleanup;
-  driver->callback        = callback;
-  driver->max_packet_size = 1024;
-  driver->driver          = tcp_driver_create(host, port, group, driver_callback);
+  driver_t *driver                 = safe_malloc(sizeof(driver_t));
+  driver->driver_send              = driver_tcp_send;
+  driver->driver_close             = driver_tcp_close;
+  driver->driver_cleanup           = driver_tcp_cleanup;
+  driver->driver_register_callback = driver_tcp_register_callback;
+  driver->driver                   = tcp_driver_create(host, port, group);
 
-  /* Set the tcp_driver_t options */
+  driver->max_packet_size = 1024;
 
   return driver;
 }
-#endif
 
 driver_t *driver_get_dns(char *domain, char *host, uint16_t port, select_group_t *group)
 {
@@ -75,27 +71,3 @@ void driver_register_callback(driver_t *driver, driver_callback_t *callback, voi
 {
   driver->driver_register_callback(driver->driver, callback, callback_param);
 }
-
-#if 0
-/* We don't need this anymore because of the callbacks. */
-uint8_t *driver_recv(driver_t *driver, size_t *length, size_t max_length)
-{
-  return driver->driver_recv(driver->driver, length, max_length);
-}
-
-packet_t *driver_recv_packet(driver_t *driver)
-{
-  uint8_t  *bytes  = NULL;
-  size_t    length = 0;
-  packet_t *packet = NULL;
-
-  bytes = driver_recv(driver, &length, -1);
-  if(bytes)
-  {
-    packet = packet_parse(bytes, length);
-    safe_free(bytes);
-  }
-
-  return packet;
-}
-#endif
