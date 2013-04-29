@@ -86,4 +86,3 @@ packet_t *driver_recv_packet(driver_t *driver)
 
   return packet;
 }
-

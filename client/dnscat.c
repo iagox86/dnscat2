@@ -18,9 +18,11 @@
 #include "types.h"
 
 /* Default options */
-#define DEFAULT_DNS_SERVER "localhost"
-#define DEFAULT_DNS_PORT   53
-#define DEFAULT_DOMAIN     "skullseclabs.org"
+#define DEFAULT_DNS_SERVER   "localhost"
+#define DEFAULT_DNS_PORT     53
+#define DEFAULT_DOMAIN       "skullseclabs.org"
+#define DEFAULT_RESEND_DELAY 500
+#define DEFAULT_POLL_RATE    200
 
 typedef struct
 {
@@ -31,6 +33,10 @@ typedef struct
   char           *dns_server;
   uint16_t        dns_port;
   char           *domain;
+
+  int             poll_rate;
+  int             resend_delay;
+  int             time_since_last_send;
 } options_t;
 
 /* Make this a module-level variable so we can clean it up
@@ -61,7 +67,13 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
   options_t *options = (options_t*) param;
 
-  session_do_actions(options->session);
+  options->time_since_last_send += options->poll_rate;
+
+  if(options->time_since_last_send > options->resend_delay ||
+    session_data_is_waiting(options->session))
+  {
+    session_do_actions(options->session);
+  }
 
   return SELECT_OK;
 }
@@ -79,8 +91,6 @@ void cleanup()
   }
 
   print_memory();
-
-  exit(100);
 }
 
 void catch_signal(int sig)
@@ -113,9 +123,11 @@ int main(int argc, char *argv[])
   options->group = select_group_create();
 
   /* Default options */
-  options->dns_server = DEFAULT_DNS_SERVER;
-  options->dns_port   = DEFAULT_DNS_PORT;
-  options->domain     = DEFAULT_DOMAIN;
+  options->dns_server   = DEFAULT_DNS_SERVER;
+  options->dns_port     = DEFAULT_DNS_PORT;
+  options->domain       = DEFAULT_DOMAIN;
+  options->resend_delay = DEFAULT_RESEND_DELAY;
+  options->poll_rate    = DEFAULT_POLL_RATE;
 
   /* Parse the command line options. */
   opterr = 0;
@@ -186,7 +198,7 @@ int main(int argc, char *argv[])
   signal(SIGTERM, catch_signal);
 
   while(TRUE)
-    select_group_do_select(options->group, 1000);
+    select_group_do_select(options->group, options->poll_rate);
 
   return 0;
 }

@@ -47,5 +47,6 @@ void       session_close(session_t *session);
 void       session_force_close(session_t *session);
 
 void       session_do_actions(session_t *session);
+NBBOOL     session_data_is_waiting(session_t *session);
 
 #endif

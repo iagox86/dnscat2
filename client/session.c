@@ -76,6 +76,7 @@ static void clean_up_buffers(session_t *session)
     buffer_clear(session->incoming_data);
 }
 
+/* Returns TRUE if it received/handled a packet, or FALSE otherwise. */
 static void do_recv_stuff(session_t *session)
 {
   packet_t *packet = driver_recv_packet(session->driver);
@@ -233,5 +234,14 @@ void session_do_actions(session_t *session)
 
   /* If the session is closed and no data is queued, close properly */
   if(session->is_closed && buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
+  {
     send_final_fin(session);
+    exit(0);
+  }
+}
+
+/* TODO: Make this work */
+NBBOOL session_data_is_waiting(session_t *session)
+{
+  return FALSE;
 }
