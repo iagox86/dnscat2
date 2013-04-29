@@ -79,7 +79,8 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
     char buf[3];
     size_t i;
 
-    answer = dns->answers[0].answer->TEXT.text;
+    /* TODO: We don't actually need the .domain suffix if we use TEXT records */
+    answer = (char*)dns->answers[0].answer->TEXT.text;
 
     fprintf(stderr, "Received: %s\n", answer);
     if(!strcmp(answer, driver->domain))
@@ -150,7 +151,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
   uint8_t      *encoded_bytes;
   size_t        encoded_length;
   uint8_t      *dns_bytes;
-  uint32_t      dns_length;
+  size_t        dns_length;
 
   if(driver->s == -1)
   {
@@ -183,7 +184,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
 
   fprintf(stderr, "SEND: %s\n", encoded_bytes);
   dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
-  dns_add_question(dns, encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
+  dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
   udp_send(driver->s, driver->dns_host, driver->dns_port, dns_bytes, dns_length);

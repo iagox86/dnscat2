@@ -110,7 +110,7 @@ size_t packet_get_msg_size()
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_msg(0, 0, 0, "", 0);
+    packet_t *p = packet_create_msg(0, 0, 0, (uint8_t *)"", 0);
     uint8_t *data = packet_to_bytes(p, &size);
     safe_free(data);
     packet_destroy(p);

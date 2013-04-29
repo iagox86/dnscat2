@@ -10,6 +10,7 @@ Immediate needs:
 - Client needs to process packets differently - the driver should immediately
   hand the packet to the session, and the session should manage how and when to
   send them
+- Implement other DNS types (A, AAAA, CNAME, etc)
 
 
 Future stuff:
