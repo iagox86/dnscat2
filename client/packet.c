@@ -97,6 +97,7 @@ size_t packet_get_syn_size()
     packet_t *p = packet_create_syn(0, 0, 0, 0);
     uint8_t *data = packet_to_bytes(p, &size);
     safe_free(data);
+    packet_destroy(p);
   }
 
   return size;
@@ -112,6 +113,7 @@ size_t packet_get_msg_size()
     packet_t *p = packet_create_msg(0, 0, 0, 0, "", 0);
     uint8_t *data = packet_to_bytes(p, &size);
     safe_free(data);
+    packet_destroy(p);
   }
 
   return size;
@@ -127,6 +129,7 @@ size_t packet_get_fin_size()
     packet_t *p = packet_create_fin(0, 0);
     uint8_t *data = packet_to_bytes(p, &size);
     safe_free(data);
+    packet_destroy(p);
   }
 
   return size;

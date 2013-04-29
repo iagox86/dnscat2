@@ -32,6 +32,10 @@ typedef struct
   char           *domain;
 } options_t;
 
+/* Make this a module-level variable so we can clean it up
+ * in our atexit() handler */
+static options_t *options;
+
 static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
   options_t *options = (options_t*) param;
@@ -61,12 +65,23 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
   return SELECT_OK;
 }
 
+void cleanup()
+{
+  fprintf(stderr, "[[dnscat]] :: Terminating\n");
+
+  session_destroy(options->session);
+  select_group_destroy(options->group);
+  safe_free(options);
+
+  print_memory();
+}
+
 int main(int argc, char *argv[])
 {
   char        c;
   int         option_index;
   const char *option_name;
-  options_t  *options = (options_t*)safe_malloc(sizeof(options_t));
+  options = (options_t*)safe_malloc(sizeof(options_t));
 
   struct option long_options[] =
   {
@@ -154,6 +169,8 @@ int main(int argc, char *argv[])
   /* Add the timeout function */
   select_set_timeout(options->group, timeout, (void*)options);
 #endif
+
+  atexit(cleanup);
 
   while(TRUE)
     select_group_do_select(options->group, 1000);

@@ -29,6 +29,7 @@ session_t *session_create(driver_t *driver)
 
 void session_destroy(session_t *session)
 {
+  driver_destroy(session->driver);
   buffer_destroy(session->incoming_data);
   buffer_destroy(session->outgoing_data);
   safe_free(session);
@@ -49,11 +50,7 @@ static void do_close_stuff(session_t *session, NBBOOL send_fin)
     packet_destroy(packet);
   }
 
-  /* Clean up */
-  session_destroy(session);
-
   /* Terminate */
-  fprintf(stderr, "[[dnscat]] :: Terminating");
   exit(0);
 }
 
@@ -161,23 +158,31 @@ static void do_recv_stuff(session_t *session)
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
           fprintf(stderr, "[[dnscat]] :: Connection closed by server\n");
+          packet_destroy(packet);
 
           /* Clean up and exit */
-          session_destroy(session);
-
-          exit(0);
+          do_close_stuff(session, FALSE);
+          abort(); /* do_close_stuff shouldn't return */
         }
         else
         {
           fprintf(stderr, "[[ERROR]] :: Unknown packet type: 0x%02x\n", packet->message_type);
-          exit(1);
+          packet_destroy(packet);
+
+          do_close_stuff(session, TRUE);
+          abort(); /* do_close_stuff shouldn't return */
         }
 
         break;
       default:
         fprintf(stderr, "[[ERROR]] :: Wound up in an unknown state: 0x%x\n", session->state);
-        exit(1);
+        packet_destroy(packet);
+
+        do_close_stuff(session, TRUE);
+        abort(); /* do_close_stuff shouldn't return */
     }
+
+    packet_destroy(packet);
   }
 }
 

@@ -8,6 +8,7 @@ Immediate needs:
 - Add a -e / --exec option
 - Get rid of the rand() everywhere
 - Create a consistent "log" class for the client
+- Catch ctrl-c and send a FIN
 
 Future stuff:
 - Other protocols (ping/http/etc)

@@ -190,6 +190,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
 
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
+  dns_destroy(dns);
 }
 
 uint8_t *driver_dns_recv(void *d, size_t *length, size_t max_length)
