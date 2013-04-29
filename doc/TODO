@@ -3,6 +3,11 @@ Immediate needs:
 - Client isn't validating the response from recv() properly (if you ctrl-c the server, the client aborts)
 - Rename the appropriate classes in the server to 'driver'
 - Change the DNS class to use size_t when appropriate
+- Limit outgoing packet sizes in dnscat client
+- Add/improve commandline arguments for dnscat server
+- Ignore packets with unexpected packet id values
+- Fix redirects on client
+- Add a -e / --exec option
 
 Future stuff:
 - Other protocols (ping/http/etc)

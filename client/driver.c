@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <stdio.h>
 
 #include "memory.h"
 #include "packet.h"

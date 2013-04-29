@@ -87,6 +87,51 @@ packet_t *packet_create_fin(uint16_t packet_id, uint16_t session_id)
   return packet;
 }
 
+size_t packet_get_syn_size()
+{
+  static size_t size = 0;
+
+  /* If the size isn't known yet, calculate it. */
+  if(size == 0)
+  {
+    packet_t *p = packet_create_syn(0, 0, 0, 0);
+    uint8_t *data = packet_to_bytes(p, &size);
+    safe_free(data);
+  }
+
+  return size;
+}
+
+size_t packet_get_msg_size()
+{
+  static size_t size = 0;
+
+  /* If the size isn't known yet, calculate it. */
+  if(size == 0)
+  {
+    packet_t *p = packet_create_msg(0, 0, 0, 0, "", 0);
+    uint8_t *data = packet_to_bytes(p, &size);
+    safe_free(data);
+  }
+
+  return size;
+}
+
+size_t packet_get_fin_size()
+{
+  static size_t size = 0;
+
+  /* If the size isn't known yet, calculate it. */
+  if(size == 0)
+  {
+    packet_t *p = packet_create_fin(0, 0);
+    uint8_t *data = packet_to_bytes(p, &size);
+    safe_free(data);
+  }
+
+  return size;
+}
+
 uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);

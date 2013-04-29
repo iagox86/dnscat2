@@ -377,7 +377,7 @@ dns_t   *dns_create(uint16_t trn_id, dns_opcode_t opcode, dns_flag_t flags, dns_
 
 /* Take a DNS packet as a stream of bytes, and create a dns_t structure from it.
  * Should also be cleaned up with dns_destroy(). */
-dns_t   *dns_create_from_packet(uint8_t *packet, uint32_t length);
+dns_t   *dns_create_from_packet(uint8_t *packet, size_t length);
 
 /* De-allocate memory and resources from a dns object. */
 void     dns_destroy(dns_t *dns);

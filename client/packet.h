@@ -60,6 +60,11 @@ packet_t *packet_create_syn(uint16_t packet_id, uint16_t session_id, uint16_t se
 packet_t *packet_create_msg(uint16_t packet_id, uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
 packet_t *packet_create_fin(uint16_t packet_id, uint16_t session_id);
 
+/* Get minimum packet sizes so we can avoid magic numbers. */
+size_t packet_get_syn_size();
+size_t packet_get_msg_size();
+size_t packet_get_fin_size();
+
 /* Free the packet data structures. */
 void packet_destroy(packet_t *packet);
 

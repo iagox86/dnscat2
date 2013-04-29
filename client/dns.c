@@ -248,7 +248,7 @@ dns_t *dns_create(uint16_t trn_id, dns_opcode_t opcode, dns_flag_t flags, dns_rc
   return dns;
 }
 
-dns_t *dns_create_from_packet(uint8_t *packet, uint32_t length)
+dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
 {
   uint16_t i;
   buffer_t *buffer = buffer_create_with_data(BO_NETWORK, packet, length);
