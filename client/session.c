@@ -34,6 +34,29 @@ void session_destroy(session_t *session)
   safe_free(session);
 }
 
+static void do_close_stuff(session_t *session, NBBOOL send_fin)
+{
+  packet_t *packet;
+
+  if(send_fin)
+  {
+    /* Alert the user */
+    fprintf(stderr, "[[dnscat]] :: Buffers are clear, sending a FIN\n");
+
+    /* Send the FIN */
+    packet = packet_create_fin(rand() % 0xFFFF, session->id);
+    driver_send_packet(session->driver, packet);
+    packet_destroy(packet);
+  }
+
+  /* Clean up */
+  session_destroy(session);
+
+  /* Terminate */
+  fprintf(stderr, "[[dnscat]] :: Terminating");
+  exit(0);
+}
+
 void session_send(session_t *session, uint8_t *data, size_t length)
 {
   buffer_add_bytes(session->outgoing_data, data, length);
@@ -81,9 +104,8 @@ static void do_recv_stuff(session_t *session)
           fprintf(stderr, "[[dnscat]] :: Connection closed\n");
 
           /* Clean up and exit */
-          session_destroy(session);
-
-          exit(0);
+          do_close_stuff(session, FALSE);
+          abort(); /* do_close_stuff() shouldn't return */
         }
         else
         {
@@ -138,7 +160,7 @@ static void do_recv_stuff(session_t *session)
         }
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
-          fprintf(stderr, "[[dnscat]] :: Connection closed\n");
+          fprintf(stderr, "[[dnscat]] :: Connection closed by server\n");
 
           /* Clean up and exit */
           session_destroy(session);
@@ -181,7 +203,6 @@ static void do_send_stuff(session_t *session)
 
     case SESSION_STATE_ESTABLISHED:
       /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
-      /* TODO: Get rid of the magic number "8" */
       data = buffer_read_remaining_bytes(session->outgoing_data, &length, session->driver->max_packet_size - packet_get_msg_size(), FALSE); /* TODO: Magic number */
       fprintf(stderr, "[[dnscat]] :: Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...\n", session->my_seq, session->their_seq, length);
 
@@ -202,17 +223,6 @@ static void do_send_stuff(session_t *session)
   }
 }
 
-static void do_close_stuff(session_t *session)
-{
-  /* Send the FIN */
-  packet_t *packet = packet_create_fin(rand() % 0xFFFF, session->id);
-  driver_send_packet(session->driver, packet);
-  packet_destroy(packet);
-
-  /* Alert the user */
-  fprintf(stderr, "[[dnscat]] :: Buffers are clear, sending a FIN\n");
-}
-
 void session_do_actions(session_t *session)
 {
   /* Cleanup the incoming/outgoing buffers, if we can */
@@ -224,6 +234,9 @@ void session_do_actions(session_t *session)
 
   /* If the session is closed and no data is queued, close properly */
   if(session->is_closed && buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
-    do_close_stuff(session);
+  {
+    do_close_stuff(session, TRUE);
+    abort(); /* do_close_stuff() shouldn't return */
+  }
 }
 
