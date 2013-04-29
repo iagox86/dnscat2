@@ -79,6 +79,8 @@ void cleanup()
   }
 
   print_memory();
+
+  exit(100);
 }
 
 void catch_signal(int sig)

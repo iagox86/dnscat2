@@ -35,21 +35,17 @@ void session_destroy(session_t *session)
   safe_free(session);
 }
 
-static void do_close_stuff(session_t *session, NBBOOL send_fin)
+static void send_final_fin(session_t *session)
 {
   packet_t *packet;
 
-  if(send_fin)
-  {
-    /* Alert the user */
-    fprintf(stderr, "[[dnscat]] :: Buffers are clear, sending a FIN\n");
+  /* Alert the user */
+  fprintf(stderr, "[[dnscat]] :: Buffers are clear, sending a FIN\n");
 
-    /* Send the FIN */
-    packet = packet_create_fin(session->id);
-    driver_send_packet(session->driver, packet);
-    packet_destroy(packet);
-  }
-  session_destroy(session);
+  /* Send the FIN */
+  packet = packet_create_fin(session->id);
+  driver_send_packet(session->driver, packet);
+  packet_destroy(packet);
 }
 
 void session_send(session_t *session, uint8_t *data, size_t length)
@@ -64,7 +60,7 @@ void session_close(session_t *session)
 
 void session_force_close(session_t *session)
 {
-  do_close_stuff(session, TRUE);
+  send_final_fin(session);
 }
 
 NBBOOL session_is_data_queued(session_t *session)
@@ -103,8 +99,6 @@ static void do_recv_stuff(session_t *session)
         {
           fprintf(stderr, "[[dnscat]] :: Connection closed\n");
 
-          /* Clean up and exit */
-          do_close_stuff(session, FALSE);
           exit(0);
         }
         else
@@ -163,8 +157,6 @@ static void do_recv_stuff(session_t *session)
           fprintf(stderr, "[[dnscat]] :: Connection closed by server\n");
           packet_destroy(packet);
 
-          /* Clean up and exit */
-          do_close_stuff(session, FALSE);
           exit(0);
         }
         else
@@ -172,7 +164,7 @@ static void do_recv_stuff(session_t *session)
           fprintf(stderr, "[[ERROR]] :: Unknown packet type: 0x%02x\n", packet->message_type);
           packet_destroy(packet);
 
-          do_close_stuff(session, TRUE);
+          send_final_fin(session);
           exit(0);
         }
 
@@ -180,8 +172,7 @@ static void do_recv_stuff(session_t *session)
       default:
         fprintf(stderr, "[[ERROR]] :: Wound up in an unknown state: 0x%x\n", session->state);
         packet_destroy(packet);
-
-        do_close_stuff(session, TRUE);
+        send_final_fin(session);
         exit(0);
     }
 
@@ -242,8 +233,5 @@ void session_do_actions(session_t *session)
 
   /* If the session is closed and no data is queued, close properly */
   if(session->is_closed && buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
-  {
-    do_close_stuff(session, TRUE);
-    exit(0);
-  }
+    send_final_fin(session);
 }
