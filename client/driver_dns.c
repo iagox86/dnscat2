@@ -17,17 +17,18 @@
 
 #include "driver_dns.h"
 
-dns_driver_t *dns_driver_create(char *domain, char *dns_host, uint16_t dns_port, select_group_t *group)
+dns_driver_t *driver_dns_create(char *domain, char *dns_host, uint16_t dns_port, select_group_t *group)
 {
-  dns_driver_t *dns_driver = (dns_driver_t*)safe_malloc(sizeof(dns_driver_t));
-  dns_driver->s            = -1;
-  dns_driver->domain       = safe_strdup(domain);
-  dns_driver->dns_host     = safe_strdup(dns_host);
-  dns_driver->dns_port     = dns_port;
-  dns_driver->group        = group;
+  dns_driver_t *dns_driver   = (dns_driver_t*)safe_malloc(sizeof(dns_driver_t));
+  dns_driver->s              = -1;
+  dns_driver->domain         = safe_strdup(domain);
+  dns_driver->dns_host       = safe_strdup(dns_host);
+  dns_driver->dns_port       = dns_port;
+  dns_driver->group          = group;
 
-  /* TODO: This should be a list or something, not a buffer */
-  dns_driver->incoming_data = buffer_create(BO_BIG_ENDIAN);
+  /* Disable the callbacks initially. */
+  dns_driver->callback       = NULL;
+  dns_driver->callback_param = NULL;
 
   return dns_driver;
 }
@@ -97,6 +98,8 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
       }
       else
       {
+        buffer_t *incoming_data = buffer_create(BO_LITTLE_ENDIAN);
+
         /* Loop through the part of the answer before the 'domain' */
         for(i = 0; answer + i < domain; i += 2)
         {
@@ -125,9 +128,19 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
             buf[1] = answer[i + 1];
             buf[2] = '\0';
 
-            buffer_add_int8(driver->incoming_data, strtol(buf, NULL, 16));
+            buffer_add_int8(incoming_data, strtol(buf, NULL, 16));
           }
         }
+
+        /* Pass the buffer to the caller */
+        if(buffer_get_length(incoming_data) > 0)
+        {
+          size_t length;
+          uint8_t *data = buffer_create_string(incoming_data, &length);
+
+          driver->callback(data, length, driver->callback_param);
+        }
+        buffer_destroy(incoming_data);
       }
     }
   }
@@ -194,6 +207,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
   dns_destroy(dns);
 }
 
+#if 0
 uint8_t *driver_dns_recv(void *d, size_t *length, size_t max_length)
 {
   uint8_t *ret;
@@ -215,6 +229,7 @@ uint8_t *driver_dns_recv(void *d, size_t *length, size_t max_length)
   *length = 0;
   return NULL;
 }
+#endif
 
 void driver_dns_close(void *d)
 {
@@ -239,9 +254,15 @@ void driver_dns_cleanup(void *d)
   if(driver->s != -1)
     driver_dns_close(driver);
 
-  buffer_destroy(driver->incoming_data);
-
   safe_free(driver->domain);
   safe_free(driver->dns_host);
   safe_free(d);
+}
+
+void driver_dns_register_callback(void *d, driver_callback_t *callback, void *callback_param)
+{
+  dns_driver_t *driver = (dns_driver_t*) d;
+
+  driver->callback       = callback;
+  driver->callback_param = callback_param;
 }

@@ -36,8 +36,8 @@ class DnscatDNS
     server.logger.level = Logger::FATAL
     server.logger.info "Starting RubyDNS server (v#{RubyDNS::VERSION})..."
 
-    #options[:listen] ||= [[:udp, "0.0.0.0", 53], [:tcp, "0.0.0.0", 53]]
-    options[:listen] ||= [[:tcp, "0.0.0.0", 5353], [:udp, "0.0.0.0", 5353]]
+    options[:listen] ||= [[:udp, "0.0.0.0", 53], [:tcp, "0.0.0.0", 53]]
+    #options[:listen] ||= [[:tcp, "0.0.0.0", 5353], [:udp, "0.0.0.0", 5353]]
 
     EventMachine.run do
       server.fire(:setup)

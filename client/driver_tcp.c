@@ -109,6 +109,7 @@ uint8_t *driver_tcp_recv(void *driver, size_t *length, size_t max_length)
 
       /* Read the rest of the buffer. */
       ret = buffer_read_remaining_bytes(d->buffer, &returned_length, expected_length, FALSE);
+
       /* Consume the bytes from the buffer */
       buffer_consume(d->buffer, expected_length);
 

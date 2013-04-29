@@ -21,8 +21,7 @@
 #define DEFAULT_DNS_SERVER   "localhost"
 #define DEFAULT_DNS_PORT     53
 #define DEFAULT_DOMAIN       "skullseclabs.org"
-#define DEFAULT_RESEND_DELAY 500
-#define DEFAULT_POLL_RATE    200
+#define DEFAULT_POLL_RATE    1000
 
 typedef struct
 {
@@ -35,7 +34,6 @@ typedef struct
   char           *domain;
 
   int             poll_rate;
-  int             resend_delay;
   int             time_since_last_send;
 } options_t;
 
@@ -69,11 +67,7 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
 
   options->time_since_last_send += options->poll_rate;
 
-  if(options->time_since_last_send > options->resend_delay ||
-    session_data_is_waiting(options->session))
-  {
-    session_do_actions(options->session);
-  }
+  session_do_actions(options->session);
 
   return SELECT_OK;
 }
@@ -126,7 +120,6 @@ int main(int argc, char *argv[])
   options->dns_server   = DEFAULT_DNS_SERVER;
   options->dns_port     = DEFAULT_DNS_PORT;
   options->domain       = DEFAULT_DOMAIN;
-  options->resend_delay = DEFAULT_RESEND_DELAY;
   options->poll_rate    = DEFAULT_POLL_RATE;
 
   /* Parse the command line options. */
