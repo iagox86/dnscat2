@@ -49,9 +49,7 @@ static void do_close_stuff(session_t *session, NBBOOL send_fin)
     driver_send_packet(session->driver, packet);
     packet_destroy(packet);
   }
-
-  /* Terminate */
-  exit(0);
+  session_destroy(session);
 }
 
 void session_send(session_t *session, uint8_t *data, size_t length)
@@ -62,6 +60,11 @@ void session_send(session_t *session, uint8_t *data, size_t length)
 void session_close(session_t *session)
 {
   session->is_closed = TRUE;
+}
+
+void session_force_close(session_t *session)
+{
+  do_close_stuff(session, TRUE);
 }
 
 NBBOOL session_is_data_queued(session_t *session)
@@ -102,7 +105,7 @@ static void do_recv_stuff(session_t *session)
 
           /* Clean up and exit */
           do_close_stuff(session, FALSE);
-          abort(); /* do_close_stuff() shouldn't return */
+          exit(0);
         }
         else
         {
@@ -162,7 +165,7 @@ static void do_recv_stuff(session_t *session)
 
           /* Clean up and exit */
           do_close_stuff(session, FALSE);
-          abort(); /* do_close_stuff shouldn't return */
+          exit(0);
         }
         else
         {
@@ -170,7 +173,7 @@ static void do_recv_stuff(session_t *session)
           packet_destroy(packet);
 
           do_close_stuff(session, TRUE);
-          abort(); /* do_close_stuff shouldn't return */
+          exit(0);
         }
 
         break;
@@ -179,7 +182,7 @@ static void do_recv_stuff(session_t *session)
         packet_destroy(packet);
 
         do_close_stuff(session, TRUE);
-        abort(); /* do_close_stuff shouldn't return */
+        exit(0);
     }
 
     packet_destroy(packet);
@@ -241,7 +244,6 @@ void session_do_actions(session_t *session)
   if(session->is_closed && buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
   {
     do_close_stuff(session, TRUE);
-    abort(); /* do_close_stuff() shouldn't return */
+    exit(0);
   }
 }
-

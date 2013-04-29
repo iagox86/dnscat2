@@ -1,4 +1,5 @@
 #include <getopt.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,11 +70,20 @@ void cleanup()
 {
   fprintf(stderr, "[[dnscat]] :: Terminating\n");
 
-  session_destroy(options->session);
-  select_group_destroy(options->group);
-  safe_free(options);
+  if(options)
+  {
+    session_destroy(options->session);
+    select_group_destroy(options->group);
+    safe_free(options);
+    options = NULL;
+  }
 
   print_memory();
+}
+
+void catch_signal(int sig)
+{
+  cleanup();
 }
 
 int main(int argc, char *argv[])
@@ -171,6 +181,7 @@ int main(int argc, char *argv[])
 #endif
 
   atexit(cleanup);
+  signal(SIGTERM, catch_signal);
 
   while(TRUE)
     select_group_do_select(options->group, 1000);
