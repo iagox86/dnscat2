@@ -1,0 +1,18 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    eventmachine (1.0.3)
+    rainbow (1.1.4)
+    rexec (1.5.1)
+      rainbow
+    rubydns (0.6.1)
+      eventmachine (~> 1.0.0)
+      rexec (~> 1.5.1)
+    slop (3.4.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rubydns
+  slop
