@@ -165,5 +165,7 @@ opts = Slop.parse do
   on 'd', 'debug', 'Set the debug level', argument: :required, as: :integer
 end
 
+# TODO: Look up Trollop
+
 # if ARGV is `--name Lee -v`
 puts opts.to_hash   #=> {:name=>"Lee", :password=>nil, :verbose=>true}
