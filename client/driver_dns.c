@@ -2,6 +2,9 @@
  * Created March/2013
  * By Ron Bowes
  */
+
+#ifdef DNSCAT_DNS
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -15,28 +18,32 @@
 #include "select_group.h"
 #include "udp.h"
 
-#include "driver_dns.h"
+#include "driver.h"
 
-dns_driver_t *driver_dns_create(char *domain, char *dns_host, uint16_t dns_port, select_group_t *group)
+
+driver_t *driver_dns_create(char *domain, char *dns_host, uint16_t dns_port, select_group_t *group)
 {
-  dns_driver_t *dns_driver   = (dns_driver_t*)safe_malloc(sizeof(dns_driver_t));
-  dns_driver->s              = -1;
-  dns_driver->domain         = safe_strdup(domain);
-  dns_driver->dns_host       = safe_strdup(dns_host);
-  dns_driver->dns_port       = dns_port;
-  dns_driver->group          = group;
+  /* Set the dns-specific options for the driver */
+  driver_t *driver                 = safe_malloc(sizeof(driver_t));
 
-  /* Disable the callbacks initially. */
-  dns_driver->callback       = NULL;
-  dns_driver->callback_param = NULL;
+  /* Set the max packet size (TODO: Choose a smarter value) */
+  driver->max_packet_size = 20;
+  driver->s               = -1;
+  driver->domain          = safe_strdup(domain);
+  driver->dns_host        = safe_strdup(dns_host);
+  driver->dns_port        = dns_port;
+  driver->group           = group;
 
-  return dns_driver;
+  driver->callback        = NULL;
+  driver->callback_param  = NULL;
+
+  return driver;
 }
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
-  dns_driver_t *driver = param;
-  dns_t        *dns    = dns_create_from_packet(data, length);
+  driver_t *driver = param;
+  dns_t    *dns    = dns_create_from_packet(data, length);
 
   /* TODO */
   if(dns->rcode != DNS_RCODE_SUCCESS)
@@ -157,10 +164,19 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
   return SELECT_OK;
 }
 
-void driver_dns_send(void *d, uint8_t *data, size_t length)
+void driver_send_packet(driver_t *driver, packet_t *packet)
+{
+  size_t   length;
+  uint8_t *data = packet_to_bytes(packet, &length);
+
+  driver_send(driver, data, length);
+
+  safe_free(data);
+}
+
+void driver_send(driver_t *driver, uint8_t *data, size_t length)
 {
   size_t        i;
-  dns_driver_t *driver = (dns_driver_t*) d;
   dns_t        *dns;
   buffer_t     *buffer;
   uint8_t      *encoded_bytes;
@@ -179,7 +195,7 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
     }
 
     /* If it succeeds, add it to the select_group */
-    select_group_add_socket(driver->group, driver->s, SOCKET_TYPE_STREAM, d);
+    select_group_add_socket(driver->group, driver->s, SOCKET_TYPE_STREAM, driver);
     select_set_recv(driver->group, driver->s, recv_callback);
   }
 
@@ -209,34 +225,8 @@ void driver_dns_send(void *d, uint8_t *data, size_t length)
   dns_destroy(dns);
 }
 
-#if 0
-uint8_t *driver_dns_recv(void *d, size_t *length, size_t max_length)
+void driver_close(driver_t *driver)
 {
-  uint8_t *ret;
-
-  dns_driver_t *driver = (dns_driver_t*) d;
-
-  if(buffer_get_remaining_bytes(driver->incoming_data) > 0)
-  {
-    /* Read the rest of the buffer. */
-    ret = buffer_read_remaining_bytes(driver->incoming_data, length, -1, FALSE);
-
-    /* Consume the bytes from the buffer */
-    buffer_consume(driver->incoming_data, *length);
-
-    return ret;
-  }
-
-  /* By default, return NULL */
-  *length = 0;
-  return NULL;
-}
-#endif
-
-void driver_dns_close(void *d)
-{
-  dns_driver_t *driver = (dns_driver_t*) d;
-
   fprintf(stderr, "[[UDP]] :: close()\n");
 
   assert(driver->s && driver->s != -1); /* We can't close a closed socket */
@@ -246,25 +236,22 @@ void driver_dns_close(void *d)
   driver->s = -1;
 }
 
-void driver_dns_cleanup(void *d)
+void driver_destroy(driver_t *driver)
 {
-  dns_driver_t *driver = (dns_driver_t*) d;
-
   fprintf(stderr, "[[DNS]] :: cleanup()\n");
 
   /* Ensure the driver is closed */
   if(driver->s != -1)
-    driver_dns_close(driver);
+    driver_close(driver);
 
   safe_free(driver->domain);
   safe_free(driver->dns_host);
-  safe_free(d);
 }
 
-void driver_dns_register_callback(void *d, driver_callback_t *callback, void *callback_param)
+void driver_register_callback(driver_t *driver, driver_callback_t *callback, void *callback_param)
 {
-  dns_driver_t *driver = (dns_driver_t*) d;
-
   driver->callback       = callback;
   driver->callback_param = callback_param;
 }
+
+#endif

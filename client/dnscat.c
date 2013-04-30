@@ -8,8 +8,6 @@
 #include "select_group.h"
 
 #include "driver.h"
-#include "driver_dns.h"
-#include "driver_tcp.h"
 
 #include "memory.h"
 #include "packet.h"
@@ -167,8 +165,13 @@ int main(int argc, char *argv[])
   fprintf(stderr, " Domain:     %s\n", options->domain);
 
   /* Set up the session */
-  options->session = session_create(driver_get_dns(options->domain, options->dns_server, options->dns_port, options->group));
-  /*options->session = session_create(driver_get_tcp("localhost", 2000, options->group));*/
+#if defined DNSCAT_DNS
+  options->session = session_create(driver_dns_create(options->domain, options->dns_server, options->dns_port, options->group));
+#elif defined DNSCAT_TCP
+  options->session = session_create(driver_tcp_create("localhost", 2000, options->group));
+#else
+#warning("!")
+#endif
 
   /* Create the STDIN socket */
 #ifdef WIN32

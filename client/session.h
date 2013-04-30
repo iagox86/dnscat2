@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include "buffer.h"
+
 typedef enum
 {
   SESSION_STATE_NEW,

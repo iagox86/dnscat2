@@ -7,7 +7,7 @@
 # Should work for Linux and BSD make.
 
 CC=gcc
-COMMON_CFLAGS=-ansi -std=c89
+COMMON_CFLAGS=-ansi -std=c89 -DDNSCAT_DNS
 CFLAGS?=-Wall -g -DTESTMEMORY
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
@@ -18,7 +18,6 @@ OBJS=dnscat.o      \
 		 types.o       \
 		 memory.o      \
 		 dns.o         \
-		 driver.o      \
 		 driver_dns.o  \
 		 driver_tcp.o  \
 		 packet.o      \

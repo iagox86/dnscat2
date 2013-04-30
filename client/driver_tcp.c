@@ -2,6 +2,9 @@
  * Created March/2013
  * By Ron Bowes
  */
+
+#ifdef DNSCAT_TCP
+
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -12,23 +15,26 @@
 #include "select_group.h"
 #include "tcp.h"
 
-#include "driver_tcp.h"
+#include "driver.h"
 
-tcp_driver_t *tcp_driver_create(char *host, uint16_t port, select_group_t *group)
+driver_t *driver_tcp_create(char *host, uint16_t port, select_group_t *group)
 {
-  tcp_driver_t *tcp_driver = (tcp_driver_t*)safe_malloc(sizeof(tcp_driver_t));
-  tcp_driver->s     = -1;
-  tcp_driver->host  = safe_strdup(host);
-  tcp_driver->port  = port;
-  tcp_driver->group = group;
-  tcp_driver->buffer = buffer_create(BO_BIG_ENDIAN);
+  /* Set the tcp-specific options for the driver */
+  driver_t *driver        = (driver_t *)safe_malloc(sizeof(driver_t));
+  driver->max_packet_size = 1024;
 
-  return tcp_driver;
+  driver->s     = -1;
+  driver->host  = safe_strdup(host);
+  driver->port  = port;
+  driver->group = group;
+  driver->buffer = buffer_create(BO_BIG_ENDIAN);
+
+  return driver;
 }
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
-  tcp_driver_t *driver = (tcp_driver_t*)param;
+  driver_t *driver = (driver_t*)param;
 
   /* Cleanup - if the buffer is empty, reset it */
   if(buffer_get_remaining_bytes(driver->buffer) == 0)
@@ -75,42 +81,51 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 
 static SELECT_RESPONSE_t closed_callback(void *group, int s, void *param)
 {
-  tcp_driver_t *driver = (tcp_driver_t*)param;
+  driver_t *driver = (driver_t*)param;
 
   printf("[[TCP]] :: Connection closed\n");
 
-  driver_tcp_close(driver);
+  driver_close(driver);
 
   return SELECT_OK;
 }
 
-void driver_tcp_send(void *driver, uint8_t *data, size_t length)
+void driver_send_packet(driver_t *driver, packet_t *packet)
 {
-  tcp_driver_t *d = (tcp_driver_t*) driver;
+  size_t   length;
+  uint8_t *data = packet_to_bytes(packet, &length);
+
+  driver_send(driver, data, length);
+
+  safe_free(data);
+}
+
+void driver_send(driver_t *driver, uint8_t *data, size_t length)
+{
   buffer_t     *buffer;
   uint8_t      *encoded_data;
   size_t        encoded_length;
 
-  if(d->s == -1)
+  if(driver->s == -1)
   {
     /* Attempt a TCP connection */
-    printf("[[TCP]] :: connecting to %s:%d\n", d->host, d->port);
-    d->s = tcp_connect(d->host, d->port);
+    printf("[[TCP]] :: connecting to %s:%d\n", driver->host, driver->port);
+    driver->s = tcp_connect(driver->host, driver->port);
 
     /* If it fails, just return (it will try again next send) */
-    if(d->s == -1)
+    if(driver->s == -1)
     {
       printf("[[TCP]] :: connection failed!\n");
       return;
     }
 
     /* If it succeeds, add it to the select_group */
-    select_group_add_socket(d->group, d->s, SOCKET_TYPE_STREAM, d);
-    select_set_recv(d->group, d->s, recv_callback);
-    select_set_closed(d->group, d->s, closed_callback);
+    select_group_add_socket(driver->group, driver->s, SOCKET_TYPE_STREAM, driver);
+    select_set_recv(driver->group, driver->s, recv_callback);
+    select_set_closed(driver->group, driver->s, closed_callback);
   }
 
-  assert(d->s != -1); /* Make sure we have a valid socket. */
+  assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
 
@@ -119,47 +134,43 @@ void driver_tcp_send(void *driver, uint8_t *data, size_t length)
   buffer_add_bytes(buffer, data, length);
   encoded_data = buffer_create_string_and_destroy(buffer, &encoded_length);
 
-  if(tcp_send(d->s, encoded_data, encoded_length) == -1)
+  if(tcp_send(driver->s, encoded_data, encoded_length) == -1)
   {
     printf("[[TCP]] send error, closing socket!\n");
-    driver_tcp_close(driver);
+    driver_close(driver);
   }
 }
 
-void driver_tcp_close(void *driver)
+void driver_close(driver_t *driver)
 {
-  tcp_driver_t *d = (tcp_driver_t*) driver;
-
   printf("[[TCP]] :: close()\n");
 
-  assert(d->s && d->s != -1); /* We can't close a closed socket */
+  assert(driver->s && driver->s != -1); /* We can't close a closed socket */
 
   /* Remove from the select_group */
-  select_group_remove_and_close_socket(d->group, d->s);
-  d->s = -1;
+  select_group_remove_and_close_socket(driver->group, driver->s);
+  driver->s = -1;
 }
 
-void driver_tcp_cleanup(void *driver)
+void driver_destroy(driver_t *driver)
 {
-  tcp_driver_t *d = (tcp_driver_t*) driver;
-
   printf("[[TCP]] :: cleanup()\n");
 
   /* Ensure the driver is closed */
-  if(d->s != -1)
-    driver_tcp_close(driver);
+  if(driver->s != -1)
+    driver_close(driver);
 
-  buffer_destroy(d->buffer);
+  buffer_destroy(driver->buffer);
 
-  safe_free(d->host);
-  d->host = NULL;
-  safe_free(d);
+  safe_free(driver->host);
+  driver->host = NULL;
+  safe_free(driver);
 }
 
-void driver_tcp_register_callback(void *d, driver_callback_t *callback, void *callback_param)
+void driver_register_callback(driver_t *driver, driver_callback_t *callback, void *callback_param)
 {
-  tcp_driver_t *driver = (tcp_driver_t*) d;
-
   driver->callback       = callback;
   driver->callback_param = callback_param;
 }
+
+#endif
