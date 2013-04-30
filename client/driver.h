@@ -58,7 +58,7 @@ typedef struct
   /* This is for buffering data until we get a full packet */
   buffer_t *buffer;
 #else
-#warning "You're gonna have a bad time"
+  /* This is what you'll get when you compile everything except the drivers. */
 #endif
 } driver_t;
 

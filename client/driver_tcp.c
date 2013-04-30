@@ -2,9 +2,6 @@
  * Created March/2013
  * By Ron Bowes
  */
-
-#ifdef DNSCAT_TCP
-
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -172,5 +169,3 @@ void driver_register_callback(driver_t *driver, driver_callback_t *callback, voi
   driver->callback       = callback;
   driver->callback_param = callback_param;
 }
-
-#endif

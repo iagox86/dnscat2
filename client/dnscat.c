@@ -164,14 +164,9 @@ int main(int argc, char *argv[])
   fprintf(stderr, " DNS Port:   %d\n", options->dns_port);
   fprintf(stderr, " Domain:     %s\n", options->domain);
 
-  /* Set up the session */
-#if defined DNSCAT_DNS
+  /* TODO: Do this better */
   options->session = session_create(driver_dns_create(options->domain, options->dns_server, options->dns_port, options->group));
-#elif defined DNSCAT_TCP
-  options->session = session_create(driver_tcp_create("localhost", 2000, options->group));
-#else
-#warning("!")
-#endif
+/*  options->session = session_create(driver_tcp_create("localhost", 2000, options->group));*/
 
   /* Create the STDIN socket */
 #ifdef WIN32
