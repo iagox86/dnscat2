@@ -15,29 +15,22 @@
 #include "time.h"
 #include "types.h"
 
-/* Default options */
-#define DEFAULT_DNS_SERVER   "localhost"
-#define DEFAULT_DNS_PORT     53
-#define DEFAULT_DOMAIN       "skullseclabs.org"
-#define DEFAULT_POLL_RATE    1000
-
 typedef struct
 {
   select_group_t *group;
   session_t      *session;
+  driver_t       *driver;
   NBBOOL          stdin_is_closed;
 
-  char           *dns_server;
-  uint16_t        dns_port;
-  char           *domain;
-
   int             poll_rate;
-  int             time_since_last_send;
 } options_t;
 
 /* Make this a module-level variable so we can clean it up
  * in our atexit() handler */
 static options_t *options;
+
+/* Default values */
+#define DEFAULT_POLL_RATE    1000
 
 static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
@@ -62,8 +55,6 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
   options_t *options = (options_t*) param;
-
-  options->time_since_last_send += options->poll_rate;
 
   session_do_actions(options->session);
 
@@ -92,33 +83,24 @@ void catch_signal(int sig)
 
 int main(int argc, char *argv[])
 {
-  char        c;
-  int         option_index;
-  const char *option_name;
-  options = (options_t*)safe_malloc(sizeof(options_t));
+  char c;
+  int  option_index;
 
   struct option long_options[] =
   {
-    {"domain", required_argument, 0, 0}, /* Domain name */
-    {"d",      required_argument, 0, 0},
-    {"host",   required_argument, 0, 0}, /* DNS server */
-    {"port",   required_argument, 0, 0}, /* DNS port */
+    {"host", required_argument, 0, 0},
     {0,        0,                 0, 0}  /* End */
   };
+
+  options = (options_t*)safe_malloc(sizeof(options_t));
 
   srand(time(NULL));
 
   /* Default the options to 0 */
   memset(options, 0, sizeof(options));
 
-  /* Create the select_group */
-  options->group = select_group_create();
-
-  /* Default options */
-  options->dns_server   = DEFAULT_DNS_SERVER;
-  options->dns_port     = DEFAULT_DNS_PORT;
-  options->domain       = DEFAULT_DOMAIN;
-  options->poll_rate    = DEFAULT_POLL_RATE;
+  /* Set default values. */
+  options->poll_rate       = DEFAULT_POLL_RATE;
 
   /* Parse the command line options. */
   opterr = 0;
@@ -126,47 +108,20 @@ int main(int argc, char *argv[])
   {
     switch(c)
     {
-      case 0:
-        option_name = long_options[option_index].name;
-
-        if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
-        {
-          options->domain = optarg;
-        }
-        else if(!strcmp(option_name, "host"))
-        {
-          options->dns_server = optarg;
-        }
-        else if(!strcmp(option_name, "port"))
-        {
-          options->dns_port = atoi(optarg);
-        }
-        else
-        {
-          fprintf(stderr, "Unknown option: %s\n", option_name);
-          exit(1);
-          /* TODO: Usage */
-        }
-        break;
-
       case '?':
       default:
-        fprintf(stderr, "Unknown option\n");
-        exit(1);
-        /* TODO: Usage */
+        /* Do nothing; we expect some unknown arguments. */
         break;
     }
   }
 
-  /* Tell the user what's going on */
-  fprintf(stderr, "Options selected:\n");
-  fprintf(stderr, " DNS Server: %s\n", options->dns_server);
-  fprintf(stderr, " DNS Port:   %d\n", options->dns_port);
-  fprintf(stderr, " Domain:     %s\n", options->domain);
+  /* Reset the option index to begin processing from the start. */
+  optind = 1;
 
-  /* TODO: Do this better */
-  options->session = session_create(driver_dns_create(options->domain, options->dns_server, options->dns_port, options->group));
-/*  options->session = session_create(driver_tcp_create("localhost", 2000, options->group));*/
+  /* TODO: What if I let the driver create the session? */
+  options->group   = select_group_create();
+  options->driver  = driver_create(argc, argv, options->group);
+  options->session = session_create(options->driver);
 
   /* Create the STDIN socket */
 #ifdef WIN32

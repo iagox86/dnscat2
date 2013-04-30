@@ -47,6 +47,8 @@ typedef struct
   char              *dns_host;
   uint16_t           dns_port;
   select_group_t    *group;
+  int                poll_rate;
+
 
 #elif defined DNSCAT_TCP
   int       s;
@@ -63,8 +65,7 @@ typedef struct
 } driver_t;
 
 /* Create an instance of driver_t for TCP connections. */
-driver_t *driver_tcp_create(char *host, uint16_t port, select_group_t *group);
-driver_t *driver_dns_create(char *domain, char *dns_host, uint16_t dns_port, select_group_t *group);
+driver_t *driver_create(int argc, char *argv[], select_group_t *group);
 
 /* Destroy an instance of driver_t - this can be any protocol. */
 void driver_destroy(driver_t *driver);

@@ -4,7 +4,9 @@
  */
 #include <assert.h>
 #include <errno.h>
+#include <getopt.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "buffer.h"
@@ -12,19 +14,80 @@
 #include "select_group.h"
 #include "tcp.h"
 
+#define DNSCAT_TCP
+
 #include "driver.h"
 
-driver_t *driver_tcp_create(char *host, uint16_t port, select_group_t *group)
-{
-  /* Set the tcp-specific options for the driver */
-  driver_t *driver        = (driver_t *)safe_malloc(sizeof(driver_t));
-  driver->max_packet_size = 1024;
+#define DEFAULT_HOST "localhost"
+#define DEFAULT_PORT 2000
 
-  driver->s     = -1;
-  driver->host  = safe_strdup(host);
-  driver->port  = port;
-  driver->group = group;
-  driver->buffer = buffer_create(BO_BIG_ENDIAN);
+driver_t *driver_create(int argc, char *argv[], select_group_t *group)
+{
+  /* Define the options specific to the DNS protocol. */
+  struct option long_options[] =
+  {
+    {"host", required_argument, 0, 0},
+    {"port", required_argument, 0, 0},
+    {0,      0,                 0, 0}  /* End */
+  };
+  char        c;
+  int         option_index;
+  const char *option_name;
+
+  /* Set the dns-specific options for the driver */
+  driver_t *driver        = safe_malloc(sizeof(driver_t));
+
+  /* Set up some default options. */
+  driver->max_packet_size = 1394;
+  driver->s               = -1;
+  driver->group           = group;
+
+  driver->host            = DEFAULT_HOST;
+  driver->port            = DEFAULT_PORT;
+
+  driver->callback        = NULL; /* TODO: I can probably pass this as an arg now */
+  driver->callback_param  = NULL;
+
+  /* Parse the command line options. */
+  opterr = 0;
+  while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != EOF)
+  {
+    switch(c)
+    {
+      case 0:
+        option_name = long_options[option_index].name;
+
+        printf("name: %s\n", option_name);
+
+        if(!strcmp(option_name, "host"))
+        {
+          driver->host = optarg;
+        }
+        else if(!strcmp(option_name, "port"))
+        {
+          driver->port = atoi(optarg);
+        }
+        else
+        {
+          fprintf(stderr, "Unknown option: %s\n", option_name);
+          exit(1);
+          /* TODO: Usage */
+        }
+        break;
+
+      case '?':
+      default:
+        /* Do nothing; we expect some unknown arguments. */
+        break;
+    }
+  }
+
+  /* Tell the user what's going on */
+  fprintf(stderr, "Options selected:\n");
+  fprintf(stderr, " Host: %s\n", driver->host);
+  fprintf(stderr, " Port: %d\n", driver->port);
+
+  exit(0);
 
   return driver;
 }

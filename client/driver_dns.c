@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -15,24 +16,86 @@
 #include "select_group.h"
 #include "udp.h"
 
+#define DNSCAT_DNS
+
 #include "driver.h"
 
+/* Default options */
+#define DEFAULT_DNS_SERVER   "localhost"
+#define DEFAULT_DNS_PORT     53
+#define DEFAULT_DOMAIN       "skullseclabs.org"
 
-driver_t *driver_dns_create(char *domain, char *dns_host, uint16_t dns_port, select_group_t *group)
+driver_t *driver_create(int argc, char *argv[], select_group_t *group)
 {
+  /* Define the options specific to the DNS protocol. */
+  struct option long_options[] =
+  {
+    {"domain", required_argument, 0, 0}, /* Domain name */
+    {"d",      required_argument, 0, 0},
+    {"host",   required_argument, 0, 0}, /* DNS server */
+    {"port",   required_argument, 0, 0}, /* DNS port */
+    {0,        0,                 0, 0}  /* End */
+  };
+  char        c;
+  int         option_index;
+  const char *option_name;
+
   /* Set the dns-specific options for the driver */
   driver_t *driver                 = safe_malloc(sizeof(driver_t));
 
-  /* Set the max packet size (TODO: Choose a smarter value) */
-  driver->max_packet_size = 20;
+  /* Set up some default options. */
+  driver->max_packet_size = 20; /* TODO: Calculate this better. */
   driver->s               = -1;
-  driver->domain          = safe_strdup(domain);
-  driver->dns_host        = safe_strdup(dns_host);
-  driver->dns_port        = dns_port;
   driver->group           = group;
 
-  driver->callback        = NULL;
+  driver->dns_host        = DEFAULT_DNS_SERVER;
+  driver->dns_port        = DEFAULT_DNS_PORT;
+  driver->domain          = DEFAULT_DOMAIN;
+
+  driver->callback        = NULL; /* TODO: I can probably pass this as an arg now */
   driver->callback_param  = NULL;
+
+  /* Parse the command line options. */
+  opterr = 0;
+  while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != EOF)
+  {
+    switch(c)
+    {
+      case 0:
+        option_name = long_options[option_index].name;
+
+        if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
+        {
+          driver->domain = optarg;
+        }
+        else if(!strcmp(option_name, "host"))
+        {
+          driver->dns_host = optarg;
+        }
+        else if(!strcmp(option_name, "port"))
+        {
+          driver->dns_port = atoi(optarg);
+        }
+        else
+        {
+          fprintf(stderr, "Unknown option: %s\n", option_name);
+          exit(1);
+          /* TODO: Usage */
+        }
+        break;
+
+      case '?':
+      default:
+        /* Do nothing; we expect some unknown arguments. */
+        break;
+    }
+  }
+
+  /* Tell the user what's going on */
+  fprintf(stderr, "Options selected:\n");
+  fprintf(stderr, " DNS Server: %s\n", driver->dns_host);
+  fprintf(stderr, " DNS Port:   %d\n", driver->dns_port);
+  fprintf(stderr, " Domain:     %s\n", driver->domain);
 
   return driver;
 }
