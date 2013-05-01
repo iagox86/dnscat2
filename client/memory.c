@@ -92,7 +92,7 @@ void remove_entry(void *memory)
     current = current->next;
   }
 
-  DIE("Tried to free memory that we didn't own");
+  DIE("Tried to free memory that we didn't allocate (or that's already been freed)");
 #endif
 }
 
@@ -163,8 +163,8 @@ void *safe_memcpy_internal(const void *data, size_t length, char *file, int line
 
 void safe_free(void *ptr)
 {
-  free(ptr);
   remove_entry(ptr);
+  free(ptr);
 }
 
 char *unicode_alloc(const char *string)

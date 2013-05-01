@@ -23,6 +23,27 @@
 #define DEFAULT_HOST "localhost"
 #define DEFAULT_PORT 2000
 
+driver_t *driver = NULL;
+
+void cleanup()
+{
+  fprintf(stderr, "[[tcpcat]] :: Terminating\n");
+
+  if(driver)
+  {
+    session_destroy(driver->session);
+
+    /* Ensure the driver is closed */
+    if(driver->s != -1)
+      driver_close(driver);
+    buffer_destroy(driver->buffer);
+    safe_free(driver);
+    driver = NULL;
+  }
+
+  print_memory();
+}
+
 int main(int argc, char *argv[])
 {
   /* Define the options specific to the DNS protocol. */
@@ -37,7 +58,7 @@ int main(int argc, char *argv[])
   const char *option_name;
 
   /* Set the dns-specific options for the driver */
-  driver_t *driver        = safe_malloc(sizeof(driver_t));
+  driver        = safe_malloc(sizeof(driver_t));
 
   srand(time(NULL));
 
@@ -89,6 +110,8 @@ int main(int argc, char *argv[])
   fprintf(stderr, "Options selected:\n");
   fprintf(stderr, " Host: %s\n", driver->host);
   fprintf(stderr, " Port: %d\n", driver->port);
+
+  atexit(cleanup);
 
   session_go(driver->session);
 
@@ -207,15 +230,4 @@ void driver_close(driver_t *driver)
 
 void driver_destroy(driver_t *driver)
 {
-  printf("[[TCP]] :: cleanup()\n");
-
-  /* Ensure the driver is closed */
-  if(driver->s != -1)
-    driver_close(driver);
-
-  buffer_destroy(driver->buffer);
-
-  safe_free(driver->host);
-  driver->host = NULL;
-  safe_free(driver);
 }

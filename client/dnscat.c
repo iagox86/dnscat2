@@ -26,6 +26,27 @@
 #define DEFAULT_DNS_PORT     53
 #define DEFAULT_DOMAIN       "skullseclabs.org"
 
+/* Define this outside the function so we can clean it up later. */
+driver_t *driver = NULL;
+
+void cleanup()
+{
+  fprintf(stderr, "[[dnscat]] :: Terminating\n");
+
+  if(driver)
+  {
+    session_destroy(driver->session);
+
+    /* Ensure the driver is closed */
+    if(driver->s != -1)
+      driver_close(driver);
+    safe_free(driver);
+    driver = NULL;
+  }
+
+  print_memory();
+}
+
 int main(int argc, char *argv[])
 {
   /* Define the options specific to the DNS protocol. */
@@ -44,7 +65,7 @@ int main(int argc, char *argv[])
   srand(time(NULL));
 
   /* Set the dns-specific options for the driver */
-  driver_t *driver                 = safe_malloc(sizeof(driver_t));
+  driver = safe_malloc(sizeof(driver_t));
 
   /* Set up some default options. */
   driver->max_packet_size = 20; /* TODO: Calculate this better. */
@@ -97,6 +118,9 @@ int main(int argc, char *argv[])
   fprintf(stderr, " DNS Server: %s\n", driver->dns_host);
   fprintf(stderr, " DNS Port:   %d\n", driver->dns_port);
   fprintf(stderr, " Domain:     %s\n", driver->domain);
+
+  /* Be sure we clean up at exit. */
+  atexit(cleanup);
 
   session_go(driver->session);
 
@@ -291,30 +315,5 @@ void driver_close(driver_t *driver)
   driver->s = -1;
 }
 
-void driver_destroy(driver_t *driver)
-{
-  fprintf(stderr, "[[DNS]] :: cleanup()\n");
-
-  /* Ensure the driver is closed */
-  if(driver->s != -1)
-    driver_close(driver);
-
-  safe_free(driver->domain);
-  safe_free(driver->dns_host);
-}
-
 #if 0
-void cleanup()
-{
-  fprintf(stderr, "[[dnscat]] :: Terminating\n");
-
-  if(options)
-  {
-    session_destroy(options->session);
-    safe_free(options);
-    options = NULL;
-  }
-
-  print_memory();
-}
 #endif
