@@ -3,42 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "select_group.h"
-
 #include "memory.h"
 #include "packet.h"
 #include "session.h"
-#include "time.h"
-#include "types.h"
-
-static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
-{
-  session_t *session = (session_t*) param;
-
-  session_send(session, data, length);
-
-  return SELECT_OK;
-}
-
-static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *param)
-{
-  session_t *session = (session_t*) param;
-
-  fprintf(stderr, "[[dnscat]] :: STDIN is closed, sending remaining data\n");
-
-  session_close(session);
-
-  return SELECT_REMOVE;
-}
-
-static SELECT_RESPONSE_t timeout(void *group, void *param)
-{
-  session_t *session = (session_t*) param;
-
-  session_do_actions(session);
-
-  return SELECT_OK;
-}
 
 session_t *session_create(driver_send_t *driver_send, void *driver_send_param)
 {
@@ -46,7 +13,6 @@ session_t *session_create(driver_send_t *driver_send, void *driver_send_param)
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
   session->is_closed     = FALSE;
-  session->group         = select_group_create();
   session->max_packet_size = 20; /* TODO */
 
   session->driver_send   = driver_send;
@@ -55,30 +21,11 @@ session_t *session_create(driver_send_t *driver_send, void *driver_send_param)
   session->incoming_data = buffer_create(BO_BIG_ENDIAN);
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
 
-  /* Create the STDIN socket */
-#ifdef WIN32
-  /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
-  HANDLE stdin_handle = get_stdin_handle();
-  select_group_add_pipe(session->group, -1, stdin_handle, (void*)session);
-  select_set_recv(session->group, -1, stdin_callback);
-  select_set_closed(session->group, -1, stdin_closed_callback);
-#else
-  /* On Linux, the stdin_handle is easy. */
-  int stdin_handle = STDIN_FILENO;
-  select_group_add_socket(session->group, stdin_handle, SOCKET_TYPE_STREAM, (void*)session);
-  select_set_recv(session->group, stdin_handle, stdin_callback);
-  select_set_closed(session->group, stdin_handle, stdin_closed_callback);
-
-  /* Add the timeout function */
-  select_set_timeout(session->group, timeout, (void*)session);
-#endif
-
   return session;
 }
 
 void session_destroy(session_t *session)
 {
-  select_group_destroy(session->group);
   buffer_destroy(session->incoming_data);
   buffer_destroy(session->outgoing_data);
   safe_free(session);
@@ -309,23 +256,3 @@ void session_do_actions(session_t *session)
     exit(0);
   }
 }
-
-void session_register_socket(session_t *session, int s, SOCKET_TYPE_t type, select_recv *recv_callback, select_closed *closed_callback, void *param)
-{
-    select_group_add_socket(session->group, s, type, param);
-    select_set_recv(session->group, s, recv_callback);
-    if(closed_callback)
-      select_set_closed(session->group, s, closed_callback);
-}
-
-void session_unregister_socket(session_t *session, int s)
-{
-  select_group_remove_socket(session->group, s);
-}
-
-void session_go(session_t *session)
-{
-  while(TRUE)
-    select_group_do_select(session->group, 2000);
-}
-

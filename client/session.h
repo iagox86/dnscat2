@@ -19,7 +19,6 @@
 #include <stdint.h>
 
 #include "buffer.h"
-#include "select_group.h"
 
 typedef void(driver_send_t)(uint8_t *data, size_t length, void *param);
 
@@ -37,8 +36,6 @@ typedef struct
   uint16_t        their_seq;
   uint16_t        my_seq;
   NBBOOL          is_closed;
-
-  select_group_t *group;
 
   driver_send_t  *driver_send;
   void           *driver_send_param;
@@ -58,9 +55,6 @@ void       session_close(session_t *session);
 void       session_force_close(session_t *session);
 
 void       session_do_actions(session_t *session);
-
-void       session_register_socket(session_t *session, int s, SOCKET_TYPE_t type, select_recv *recv_callback, select_closed *closed_callback, void *param);
-void       session_unregister_socket(session_t *session, int s);
 
 void       session_go(session_t *session);
 

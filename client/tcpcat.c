@@ -16,6 +16,7 @@
 #include "select_group.h"
 #include "session.h"
 #include "tcp.h"
+#include "ui_stdin.h"
 
 typedef struct
 {
@@ -27,6 +28,11 @@ typedef struct
 
   /* This is for buffering data until we get a full packet */
   buffer_t *buffer;
+
+  select_group_t *group;
+
+  /* The UI */
+  ui_stdin_t *ui_stdin;
 } options_t;
 
 #define DEFAULT_HOST "localhost"
@@ -34,6 +40,14 @@ typedef struct
 
 options_t *options = NULL;
 
+static SELECT_RESPONSE_t timeout(void *group, void *param)
+{
+  options_t *options = (options_t*) param;
+
+  session_do_actions(options->session);
+
+  return SELECT_OK;
+}
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
@@ -88,8 +102,7 @@ void tcpcat_close(options_t *options)
   assert(options->s && options->s != -1); /* We can't close a closed socket */
 
   /* Remove from the select_group */
-  session_unregister_socket(options->session, options->s);
-  tcp_close(options->s);
+  select_group_remove_and_close_socket(options->group, options->s);
   options->s = -1;
 }
 
@@ -125,7 +138,9 @@ void tcpcat_send(uint8_t *data, size_t length, void *d)
     }
 
     /* If it succeeds, add it to the select_group */
-    session_register_socket(options->session, options->s, SOCKET_TYPE_STREAM, recv_callback, closed_callback, options);
+    select_group_add_socket(options->group, options->s, SOCKET_TYPE_STREAM, options);
+    select_set_recv(options->group, options->s, recv_callback);
+    select_set_closed(options->group, options->s, closed_callback);
   }
 
   assert(options->s != -1); /* Make sure we have a valid socket. */
@@ -183,11 +198,11 @@ int main(int argc, char *argv[])
   /* Set up some default options. */
   options->s               = -1;
 
-  options->host            = DEFAULT_HOST;
-  options->port            = DEFAULT_PORT;
-  options->buffer          = buffer_create(BO_BIG_ENDIAN);
-
-  options->session         = session_create(tcpcat_send, options);
+  options->host    = DEFAULT_HOST;
+  options->port    = DEFAULT_PORT;
+  options->buffer  = buffer_create(BO_BIG_ENDIAN);
+  options->group   = select_group_create();
+  options->session = session_create(tcpcat_send, options);
 
   /* Parse the command line options. */
   opterr = 0;
@@ -230,7 +245,14 @@ int main(int argc, char *argv[])
 
   atexit(cleanup);
 
-  session_go(options->session);
+  /* Add the timeout function */
+  select_set_timeout(options->group, timeout, (void*)options);
+
+  /* Create the stdin ui */
+  options->ui_stdin = ui_stdin_initialize(options->group, options->session);
+
+  while(TRUE)
+    select_group_do_select(options->group, 1000);
 
   return 0;
 }
