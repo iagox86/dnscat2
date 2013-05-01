@@ -12,8 +12,7 @@ CFLAGS?=-Wall -g -DTESTMEMORY
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=dnscat.o      \
-		 buffer.o      \
+OBJS=buffer.o      \
 		 tcp.o         \
 		 types.o       \
 		 memory.o      \
@@ -23,10 +22,10 @@ OBJS=dnscat.o      \
 		 session.o     \
 		 udp.o         \
 
-DNSCAT_DNS_OBJS=driver_dns.o
-DNSCAT_TCP_OBJS=driver_tcp.o
+DNSCAT_DNS_OBJS=${OBJS} dnscat.o
+DNSCAT_TCP_OBJS=${OBJS} tcpcat.o
 
-all: dnscat tcpcat
+all: tcpcat dnscat
 	@echo Compile should be complete
 
 remove:
@@ -35,17 +34,11 @@ remove:
 uninstall: remove
 
 clean:
-	rm -f *.o *.exe *.stackdump dnscat tcpcat test
+	rm -f *.o *.exe *.stackdump dnscat tcpcat test driver_tcp driver_dns
 
-driver_tcp.o: ${OBJS} driver_tcp.c
-	${CC} ${CFLAGS} -c -o driver_tcp.o driver_tcp.c
+tcpcat: ${DNSCAT_TCP_OBJS}
+	-${CC} ${CFLAGS} -o tcpcat ${DNSCAT_TCP_OBJS}
 
-driver_dns.o: ${OBJS} driver_dns.c
-	${CC} ${CFLAGS} -c -o driver_dns.o driver_dns.c
-
-tcpcat: ${OBJS} driver_tcp.o
-	-${CC} ${CFLAGS} -o tcpcat ${OBJS} driver_tcp.o
-
-dnscat: ${OBJS} driver_dns.o
-	-${CC} ${CFLAGS} -o dnscat ${OBJS} driver_dns.o
+dnscat: ${DNSCAT_DNS_OBJS}
+	-${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
 

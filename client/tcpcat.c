@@ -23,7 +23,7 @@
 #define DEFAULT_HOST "localhost"
 #define DEFAULT_PORT 2000
 
-void driver_create(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
   /* Define the options specific to the DNS protocol. */
   struct option long_options[] =
@@ -91,6 +91,8 @@ void driver_create(int argc, char *argv[])
   fprintf(stderr, " Port: %d\n", driver->port);
 
   session_go(driver->session);
+
+  return 0;
 }
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
