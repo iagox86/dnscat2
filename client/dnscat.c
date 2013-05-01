@@ -160,7 +160,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
   return SELECT_OK;
 }
 
-
+/* This is a callback function. */
 void dnscat_send(uint8_t *data, size_t length, void *d)
 {
   options_t     *options = (options_t*)d;
