@@ -18,5 +18,6 @@
 
 # Named executables
 dnscat
+tcpcat
 test
 
