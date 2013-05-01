@@ -1,4 +1,4 @@
-/* driver_dns.c
+/* dnscat.c
  * Created March/2013
  * By Ron Bowes
  */
@@ -20,16 +20,13 @@
 
 typedef struct
 {
-  /* This will be, for example, a tcp_driver_t, dns_driver_t, etc. */
-  void      *driver;
-
   session_t *session;
 
   int                s;
   char              *domain;
   char              *dns_host;
   uint16_t           dns_port;
-} driver_t;
+} options_t;
 
 /* Default options */
 #define DEFAULT_DNS_SERVER   "localhost"
@@ -37,12 +34,12 @@ typedef struct
 #define DEFAULT_DOMAIN       "skullseclabs.org"
 
 /* Define this outside the function so we can clean it up later. */
-driver_t *driver = NULL;
+options_t *options = NULL;
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
-  driver_t *driver = param;
-  dns_t    *dns    = dns_create_from_packet(data, length);
+  options_t *options = param;
+  dns_t    *dns      = dns_create_from_packet(data, length);
 
   /* TODO */
   if(dns->rcode != DNS_RCODE_SUCCESS)
@@ -90,14 +87,14 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
     answer = (char*)dns->answers[0].answer->TEXT.text;
 
     fprintf(stderr, "Received: %s\n", answer);
-    if(!strcmp(answer, driver->domain))
+    if(!strcmp(answer, options->domain))
     {
       fprintf(stderr, "WARNING: Received a 'nil' answer; ignoring\n");
     }
     else
     {
       /* Find the domain, which should be at the end of the string */
-      char *domain = strstr(answer, driver->domain);
+      char *domain = strstr(answer, options->domain);
       if(!domain)
       {
         fprintf(stderr, "ERROR: Answer didn't contain the domain\n");
@@ -144,7 +141,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
           size_t length;
           uint8_t *data = buffer_create_string(incoming_data, &length);
 
-          session_recv(driver->session, data, length);
+          session_recv(options->session, data, length);
 
           safe_free(data);
         }
@@ -164,9 +161,9 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 }
 
 
-void driver_send(uint8_t *data, size_t length, void *d)
+void dnscat_send(uint8_t *data, size_t length, void *d)
 {
-  driver_t     *driver = (driver_t*)d;
+  options_t     *options = (options_t*)d;
   size_t        i;
   dns_t        *dns;
   buffer_t     *buffer;
@@ -175,21 +172,21 @@ void driver_send(uint8_t *data, size_t length, void *d)
   uint8_t      *dns_bytes;
   size_t        dns_length;
 
-  if(driver->s == -1)
+  if(options->s == -1)
   {
-    driver->s = udp_create_socket(0, "0.0.0.0");
+    options->s = udp_create_socket(0, "0.0.0.0");
 
-    if(driver->s == -1)
+    if(options->s == -1)
     {
       fprintf(stderr, "[[DNS]] :: couldn't create socket!\n");
       return;
     }
 
     /* If it succeeds, add it to the select_group */
-    session_register_socket(driver->session, driver->s, SOCKET_TYPE_STREAM, recv_callback, NULL, driver);
+    session_register_socket(options->session, options->s, SOCKET_TYPE_STREAM, recv_callback, NULL, options);
   }
 
-  assert(driver->s != -1); /* Make sure we have a valid socket. */
+  assert(options->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
 
@@ -208,38 +205,38 @@ void driver_send(uint8_t *data, size_t length, void *d)
   dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
-  udp_send(driver->s, driver->dns_host, driver->dns_port, dns_bytes, dns_length);
+  udp_send(options->s, options->dns_host, options->dns_port, dns_bytes, dns_length);
 
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
   dns_destroy(dns);
 }
 
-void driver_close(driver_t *driver)
+void dnscat_close(options_t *options)
 {
   fprintf(stderr, "[[UDP]] :: close()\n");
 
-  assert(driver->s && driver->s != -1); /* We can't close a closed socket */
+  assert(options->s && options->s != -1); /* We can't close a closed socket */
 
   /* Remove from the select_group */
-  session_unregister_socket(driver->session, driver->s);
-  udp_close(driver->s);
-  driver->s = -1;
+  session_unregister_socket(options->session, options->s);
+  udp_close(options->s);
+  options->s = -1;
 }
 
 void cleanup()
 {
   fprintf(stderr, "[[dnscat]] :: Terminating\n");
 
-  if(driver)
+  if(options)
   {
-    session_destroy(driver->session);
+    session_destroy(options->session);
 
-    /* Ensure the driver is closed */
-    if(driver->s != -1)
-      driver_close(driver);
-    safe_free(driver);
-    driver = NULL;
+    /* Ensure the socket is closed */
+    if(options->s != -1)
+      dnscat_close(options);
+    safe_free(options);
+    options = NULL;
   }
 
   print_memory();
@@ -262,17 +259,16 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  /* Set the dns-specific options for the driver */
-  driver = safe_malloc(sizeof(driver_t));
+  options = safe_malloc(sizeof(options_t));
 
   /* Set up some default options. */
-  driver->s               = -1;
+  options->s               = -1;
 
-  driver->dns_host        = DEFAULT_DNS_SERVER;
-  driver->dns_port        = DEFAULT_DNS_PORT;
-  driver->domain          = DEFAULT_DOMAIN;
+  options->dns_host        = DEFAULT_DNS_SERVER;
+  options->dns_port        = DEFAULT_DNS_PORT;
+  options->domain          = DEFAULT_DOMAIN;
 
-  driver->session         = session_create(driver_send, driver);
+  options->session         = session_create(dnscat_send, options);
 
   /* Parse the command line options. */
   opterr = 0;
@@ -285,15 +281,15 @@ int main(int argc, char *argv[])
 
         if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
         {
-          driver->domain = optarg;
+          options->domain = optarg;
         }
         else if(!strcmp(option_name, "host"))
         {
-          driver->dns_host = optarg;
+          options->dns_host = optarg;
         }
         else if(!strcmp(option_name, "port"))
         {
-          driver->dns_port = atoi(optarg);
+          options->dns_port = atoi(optarg);
         }
         else
         {
@@ -312,14 +308,14 @@ int main(int argc, char *argv[])
 
   /* Tell the user what's going on */
   fprintf(stderr, "Options selected:\n");
-  fprintf(stderr, " DNS Server: %s\n", driver->dns_host);
-  fprintf(stderr, " DNS Port:   %d\n", driver->dns_port);
-  fprintf(stderr, " Domain:     %s\n", driver->domain);
+  fprintf(stderr, " DNS Server: %s\n", options->dns_host);
+  fprintf(stderr, " DNS Port:   %d\n", options->dns_port);
+  fprintf(stderr, " Domain:     %s\n", options->domain);
 
   /* Be sure we clean up at exit. */
   atexit(cleanup);
 
-  session_go(driver->session);
+  session_go(options->session);
 
   return 0;
 }
