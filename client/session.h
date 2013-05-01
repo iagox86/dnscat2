@@ -19,6 +19,9 @@
 #include <stdint.h>
 
 #include "buffer.h"
+#include "select_group.h"
+
+typedef void(driver_send_t)(uint8_t *data, size_t length, void *param);
 
 typedef enum
 {
@@ -28,8 +31,6 @@ typedef enum
 
 typedef struct
 {
-  driver_t *driver;
-
   /* Session information */
   uint16_t        id;
   session_state_t state;
@@ -37,17 +38,30 @@ typedef struct
   uint16_t        my_seq;
   NBBOOL          is_closed;
 
+  select_group_t *group;
+
+  driver_send_t  *driver_send;
+  void           *driver_send_param;
+
+  int             max_packet_size;
+
   buffer_t       *incoming_data;
   buffer_t       *outgoing_data;
 } session_t;
 
-session_t *session_create(driver_t *driver);
+session_t *session_create(driver_send_t *driver_send, void *driver_send_param);
 void       session_destroy(session_t *session);
 
+void       session_recv(session_t *session, uint8_t *data, size_t length);
 void       session_send(session_t *session, uint8_t *data, size_t length);
 void       session_close(session_t *session);
 void       session_force_close(session_t *session);
 
 void       session_do_actions(session_t *session);
+
+void       session_register_socket(session_t *session, int s, SOCKET_TYPE_t type, select_recv *recv_callback, select_closed *closed_callback, void *param);
+void       session_unregister_socket(session_t *session, int s);
+
+void       session_go(session_t *session);
 
 #endif
