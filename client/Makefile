@@ -12,16 +12,16 @@ CFLAGS?=-Wall -g -DTESTMEMORY
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=buffer.o      \
-		 tcp.o         \
-		 types.o       \
-		 memory.o      \
-		 dns.o         \
-		 packet.o      \
-		 select_group.o\
-		 session.o     \
-		 udp.o         \
-		 ui_stdin.o    \
+OBJS=buffer.o \
+		 tcp.o \
+		 types.o \
+		 memory.o \
+		 dns.o \
+		 packet.o \
+		 select_group.o \
+		 session.o \
+		 udp.o \
+		 ui_stdin.o \
 
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 DNSCAT_TCP_OBJS=${OBJS} tcpcat.o
