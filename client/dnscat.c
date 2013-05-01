@@ -15,11 +15,21 @@
 #include "buffer.h"
 #include "dns.h"
 #include "memory.h"
+#include "session.h"
 #include "udp.h"
 
-#define DNSCAT_DNS
+typedef struct
+{
+  /* This will be, for example, a tcp_driver_t, dns_driver_t, etc. */
+  void      *driver;
 
-#include "driver.h"
+  session_t *session;
+
+  int                s;
+  char              *domain;
+  char              *dns_host;
+  uint16_t           dns_port;
+} driver_t;
 
 /* Default options */
 #define DEFAULT_DNS_SERVER   "localhost"
@@ -28,104 +38,6 @@
 
 /* Define this outside the function so we can clean it up later. */
 driver_t *driver = NULL;
-
-void cleanup()
-{
-  fprintf(stderr, "[[dnscat]] :: Terminating\n");
-
-  if(driver)
-  {
-    session_destroy(driver->session);
-
-    /* Ensure the driver is closed */
-    if(driver->s != -1)
-      driver_close(driver);
-    safe_free(driver);
-    driver = NULL;
-  }
-
-  print_memory();
-}
-
-int main(int argc, char *argv[])
-{
-  /* Define the options specific to the DNS protocol. */
-  struct option long_options[] =
-  {
-    {"domain", required_argument, 0, 0}, /* Domain name */
-    {"d",      required_argument, 0, 0},
-    {"host",   required_argument, 0, 0}, /* DNS server */
-    {"port",   required_argument, 0, 0}, /* DNS port */
-    {0,        0,                 0, 0}  /* End */
-  };
-  char        c;
-  int         option_index;
-  const char *option_name;
-
-  srand(time(NULL));
-
-  /* Set the dns-specific options for the driver */
-  driver = safe_malloc(sizeof(driver_t));
-
-  /* Set up some default options. */
-  driver->max_packet_size = 20; /* TODO: Calculate this better. */
-  driver->s               = -1;
-
-  driver->dns_host        = DEFAULT_DNS_SERVER;
-  driver->dns_port        = DEFAULT_DNS_PORT;
-  driver->domain          = DEFAULT_DOMAIN;
-
-  driver->session         = session_create(driver_send, driver);
-
-  /* Parse the command line options. */
-  opterr = 0;
-  while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != EOF)
-  {
-    switch(c)
-    {
-      case 0:
-        option_name = long_options[option_index].name;
-
-        if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
-        {
-          driver->domain = optarg;
-        }
-        else if(!strcmp(option_name, "host"))
-        {
-          driver->dns_host = optarg;
-        }
-        else if(!strcmp(option_name, "port"))
-        {
-          driver->dns_port = atoi(optarg);
-        }
-        else
-        {
-          fprintf(stderr, "Unknown option: %s\n", option_name);
-          exit(1);
-          /* TODO: Usage */
-        }
-        break;
-
-      case '?':
-      default:
-        /* Do nothing; we expect some unknown arguments. */
-        break;
-    }
-  }
-
-  /* Tell the user what's going on */
-  fprintf(stderr, "Options selected:\n");
-  fprintf(stderr, " DNS Server: %s\n", driver->dns_host);
-  fprintf(stderr, " DNS Port:   %d\n", driver->dns_port);
-  fprintf(stderr, " Domain:     %s\n", driver->domain);
-
-  /* Be sure we clean up at exit. */
-  atexit(cleanup);
-
-  session_go(driver->session);
-
-  return 0;
-}
 
 static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
@@ -315,5 +227,99 @@ void driver_close(driver_t *driver)
   driver->s = -1;
 }
 
-#if 0
-#endif
+void cleanup()
+{
+  fprintf(stderr, "[[dnscat]] :: Terminating\n");
+
+  if(driver)
+  {
+    session_destroy(driver->session);
+
+    /* Ensure the driver is closed */
+    if(driver->s != -1)
+      driver_close(driver);
+    safe_free(driver);
+    driver = NULL;
+  }
+
+  print_memory();
+}
+
+int main(int argc, char *argv[])
+{
+  /* Define the options specific to the DNS protocol. */
+  struct option long_options[] =
+  {
+    {"domain", required_argument, 0, 0}, /* Domain name */
+    {"d",      required_argument, 0, 0},
+    {"host",   required_argument, 0, 0}, /* DNS server */
+    {"port",   required_argument, 0, 0}, /* DNS port */
+    {0,        0,                 0, 0}  /* End */
+  };
+  char        c;
+  int         option_index;
+  const char *option_name;
+
+  srand(time(NULL));
+
+  /* Set the dns-specific options for the driver */
+  driver = safe_malloc(sizeof(driver_t));
+
+  /* Set up some default options. */
+  driver->s               = -1;
+
+  driver->dns_host        = DEFAULT_DNS_SERVER;
+  driver->dns_port        = DEFAULT_DNS_PORT;
+  driver->domain          = DEFAULT_DOMAIN;
+
+  driver->session         = session_create(driver_send, driver);
+
+  /* Parse the command line options. */
+  opterr = 0;
+  while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != EOF)
+  {
+    switch(c)
+    {
+      case 0:
+        option_name = long_options[option_index].name;
+
+        if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
+        {
+          driver->domain = optarg;
+        }
+        else if(!strcmp(option_name, "host"))
+        {
+          driver->dns_host = optarg;
+        }
+        else if(!strcmp(option_name, "port"))
+        {
+          driver->dns_port = atoi(optarg);
+        }
+        else
+        {
+          fprintf(stderr, "Unknown option: %s\n", option_name);
+          exit(1);
+          /* TODO: Usage */
+        }
+        break;
+
+      case '?':
+      default:
+        /* Do nothing; we expect some unknown arguments. */
+        break;
+    }
+  }
+
+  /* Tell the user what's going on */
+  fprintf(stderr, "Options selected:\n");
+  fprintf(stderr, " DNS Server: %s\n", driver->dns_host);
+  fprintf(stderr, " DNS Port:   %d\n", driver->dns_port);
+  fprintf(stderr, " Domain:     %s\n", driver->domain);
+
+  /* Be sure we clean up at exit. */
+  atexit(cleanup);
+
+  session_go(driver->session);
+
+  return 0;
+}
