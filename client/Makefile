@@ -8,20 +8,21 @@
 
 CC=gcc
 COMMON_CFLAGS=-ansi -std=c89
-CFLAGS?=-Wall -g -DTESTMEMORY
+DEBUG_CFLAGS=-g -DTESTMEMORY -Werror
+CFLAGS?=-Wall ${DEBUG_CFLAGS}
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=buffer.o \
-		 tcp.o \
-		 types.o \
-		 memory.o \
-		 dns.o \
-		 packet.o \
-		 select_group.o \
-		 session.o \
-		 udp.o \
-		 ui_stdin.o \
+OBJS=buffer.o\
+		 tcp.o\
+		 types.o\
+		 memory.o\
+		 dns.o\
+		 packet.o\
+		 select_group.o\
+		 session.o\
+		 udp.o\
+		 ui_stdin.o\
 
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 DNSCAT_TCP_OBJS=${OBJS} tcpcat.o
