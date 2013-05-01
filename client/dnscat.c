@@ -1,5 +1,4 @@
 #include <getopt.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,11 +75,6 @@ void cleanup()
   print_memory();
 }
 
-void catch_signal(int sig)
-{
-  cleanup();
-}
-
 int main(int argc, char *argv[])
 {
   char c;
@@ -142,7 +136,6 @@ int main(int argc, char *argv[])
 #endif
 
   atexit(cleanup);
-  signal(SIGTERM, catch_signal);
 
   while(TRUE)
     select_group_do_select(options->group, options->poll_rate);
