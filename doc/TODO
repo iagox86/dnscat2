@@ -6,7 +6,7 @@ Immediate needs:
 - TEST on Linux :: Catch ctrl-c and send a FIN
 - Client should give up after a certain number of failed SYNs
 - Implement other DNS types (A, AAAA, CNAME, etc)
-
+- Move the 'ui' stuff into session rather than being in the driver
 
 Future stuff:
 - Other protocols (ping/http/etc)

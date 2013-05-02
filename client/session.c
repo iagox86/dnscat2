@@ -8,7 +8,7 @@
 #include "packet.h"
 #include "session.h"
 
-session_t *session_create(driver_send_t *driver_send, void *driver_send_param)
+session_t *session_create(driver_send_t *driver_send, void *driver_send_param, driver_recv_t *driver_recv, void *driver_recv_param)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
 
@@ -19,8 +19,10 @@ session_t *session_create(driver_send_t *driver_send, void *driver_send_param)
   session->is_closed     = FALSE;
   session->max_packet_size = 20; /* TODO */
 
-  session->driver_send   = driver_send;
+  session->driver_send       = driver_send;
   session->driver_send_param = driver_send_param;
+  session->driver_recv       = driver_recv;
+  session->driver_recv_param = driver_recv_param;
 
   session->incoming_data = buffer_create(BO_BIG_ENDIAN);
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
@@ -198,7 +200,10 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
                 {
                   int i;
 
+                  session->driver_recv(packet->body.msg.data, packet->body.msg.data_length, session->driver_recv_param);
+
                   /* Output the actual data. */
+                  /* TODO: Get rid of this */
                   for(i = 0; i < packet->body.msg.data_length; i++)
                     putchar(packet->body.msg.data[i]);
                 }

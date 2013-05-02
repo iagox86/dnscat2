@@ -179,9 +179,9 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 }
 
 /* This is a callback function. */
-void dnscat_send(uint8_t *data, size_t length, void *d)
+void dnscat_send(uint8_t *data, size_t length, void *o)
 {
-  options_t     *options = (options_t*)d;
+  options_t     *options = (options_t*)o;
   size_t        i;
   dns_t        *dns;
   buffer_t     *buffer;
@@ -232,6 +232,13 @@ void dnscat_send(uint8_t *data, size_t length, void *d)
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
   dns_destroy(dns);
+}
+
+void dnscat_recv(uint8_t *data, size_t length, void *o)
+{
+  options_t *options = (options_t*) o;
+
+  ui_exec_feed(data, length, options->ui_exec);
 }
 
 void dnscat_close(options_t *options)
@@ -296,7 +303,7 @@ int main(int argc, char *argv[])
   options->domain   = DEFAULT_DOMAIN;
   options->group    = select_group_create();
 
-  options->session  = session_create(dnscat_send, options);
+  options->session  = session_create(dnscat_send, options, dnscat_recv, options);
 
   /* Parse the command line options. */
   opterr = 0;

@@ -21,6 +21,7 @@
 #include "buffer.h"
 
 typedef void(driver_send_t)(uint8_t *data, size_t length, void *param);
+typedef void(driver_recv_t)(uint8_t *data, size_t length, void *param);
 
 typedef enum
 {
@@ -39,6 +40,8 @@ typedef struct
 
   driver_send_t  *driver_send;
   void           *driver_send_param;
+  driver_recv_t  *driver_recv;
+  void           *driver_recv_param;
 
   int             max_packet_size;
 
@@ -46,7 +49,7 @@ typedef struct
   buffer_t       *outgoing_data;
 } session_t;
 
-session_t *session_create(driver_send_t *driver_send, void *driver_send_param);
+session_t *session_create(driver_send_t *driver_send, void *driver_send_param, driver_recv_t *driver_recv, void *driver_recv_param);
 void       session_destroy(session_t *session);
 
 void       session_recv(session_t *session, uint8_t *data, size_t length);
