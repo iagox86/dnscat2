@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "log.h"
 #include "memory.h"
 #include "packet.h"
 #include "session.h"
@@ -46,7 +47,7 @@ static void send_final_fin(session_t *session)
   packet_t *packet;
 
   /* Alert the user */
-  fprintf(stderr, "[[dnscat]] :: Buffers are clear, sending a FIN\n");
+  LOG_INFO("Buffers are clear, sending a FIN\n");
 
   /* Send the FIN */
   packet = packet_create_fin(session->id);
@@ -91,7 +92,7 @@ static void do_send_stuff(session_t *session)
       session->id = rand() % 0xFFFF;
       session->my_seq = rand() % 0xFFFF;
 
-      fprintf(stderr, "[[dnscat]] :: Sending a SYN packet (SEQ = 0x%04x)...\n", session->my_seq);
+      LOG_INFO("Sending a SYN packet (SEQ = 0x%04x)...\n", session->my_seq);
       packet = packet_create_syn(session->id, session->my_seq, 0);
       session_send_packet(session, packet);
       packet_destroy(packet);
@@ -100,7 +101,7 @@ static void do_send_stuff(session_t *session)
     case SESSION_STATE_ESTABLISHED:
       /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
       data = buffer_read_remaining_bytes(session->outgoing_data, &length, session->max_packet_size - packet_get_msg_size(), FALSE); /* TODO: Magic number */
-      fprintf(stderr, "[[dnscat]] :: Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...\n", session->my_seq, session->their_seq, length);
+      LOG_INFO("Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...\n", session->my_seq, session->their_seq, length);
 
       /* Create a packet with that data */
       packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, length);
@@ -114,7 +115,7 @@ static void do_send_stuff(session_t *session)
       break;
 
     default:
-      fprintf(stderr, "[[ERROR]] :: Wound up in an unknown state: 0x%x\n", session->state);
+      LOG_FATAL("Wound up in an unknown state: 0x%x\n", session->state);
       exit(1);
   }
 }
@@ -139,23 +140,23 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
       case SESSION_STATE_NEW:
         if(packet->message_type == MESSAGE_TYPE_SYN)
         {
-          fprintf(stderr, "[[dnscat]] SYN received from server (SEQ = 0x%04x)\n", packet->body.syn.seq);
+          LOG_INFO("SYN received from server (SEQ = 0x%04x)", packet->body.syn.seq);
           session->their_seq = packet->body.syn.seq;
           session->state = SESSION_STATE_ESTABLISHED;
         }
         else if(packet->message_type == MESSAGE_TYPE_MSG)
         {
-          fprintf(stderr, "[[WARNING]] :: Unexpected MSG received (ignoring)\n");
+          LOG_WARNING("Unexpected MSG received (ignoring)");
         }
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
-          fprintf(stderr, "[[dnscat]] :: Connection closed\n");
+          LOG_FATAL("Connection closed");
 
           exit(0);
         }
         else
         {
-          fprintf(stderr, "[[ERROR]] :: Unknown packet type: 0x%02x\n", packet->message_type);
+          LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
           exit(1);
         }
 
@@ -163,11 +164,11 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
       case SESSION_STATE_ESTABLISHED:
         if(packet->message_type == MESSAGE_TYPE_SYN)
         {
-          fprintf(stderr, "[[WARNING]] :: Unexpected SYN received (ignoring)\n");
+          LOG_WARNING("Unexpected SYN received (ignoring)");
         }
         else if(packet->message_type == MESSAGE_TYPE_MSG)
         {
-          fprintf(stderr, "[[dnscat]] :: Received a MSG from the server\n");
+          LOG_INFO("Received a MSG from the server");
 
           /* Validate the SEQ */
           if(packet->body.msg.seq == session->their_seq)
@@ -188,8 +189,10 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
               if(packet->body.msg.data_length > 0)
               {
                 int i;
+
+                /* Output the actual data. */
                 for(i = 0; i < packet->body.msg.data_length; i++)
-                  printf("%c", packet->body.msg.data[i]);
+                  putchar(packet->body.msg.data[i]);
                 /*fprintf(stderr, "[[data]] :: %s [0x%zx bytes]\n", packet->body.msg.data, packet->body.msg.data_length);*/
 
               }
@@ -197,24 +200,24 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
             }
             else
             {
-              fprintf(stderr, "[[WARNING]] :: Bad ACK received\n");
+              LOG_WARNING("Bad ACK received");
             }
           }
           else
           {
-            fprintf(stderr, "[[WARNING]] :: Bad SEQ received\n");
+            LOG_WARNING("Bad SEQ received");
           }
         }
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
-          fprintf(stderr, "[[dnscat]] :: Connection closed by server\n");
+          LOG_FATAL("Connection closed by server");
           packet_destroy(packet);
 
           exit(0);
         }
         else
         {
-          fprintf(stderr, "[[ERROR]] :: Unknown packet type: 0x%02x\n", packet->message_type);
+          LOG_FATAL("Unknown packet type: 0x%02x\n", packet->message_type);
           packet_destroy(packet);
 
           send_final_fin(session);
@@ -223,7 +226,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
 
         break;
       default:
-        fprintf(stderr, "[[ERROR]] :: Wound up in an unknown state: 0x%x\n", session->state);
+        LOG_FATAL("Wound up in an unknown state: 0x%x\n", session->state);
         packet_destroy(packet);
         send_final_fin(session);
         exit(0);
@@ -233,7 +236,8 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
   }
   else
   {
-    fprintf(stderr, "[[ERROR]] :: Couldn't parse an incoming packet!");
+    LOG_FATAL("Couldn't parse an incoming packet!");
+    exit(1);
   }
 
   /* If there is still outgoing data to be sent, after getting a response, send it. */

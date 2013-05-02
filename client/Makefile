@@ -18,6 +18,7 @@ OBJS=buffer.o\
 		 types.o\
 		 memory.o\
 		 dns.o\
+		 log.o\
 		 packet.o\
 		 select_group.o\
 		 session.o\

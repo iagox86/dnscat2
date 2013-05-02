@@ -14,6 +14,7 @@
 
 #include "buffer.h"
 #include "dns.h"
+#include "log.h"
 #include "memory.h"
 #include "select_group.h"
 #include "session.h"
@@ -64,34 +65,32 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
     switch(dns->rcode)
     {
       case DNS_RCODE_FORMAT_ERROR:
-        fprintf(stderr, "DNS ERROR: RCODE_FORMAT_ERROR\n");
+        LOG_ERROR("DNS: RCODE_FORMAT_ERROR");
         break;
       case DNS_RCODE_SERVER_FAILURE:
-        fprintf(stderr, "DNS ERROR: RCODE_SERVER_FAILURE\n");
+        LOG_ERROR("DNS: RCODE_SERVER_FAILURE");
         break;
       case DNS_RCODE_NAME_ERROR:
-        fprintf(stderr, "DNS ERROR: RCODE_NAME_ERROR\n");
+        LOG_ERROR("DNS: RCODE_NAME_ERROR");
         break;
       case DNS_RCODE_NOT_IMPLEMENTED:
-        fprintf(stderr, "DNS ERROR: RCODE_NOT_IMPLEMENTED\n");
+        LOG_ERROR("DNS: RCODE_NOT_IMPLEMENTED");
         break;
       case DNS_RCODE_REFUSED:
-        fprintf(stderr, "DNS ERROR: RCODE_REFUSED\n");
+        LOG_ERROR("DNS: RCODE_REFUSED");
         break;
       default:
-        fprintf(stderr, "DNS ERROR: Unknown error code (0x%04x)\n", dns->rcode);
+        LOG_ERROR("DNS: Unknown error code (0x%04x)", dns->rcode);
         break;
     }
   }
   else if(dns->question_count != 1)
   {
-    fprintf(stderr, "DNS returned the wrong number of response fields.\n");
-    exit(1);
+    LOG_ERROR("DNS returned the wrong number of response fields.");
   }
   else if(dns->answer_count != 1)
   {
-    fprintf(stderr, "DNS returned the wrong number of response fields.\n");
-    exit(1);
+    LOG_ERROR("DNS returned the wrong number of response fields.");
   }
   else if(dns->answers[0].type == DNS_TYPE_TEXT)
   {
@@ -102,10 +101,10 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
     /* TODO: We don't actually need the .domain suffix if we use TEXT records */
     answer = (char*)dns->answers[0].answer->TEXT.text;
 
-    fprintf(stderr, "Received: %s\n", answer);
+    LOG_INFO("Received: %s", answer);
     if(!strcmp(answer, options->domain))
     {
-      fprintf(stderr, "WARNING: Received a 'nil' answer; ignoring\n");
+      LOG_WARNING("Received a 'nil' answer; ignoring");
     }
     else
     {
@@ -113,7 +112,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
       char *domain = strstr(answer, options->domain);
       if(!domain)
       {
-        fprintf(stderr, "ERROR: Answer didn't contain the domain\n");
+        LOG_ERROR("ERROR: Answer didn't contain the domain");
       }
       else
       {
@@ -129,17 +128,15 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
           }
           else if(answer[i+1] == '.')
           {
-            fprintf(stderr, "WARNING: Answer contained an odd number of digits\n");
+            LOG_ERROR("Answer contained an odd number of digits");
           }
           else if(!isxdigit((int)answer[i]))
           {
-            /* ignore */
-            fprintf(stderr, "WARNING: Answer contained an invalid digit: '%c'\n", answer[i]);
+            LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
           }
           else if(!isxdigit((int)answer[i+1]))
           {
-            /* ignore */
-            fprintf(stderr, "WARNING: Answer contained an invalid digit: '%c'\n", answer[i+1]);
+            LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
           }
           else
           {
@@ -167,8 +164,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
   }
   else
   {
-    fprintf(stderr, "Unknown DNS type returned\n");
-    exit(1);
+    LOG_ERROR("Unknown DNS type returned");
   }
 
   dns_destroy(dns);
@@ -194,8 +190,8 @@ void dnscat_send(uint8_t *data, size_t length, void *d)
 
     if(options->s == -1)
     {
-      fprintf(stderr, "[[DNS]] :: couldn't create socket!\n");
-      return;
+      LOG_FATAL("Couldn't create socket!");
+      exit(1);
     }
 
     /* If it succeeds, add it to the select_group */
@@ -217,7 +213,7 @@ void dnscat_send(uint8_t *data, size_t length, void *d)
   buffer_add_ntstring(buffer, ".skullseclabs.org");
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
-  fprintf(stderr, "SEND: %s\n", encoded_bytes);
+  LOG_INFO("SEND: %s", encoded_bytes);
   dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
   dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
@@ -231,7 +227,7 @@ void dnscat_send(uint8_t *data, size_t length, void *d)
 
 void dnscat_close(options_t *options)
 {
-  fprintf(stderr, "[[UDP]] :: close()\n");
+  LOG_INFO("Close");
 
   assert(options->s && options->s != -1); /* We can't close a closed socket */
 
@@ -242,7 +238,7 @@ void dnscat_close(options_t *options)
 
 void cleanup()
 {
-  fprintf(stderr, "[[dnscat]] :: Terminating\n");
+  LOG_WARNING("Terminating");
 
   if(options)
   {
@@ -276,6 +272,9 @@ int main(int argc, char *argv[])
   const char *option_name;
 
   srand(time(NULL));
+
+  /* Set the default log level (TODO: Change to warning) */
+  log_set_min_console_level(LOG_LEVEL_INFO);
 
   options = safe_malloc(sizeof(options_t));
 
@@ -312,8 +311,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-          fprintf(stderr, "Unknown option: %s\n", option_name);
-          exit(1);
+          LOG_FATAL("Unknown option");
           /* TODO: Usage */
         }
         break;
@@ -326,10 +324,9 @@ int main(int argc, char *argv[])
   }
 
   /* Tell the user what's going on */
-  fprintf(stderr, "Options selected:\n");
-  fprintf(stderr, " DNS Server: %s\n", options->dns_host);
-  fprintf(stderr, " DNS Port:   %d\n", options->dns_port);
-  fprintf(stderr, " Domain:     %s\n", options->domain);
+  LOG_INFO("DNS Server: %s", options->dns_host);
+  LOG_INFO("DNS Port:   %d", options->dns_port);
+  LOG_INFO("Domain:     %s", options->domain);
 
   /* Be sure we clean up at exit. */
   atexit(cleanup);

@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 
 #include "buffer.h"
+#include "log.h"
 #include "memory.h"
 #include "select_group.h"
 #include "session.h"
@@ -97,7 +98,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 
 void tcpcat_close(options_t *options)
 {
-  printf("[[TCP]] :: close()\n");
+  LOG_INFO("Close()");
 
   assert(options->s && options->s != -1); /* We can't close a closed socket */
 
@@ -110,7 +111,7 @@ static SELECT_RESPONSE_t closed_callback(void *group, int s, void *param)
 {
   options_t *options = (options_t*)param;
 
-  printf("[[TCP]] :: Connection closed\n");
+  LOG_ERROR("Connection closed");
 
   tcpcat_close(options);
 
@@ -127,14 +128,14 @@ void tcpcat_send(uint8_t *data, size_t length, void *d)
   if(options->s == -1)
   {
     /* Attempt a TCP connection */
-    printf("[[TCP]] :: connecting to %s:%d\n", options->host, options->port);
+    LOG_INFO("Connecting to %s:%d", options->host, options->port);
     options->s = tcp_connect(options->host, options->port);
 
     /* If it fails, just return (it will try again next send) */
     if(options->s == -1)
     {
-      printf("[[TCP]] :: connection failed!\n");
-      return;
+      LOG_FATAL("Connection failed!");
+      exit(1);
     }
 
     /* If it succeeds, add it to the select_group */
@@ -154,14 +155,14 @@ void tcpcat_send(uint8_t *data, size_t length, void *d)
 
   if(tcp_send(options->s, encoded_data, encoded_length) == -1)
   {
-    printf("[[TCP]] send error, closing socket!\n");
+    LOG_ERROR("[[TCP]] send error, closing socket!");
     tcpcat_close(options);
   }
 }
 
 void cleanup()
 {
-  fprintf(stderr, "[[tcpcat]] :: Terminating\n");
+  LOG_INFO("[[tcpcat]] :: Terminating");
 
   if(options)
   {
@@ -213,8 +214,6 @@ int main(int argc, char *argv[])
       case 0:
         option_name = long_options[option_index].name;
 
-        printf("name: %s\n", option_name);
-
         if(!strcmp(option_name, "host"))
         {
           options->host = optarg;
@@ -225,7 +224,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-          fprintf(stderr, "Unknown option: %s\n", option_name);
+          LOG_FATAL("Unknown option: %s\n", option_name);
           exit(1);
           /* TODO: Usage */
         }
@@ -239,9 +238,8 @@ int main(int argc, char *argv[])
   }
 
   /* Tell the user what's going on */
-  fprintf(stderr, "Options selected:\n");
-  fprintf(stderr, " Host: %s\n", options->host);
-  fprintf(stderr, " Port: %d\n", options->port);
+  LOG_INFO("Host: %s\n", options->host);
+  LOG_INFO("Port: %d\n", options->port);
 
   atexit(cleanup);
 
