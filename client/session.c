@@ -139,7 +139,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
   {
     if(packet->session_id != session->id)
     {
-      LOG_ERROR("Server responded to an invalid session id! Received 0x%04x, expected 0x%04x.", packet->session_id, session->id);
+      LOG_ERROR("Server responded to an invalid session id! Received 0x%04x, expected 0x%04x (ignoring it)", packet->session_id, session->id);
     }
     else
     {
