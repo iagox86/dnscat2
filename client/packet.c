@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "buffer.h"
+#include "log.h"
 #include "memory.h"
 #include "packet.h"
 
@@ -14,7 +15,7 @@ packet_t *packet_parse(uint8_t *data, size_t length)
   /* Validate the size */
   if(buffer_get_length(buffer) > MAX_PACKET_SIZE)
   {
-    printf("Packet is too long: %zu bytes\n", buffer_get_length(buffer));
+    LOG_FATAL("Packet is too long: %zu bytes\n", buffer_get_length(buffer));
     exit(1);
   }
 
@@ -40,7 +41,7 @@ packet_t *packet_parse(uint8_t *data, size_t length)
       break;
 
     default:
-      printf("Error: unknown message type (0x%02x)\n", packet->message_type);
+      LOG_FATAL("Error: unknown message type (0x%02x)\n", packet->message_type);
       exit(0);
   }
 
@@ -161,7 +162,8 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
       break;
 
     default:
-      printf("Error: Unknown message type: %u\n", packet->message_type);
+      LOG_FATAL("Error: Unknown message type: %u\n", packet->message_type);
+      exit(1);
   }
 
   return buffer_create_string_and_destroy(buffer, length);
