@@ -12,7 +12,6 @@
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'dnscat2_server'
-require 'log'
 require 'packet'
 
 class DnscatTest
@@ -226,12 +225,12 @@ class DnscatTest
 
       if(response != out[:recv])
         @@failure += 1
-        Log.log("FAIL", out[:name])
+        puts(out[:name])
         puts(" >> Expected: #{out[:recv].nil? ? "<no response> " : Packet.parse(out[:recv])}")
         puts(" >> Received: #{Packet.parse(response)}")
       else
         @@success += 1
-        Log.log("SUCCESS", out[:name])
+        puts("SUCCESS: #{out[:name]}")
       end
     end
   end
@@ -254,8 +253,8 @@ class DnscatTest
       session.queue_outgoing(THEIR_DATA)
       Dnscat2.go(DnscatTest.new)
     rescue IOError => e
-      Log.log("RESULT", "IOError was thrown (as expected): #{e}")
-      Log.log("RESULT", "Tests passed: #{@@success} / #{@@success + @@failure}")
+      puts("IOError was thrown (as expected): #{e}")
+      puts("Tests passed: #{@@success} / #{@@success + @@failure}")
     end
   end
 end

@@ -49,15 +49,17 @@ class DnscatTCP
   end
 end
 
+Log.set_min_level(Log::LOG_INFO)
+
 port = 2000
 
 server = TCPServer.new(port)
-Log.log("TCP", "Listening for connections on #{server.addr[3]}:#{server.addr[1]} (#{server.addr[2]})...")
+Log.INFO("Listening for connections on #{server.addr[3]}:#{server.addr[1]} (#{server.addr[2]})...")
 
 loop do
   s = server.accept
   #Thread.start(server.accept) do |s|
-    Log.log("TCP", "Received a new connection from #{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})...")
+    Log.INFO("Received a new connection from #{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})...")
 
     begin
       tcp = DnscatTCP.new(s)

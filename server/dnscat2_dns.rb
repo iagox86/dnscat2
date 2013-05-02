@@ -8,6 +8,8 @@
 # The DNS dnscat server.
 ##
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
+
+# TODO: I think I can get rid of this
 $LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib'
 
 #require 'rubydns/lib/rubydns'
@@ -22,7 +24,7 @@ class DnscatDNS
   IN = Resolv::DNS::Resource::IN
 
   def max_packet_size()
-    return 32 # TODO: do this better
+    return 20 # TODO: do this better
   end
 
   def initialize(domain)
@@ -63,18 +65,18 @@ class DnscatDNS
 
     start_dns_server() do
       match(/\.#{Regexp.escape(domain)}$/, IN::TXT) do |transaction|
-puts("Received: #{transaction.name}")
+        Log.INFO("Received: #{transaction.name}")
         name = transaction.name.gsub(/\.#{Regexp.escape(domain)}$/, '')
         name = name.gsub(/\./, '')
         name = [name].pack("H*")
         response = yield(name)
         if(response.nil?)
-          puts("Sending nil response...")
+          Log.INFO("Sending nil response...")
           response = domain
         else
           response = "#{response.unpack("H*").pop}.#{domain}"
         end
-puts("Sending:  #{response}")
+        Log.INFO("Sending:  #{response}")
         transaction.respond!(response)
       end
     end
@@ -85,17 +87,19 @@ puts("Sending:  #{response}")
   end
 end
 
+Log.set_min_level(Log::LOG_INFO)
 domain = "skullseclabs.org"
+
 begin
   driver = DnscatDNS.new(domain)
   Dnscat2.go(driver)
 rescue IOError => e
-  puts("IOError caught: #{e.inspect}")
-  puts(e.inspect)
-  puts(e.backtrace)
+  Log.FATAL("IOError caught: #{e.inspect}")
+  Log.FATAL(e.inspect)
+  Log.FATAL(e.backtrace)
 rescue Exception => e
-  puts("Exception caught: #{e.inspect}")
-  puts(e.inspect)
-  puts(e.backtrace)
+  Log.FATAL("Exception caught: #{e.inspect}")
+  Log.FATAL(e.inspect)
+  Log.FATAL(e.backtrace)
 end
 

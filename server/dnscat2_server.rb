@@ -23,11 +23,11 @@ class Dnscat2
   def Dnscat2.handle_syn(pipe, packet, session)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!session.syn_valid?())
-      Log.log(session.id, "SYN invalid in this state (ignored)")
+      Log.WARNING("SYN invalid in this state (ignored)")
       return nil
     end
 
-    Log.log(session.id, "Received SYN; responding with SYN")
+    Log.INFO("Received SYN; responding with SYN")
 
     session.set_their_seq(packet.seq)
     session.set_established()
@@ -37,13 +37,13 @@ class Dnscat2
 
   def Dnscat2.handle_msg(pipe, packet, session)
     if(!session.msg_valid?())
-      Log.log(session.id, "MSG invalid in this state (responding with an error)")
+      Log.WARNING("MSG invalid in this state (responding with an error)")
       return Packet.create_fin(packet.packet_id, session.id)
     end
 
     # Validate the sequence number
     if(session.their_seq != packet.seq)
-      Log.log(session.id, "Bad sequence number; expected 0x%04x, got 0x%04x [re-sending]" % [session.their_seq, packet.seq])
+      Log.WARNING("Bad sequence number; expected 0x%04x, got 0x%04x [re-sending]" % [session.their_seq, packet.seq])
 
       # Re-send the last packet
       old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
@@ -51,7 +51,7 @@ class Dnscat2
     end
 
     if(!session.valid_ack?(packet.ack))
-      Log.log(session.id, "Impossible ACK received: 0x%04x, current SEQ is 0x%04x [re-sending]" % [packet.ack, session.my_seq])
+      Log.WARNING("Impossible ACK received: 0x%04x, current SEQ is 0x%04x [re-sending]" % [packet.ack, session.my_seq])
 
       # Re-send the last packet
       old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
@@ -68,9 +68,9 @@ class Dnscat2
     session.increment_their_seq(packet.data.length)
 
     new_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
-    Log.log(session.id, "Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
+    Log.WARNING("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
 
-    puts("#{session.id} :: #{packet.data}")
+    Log.INFO("#{session.id} :: #{packet.data}")
 
     # Build the new packet
     return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
@@ -79,11 +79,11 @@ class Dnscat2
   def Dnscat2.handle_fin(pipe, packet, session)
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!session.fin_valid?())
-      Log.log(session.id, "FIN invalid in this state")
+      Log.WARNING("FIN invalid in this state")
       return nil
     end
 
-    Log.log(session.id, "Received FIN for session #{session.id}; closing session")
+    Log.INFO("Received FIN for session #{session.id}; closing session")
     session.destroy()
     return Packet.create_fin(packet.packet_id, session.id)
   end
@@ -97,7 +97,7 @@ class Dnscat2
           Session.queue_all_outgoing(gets())
         end
       rescue Exception => e
-        $stderr.puts(e)
+        Log.FATAL(e)
         exit
       end
     end
@@ -144,9 +144,9 @@ class Dnscat2
       # Destroy the session on non-IOError exceptions
       begin
         if(!session_id.nil?)
-          Log.log("ERROR", "Exception thrown; attempting to close session #{session_id}...")
+          Log.FATAL("Exception thrown; attempting to close session #{session_id}...")
           Session.destroy(session_id)
-          Log.log("ERROR", "Propagating the exception...")
+          Log.FATAL("Propagating the exception...")
         end
       rescue
         # Do nothing
@@ -166,6 +166,3 @@ opts = Slop.parse do
 end
 
 # TODO: Look up Trollop
-
-# if ARGV is `--name Lee -v`
-puts opts.to_hash   #=> {:name=>"Lee", :password=>nil, :verbose=>true}

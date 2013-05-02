@@ -22,7 +22,7 @@ class Session
   STATE_ESTABLISHED = 0x01
 
   def Session.debug_set_isn(n)
-    Log.log("WARNING", "Using debug code")
+    Log.ERROR("Using debug code")
     @@isn = n
   end
 
@@ -99,7 +99,7 @@ class Session
   # TODO: Handle overflows
   def ack_outgoing(n)
     bytes_acked = (n - @my_seq)
-    Log.log(id, "ACKing #{bytes_acked} bytes")
+    Log.INFO("ACKing #{bytes_acked} bytes")
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
   end
@@ -115,7 +115,7 @@ class Session
   # Queues outgoing data on all sessions (this is more for debugging, to make
   # it easier to send on all teh things
   def Session.queue_all_outgoing(data)
-    Log.log("dnscat", "Queueing #{data.length} bytes on #{@@sessions.size} sessions...")
+    Log.INFO("Queueing #{data.length} bytes on #{@@sessions.size} sessions...")
 
     @@sessions.each_pair do |id, s|
       s.queue_outgoing(data)
@@ -125,7 +125,7 @@ class Session
   def Session.find(id)
     # Get or create the session
     if(@@sessions[id].nil?)
-      Log.log(id, "Creating new session")
+      Log.INFO("Creating new session")
       @@sessions[id] = Session.new(id)
     end
 
