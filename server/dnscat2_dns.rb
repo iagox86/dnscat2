@@ -87,7 +87,7 @@ class DnscatDNS
   end
 end
 
-Log.set_min_level(Log::LOG_WARNING)
+Log.set_min_level(Log::LOG_INFO)
 domain = "skullseclabs.org"
 
 begin

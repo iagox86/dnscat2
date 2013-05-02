@@ -37,7 +37,7 @@ typedef struct
 } options_t;
 
 /* Default options */
-#define DEFAULT_DNS_SERVER   "localhost"
+#define DEFAULT_DNS_SERVER   "8.8.8.8"
 #define DEFAULT_DNS_PORT     53
 #define DEFAULT_DOMAIN       "skullseclabs.org"
 
@@ -57,6 +57,8 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 {
   options_t *options = param;
   dns_t    *dns      = dns_create_from_packet(data, length);
+
+  LOG_INFO("DNS response received (%d bytes)", length);
 
   /* TODO */
   if(dns->rcode != DNS_RCODE_SUCCESS)
@@ -100,11 +102,11 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
 
     /* TODO: We don't actually need the .domain suffix if we use TEXT records */
     answer = (char*)dns->answers[0].answer->TEXT.text;
+    LOG_INFO("Received a DNS TXT response: %s", answer);
 
-    LOG_INFO("Received: %s", answer);
     if(!strcmp(answer, options->domain))
     {
-      LOG_WARNING("Received a 'nil' answer; ignoring");
+      LOG_INFO("Received a 'nil' answer; ignoring (usually this is due to caching/re-sends and doesn't matter)");
     }
     else
     {
@@ -154,6 +156,7 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
           size_t length;
           uint8_t *data = buffer_create_string(incoming_data, &length);
 
+          LOG_INFO("Leaving DNS: Passing %d bytes of data it to the session", length);
           session_recv(options->session, data, length);
 
           safe_free(data);
@@ -184,13 +187,16 @@ void dnscat_send(uint8_t *data, size_t length, void *d)
   uint8_t      *dns_bytes;
   size_t        dns_length;
 
+  LOG_INFO("Entering DNS: queuing %d bytes of data to be sent", length);
+
   if(options->s == -1)
   {
+    LOG_INFO("Creating UDP (DNS) socket");
     options->s = udp_create_socket(0, "0.0.0.0");
 
     if(options->s == -1)
     {
-      LOG_FATAL("Couldn't create socket!");
+      LOG_FATAL("Couldn't create UDP socket!");
       exit(1);
     }
 
@@ -213,11 +219,11 @@ void dnscat_send(uint8_t *data, size_t length, void *d)
   buffer_add_ntstring(buffer, ".skullseclabs.org");
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
-  LOG_INFO("SEND: %s", encoded_bytes);
   dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
   dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
+  LOG_INFO("Sending DNS query for: %s", encoded_bytes);
   udp_send(options->s, options->dns_host, options->dns_port, dns_bytes, dns_length);
 
   safe_free(dns_bytes);
@@ -227,7 +233,7 @@ void dnscat_send(uint8_t *data, size_t length, void *d)
 
 void dnscat_close(options_t *options)
 {
-  LOG_INFO("Close");
+  LOG_INFO("Closing connection");
 
   assert(options->s && options->s != -1); /* We can't close a closed socket */
 
@@ -274,7 +280,7 @@ int main(int argc, char *argv[])
   srand(time(NULL));
 
   /* Set the default log level (TODO: Change to warning) */
-  log_set_min_console_level(LOG_LEVEL_WARNING);
+  log_set_min_console_level(LOG_LEVEL_INFO);
 
   options = safe_malloc(sizeof(options_t));
 
@@ -335,6 +341,7 @@ int main(int argc, char *argv[])
   select_set_timeout(options->group, timeout, (void*)options);
 
   /* Create the stdin ui */
+  LOG_INFO("Initializing 'stdin' UI...");
   options->ui_stdin = ui_stdin_initialize(options->group, options->session);
 
   while(TRUE)

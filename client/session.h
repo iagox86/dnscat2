@@ -52,7 +52,6 @@ void       session_destroy(session_t *session);
 void       session_recv(session_t *session, uint8_t *data, size_t length);
 void       session_send(session_t *session, uint8_t *data, size_t length);
 void       session_close(session_t *session);
-void       session_force_close(session_t *session);
 
 void       session_do_actions(session_t *session);
 

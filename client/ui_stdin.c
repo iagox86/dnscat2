@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "log.h"
 #include "memory.h"
 #include "select_group.h"
 
@@ -33,7 +34,8 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
 {
   ui_stdin_t *ui_stdin = (ui_stdin_t*) param;
 
-  fprintf(stderr, "[[dnscat]] :: STDIN is closed, sending remaining data\n");
+  LOG_WARNING("STDIN is closed, sending any remaining buffered data");
+
   session_close(ui_stdin->session);
 
   return SELECT_REMOVE;

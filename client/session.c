@@ -11,6 +11,9 @@
 session_t *session_create(driver_send_t *driver_send, void *driver_send_param)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
+
+  LOG_INFO("Creating a new session");
+
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
   session->is_closed     = FALSE;
@@ -27,6 +30,8 @@ session_t *session_create(driver_send_t *driver_send, void *driver_send_param)
 
 void session_destroy(session_t *session)
 {
+  LOG_INFO("Cleaning up the session");
+
   buffer_destroy(session->incoming_data);
   buffer_destroy(session->outgoing_data);
   safe_free(session);
@@ -37,6 +42,8 @@ static void session_send_packet(session_t *session, packet_t *packet)
   size_t   length;
   uint8_t *data = packet_to_bytes(packet, &length);
 
+  LOG_INFO("SENDING:");
+  packet_print(packet);
   session->driver_send(data, length, session->driver_send_param);
 
   safe_free(data);
@@ -47,7 +54,7 @@ static void send_final_fin(session_t *session)
   packet_t *packet;
 
   /* Alert the user */
-  LOG_INFO("Buffers are clear, sending a FIN");
+  LOG_INFO("Sending the final FIN to the server before closing");
 
   /* Send the FIN */
   packet = packet_create_fin(session->id);
@@ -58,16 +65,6 @@ static void send_final_fin(session_t *session)
 void session_close(session_t *session)
 {
   session->is_closed = TRUE;
-}
-
-void session_force_close(session_t *session)
-{
-  send_final_fin(session);
-}
-
-NBBOOL session_is_data_queued(session_t *session)
-{
-  return buffer_get_remaining_bytes(session->outgoing_data) != 0;
 }
 
 static void clean_up_buffers(session_t *session)
@@ -92,7 +89,7 @@ static void do_send_stuff(session_t *session)
       session->id = rand() % 0xFFFF;
       session->my_seq = rand() % 0xFFFF;
 
-      LOG_INFO("Sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
+      LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
       packet = packet_create_syn(session->id, session->my_seq, 0);
       session_send_packet(session, packet);
       packet_destroy(packet);
@@ -101,7 +98,7 @@ static void do_send_stuff(session_t *session)
     case SESSION_STATE_ESTABLISHED:
       /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
       data = buffer_read_remaining_bytes(session->outgoing_data, &length, session->max_packet_size - packet_get_msg_size(), FALSE); /* TODO: Magic number */
-      LOG_INFO("Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
+      LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
 
       /* Create a packet with that data */
       packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, length);
@@ -122,6 +119,8 @@ static void do_send_stuff(session_t *session)
 
 void session_send(session_t *session, uint8_t *data, size_t length)
 {
+  LOG_INFO("Queuing %zd bytes of data to send", length);
+
   /* Add the data to the outgoing buffer. */
   buffer_add_bytes(session->outgoing_data, data, length);
 
@@ -133,6 +132,9 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
 {
   packet_t *packet = packet_parse(data, length);
 
+  LOG_INFO("RECEIVED:");
+  packet_print(packet);
+
   if(packet)
   {
     switch(session->state)
@@ -140,17 +142,17 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
       case SESSION_STATE_NEW:
         if(packet->message_type == MESSAGE_TYPE_SYN)
         {
-          LOG_INFO("SYN received from server (SEQ = 0x%04x)", packet->body.syn.seq);
+          LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
           session->their_seq = packet->body.syn.seq;
           session->state = SESSION_STATE_ESTABLISHED;
         }
         else if(packet->message_type == MESSAGE_TYPE_MSG)
         {
-          LOG_WARNING("Unexpected MSG received (ignoring)");
+          LOG_WARNING("In SESSION_STATE_NEW, received unexpected MSG (ignoring)");
         }
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
-          LOG_FATAL("Connection closed");
+          LOG_FATAL("In SESSION_STATE_NEW, received FIN - connection closed");
 
           exit(0);
         }
@@ -164,11 +166,11 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
       case SESSION_STATE_ESTABLISHED:
         if(packet->message_type == MESSAGE_TYPE_SYN)
         {
-          LOG_WARNING("Unexpected SYN received (ignoring)");
+          LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
         }
         else if(packet->message_type == MESSAGE_TYPE_MSG)
         {
-          LOG_INFO("Received a MSG from the server");
+          LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
 
           /* Validate the SEQ */
           if(packet->body.msg.seq == session->their_seq)
@@ -193,8 +195,6 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
                 /* Output the actual data. */
                 for(i = 0; i < packet->body.msg.data_length; i++)
                   putchar(packet->body.msg.data[i]);
-                /*fprintf(stderr, "[[data]] :: %s [0x%zx bytes]\n", packet->body.msg.data, packet->body.msg.data_length);*/
-
               }
               /* TODO: Do something better with this. */
             }
@@ -210,7 +210,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
         }
         else if(packet->message_type == MESSAGE_TYPE_FIN)
         {
-          LOG_FATAL("Connection closed by server");
+          LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN - connection closed");
           packet_destroy(packet);
 
           exit(0);
@@ -218,8 +218,8 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
         else
         {
           LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
-          packet_destroy(packet);
 
+          packet_destroy(packet);
           send_final_fin(session);
           exit(0);
         }
