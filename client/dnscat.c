@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
   srand(time(NULL));
 
   /* Set the default log level (TODO: Change to warning) */
-  log_set_min_console_level(LOG_LEVEL_INFO);
+  log_set_min_console_level(LOG_LEVEL_WARNING);
 
   options = safe_malloc(sizeof(options_t));
 

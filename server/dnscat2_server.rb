@@ -68,9 +68,12 @@ class Dnscat2
     session.increment_their_seq(packet.data.length)
 
     new_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
-    Log.WARNING("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
+    Log.INFO("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
 
-    Log.INFO("#{session.id} :: #{packet.data}")
+    # The actual output
+    if(packet.data.length > 0)
+      print("#{packet.data}")
+    end
 
     # Build the new packet
     return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
