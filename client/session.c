@@ -47,7 +47,7 @@ static void send_final_fin(session_t *session)
   packet_t *packet;
 
   /* Alert the user */
-  LOG_INFO("Buffers are clear, sending a FIN\n");
+  LOG_INFO("Buffers are clear, sending a FIN");
 
   /* Send the FIN */
   packet = packet_create_fin(session->id);
@@ -92,7 +92,7 @@ static void do_send_stuff(session_t *session)
       session->id = rand() % 0xFFFF;
       session->my_seq = rand() % 0xFFFF;
 
-      LOG_INFO("Sending a SYN packet (SEQ = 0x%04x)...\n", session->my_seq);
+      LOG_INFO("Sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
       packet = packet_create_syn(session->id, session->my_seq, 0);
       session_send_packet(session, packet);
       packet_destroy(packet);
@@ -101,7 +101,7 @@ static void do_send_stuff(session_t *session)
     case SESSION_STATE_ESTABLISHED:
       /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
       data = buffer_read_remaining_bytes(session->outgoing_data, &length, session->max_packet_size - packet_get_msg_size(), FALSE); /* TODO: Magic number */
-      LOG_INFO("Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...\n", session->my_seq, session->their_seq, length);
+      LOG_INFO("Sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
 
       /* Create a packet with that data */
       packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, length);
@@ -115,7 +115,7 @@ static void do_send_stuff(session_t *session)
       break;
 
     default:
-      LOG_FATAL("Wound up in an unknown state: 0x%x\n", session->state);
+      LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
       exit(1);
   }
 }
@@ -217,7 +217,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
         }
         else
         {
-          LOG_FATAL("Unknown packet type: 0x%02x\n", packet->message_type);
+          LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
           packet_destroy(packet);
 
           send_final_fin(session);
@@ -226,7 +226,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
 
         break;
       default:
-        LOG_FATAL("Wound up in an unknown state: 0x%x\n", session->state);
+        LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
         packet_destroy(packet);
         send_final_fin(session);
         exit(0);

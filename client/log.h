@@ -9,8 +9,6 @@ typedef enum
   LOG_LEVEL_FATAL   = 3
 } log_level_t;
 
-#define LOG tolog
-
 #define LOG_INFO    log_info
 #define LOG_WARNING log_warning
 #define LOG_ERROR   log_error
@@ -18,7 +16,6 @@ typedef enum
 
 void log_to_file(char *filename, log_level_t min_level);
 void log_set_min_console_level(log_level_t level);
-void tolog(log_level_t level, char *format, ...);
 
 void log_info(char *format, ...);
 void log_warning(char *format, ...);

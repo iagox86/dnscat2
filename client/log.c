@@ -13,7 +13,6 @@ static FILE *log_file = NULL;
 
 static char *log_levels[] = { "INFO", "WARNING", "ERROR", "FATAL" };
 
-
 void log_to_file(char *filename, log_level_t min_level)
 {
   assert(min_level >= LOG_LEVEL_INFO || min_level <= LOG_LEVEL_FATAL);
@@ -22,7 +21,7 @@ void log_to_file(char *filename, log_level_t min_level)
   if(log_file)
     log_file_min = min_level;
   else
-    LOG(LOG_LEVEL_WARNING, "Couldn't open logfile: %s", filename);
+    LOG_WARNING("Couldn't open logfile: %s", filename);
 }
 
 void log_set_min_console_level(log_level_t min_level)
@@ -33,12 +32,8 @@ void log_set_min_console_level(log_level_t min_level)
 }
 
 /* Most of this code is from the manpage for vsprintf() */
-void tolog(log_level_t level, char *format, ...)
+static void log_internal(log_level_t level, char *format, va_list args)
 {
-  va_list args;
-
-  va_start(args, format);
-
   assert(level >= LOG_LEVEL_INFO || level <= LOG_LEVEL_FATAL);
 
   if(level >= log_console_min)
@@ -52,8 +47,6 @@ void tolog(log_level_t level, char *format, ...)
   {
     vfprintf(log_file, format, args);
   }
-
-  va_end(args);
 }
 
 void log_info(char *format, ...)
@@ -61,7 +54,7 @@ void log_info(char *format, ...)
   va_list args;
 
   va_start(args, format);
-  tolog(LOG_LEVEL_INFO, format, args);
+  log_internal(LOG_LEVEL_INFO, format, args);
   va_end(args);
 }
 
@@ -70,7 +63,7 @@ void log_warning(char *format, ...)
   va_list args;
 
   va_start(args, format);
-  tolog(LOG_LEVEL_WARNING, format, args);
+  log_internal(LOG_LEVEL_WARNING, format, args);
   va_end(args);
 }
 
@@ -79,7 +72,7 @@ void log_error(char *format, ...)
   va_list args;
 
   va_start(args, format);
-  tolog(LOG_LEVEL_ERROR, format, args);
+  log_internal(LOG_LEVEL_ERROR, format, args);
   va_end(args);
 }
 
@@ -88,6 +81,6 @@ void log_fatal(char *format, ...)
   va_list args;
 
   va_start(args, format);
-  tolog(LOG_LEVEL_FATAL, format, args);
+  log_internal(LOG_LEVEL_FATAL, format, args);
   va_end(args);
 }
