@@ -24,6 +24,7 @@ OBJS=buffer.o\
 		 session.o\
 		 udp.o\
 		 ui_stdin.o\
+		 ui_exec.o\
 
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 DNSCAT_TCP_OBJS=${OBJS} tcpcat.o

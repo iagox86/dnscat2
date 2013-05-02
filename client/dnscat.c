@@ -19,6 +19,7 @@
 #include "select_group.h"
 #include "session.h"
 #include "udp.h"
+#include "ui_exec.h"
 #include "ui_stdin.h"
 
 typedef struct
@@ -33,7 +34,9 @@ typedef struct
   select_group_t    *group;
 
   /* The UI */
+  /* TODO: Union */
   ui_stdin_t        *ui_stdin;
+  ui_exec_t         *ui_exec;
 } options_t;
 
 /* Default options */
@@ -249,7 +252,8 @@ void cleanup()
   if(options)
   {
     session_destroy(options->session);
-    ui_stdin_destroy(options->ui_stdin);
+    /*ui_stdin_destroy(options->ui_stdin);*/
+    ui_exec_destroy(options->ui_exec);
     select_group_destroy(options->group);
 
     /* Ensure the socket is closed */
@@ -342,7 +346,8 @@ int main(int argc, char *argv[])
 
   /* Create the stdin ui */
   LOG_INFO("Initializing 'stdin' UI...");
-  options->ui_stdin = ui_stdin_initialize(options->group, options->session);
+  /*options->ui_stdin = ui_stdin_initialize(options->group, options->session);*/
+  options->ui_exec = ui_exec_initialize(options->group, options->session, "sh");
 
   while(TRUE)
     select_group_do_select(options->group, 1000);

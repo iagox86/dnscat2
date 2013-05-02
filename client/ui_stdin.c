@@ -13,13 +13,9 @@
 #include "log.h"
 #include "memory.h"
 #include "select_group.h"
-
 #include "session.h"
 
-typedef struct
-{
-  session_t *session;
-} ui_stdin_t;
+#include "ui_stdin.h"
 
 static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
