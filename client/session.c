@@ -137,99 +137,106 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
 
   if(packet)
   {
-    switch(session->state)
+    if(packet->session_id != session->id)
     {
-      case SESSION_STATE_NEW:
-        if(packet->message_type == MESSAGE_TYPE_SYN)
-        {
-          LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
-          session->their_seq = packet->body.syn.seq;
-          session->state = SESSION_STATE_ESTABLISHED;
-        }
-        else if(packet->message_type == MESSAGE_TYPE_MSG)
-        {
-          LOG_WARNING("In SESSION_STATE_NEW, received unexpected MSG (ignoring)");
-        }
-        else if(packet->message_type == MESSAGE_TYPE_FIN)
-        {
-          LOG_FATAL("In SESSION_STATE_NEW, received FIN - connection closed");
-
-          exit(0);
-        }
-        else
-        {
-          LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
-          exit(1);
-        }
-
-        break;
-      case SESSION_STATE_ESTABLISHED:
-        if(packet->message_type == MESSAGE_TYPE_SYN)
-        {
-          LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
-        }
-        else if(packet->message_type == MESSAGE_TYPE_MSG)
-        {
-          LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
-
-          /* Validate the SEQ */
-          if(packet->body.msg.seq == session->their_seq)
+      LOG_ERROR("Server responded to an invalid session id! Received 0x%04x, expected 0x%04x.", packet->session_id, session->id);
+    }
+    else
+    {
+      switch(session->state)
+      {
+        case SESSION_STATE_NEW:
+          if(packet->message_type == MESSAGE_TYPE_SYN)
           {
-            /* Verify the ACK is sane */
-            if(packet->body.msg.ack <= session->my_seq + buffer_get_remaining_bytes(session->outgoing_data))
-            {
-              /* Increment their sequence number */
-              session->their_seq += packet->body.msg.data_length;
+            LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
+            session->their_seq = packet->body.syn.seq;
+            session->state = SESSION_STATE_ESTABLISHED;
+          }
+          else if(packet->message_type == MESSAGE_TYPE_MSG)
+          {
+            LOG_WARNING("In SESSION_STATE_NEW, received unexpected MSG (ignoring)");
+          }
+          else if(packet->message_type == MESSAGE_TYPE_FIN)
+          {
+            LOG_FATAL("In SESSION_STATE_NEW, received FIN - connection closed");
 
-              /* Remove the acknowledged data from the buffer */
-              buffer_consume(session->outgoing_data, packet->body.msg.ack - session->my_seq);
-
-              /* Increment my sequence number */
-              session->my_seq = packet->body.msg.ack;
-
-              /* Print the data, if we received any */
-              if(packet->body.msg.data_length > 0)
-              {
-                int i;
-
-                /* Output the actual data. */
-                for(i = 0; i < packet->body.msg.data_length; i++)
-                  putchar(packet->body.msg.data[i]);
-              }
-              /* TODO: Do something better with this. */
-            }
-            else
-            {
-              LOG_WARNING("Bad ACK received");
-            }
+            exit(0);
           }
           else
           {
-            LOG_WARNING("Bad SEQ received");
+            LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
+            exit(1);
           }
-        }
-        else if(packet->message_type == MESSAGE_TYPE_FIN)
-        {
-          LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN - connection closed");
-          packet_destroy(packet);
 
-          exit(0);
-        }
-        else
-        {
-          LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
+          break;
+        case SESSION_STATE_ESTABLISHED:
+          if(packet->message_type == MESSAGE_TYPE_SYN)
+          {
+            LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
+          }
+          else if(packet->message_type == MESSAGE_TYPE_MSG)
+          {
+            LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
 
+            /* Validate the SEQ */
+            if(packet->body.msg.seq == session->their_seq)
+            {
+              /* Verify the ACK is sane */
+              if(packet->body.msg.ack <= session->my_seq + buffer_get_remaining_bytes(session->outgoing_data))
+              {
+                /* Increment their sequence number */
+                session->their_seq += packet->body.msg.data_length;
+
+                /* Remove the acknowledged data from the buffer */
+                buffer_consume(session->outgoing_data, packet->body.msg.ack - session->my_seq);
+
+                /* Increment my sequence number */
+                session->my_seq = packet->body.msg.ack;
+
+                /* Print the data, if we received any */
+                if(packet->body.msg.data_length > 0)
+                {
+                  int i;
+
+                  /* Output the actual data. */
+                  for(i = 0; i < packet->body.msg.data_length; i++)
+                    putchar(packet->body.msg.data[i]);
+                }
+                /* TODO: Do something better with this. */
+              }
+              else
+              {
+                LOG_WARNING("Bad ACK received");
+              }
+            }
+            else
+            {
+              LOG_WARNING("Bad SEQ received");
+            }
+          }
+          else if(packet->message_type == MESSAGE_TYPE_FIN)
+          {
+            LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN - connection closed");
+            packet_destroy(packet);
+
+            exit(0);
+          }
+          else
+          {
+            LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
+
+            packet_destroy(packet);
+            send_final_fin(session);
+            exit(0);
+          }
+
+          break;
+        default:
+          LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
           packet_destroy(packet);
           send_final_fin(session);
           exit(0);
-        }
-
-        break;
-      default:
-        LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
-        packet_destroy(packet);
-        send_final_fin(session);
-        exit(0);
+      }
     }
 
     packet_destroy(packet);
