@@ -6,25 +6,26 @@
 #include <sys/types.h>
 #endif
 
-#include "session.h"
-
 typedef struct
 {
-  session_t *session;
-  char      *process;
+  data_callback_t   *data_callback;
+  simple_callback_t *closed_callback;
+  void              *callback_param;
+
+  char              *process;
 
 #ifdef WIN32
 #else
-  int        stdin[2];
-  int        stdout[2];
+  int        pipe_stdin[2];
+  int        pipe_stdout[2];
   pid_t      pid;
 #endif
 
 } ui_exec_t;
 
-ui_exec_t *ui_exec_initialize(select_group_t *group, session_t *session, char *process);
-void ui_exec_destroy(ui_exec_t *ui_exec);
+ui_exec_t *ui_exec_create(select_group_t *group, char *process, data_callback_t *data_callback, simple_callback_t *closed_callback, void *callback_param);
+void ui_exec_destroy(ui_exec_t *ui_exec, select_group_t *group);
 
-void ui_exec_feed(uint8_t *data, size_t length, ui_exec_t *ui_exec);
+void ui_exec_feed(ui_exec_t *ui_exec, uint8_t *data, size_t length);
 
 #endif

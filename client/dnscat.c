@@ -19,8 +19,6 @@
 #include "select_group.h"
 #include "session.h"
 #include "udp.h"
-#include "ui_exec.h"
-#include "ui_stdin.h"
 
 typedef struct
 {
@@ -31,16 +29,13 @@ typedef struct
   char              *dns_host;
   uint16_t           dns_port;
 
-  select_group_t    *group;
+  char              *exec;
 
-  /* The UI */
-  /* TODO: Union */
-  ui_stdin_t        *ui_stdin;
-  ui_exec_t         *ui_exec;
+  select_group_t    *group;
 } options_t;
 
 /* Default options */
-#define DEFAULT_DNS_SERVER   "8.8.8.8"
+#define DEFAULT_DNS_SERVER   "localhost"
 #define DEFAULT_DNS_PORT     53
 #define DEFAULT_DOMAIN       "skullseclabs.org"
 
@@ -234,13 +229,6 @@ void dnscat_send(uint8_t *data, size_t length, void *o)
   dns_destroy(dns);
 }
 
-void dnscat_recv(uint8_t *data, size_t length, void *o)
-{
-  options_t *options = (options_t*) o;
-
-  ui_exec_feed(data, length, options->ui_exec);
-}
-
 void dnscat_close(options_t *options)
 {
   LOG_INFO("Closing connection");
@@ -248,7 +236,8 @@ void dnscat_close(options_t *options)
   assert(options->s && options->s != -1); /* We can't close a closed socket */
 
   /* Remove from the select_group */
-  select_group_remove_and_close_socket(options->group, options->s);
+  /* TODO: Why isn't this working? */
+  /*select_group_remove_and_close_socket(options->group, options->s);*/
   options->s = -1;
 }
 
@@ -260,7 +249,6 @@ void cleanup()
   {
     session_destroy(options->session);
     /*ui_stdin_destroy(options->ui_stdin);*/
-    ui_exec_destroy(options->ui_exec);
     select_group_destroy(options->group);
 
     /* Ensure the socket is closed */
@@ -282,6 +270,8 @@ int main(int argc, char *argv[])
     {"d",      required_argument, 0, 0},
     {"host",   required_argument, 0, 0}, /* DNS server */
     {"port",   required_argument, 0, 0}, /* DNS port */
+    {"exec",   required_argument, 0, 0}, /* Execute */
+    {"e",      required_argument, 0, 0},
     {0,        0,                 0, 0}  /* End */
   };
   char        c;
@@ -302,8 +292,9 @@ int main(int argc, char *argv[])
   options->dns_port = DEFAULT_DNS_PORT;
   options->domain   = DEFAULT_DOMAIN;
   options->group    = select_group_create();
+  options->exec     = NULL;
 
-  options->session  = session_create(dnscat_send, options, dnscat_recv, options);
+  options->session  = session_create(options->group, dnscat_send, options);
 
   /* Parse the command line options. */
   opterr = 0;
@@ -326,6 +317,10 @@ int main(int argc, char *argv[])
         {
           options->dns_port = atoi(optarg);
         }
+        else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
+        {
+          options->exec = optarg;
+        }
         else
         {
           LOG_FATAL("Unknown option");
@@ -345,16 +340,18 @@ int main(int argc, char *argv[])
   LOG_INFO("DNS Port:   %d", options->dns_port);
   LOG_INFO("Domain:     %s", options->domain);
 
+  if(options->exec)
+  {
+    LOG_INFO("Executing process: %s", options->exec);
+
+    session_set_ui_exec(options->session, options->exec, options->group);
+  }
+
   /* Be sure we clean up at exit. */
   atexit(cleanup);
 
   /* Add the timeout function */
   select_set_timeout(options->group, timeout, (void*)options);
-
-  /* Create the stdin ui */
-  LOG_INFO("Initializing 'stdin' UI...");
-  /*options->ui_stdin = ui_stdin_initialize(options->group, options->session);*/
-  options->ui_exec = ui_exec_initialize(options->group, options->session, "sh");
 
   while(TRUE)
     select_group_do_select(options->group, 1000);

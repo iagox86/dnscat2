@@ -6,38 +6,11 @@
 #include "log.h"
 #include "memory.h"
 #include "packet.h"
+#include "select_group.h"
 #include "session.h"
 
-session_t *session_create(driver_send_t *driver_send, void *driver_send_param, driver_recv_t *driver_recv, void *driver_recv_param)
-{
-  session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
-
-  LOG_INFO("Creating a new session");
-
-  session->state         = SESSION_STATE_NEW;
-  session->their_seq     = 0;
-  session->is_closed     = FALSE;
-  session->max_packet_size = 20; /* TODO */
-
-  session->driver_send       = driver_send;
-  session->driver_send_param = driver_send_param;
-  session->driver_recv       = driver_recv;
-  session->driver_recv_param = driver_recv_param;
-
-  session->incoming_data = buffer_create(BO_BIG_ENDIAN);
-  session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
-
-  return session;
-}
-
-void session_destroy(session_t *session)
-{
-  LOG_INFO("Cleaning up the session");
-
-  buffer_destroy(session->incoming_data);
-  buffer_destroy(session->outgoing_data);
-  safe_free(session);
-}
+#include "ui_stdin.h"
+#include "ui_exec.h"
 
 static void session_send_packet(session_t *session, packet_t *packet)
 {
@@ -46,35 +19,9 @@ static void session_send_packet(session_t *session, packet_t *packet)
 
   LOG_INFO("SENDING:");
   packet_print(packet);
-  session->driver_send(data, length, session->driver_send_param);
+  session->outgoing_data_callback(data, length, session->outgoing_data_callback_param);
 
   safe_free(data);
-}
-
-static void send_final_fin(session_t *session)
-{
-  packet_t *packet;
-
-  /* Alert the user */
-  LOG_INFO("Sending the final FIN to the server before closing");
-
-  /* Send the FIN */
-  packet = packet_create_fin(session->id);
-  session_send_packet(session, packet);
-  packet_destroy(packet);
-}
-
-void session_close(session_t *session)
-{
-  session->is_closed = TRUE;
-}
-
-static void clean_up_buffers(session_t *session)
-{
-  if(buffer_get_remaining_bytes(session->outgoing_data) == 0)
-    buffer_clear(session->outgoing_data);
-  if(buffer_get_remaining_bytes(session->incoming_data) == 0)
-    buffer_clear(session->incoming_data);
 }
 
 static void do_send_stuff(session_t *session)
@@ -119,8 +66,10 @@ static void do_send_stuff(session_t *session)
   }
 }
 
-void session_send(session_t *session, uint8_t *data, size_t length)
+static void session_ui_outgoing_callback(uint8_t *data, size_t length, void *s)
 {
+  session_t *session = (session_t*) s;
+
   LOG_INFO("Queuing %zd bytes of data to send", length);
 
   /* Add the data to the outgoing buffer. */
@@ -128,6 +77,76 @@ void session_send(session_t *session, uint8_t *data, size_t length)
 
   /* Trigger a send. */
   do_send_stuff(session);
+}
+
+static void session_ui_closed_callback(void *s)
+{
+  session_t *session = (session_t*) s;
+
+  session_close(session);
+}
+
+session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param)
+{
+  session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
+
+  LOG_INFO("Creating a new session");
+
+  session->state         = SESSION_STATE_NEW;
+  session->their_seq     = 0;
+  session->is_closed     = FALSE;
+  session->max_packet_size = 20; /* TODO */
+
+  session->incoming_data = buffer_create(BO_BIG_ENDIAN);
+  session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
+
+  session->outgoing_data_callback = outgoing_data_callback;
+  session->outgoing_data_callback_param = outgoing_data_callback_param;
+
+  session->ui_type = UI_STDIN;
+  session->ui.ui_stdin = ui_stdin_create(group, session_ui_outgoing_callback, session_ui_closed_callback, session);
+/*(select_group_t *group,
+ * data_callback_t *data_callback,
+ * simple_callback_t *closed_callback,
+ * void *callback_param);*/
+
+  return session;
+}
+
+void session_destroy(session_t *session)
+{
+  LOG_INFO("Cleaning up the session");
+
+  buffer_destroy(session->incoming_data);
+  buffer_destroy(session->outgoing_data);
+  safe_free(session);
+}
+
+
+static void send_final_fin(session_t *session)
+{
+  packet_t *packet;
+
+  /* Alert the user */
+  LOG_INFO("Sending the final FIN to the server before closing");
+
+  /* Send the FIN */
+  packet = packet_create_fin(session->id);
+  session_send_packet(session, packet);
+  packet_destroy(packet);
+}
+
+void session_close(session_t *session)
+{
+  session->is_closed = TRUE;
+}
+
+static void clean_up_buffers(session_t *session)
+{
+  if(buffer_get_remaining_bytes(session->outgoing_data) == 0)
+    buffer_clear(session->outgoing_data);
+  if(buffer_get_remaining_bytes(session->incoming_data) == 0)
+    buffer_clear(session->incoming_data);
 }
 
 void session_recv(session_t *session, uint8_t *data, size_t length)
@@ -198,16 +217,21 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
                 /* Print the data, if we received any */
                 if(packet->body.msg.data_length > 0)
                 {
-                  int i;
+                  switch(session->ui_type)
+                  {
+                    case UI_STDIN:
+                      ui_stdin_feed(session->ui.ui_stdin, packet->body.msg.data, packet->body.msg.data_length);
+                      break;
 
-                  session->driver_recv(packet->body.msg.data, packet->body.msg.data_length, session->driver_recv_param);
+                    case UI_EXEC:
+                      ui_exec_feed(session->ui.ui_exec, packet->body.msg.data, packet->body.msg.data_length);
+                      break;
 
-                  /* Output the actual data. */
-                  /* TODO: Get rid of this */
-                  for(i = 0; i < packet->body.msg.data_length; i++)
-                    putchar(packet->body.msg.data[i]);
+                    default:
+                      LOG_FATAL("Chosen UI not found: %d", session->ui_type);
+                      exit(1);
+                  }
                 }
-                /* TODO: Do something better with this. */
               }
               else
               {
@@ -271,4 +295,23 @@ void session_do_actions(session_t *session)
     send_final_fin(session);
     exit(0);
   }
+}
+
+void session_set_ui_exec(session_t *session, char *process, select_group_t *group)
+{
+  switch(session->ui_type)
+  {
+    case UI_STDIN:
+      ui_stdin_destroy(session->ui.ui_stdin, group);
+      break;
+
+    case UI_EXEC:
+      ui_exec_destroy(session->ui.ui_exec, group);
+      break;
+
+    default:
+      LOG_FATAL("Unknown UI: %d", session->ui_type);
+  }
+
+  ui_exec_create(group, process, session_ui_outgoing_callback, session_ui_closed_callback, session);
 }

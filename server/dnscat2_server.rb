@@ -27,7 +27,7 @@ class Dnscat2
       return nil
     end
 
-    Log.WARNING("Received SYN: new session created with id = 0x%04x" % session.id)
+    Log.WARNING("Received SYN: new session created with id = %d" % session.id)
 
     session.set_their_seq(packet.seq)
     session.set_established()
@@ -86,7 +86,7 @@ class Dnscat2
       return nil
     end
 
-    Log.INFO("Received FIN for session #{session.id}; closing session")
+    Log.WARNING("Received FIN for session #{session.id}; closing session")
     session.destroy()
     return Packet.create_fin(packet.packet_id, session.id)
   end

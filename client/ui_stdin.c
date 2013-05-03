@@ -13,7 +13,7 @@
 #include "log.h"
 #include "memory.h"
 #include "select_group.h"
-#include "session.h"
+#include "types.h"
 
 #include "ui_stdin.h"
 
@@ -21,7 +21,7 @@ static SELECT_RESPONSE_t stdin_callback(void *group, int socket, uint8_t *data, 
 {
   ui_stdin_t *ui_stdin = (ui_stdin_t*) param;
 
-  session_send(ui_stdin->session, data, length);
+  ui_stdin->data_callback(data, length, ui_stdin->callback_param);
 
   return SELECT_OK;
 }
@@ -32,16 +32,17 @@ static SELECT_RESPONSE_t stdin_closed_callback(void *group, int socket, void *pa
 
   LOG_WARNING("STDIN is closed, sending any remaining buffered data");
 
-  session_close(ui_stdin->session);
+  ui_stdin->closed_callback(ui_stdin->callback_param);
 
   return SELECT_REMOVE;
 }
 
-ui_stdin_t *ui_stdin_initialize(select_group_t *group, session_t *session)
+ui_stdin_t *ui_stdin_create(select_group_t *group, data_callback_t *data_callback, simple_callback_t *closed_callback, void *callback_param)
 {
   ui_stdin_t *ui_stdin = (ui_stdin_t*) safe_malloc(sizeof(ui_stdin_t));
-
-  ui_stdin->session = session;
+  ui_stdin->data_callback   = data_callback;
+  ui_stdin->closed_callback = closed_callback;
+  ui_stdin->callback_param  = callback_param;
 
   /* Create the STDIN socket */
 #ifdef WIN32
@@ -61,7 +62,20 @@ ui_stdin_t *ui_stdin_initialize(select_group_t *group, session_t *session)
   return ui_stdin;
 }
 
-void ui_stdin_destroy(ui_stdin_t *ui_stdin)
+void ui_stdin_destroy(ui_stdin_t *ui_stdin, select_group_t *group)
 {
+#ifdef WIN32
+#else
+  int stdin_handle = STDIN_FILENO;
+  select_group_remove_socket(group, stdin_handle);
+#endif
   safe_free(ui_stdin);
+}
+
+void ui_stdin_feed(ui_stdin_t *ui_stdin, uint8_t *data, size_t length)
+{
+  size_t i;
+
+  for(i = 0; i < length; i++)
+    putchar(data[i]);
 }
