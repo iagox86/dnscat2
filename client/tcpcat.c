@@ -37,7 +37,7 @@ typedef struct
 } options_t;
 
 #define DEFAULT_HOST "localhost"
-#define DEFAULT_PORT 2000
+#define DEFAULT_PORT 4444
 
 options_t *options = NULL;
 
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
   options->port    = DEFAULT_PORT;
   options->buffer  = buffer_create(BO_BIG_ENDIAN);
   options->group   = select_group_create();
-  options->session = session_create(tcpcat_send, options);
+  options->session = session_create(options->group, tcpcat_send, options);
 
   /* Parse the command line options. */
   opterr = 0;
@@ -245,9 +245,6 @@ int main(int argc, char *argv[])
 
   /* Add the timeout function */
   select_set_timeout(options->group, timeout, (void*)options);
-
-  /* Create the stdin ui */
-  options->ui_stdin = ui_stdin_initialize(options->group, options->session);
 
   while(TRUE)
     select_group_do_select(options->group, 1000);

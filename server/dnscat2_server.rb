@@ -102,10 +102,16 @@ class Dnscat2
     Thread.new do
       begin
         loop do
-          Session.queue_all_outgoing(gets())
+          data = gets()
+
+          # TODO: Handle the i/o stuff at a different layer
+          if(!data.nil?)
+            Session.queue_all_outgoing(data)
+          end
         end
       rescue Exception => e
-        Log.FATAL(e)
+        Log.FATAL(e.inspect)
+        Log.FATAL(e.backtrace)
         exit
       end
     end

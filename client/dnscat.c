@@ -248,7 +248,6 @@ void cleanup()
   if(options)
   {
     session_destroy(options->session);
-    /*ui_stdin_destroy(options->ui_stdin);*/
     select_group_destroy(options->group);
 
     /* Ensure the socket is closed */
