@@ -15,10 +15,7 @@ $LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib'
 #require 'rubydns/lib/rubydns'
 require 'rubydns'
 
-require 'dnscat2_server'
 require 'log'
-
-
 
 class DnscatDNS
   IN = Resolv::DNS::Resource::IN
@@ -27,7 +24,11 @@ class DnscatDNS
     return 20 # TODO: do this better
   end
 
-  def initialize(domain)
+  def initialize(host, port, domain)
+    Log.WARNING "Starting Dnscat2 DNS server on #{host}:#{port} [domain = #{domain}]..."
+
+    @host   = host
+    @port   = port
     @domain = domain
   end
 
@@ -36,9 +37,8 @@ class DnscatDNS
   def start_dns_server(options = {}, &block)
     server = RubyDNS::Server.new(&block)
     server.logger.level = Logger::FATAL
-    server.logger.info "Starting RubyDNS server (v#{RubyDNS::VERSION})..."
 
-    options[:listen] ||= [[:udp, "0.0.0.0", 53], [:tcp, "0.0.0.0", 53]]
+    options[:listen] ||= [[:udp, @host, @port], [:tcp, @host, @port]]
     #options[:listen] ||= [[:tcp, "0.0.0.0", 5353], [:udp, "0.0.0.0", 5353]]
 
     EventMachine.run do
@@ -46,7 +46,7 @@ class DnscatDNS
 
       # Setup server sockets
       options[:listen].each do |spec|
-        server.logger.info "Listening on #{spec.join(':')}"
+        Log::INFO("Listening on #{spec.join(':')}")
         if spec[0] == :udp
           EventMachine.open_datagram_socket(spec[1], spec[2], RubyDNS::UDPHandler, server)
         elsif spec[0] == :tcp
@@ -61,20 +61,18 @@ class DnscatDNS
   end
 
   def recv()
-    domain = @domain
-
     start_dns_server() do
-      match(/\.#{Regexp.escape(domain)}$/, IN::TXT) do |transaction|
+      match(/\.skullseclabs.org$/, IN::TXT) do |transaction| # TODO: Make this a variable
         Log.INFO("Received: #{transaction.name}")
-        name = transaction.name.gsub(/\.#{Regexp.escape(domain)}$/, '')
+        name = transaction.name.gsub(/\.skullseclabs.org$/, '')
         name = name.gsub(/\./, '')
         name = [name].pack("H*")
         response = yield(name)
         if(response.nil?)
           Log.INFO("Sending nil response...")
-          response = domain
+          response = domain # TODO: Use the original domain
         else
-          response = "#{response.unpack("H*").pop}.#{domain}"
+          response = "#{response.unpack("H*").pop}.skullseclabs.org"
         end
         Log.INFO("Sending:  #{response}")
         transaction.respond!(response)
@@ -85,21 +83,11 @@ class DnscatDNS
   def close()
     @s.close
   end
+
+  def DnscatDNS.go(host, port, domain)
+    driver = DnscatDNS.new(host, port, domain)
+    Dnscat2.go(driver)
+  end
 end
 
-Log.set_min_level(Log::LOG_WARNING)
-domain = "skullseclabs.org"
-
-begin
-  driver = DnscatDNS.new(domain)
-  Dnscat2.go(driver)
-rescue IOError => e
-  Log.FATAL("IOError caught: #{e.inspect}")
-  Log.FATAL(e.inspect)
-  Log.FATAL(e.backtrace)
-rescue Exception => e
-  Log.FATAL("Exception caught: #{e.inspect}")
-  Log.FATAL(e.inspect)
-  Log.FATAL(e.backtrace)
-end
 

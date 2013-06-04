@@ -35,7 +35,7 @@ typedef struct
 } options_t;
 
 /* Default options */
-#define DEFAULT_DNS_SERVER   "localhost"
+#define DEFAULT_DNS_SERVER   "8.8.8.8"
 #define DEFAULT_DNS_PORT     53
 #define DEFAULT_DOMAIN       "skullseclabs.org"
 
@@ -268,6 +268,7 @@ int main(int argc, char *argv[])
   {
     {"domain", required_argument, 0, 0}, /* Domain name */
     {"d",      required_argument, 0, 0},
+    /* TODO: -h --help */
     {"host",   required_argument, 0, 0}, /* DNS server */
     {"port",   required_argument, 0, 0}, /* DNS port */
     {"exec",   required_argument, 0, 0}, /* Execute */

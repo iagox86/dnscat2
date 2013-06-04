@@ -12,10 +12,15 @@
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 $LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib'
 
+require 'dnscat2_dns'
+require 'dnscat2_tcp'
+
 require 'log'
-require 'optparse'
 require 'packet'
 require 'session'
+
+# Option parsing
+require 'trollop'
 
 # This class should be totally stateless, and rely on the Session class
 # for any long-term session storage
@@ -160,12 +165,83 @@ class Dnscat2
   end
 end
 
-require 'slop'
 
-opts = Slop.parse do
-  banner 'Usage: dnscat2_server.rb [options]'
+# Default options
+domain = "skullseclabs.org"
 
-  on 'd', 'debug', 'Set the debug level', argument: :required, as: :integer
+opts = Trollop::options do
+  opt :dns,       "Start a DNS server",
+    :type => :boolean, :default => true
+  opt :dnshost,   "The DNS ip address to listen on",
+    :type => :string,  :default => "0.0.0.0"
+  opt :dnsport,   "The DNS port to listen on",
+    :type => :integer, :default => 53
+  opt :domain,    "The DNS domain to respond to [regex]",
+    :type => :string,  :default => ".*"
+
+  opt :tcp,       "Start a TCP server",
+    :type => :boolean, :default => true
+  opt :tcphost,   "The TCP ip address to listen on",
+    :type => :string,  :default => "0.0.0.0"
+  opt :tcpport,    "The port to listen on",
+    :type => :integer, :default => 4444
+
+  opt :debug,     "Min debug level [info, warning, error, fatal]",
+    :type => :string,  :default => "warning"
 end
 
-# TODO: Look up Trollop
+puts("debug = #{opts[:debug]}")
+case opts[:debug]
+when "info"
+  Log.set_min_level(Log::INFO)
+when "warning"
+  Log.set_min_level(Log::WARNING)
+when "error"
+  Log.set_min_level(Log::ERROR)
+when "fatal"
+  Log.set_min_level(Log::FATAL)
+else
+  Trollop::die :debug, "must be 'info', 'warning', 'error', or 'fatal'"
+end
+
+if(opts[:dnsport] < 0 || opts[:dnsport] > 65535)
+  Trollop::die :dnsport, "must be a valid port"
+end
+
+if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
+  Trollop::die :dnsport, "must be a valid port"
+end
+
+require 'ap'
+ap opts
+
+threads = []
+if(opts[:dns])
+  threads << Thread.new do
+    begin
+      DnscatDNS.go(opts[:dnshost], opts[:dnsport], opts[:domain])
+    rescue Exception => e
+      Log.FATAL("Exception caught in DNS module:")
+      Log.FATAL(e.inspect)
+      Log.FATAL(e.backtrace)
+      exit
+    end
+  end
+end
+
+if(opts[:tcp])
+  threads << Thread.new do
+    begin
+      DnscatTCP.go(opts[:tcphost], opts[:tcpport])
+    rescue Exception => e
+      Log.FATAL("Exception caught in TCP module:")
+      Log.FATAL(e.inspect)
+      Log.FATAL(e.backtrace)
+      exit
+    end
+  end
+end
+
+threads.each do |thread|
+  thread.join
+end

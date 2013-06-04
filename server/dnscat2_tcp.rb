@@ -10,7 +10,6 @@
 
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
-require 'dnscat2_server'
 require 'log'
 require 'socket'
 
@@ -47,33 +46,28 @@ class DnscatTCP
   def close()
     @s.close
   end
-end
 
-Log.set_min_level(Log::LOG_INFO)
+  def DnscatTCP.go(host, port)
+    Log.WARNING "Starting Dnscat2 TCP server on #{host}:#{port}..."
+    server = TCPServer.new(port)
 
-port = 2000
+    loop do
+      Thread.start(server.accept) do |s|
+        Log.INFO("Received a new connection from #{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})...")
 
-server = TCPServer.new(port)
-Log.INFO("Listening for connections on #{server.addr[3]}:#{server.addr[1]} (#{server.addr[2]})...")
-
-loop do
-  s = server.accept
-  #Thread.start(server.accept) do |s|
-    Log.INFO("Received a new connection from #{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})...")
-
-    begin
-      tcp = DnscatTCP.new(s)
-      Dnscat2.go(tcp)
-    rescue IOError => e
-      puts("IOError caught: #{e.inspect}")
-      puts(e.inspect)
-      puts(e.backtrace)
-    rescue Exception => e
-      puts("Exception caught: #{e.inspect}")
-      puts(e.inspect)
-      puts(e.backtrace)
-
-      exit
+        begin
+          tcp = DnscatTCP.new(s)
+          Dnscat2.go(tcp)
+        rescue IOError => e
+          puts("IOError caught: #{e.inspect}")
+          puts(e.inspect)
+          puts(e.backtrace)
+        rescue Exception => e
+          puts("Exception caught: #{e.inspect}")
+          puts(e.inspect)
+          puts(e.backtrace)
+        end
+      end
     end
-  #end
+  end
 end

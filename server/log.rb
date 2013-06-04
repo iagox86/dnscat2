@@ -9,13 +9,15 @@
 # as simple as necessary.
 ##
 class Log
-  LOG_INFO    = 0
-  LOG_WARNING = 1
-  LOG_ERROR   = 2
-  LOG_FATAL   = 3
+  @@mutex = Mutex.new()
 
-  @@min_level      = LOG_INFO
-  @@min_file_level = LOG_INFO
+  INFO    = 0
+  WARNING = 1
+  ERROR   = 2
+  FATAL   = 3
+
+  @@min_level      = INFO
+  @@min_file_level = INFO
   @@file           = nil
 
   LEVELS = [ "INFO", "WARNING", "ERROR", "FATAL" ]
@@ -30,19 +32,19 @@ class Log
   end
 
   def Log.INFO(message)
-    Log.log(LOG_INFO, message)
+    Log.log(INFO, message)
   end
 
   def Log.WARNING(message)
-    Log.log(LOG_WARNING, message)
+    Log.log(WARNING, message)
   end
 
   def Log.ERROR(message)
-    Log.log(LOG_ERROR, message)
+    Log.log(ERROR, message)
   end
 
   def Log.FATAL(message)
-    Log.log(LOG_FATAL, message)
+    Log.log(FATAL, message)
   end
 
   private
@@ -52,16 +54,18 @@ class Log
         Log.log(level, m)
       end
     else
-      if(level < LOG_INFO || level > LOG_FATAL)
+      if(level < INFO || level > FATAL)
         raise("Bad log level: #{level}")
       end
 
-      if(level >= @@min_level)
-        $stderr.puts("[[ #{LEVELS[level]} ]] :: #{message}")
-      end
+      @@mutex.synchronize do
+        if(level >= @@min_level)
+          $stderr.puts("[[ #{LEVELS[level]} ]] :: #{message}")
+        end
 
-      if(!@@file.nil? && level >= @@min_file_level)
-        @@file.puts("[[ #{LEVELS[level]} ]] :: #{message}")
+        if(!@@file.nil? && level >= @@min_file_level)
+          @@file.puts("[[ #{LEVELS[level]} ]] :: #{message}")
+        end
       end
     end
   end
