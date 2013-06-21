@@ -9,9 +9,6 @@
 # basically just a class.
 ##
 
-$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
-
-require 'dnscat2_server'
 require 'packet'
 
 class DnscatTest
@@ -256,7 +253,7 @@ class DnscatTest
       puts("IOError was thrown (as expected): #{e}")
       puts("Tests passed: #{@@success} / #{@@success + @@failure}")
     end
+
+    exit
   end
 end
-
-DnscatTest.do_test()

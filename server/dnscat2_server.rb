@@ -14,6 +14,7 @@ $LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib' # TODO: Is this still requ
 
 require 'dnscat2_dns'
 require 'dnscat2_tcp'
+require 'dnscat2_test'
 
 require 'log'
 require 'packet'
@@ -195,6 +196,9 @@ opts = Trollop::options do
 
   opt :debug,     "Min debug level [info, warning, error, fatal]",
     :type => :string,  :default => "warning"
+
+  opt :do_tests,      "If set, test the session code instead of actually going",
+    :type => :boolean, :default => false
 end
 
 puts("debug = #{opts[:debug]}")
@@ -249,6 +253,10 @@ end
 if(threads.length == 0)
   Log.FATAL("No UI was started! Use --dns or --tcp!")
   exit
+end
+
+if(opts[:do_tests])
+  DnscatTest.do_test()
 end
 
 Ui.go
