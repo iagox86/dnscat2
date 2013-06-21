@@ -103,8 +103,8 @@ session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_
   session->outgoing_data_callback = outgoing_data_callback;
   session->outgoing_data_callback_param = outgoing_data_callback_param;
 
-  session->ui_type = UI_STDIN;
-  session->ui.ui_stdin = ui_stdin_create(group, session_ui_outgoing_callback, session_ui_closed_callback, session);
+  session->ui_type = UI_NONE;
+
 /*(select_group_t *group,
  * data_callback_t *data_callback,
  * simple_callback_t *closed_callback,
@@ -219,6 +219,10 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
                 {
                   switch(session->ui_type)
                   {
+                    case UI_NONE:
+                      /* Do nothing */
+                      break;
+
                     case UI_STDIN:
                       ui_stdin_feed(session->ui.ui_stdin, packet->body.msg.data, packet->body.msg.data_length);
                       break;
@@ -297,10 +301,14 @@ void session_do_actions(session_t *session)
   }
 }
 
-void session_set_ui_exec(session_t *session, char *process, select_group_t *group)
+static void session_kill_ui(session_t *session, select_group_t *group)
 {
   switch(session->ui_type)
   {
+    case UI_NONE:
+      /* Do nothing */
+      break;
+
     case UI_STDIN:
       ui_stdin_destroy(session->ui.ui_stdin, group);
       break;
@@ -312,6 +320,24 @@ void session_set_ui_exec(session_t *session, char *process, select_group_t *grou
     default:
       LOG_FATAL("Unknown UI: %d", session->ui_type);
   }
+}
 
-  ui_exec_create(group, process, session_ui_outgoing_callback, session_ui_closed_callback, session);
+void session_set_ui_stdin(session_t *session, select_group_t *group)
+{
+  /* Kill the old UI */
+  session_kill_ui(session, group);
+
+  /* Create the new UI */
+  session->ui_type = UI_STDIN;
+  session->ui.ui_stdin = ui_stdin_create(group, session_ui_outgoing_callback, session_ui_closed_callback, session);
+}
+
+void session_set_ui_exec(session_t *session, char *process, select_group_t *group)
+{
+  /* Kill the old UI */
+  session_kill_ui(session, group);
+
+  /* Create the new UI */
+  session->ui_type = UI_EXEC;
+  session->ui.ui_exec = ui_exec_create(group, process, session_ui_outgoing_callback, session_ui_closed_callback, session);
 }

@@ -43,7 +43,7 @@ class Ui
       end
     elsif(command == "help")
       puts("Help!")
-    elsif(command == "exit")
+    elsif(command == "exit" || command == "quit")
       puts("Bye!")
       exit
     else
@@ -105,8 +105,13 @@ class Ui
     puts(message)
     prompt()
   end
+
+  def Ui.error(message)
+    $stderr.puts(message)
+  end
 end
 
 Signal.trap("TSTP") do
+  puts()
   Ui.detach
 end

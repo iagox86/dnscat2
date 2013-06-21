@@ -20,6 +20,7 @@ typedef enum
 
 typedef enum
 {
+  UI_NONE,
   UI_STDIN,
   UI_EXEC
 } ui_t;
@@ -61,6 +62,7 @@ void       session_do_actions(session_t *session);
 
 void       session_go(session_t *session);
 
+void       session_set_ui_stdin(session_t *session, select_group_t *group);
 void       session_set_ui_exec(session_t *session, char *process, select_group_t *group);
 
 #endif

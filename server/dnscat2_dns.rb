@@ -85,6 +85,7 @@ class DnscatDNS
   end
 
   def DnscatDNS.go(host, port, domain)
+    Log.WARNING("Starting DNS server...")
     driver = DnscatDNS.new(host, port, domain)
     Dnscat2.go(driver)
   end

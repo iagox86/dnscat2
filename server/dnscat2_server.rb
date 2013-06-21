@@ -76,10 +76,10 @@ class Dnscat2
     new_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
     Log.INFO("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
 
-    # The actual output
-    if(packet.data.length > 0)
-      print("#{packet.data}")
-    end
+    # The actual output - this is now done by the Ui class
+#    if(packet.data.length > 0)
+#      print("#{packet.data}")
+#    end
 
     # Build the new packet
     return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
@@ -244,6 +244,11 @@ if(opts[:tcp])
       exit
     end
   end
+end
+
+if(threads.length == 0)
+  Log.FATAL("No UI was started! Use --dns or --tcp!")
+  exit
 end
 
 Ui.go

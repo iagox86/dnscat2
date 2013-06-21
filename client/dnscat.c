@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
   srand(time(NULL));
 
   /* Set the default log level (TODO: Change to warning) */
-  log_set_min_console_level(LOG_LEVEL_WARNING);
+  log_set_min_console_level(LOG_LEVEL_INFO);
 
   options = safe_malloc(sizeof(options_t));
 
@@ -340,11 +340,19 @@ int main(int argc, char *argv[])
   LOG_INFO("DNS Port:   %d", options->dns_port);
   LOG_INFO("Domain:     %s", options->domain);
 
+  /* Use the 'exec' UI */
   if(options->exec)
   {
-    LOG_INFO("Executing process: %s", options->exec);
+    LOG_WARNING("Executing process: %s", options->exec);
 
     session_set_ui_exec(options->session, options->exec, options->group);
+  }
+  /* Default UI */
+  else
+  {
+    LOG_WARNING("Creating a stdin-based UI");
+
+    session_set_ui_stdin(options->session, options->group);
   }
 
   /* Be sure we clean up at exit. */
