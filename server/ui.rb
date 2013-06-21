@@ -5,6 +5,7 @@
 ##
 
 require 'session'
+require 'trollop' # We use this to parse commands
 
 class Ui
   @@session = nil
@@ -22,34 +23,82 @@ class Ui
     end
   end
 
-  def Ui.do(command, args)
-    if(command == "")
-      # Do nothing
-    elsif(command == "sessions")
-      puts("Sessions:")
-      puts(Session.list())
-    elsif(command == "session")
-      if(args[0] == "-i") # TODO: Parse this in a less retarded way
-        id = args[1].to_i
-        session = Session.find(id)
-        if(session.nil?)
-          puts("Session #{id} not found! Try 'sessions' to get a list")
+  COMMANDS = {
+    "" => {
+      :parser => Trollop::Parser.new do end,
+      :proc => Proc.new do |opts| end,
+    },
+
+    "sessions" => {
+      :parser => Trollop::Parser.new do
+        banner("Lists the current active sessions")
+        # No args
+      end,
+
+      :proc => Proc.new do |opts|
+        puts("Sessions:")
+        puts(Session.list())
+      end,
+    },
+
+    "session" => {
+      :parser => Trollop::Parser.new do
+        banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
+        opt :id, "Session id", :type => :integer, :required => true
+      end,
+
+      :proc => Proc.new do |opts|
+        if(!Session.exists?(opts[:id]))
+          Ui.error("Session #{opts[:id]} not found, run 'sessions' for a list")
         else
+          session = Session.find(opts[:id])
           puts("Interacting with session: #{session.id}")
           @@session = session
         end
-      else
-        puts("Unknown option to 'session': #{args[1]}")
       end
-    elsif(command == "help")
-      puts("Help!")
-    elsif(command == "exit" || command == "quit")
-      puts("Bye!")
-      exit
-    else
-      puts("Unknown command: #{command}")
-    end
-  end
+    },
+
+    "exit" => {
+      :parser => Trollop::Parser.new do
+        banner("Exits dnscat2")
+      end,
+
+      :proc => Proc.new do |opts| exit end,
+    },
+
+    "quit" => {
+      :parser => Trollop::Parser.new do
+        banner("Exits dnscat2")
+      end,
+
+      :proc => Proc.new do |opts| exit end,
+    },
+
+    "help" => {
+      :parser => Trollop::Parser.new do
+        banner("Shows a help menu")
+      end,
+
+      :proc => Proc.new do |opts|
+        puts("Here are the available commands, listed alphabetically:")
+        COMMANDS.keys.sort.each do |name|
+          # Don't display the empty command
+          if(name != "")
+            puts("- #{name}")
+          end
+        end
+
+        puts("For more information, --help can be passed to any command")
+      end,
+    },
+
+    "clear" => {
+      :parser => Trollop::Parser.new do end,
+      :proc => Proc.new do |opts|
+        0.upto(1000) do puts() end
+      end,
+    },
+  }
 
   def Ui.process_line(line)
     split = line.split(/ /)
@@ -59,10 +108,24 @@ class Ui
       args = split
     else
       command = ""
-      args = nil
+      args = ""
     end
 
-    Ui.do(command, args)
+    if(COMMANDS[command].nil?)
+      puts("Unknown command: #{command}")
+    else
+      begin
+        command = COMMANDS[command]
+        opts = command[:parser].parse(args)
+        command[:proc].call(opts)
+      rescue Trollop::CommandlineError => e
+        Ui.error("ERROR: #{e}")
+      rescue Trollop::HelpNeeded => e
+        command[:parser].educate
+      rescue Trollop::VersionNeeded => e
+        Ui.error("Version needed!")
+      end
+    end
   end
 
   def Ui.go()

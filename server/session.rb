@@ -126,7 +126,11 @@ class Session
     end
   end
 
-  def Session.find(id)
+  def Session.exists?(id)
+    return !@@sessions[id].nil?
+  end
+
+  def Session.find(id) # TODO: Should this create a session if it doesn't exist?
     # Get or create the session
     if(@@sessions[id].nil?)
       Log.INFO("Creating new session")

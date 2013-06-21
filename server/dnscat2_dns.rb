@@ -7,12 +7,7 @@
 #
 # The DNS dnscat server.
 ##
-$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
-# TODO: I think I can get rid of this
-$LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib'
-
-#require 'rubydns/lib/rubydns'
 require 'rubydns'
 
 require 'log'
