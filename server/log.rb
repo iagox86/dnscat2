@@ -8,6 +8,9 @@
 # A very simple logging class. May improve this later, but for now it can be
 # as simple as necessary.
 ##
+
+require 'ui'
+
 class Log
   @@mutex = Mutex.new()
 
@@ -60,7 +63,7 @@ class Log
 
       @@mutex.synchronize do
         if(level >= @@min_level)
-          $stderr.puts("[[ #{LEVELS[level]} ]] :: #{message}")
+          Ui.error("[[ #{LEVELS[level]} ]] :: #{message}")
         end
 
         if(!@@file.nil? && level >= @@min_file_level)
