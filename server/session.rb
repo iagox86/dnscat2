@@ -136,6 +136,11 @@ class Session
     @@sessions.delete(id)
   end
 
+  def Session.list()
+    return @@sessions.keys
+    #return @@sessions.map do |session| session end
+  end
+
   def destroy()
     Session.destroy(@id)
   end

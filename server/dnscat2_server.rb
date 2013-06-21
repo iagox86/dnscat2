@@ -10,7 +10,7 @@
 ##
 
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
-$LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib'
+$LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib' # TODO: Is this still required
 
 require 'dnscat2_dns'
 require 'dnscat2_tcp'
@@ -18,6 +18,7 @@ require 'dnscat2_tcp'
 require 'log'
 require 'packet'
 require 'session'
+require 'ui/ui'
 
 # Option parsing
 require 'trollop'
@@ -99,22 +100,22 @@ class Dnscat2
   def Dnscat2.go(pipe)
     # Create a thread that listens on stdin and sends the data everywhere
     # TODO: We need a better way to manage different sessions
-    Thread.new do
-      begin
-        loop do
-          data = gets()
-
-          # TODO: Handle the i/o stuff at a different layer
-          if(!data.nil?)
-            Session.queue_all_outgoing(data)
-          end
-        end
-      rescue Exception => e
-        Log.FATAL(e.inspect)
-        Log.FATAL(e.backtrace)
-        exit
-      end
-    end
+#    Thread.new do
+#      begin
+#        loop do
+#          data = gets()
+#
+#          # TODO: Handle the i/o stuff at a different layer
+#          if(!data.nil?)
+#            Session.queue_all_outgoing(data)
+#          end
+#        end
+#      rescue Exception => e
+#        Log.FATAL(e.inspect)
+#        Log.FATAL(e.backtrace)
+#        exit
+#      end
+#    end
 
     begin
       if(pipe.max_packet_size < 16)
@@ -218,9 +219,6 @@ if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
 end
 
-require 'ap'
-ap opts
-
 threads = []
 if(opts[:dns])
   threads << Thread.new do
@@ -248,6 +246,8 @@ if(opts[:tcp])
   end
 end
 
-threads.each do |thread|
-  thread.join
-end
+Ui.go
+
+#threads.each do |thread|
+#  thread.join
+#end
