@@ -72,6 +72,10 @@ class Session
     @state = STATE_ESTABLISHED
   end
 
+  def incoming?()
+    return @incoming_data.length > 0
+  end
+
   def read_incoming(n = nil)
     if(n.nil? || n < @incoming_data.length)
       ret = @incoming_data
