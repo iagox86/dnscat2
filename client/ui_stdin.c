@@ -77,5 +77,6 @@ void ui_stdin_feed(ui_stdin_t *ui_stdin, uint8_t *data, size_t length)
   size_t i;
 
   for(i = 0; i < length; i++)
-    putchar(data[i]);
+    fputc(data[i], stdout);
+  fflush(stdout);
 }

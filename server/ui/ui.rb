@@ -52,21 +52,17 @@ class Ui
   end
 
   def Ui.process_line(line)
-    if(@@session.nil?)
-      split = line.split(/ /)
+    split = line.split(/ /)
 
-      if(split.length > 0)
-        command = split.shift
-        args = split
-      else
-        command = ""
-        args = nil
-      end
-
-      Ui.do(command, args)
+    if(split.length > 0)
+      command = split.shift
+      args = split
     else
-      @@session.queue_outgoing(line)
+      command = ""
+      args = nil
     end
+
+    Ui.do(command, args)
   end
 
   def Ui.go()
@@ -76,15 +72,25 @@ class Ui
       if(!@@session.nil?)
         result = IO.select([$stdin], nil, nil, 0.25)
         if(!result.nil? && result.length > 0)
-          line = $stdin.readline.chomp
+          line = $stdin.readline
         end
       else
-        line = $stdin.readline.chomp
+        line = $stdin.readline
       end
 
       # Check if we have any data typed by the user
       if(!line.nil?)
-        Ui.process_line(line)
+        if(@@session.nil?)
+          line.chomp!()
+          Ui.process_line(line)
+        else
+          if(line.length >= 12)
+            puts("Too long!") # TODO: Fix this
+          else
+            @@session.queue_outgoing(line)
+          end
+        end
+
         Ui.prompt()
       end
 
