@@ -18,7 +18,7 @@ require 'dnscat2_tcp'
 require 'log'
 require 'packet'
 require 'session'
-require 'ui/ui'
+require 'ui'
 
 # Option parsing
 require 'trollop'
