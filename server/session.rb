@@ -50,7 +50,7 @@ class Session
   def Session.notify_subscribers(method, args)
 #    @@mutex.lock do
       @@subscribers.each do |subscriber|
-        if(subsriber.responds_to?(method))
+        if(subscriber.respond_to?(method))
            subscriber.method(method).call(*args)
         end
       end
@@ -111,21 +111,10 @@ class Session
     return @incoming_data.length > 0
   end
 
-  # I don't think I need this anymore because of the subscription model
-#  def read_incoming(n = nil)
-#    if(n.nil? || n < @incoming_data.length)
-#      ret = @incoming_data
-#      @incoming_data = ''
-#      return ret
-#    else
-#      ret = @incoming_data[0,n]
-#      @incoming_data = @incoming_data[n..-1]
-#    end
-#  end
-
   def queue_incoming(data)
-    Session.notify_subscribers(:data_received, [data])
-#    @incoming_data = @incoming_data + data
+    if(data.length > 0)
+      Session.notify_subscribers(:data_received, [@id, data])
+    end
   end
 
   def read_outgoing(n = nil)

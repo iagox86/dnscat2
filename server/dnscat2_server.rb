@@ -77,11 +77,6 @@ class Dnscat2
     new_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
     Log.INFO("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
 
-    # The actual output - this is now done by the Ui class
-#    if(packet.data.length > 0)
-#      print("#{packet.data}")
-#    end
-
     # Build the new packet
     return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
   end
@@ -99,25 +94,6 @@ class Dnscat2
   end
 
   def Dnscat2.go(pipe)
-    # Create a thread that listens on stdin and sends the data everywhere
-    # TODO: We need a better way to manage different sessions
-#    Thread.new do
-#      begin
-#        loop do
-#          data = gets()
-#
-#          # TODO: Handle the i/o stuff at a different layer
-#          if(!data.nil?)
-#            Session.queue_all_outgoing(data)
-#          end
-#        end
-#      rescue Exception => e
-#        Log.FATAL(e.inspect)
-#        Log.FATAL(e.backtrace)
-#        exit
-#      end
-#    end
-
     begin
       if(pipe.max_packet_size < 16)
         raise(Exception, "max_packet_size is too small")
@@ -228,6 +204,8 @@ if(opts[:dns])
   threads << Thread.new do
     begin
       DnscatDNS.go(opts[:dnshost], opts[:dnsport], opts[:domain])
+    rescue SystemExit
+      exit
     rescue Exception => e
       Log.FATAL("Exception caught in DNS module:")
       Log.FATAL(e.inspect)
@@ -241,6 +219,8 @@ if(opts[:tcp])
   threads << Thread.new do
     begin
       DnscatTCP.go(opts[:tcphost], opts[:tcpport])
+    rescue SystemExit
+      exit
     rescue Exception => e
       Log.FATAL("Exception caught in TCP module:")
       Log.FATAL(e.inspect)

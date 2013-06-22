@@ -7,7 +7,10 @@
 require 'trollop' # We use this to parse commands
 
 class Ui
+  MAX_CHARACTERS = 4096
+
   @@session = nil
+  @@data = {}
 
   def Ui.detach()
     @@session = nil
@@ -93,6 +96,9 @@ class Ui
         else
           session = Session.find(opts[:id])
           puts("Interacting with session: #{session.id}")
+          if(!@@data[session.id].nil?)
+            puts(@@data[session.id])
+          end
           @@session = session
         end
       end
@@ -129,6 +135,9 @@ class Ui
   end
 
   def Ui.go()
+    # Subscribe to the session to get updates
+    Session.subscribe(Ui)
+
     Ui.prompt()
     loop do
       line = nil
@@ -172,8 +181,40 @@ class Ui
   def Ui.error(message)
     $stderr.puts(message)
   end
+
+  def Ui.session_created(id)
+  end
+
+  def Ui.session_established(id)
+    # TODO
+  end
+
+  def Ui.data_received(id, data)
+    # TODO: Limit the length
+    @@data[id] = @@data[id] || ""
+    @@data[id] += data
+
+    # If we're currently watching this session, display the data
+    if(!@@session.nil? && @@session.id == id)
+      puts(data)
+      prompt()
+    end
+  end
+
+  def Ui.outgoing_sent(ret)
+  end
+
+  def Ui.outgoing_acknowledged(data)
+  end
+
+  def Ui.outgoing_queued(data)
+  end
+
+  def Ui.session_destroyed(id)
+  end
 end
 
+# Trap ctrl-z, just like Metasploit
 Signal.trap("TSTP") do
   puts()
   Ui.detach
