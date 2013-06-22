@@ -34,8 +34,6 @@ class Dnscat2
       return nil
     end
 
-    Log.WARNING("Received SYN: new session created with id = %d" % session.id)
-
     session.set_their_seq(packet.seq)
     session.set_established()
 

@@ -94,7 +94,8 @@ class Session
     if(@state != STATE_ESTABLISHED)
       raise(IOError, "Trying to increment remote side's SEQ in the wrong state")
     end
-    @their_seq += n
+
+    @their_seq = (@their_seq + n) & 0xFFFF;
   end
 
   def set_established()
@@ -131,14 +132,19 @@ class Session
 
   # TODO: Handle overflows
   def ack_outgoing(n)
+    # "n" is the current ACK value
     bytes_acked = (n - @my_seq)
+
+    # Handle wraparounds properly
+    if(bytes_acked < 0)
+      bytes_acked += 0x10000
+    end
     Log.INFO("ACKing #{bytes_acked} bytes")
 
     Session.notify_subscribers(:outgoing_acknowledged, [@outgoing_data[0..bytes_acked]])
 
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
-
   end
 
   def valid_ack?(ack)
