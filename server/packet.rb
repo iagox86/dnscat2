@@ -115,7 +115,8 @@ class Packet
     if(@type == MESSAGE_TYPE_SYN)
       return "[[SYN]] :: packet_id = %04x, session = %04x, seq = %04x, options = %04x" % [@packet_id, @session_id, @seq, @options]
     elsif(@type == MESSAGE_TYPE_MSG)
-      return "[[MSG]] :: packet_id = %04x, session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@packet_id, @session_id, @seq, @ack, @data]
+      data = @data.gsub(/\n/, '\n')
+      return "[[MSG]] :: packet_id = %04x, session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@packet_id, @session_id, @seq, @ack, data]
     elsif(@type == MESSAGE_TYPE_FIN)
       return "[[FIN]] :: packet_id = %04x, session = %04x" % [@packet_id, @session_id]
     end

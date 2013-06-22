@@ -13,9 +13,7 @@ require 'log'
 
 class Session
   @@sessions = {}
-  @@isn = nil # nil = random
-  @@subscribers = []
-  @@mutex = Mutex.new()
+  @@isn = 0 #nil # nil = random
 
   attr_reader :id, :state, :their_seq, :my_seq
 
@@ -28,25 +26,20 @@ class Session
     @@isn = n
   end
 
-  # cls must implement:
-  # - session_created(id)
-  # - session_ended(id)
-  # - received_data(data)
-  #
-  # cls may optionally implement:
-  # - session_established(id)
+  # Begin subscriber stuff (this should be in a mixin, but static stuff doesn't
+  # really seem to work
+  @@subscribers = []
+  @@mutex = Mutex.new()
   def Session.subscribe(cls)
 #    @@mutex.lock() do
       @@subscribers << cls
 #    end
   end
-
   def Session.unsubscribe(cls)
 #    @@mutex.lock() do
       @@subscribers.delete(cls)
 #    end
   end
-
   def Session.notify_subscribers(method, args)
 #    @@mutex.lock do
       @@subscribers.each do |subscriber|
@@ -56,6 +49,7 @@ class Session
       end
 #    end
   end
+  # End subscriber stuff
 
   def initialize(id)
     @id = id
@@ -114,7 +108,7 @@ class Session
 
   def queue_incoming(data)
     if(data.length > 0)
-      Session.notify_subscribers(:data_received, [@id, data])
+      Session.notify_subscribers(:session_data_received, [@id, data])
     end
   end
 
@@ -125,7 +119,7 @@ class Session
       ret = @outgoing_data[0,n]
     end
 
-    Session.notify_subscribers(:outgoing_sent, [ret])
+    Session.notify_subscribers(:session_data_sent, [@id, ret])
 
     return ret
   end
@@ -141,7 +135,7 @@ class Session
     end
     Log.INFO("ACKing #{bytes_acked} bytes")
 
-    Session.notify_subscribers(:outgoing_acknowledged, [@outgoing_data[0..bytes_acked]])
+    Session.notify_subscribers(:session_data_acknowledged, [@id, @outgoing_data[0..bytes_acked]])
 
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
@@ -153,7 +147,7 @@ class Session
 
   def queue_outgoing(data)
     @outgoing_data = @outgoing_data + data
-    Session.notify_subscribers(:outgoing_queued, [data])
+    Session.notify_subscribers(:session_data_queued, [@id, data])
   end
 
   # Queues outgoing data on all sessions (this is more for debugging, to make

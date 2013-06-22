@@ -36,7 +36,7 @@ static void do_send_stuff(session_t *session)
       /* Create a new id / sequence number before sending the packet. That way,
        * lost SYN packets don't mess up future sessions. */
       session->id = rand() % 0xFFFF;
-      session->my_seq = rand() % 0xFFFF;
+      session->my_seq = 0; /* rand() % 0xFFFF; XXX: FIX THIS! */
 
       LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
       packet = packet_create_syn(session->id, session->my_seq, 0);

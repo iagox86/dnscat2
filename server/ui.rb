@@ -6,6 +6,25 @@
 
 require 'trollop' # We use this to parse commands
 
+# Notification functions that are tied to a particular session:
+# - session_created(id)
+# - session_established(id)
+# - session_data_received(id, data)
+# - session_data_sent(id, data)
+# - session_data_acknowledged(id, data)
+# - session_data_queued(id, data)
+# - session_destroyed(id)
+#
+# Calls that aren't tied to a session:
+# - dnscat2_syn_received(my_seq, their_seq)
+# - dnscat2_msg_bad_seq(expected_seq, received_seq)
+# - dnscat2_msg_bad_ack(expected_ack, received_ack)
+# - dnscat2_msg(incoming, outgoing)
+# - dnscat2_fin()
+# - dnscat2_recv(packet)
+# - dnscat2_send(packet)
+
+
 class Ui
   MAX_CHARACTERS = 4096
 
@@ -19,7 +38,29 @@ class Ui
   end
 
   def Ui.set_option(name, value)
-    @@options[name] = value
+    # Remove whitespace
+    name  = name.to_s
+    value = value.to_s
+
+    name   = name.gsub(/^ */, '').gsub(/ *$/, '')
+    value = value.gsub(/^ */, '').gsub(/ *$/, '')
+
+    if(value == "nil")
+      @@options.delete(name)
+
+      puts("#{name} => [deleted]")
+    else
+      # Replace \n with actual newlines
+      value = value.gsub(/\\n/, "\n")
+
+      # Replace true/false with the proper values
+      value = true if(value == "true")
+      value = false if(value == "false")
+
+      @@options[name] = value
+
+      puts("#{name} => #{value}")
+    end
   end
 
   def Ui.prompt()
@@ -117,15 +158,12 @@ class Ui
 
     "set" => {
       :parser => Trollop::Parser.new do
-        banner("With no arguments, displays the current settings; can also set using the argument 'name=value'")
+        banner("Set <name>=<value> variables")
       end,
 
       :proc => Proc.new do |opts, optarg|
-        puts("opts = #{opts} #{opts.class}")
         if(optarg.length == 0)
-          @@options.each_pair do |name, value|
-            puts("#{name} => #{value}")
-          end
+          puts("Usage: set <name>=<value>")
         else
           optarg = optarg.join(" ")
 
@@ -136,8 +174,27 @@ class Ui
           if(optarg.length != 2)
             puts("Usage: set <name>=<value>")
           else
-            @@options[optarg[0]] = optarg[1]
-            puts("#{optarg[0]} => #{optarg[1]}")
+            set_option(optarg[0], optarg[1])
+          end
+        end
+      end
+    },
+
+    "show" => {
+      :parser => Trollop::Parser.new do
+        banner("Shows current variables if 'show options' is run. Currently no other functionality")
+      end,
+
+      :proc => Proc.new do |opts, optarg|
+        if(optarg.count != 1)
+          puts("Usage: show options")
+        else
+          if(optarg[0] == "options")
+            @@options.each_pair do |name, value|
+              puts("#{name} => #{value}")
+            end
+          else
+            puts("Usage: show options")
           end
         end
       end
@@ -175,6 +232,7 @@ class Ui
   def Ui.go()
     # Subscribe to the session to get updates
     Session.subscribe(Ui)
+    Dnscat2.subscribe(Ui)
 
     Ui.prompt()
     loop do
@@ -226,16 +284,16 @@ class Ui
   def Ui.session_established(id)
     # TODO
     puts("New session established: #{id}")
-    if(!@@options[:auto_command].nil?)
-      Session.find(id).queue_outgoing(@@options[:auto_command])
+    if(!@@options["auto_command"].nil?)
+      Session.find(id).queue_outgoing(@@options["auto_command"])
     end
 
-    if(@@session.nil?() && @@options[:auto_attach])
+    if(@@session.nil?() && @@options["auto_attach"])
       Ui.attach(id)
     end
   end
 
-  def Ui.data_received(id, data)
+  def Ui.session_data_received(id, data)
     # TODO: Limit the length
     @@data[id] = @@data[id] || ""
     @@data[id] += data
@@ -247,17 +305,45 @@ class Ui
     end
   end
 
-  def Ui.outgoing_sent(ret)
+  def Ui.session_data_sent(id, data)
   end
 
-  def Ui.outgoing_acknowledged(data)
+  def Ui.session_data_acknowledged(id, data)
   end
 
-  def Ui.outgoing_queued(data)
+  def Ui.session_data_queued(id, data)
   end
 
   def Ui.session_destroyed(id)
   end
+
+  def Ui.dnscat2_syn_received(my_seq, their_seq)
+  end
+
+  def Ui.dnscat2_msg_bad_seq(expected_seq, received_seq)
+  end
+
+  def Ui.dnscat2_msg_bad_ack(expected_ack, received_ack)
+  end
+
+  def Ui.dnscat2_msg(incoming, outgoing)
+  end
+
+  def Ui.dnscat2_fin()
+  end
+
+  def Ui.dnscat2_recv(packet)
+    if(@@options["packet_trace"])
+      puts("IN: #{packet}")
+    end
+  end
+
+  def Ui.dnscat2_send(packet)
+    if(@@options["packet_trace"])
+      puts("OUT: #{packet}")
+    end
+  end
+
 end
 
 # Trap ctrl-z, just like Metasploit

@@ -27,6 +27,31 @@ require 'trollop'
 # This class should be totally stateless, and rely on the Session class
 # for any long-term session storage
 class Dnscat2
+  # Begin subscriber stuff (this should be in a mixin, but static stuff doesn't
+  # really seem to work
+  @@subscribers = []
+  @@mutex = Mutex.new()
+  def Dnscat2.subscribe(cls)
+#    @@mutex.lock() do
+      @@subscribers << cls
+#    end
+  end
+  def Dnscat2.unsubscribe(cls)
+#    @@mutex.lock() do
+      @@subscribers.delete(cls)
+#    end
+  end
+  def Dnscat2.notify_subscribers(method, args)
+#    @@mutex.lock do
+      @@subscribers.each do |subscriber|
+        if(subscriber.respond_to?(method))
+           subscriber.method(method).call(*args)
+        end
+      end
+#    end
+  end
+  # End subscriber stuff
+
   def Dnscat2.handle_syn(pipe, packet, session)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!session.syn_valid?())
@@ -36,6 +61,8 @@ class Dnscat2
 
     session.set_their_seq(packet.seq)
     session.set_established()
+
+    Dnscat2.notify_subscribers(:dnscat2_syn_received, [session.my_seq, packet.seq])
 
     return Packet.create_syn(packet.packet_id, session.id, session.my_seq, nil)
   end
@@ -49,6 +76,7 @@ class Dnscat2
     # Validate the sequence number
     if(session.their_seq != packet.seq)
       Log.WARNING("Bad sequence number; expected 0x%04x, got 0x%04x [re-sending]" % [session.their_seq, packet.seq])
+      Dnscat2.notify_subscribers(:dnscat2_msg_bad_seq, [session.their_seq, packet.seq])
 
       # Re-send the last packet
       old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
@@ -57,6 +85,7 @@ class Dnscat2
 
     if(!session.valid_ack?(packet.ack))
       Log.WARNING("Impossible ACK received: 0x%04x, current SEQ is 0x%04x [re-sending]" % [packet.ack, session.my_seq])
+      Dnscat2.notify_subscribers(:dnscat2_msg_bad_ack, [session.my_seq, packet.ack])
 
       # Re-send the last packet
       old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
@@ -74,6 +103,7 @@ class Dnscat2
 
     new_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
     Log.INFO("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
+    Dnscat2.notify_subscribers(:dnscat2_msg, [packet.data, new_data])
 
     # Build the new packet
     return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
@@ -87,6 +117,8 @@ class Dnscat2
     end
 
     Log.WARNING("Received FIN for session #{session.id}; closing session")
+    Dnscat2.notify_subscribers(:dnscat2_fin, [])
+
     session.destroy()
     return Packet.create_fin(packet.packet_id, session.id)
   end
@@ -101,6 +133,8 @@ class Dnscat2
 
       pipe.recv() do |data|
         packet = Packet.parse(data)
+
+        Dnscat2.notify_subscribers(:dnscat2_recv, [packet])
 
         # Store the session_id in a variable so we can close it if there's a problem
         session_id = packet.session_id
@@ -119,6 +153,7 @@ class Dnscat2
         end
 
         if(response)
+          Dnscat2.notify_subscribers(:dnscat2_send, [Packet.parse(response)])
           if(response.length > pipe.max_packet_size)
             raise(IOError, "Tried to send packet longer than max_packet_length")
           end
@@ -178,6 +213,8 @@ opts = Trollop::options do
     :type => :boolean, :default => true
   opt :auto_command,   "Send this to each client that connects",
     :type => :string,  :default => nil
+  opt :packet_trace,   "Display incoming/outgoing dnscat packets",
+    :type => :boolean,  :default => false
 end
 
 puts("debug = #{opts[:debug]}")
@@ -242,6 +279,8 @@ if(opts[:do_tests])
   DnscatTest.do_test()
 end
 
-Ui.set_option(:auto_attach, opts[:auto_attach])
-Ui.set_option(:auto_command, opts[:auto_command])
+Ui.set_option("auto_attach",  opts[:auto_attach])
+Ui.set_option("auto_command", opts[:auto_command])
+Ui.set_option("packet_trace", opts[:packet_trace])
 Ui.go
+
