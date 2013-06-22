@@ -4,7 +4,6 @@
 # By Ron Bowes
 ##
 
-require 'session'
 require 'trollop' # We use this to parse commands
 
 class Ui
@@ -27,35 +26,6 @@ class Ui
     "" => {
       :parser => Trollop::Parser.new do end,
       :proc => Proc.new do |opts| end,
-    },
-
-    "sessions" => {
-      :parser => Trollop::Parser.new do
-        banner("Lists the current active sessions")
-        # No args
-      end,
-
-      :proc => Proc.new do |opts|
-        puts("Sessions:")
-        puts(Session.list())
-      end,
-    },
-
-    "session" => {
-      :parser => Trollop::Parser.new do
-        banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
-        opt :id, "Session id", :type => :integer, :required => true
-      end,
-
-      :proc => Proc.new do |opts|
-        if(!Session.exists?(opts[:id]))
-          Ui.error("Session #{opts[:id]} not found, run 'sessions' for a list")
-        else
-          session = Session.find(opts[:id])
-          puts("Interacting with session: #{session.id}")
-          @@session = session
-        end
-      end
     },
 
     "exit" => {
@@ -98,6 +68,36 @@ class Ui
         0.upto(1000) do puts() end
       end,
     },
+
+    "sessions" => {
+      :parser => Trollop::Parser.new do
+        banner("Lists the current active sessions")
+        # No args
+      end,
+
+      :proc => Proc.new do |opts|
+        puts("Sessions:")
+        puts(Session.list())
+      end,
+    },
+
+    "session" => {
+      :parser => Trollop::Parser.new do
+        banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
+        opt :id, "Session id", :type => :integer, :required => true
+      end,
+
+      :proc => Proc.new do |opts|
+        if(!Session.exists?(opts[:id]))
+          Ui.error("Session #{opts[:id]} not found, run 'sessions' for a list")
+        else
+          session = Session.find(opts[:id])
+          puts("Interacting with session: #{session.id}")
+          @@session = session
+        end
+      end
+    },
+
   }
 
   def Ui.process_line(line)

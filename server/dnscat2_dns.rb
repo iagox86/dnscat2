@@ -58,19 +58,26 @@ class DnscatDNS
   def recv()
     start_dns_server() do
       match(/\.skullseclabs.org$/, IN::TXT) do |transaction| # TODO: Make this a variable
-        Log.INFO("Received: #{transaction.name}")
-        name = transaction.name.gsub(/\.skullseclabs.org$/, '')
-        name = name.gsub(/\./, '')
-        name = [name].pack("H*")
-        response = yield(name)
-        if(response.nil?)
-          Log.INFO("Sending nil response...")
-          response = domain # TODO: Use the original domain
-        else
-          response = "#{response.unpack("H*").pop}.skullseclabs.org"
+        begin
+          Log.INFO("Received: #{transaction.name}")
+          name = transaction.name.gsub(/\.skullseclabs.org$/, '')
+          name = name.gsub(/\./, '')
+          name = [name].pack("H*")
+          response = yield(name)
+          if(response.nil?)
+            Log.INFO("Sending nil response...")
+            response = domain # TODO: Use the original domain
+          else
+            response = "#{response.unpack("H*").pop}.skullseclabs.org"
+          end
+          Log.INFO("Sending:  #{response}")
+          transaction.respond!(response)
+        rescue Exception => e
+          Log.FATAL("Exception caught in DNS module:")
+          Log.FATAL(e.inspect)
+          Log.FATAL(e.backtrace)
+          exit
         end
-        Log.INFO("Sending:  #{response}")
-        transaction.respond!(response)
       end
     end
   end

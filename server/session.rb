@@ -14,6 +14,8 @@ require 'log'
 class Session
   @@sessions = {}
   @@isn = nil # nil = random
+  @@subscribers = []
+  @@mutex = Mutex.new()
 
   attr_reader :id, :state, :their_seq, :my_seq
 
@@ -26,6 +28,35 @@ class Session
     @@isn = n
   end
 
+  # cls must implement:
+  # - session_created(id)
+  # - session_ended(id)
+  # - received_data(data)
+  #
+  # cls may optionally implement:
+  # - session_established(id)
+  def Session.subscribe(cls)
+#    @@mutex.lock() do
+      @@subscribers << cls
+#    end
+  end
+
+  def Session.unsubscribe(cls)
+#    @@mutex.lock() do
+      @@subscribers.delete(cls)
+#    end
+  end
+
+  def Session.notify_subscribers(method, args)
+#    @@mutex.lock do
+      @@subscribers.each do |subscriber|
+        if(subsriber.responds_to?(method))
+           subscriber.method(method).call(*args)
+        end
+      end
+#    end
+  end
+
   def initialize(id)
     @id = id
     @state = STATE_NEW
@@ -34,6 +65,8 @@ class Session
 
     @incoming_data = ''
     @outgoing_data = ''
+
+    Session.notify_subscribers(:session_created, [@id])
   end
 
   def syn_valid?()
@@ -70,42 +103,53 @@ class Session
     end
 
     @state = STATE_ESTABLISHED
+
+    Session.notify_subscribers(:session_established, [@id])
   end
 
   def incoming?()
     return @incoming_data.length > 0
   end
 
-  def read_incoming(n = nil)
-    if(n.nil? || n < @incoming_data.length)
-      ret = @incoming_data
-      @incoming_data = ''
-      return ret
-    else
-      ret = @incoming_data[0,n]
-      @incoming_data = @incoming_data[n..-1]
-    end
-  end
+  # I don't think I need this anymore because of the subscription model
+#  def read_incoming(n = nil)
+#    if(n.nil? || n < @incoming_data.length)
+#      ret = @incoming_data
+#      @incoming_data = ''
+#      return ret
+#    else
+#      ret = @incoming_data[0,n]
+#      @incoming_data = @incoming_data[n..-1]
+#    end
+#  end
 
   def queue_incoming(data)
-    @incoming_data = @incoming_data + data
+    Session.notify_subscribers(:data_received, [data])
+#    @incoming_data = @incoming_data + data
   end
 
   def read_outgoing(n = nil)
     if(n.nil? || n < @outgoing_data.length)
       ret = @outgoing_data
-      return ret
     else
       ret = @outgoing_data[0,n]
     end
+
+    Session.notify_subscribers(:outgoing_sent, [ret])
+
+    return ret
   end
 
   # TODO: Handle overflows
   def ack_outgoing(n)
     bytes_acked = (n - @my_seq)
     Log.INFO("ACKing #{bytes_acked} bytes")
+
+    Session.notify_subscribers(:outgoing_acknowledged, [@outgoing_data[0..bytes_acked]])
+
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
+
   end
 
   def valid_ack?(ack)
@@ -114,6 +158,7 @@ class Session
 
   def queue_outgoing(data)
     @outgoing_data = @outgoing_data + data
+    Session.notify_subscribers(:outgoing_queued, [data])
   end
 
   # Queues outgoing data on all sessions (this is more for debugging, to make
@@ -142,6 +187,7 @@ class Session
 
   def Session.destroy(id)
     @@sessions.delete(id)
+    Session.notify_subscribers(:session_destroyed, [id])
   end
 
   def Session.list()
