@@ -175,6 +175,11 @@ opts = Trollop::options do
 
   opt :do_tests,      "If set, test the session code instead of actually going",
     :type => :boolean, :default => false
+
+  opt :auto_attach, "If set to 'false', don't auto-attach to clients when no client is specified",
+    :type => :boolean, :default => true
+  opt :auto_command,   "Send this to each client that connects",
+    :type => :string,  :default => nil
 end
 
 puts("debug = #{opts[:debug]}")
@@ -239,8 +244,6 @@ if(opts[:do_tests])
   DnscatTest.do_test()
 end
 
+Ui.set_option(:auto_attach, opts[:auto_attach])
+Ui.set_option(:auto_command, opts[:auto_command])
 Ui.go
-
-#threads.each do |thread|
-#  thread.join
-#end

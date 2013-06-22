@@ -11,10 +11,15 @@ class Ui
 
   @@session = nil
   @@data = {}
+  @@options = {}
 
   def Ui.detach()
     @@session = nil
     Ui.prompt()
+  end
+
+  def Ui.set_option(name, value)
+    @@options[name] = value
   end
 
   def Ui.prompt()
@@ -23,6 +28,17 @@ class Ui
     else
       print("dnscat [#{@@session.id}]> ")
     end
+  end
+
+  def Ui.attach(id)
+    session = Session.find(id)
+    puts("Interacting with session: #{session.id}")
+    if(!@@data[session.id].nil?)
+      puts(@@data[session.id])
+    end
+    @@session = session
+
+    prompt()
   end
 
   COMMANDS = {
@@ -94,16 +110,38 @@ class Ui
         if(!Session.exists?(opts[:id]))
           Ui.error("Session #{opts[:id]} not found, run 'sessions' for a list")
         else
-          session = Session.find(opts[:id])
-          puts("Interacting with session: #{session.id}")
-          if(!@@data[session.id].nil?)
-            puts(@@data[session.id])
-          end
-          @@session = session
+          Ui.attach(opts[:id])
         end
       end
     },
 
+    "set" => {
+      :parser => Trollop::Parser.new do
+        banner("With no arguments, displays the current settings; can also set using the argument 'name=value'")
+      end,
+
+      :proc => Proc.new do |opts, optarg|
+        puts("opts = #{opts} #{opts.class}")
+        if(optarg.length == 0)
+          @@options.each_pair do |name, value|
+            puts("#{name} => #{value}")
+          end
+        else
+          optarg = optarg.join(" ")
+
+          # Split at the '=' sign
+          optarg = optarg.split("=", 2)
+
+          # If we don't have a name=value setup, show an error
+          if(optarg.length != 2)
+            puts("Usage: set <name>=<value>")
+          else
+            @@options[optarg[0]] = optarg[1]
+            puts("#{optarg[0]} => #{optarg[1]}")
+          end
+        end
+      end
+    }
   }
 
   def Ui.process_line(line)
@@ -123,7 +161,7 @@ class Ui
       begin
         command = COMMANDS[command]
         opts = command[:parser].parse(args)
-        command[:proc].call(opts)
+        command[:proc].call(opts, args)
       rescue Trollop::CommandlineError => e
         Ui.error("ERROR: #{e}")
       rescue Trollop::HelpNeeded => e
@@ -187,6 +225,14 @@ class Ui
 
   def Ui.session_established(id)
     # TODO
+    puts("New session established: #{id}")
+    if(!@@options[:auto_command].nil?)
+      Session.find(id).queue_outgoing(@@options[:auto_command])
+    end
+
+    if(@@session.nil?() && @@options[:auto_attach])
+      Ui.attach(id)
+    end
   end
 
   def Ui.data_received(id, data)
