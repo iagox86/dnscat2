@@ -247,7 +247,7 @@ void cleanup()
 
   if(options)
   {
-    session_destroy(options->session);
+    session_destroy(options->session, options->group);
     select_group_destroy(options->group);
 
     /* Ensure the socket is closed */

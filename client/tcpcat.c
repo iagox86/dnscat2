@@ -166,7 +166,7 @@ void cleanup()
 
   if(options)
   {
-    session_destroy(options->session);
+    session_destroy(options->session, options->group);
 
     /* Ensure the options is closed */
     if(options->s != -1)

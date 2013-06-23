@@ -118,9 +118,28 @@ session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_
   return session;
 }
 
-void session_destroy(session_t *session)
+void session_destroy(session_t *session, select_group_t *group)
 {
   LOG_INFO("Cleaning up the session");
+
+  /* Free the ui */
+  switch(session->ui_type)
+  {
+    case UI_NONE:
+      /* Do nothing */
+      break;
+
+    case UI_STDIN:
+      ui_stdin_destroy(session->ui.ui_stdin, group);
+      break;
+
+    case UI_EXEC:
+      ui_exec_destroy(session->ui.ui_exec, group);
+      break;
+
+    default:
+      LOG_FATAL("Unknown UI: %d", session->ui_type);
+  }
 
   buffer_destroy(session->incoming_data);
   buffer_destroy(session->outgoing_data);
