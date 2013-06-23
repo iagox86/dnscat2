@@ -144,7 +144,8 @@ class Session
   end
 
   def valid_ack?(ack)
-    return (ack >= @my_seq && ack <= @my_seq + @outgoing_data.length)
+    bytes_acked = (ack - @my_seq) & 0xFFFF
+    return bytes_acked <= @outgoing_data.length
   end
 
   def queue_outgoing(data)
