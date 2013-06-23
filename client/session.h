@@ -25,6 +25,8 @@ typedef enum
   UI_EXEC
 } ui_t;
 
+extern NBBOOL trace_packets;
+
 typedef struct
 {
   /* Session information */

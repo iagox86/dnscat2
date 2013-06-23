@@ -24,14 +24,14 @@ typedef struct
 {
   session_t *session;
 
-  int                s;
-  char              *domain;
-  char              *dns_host;
-  uint16_t           dns_port;
+  int             s;
+  char           *domain;
+  char           *dns_host;
+  uint16_t        dns_port;
 
-  char              *exec;
+  char           *exec;
 
-  select_group_t    *group;
+  select_group_t *group;
 } options_t;
 
 /* Default options */
@@ -272,6 +272,7 @@ int main(int argc, char *argv[])
     {"port",   required_argument, 0, 0}, /* DNS port */
     {"exec",   required_argument, 0, 0}, /* Execute */
     {"e",      required_argument, 0, 0},
+    {"trace-packets", no_argument, 0, 0}, /* Trace packets */
     {0,        0,                 0, 0}  /* End */
   };
   char        c;
@@ -281,7 +282,7 @@ int main(int argc, char *argv[])
   srand(time(NULL));
 
   /* Set the default log level (TODO: Change to warning) */
-  log_set_min_console_level(LOG_LEVEL_INFO);
+  log_set_min_console_level(LOG_LEVEL_WARNING);
 
   options = safe_malloc(sizeof(options_t));
 
@@ -320,6 +321,10 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
           options->exec = optarg;
+        }
+        else if(!strcmp(option_name, "trace-packets"))
+        {
+          trace_packets = TRUE;
         }
         else
         {

@@ -12,13 +12,18 @@
 #include "ui_stdin.h"
 #include "ui_exec.h"
 
+NBBOOL trace_packets;
+
 static void session_send_packet(session_t *session, packet_t *packet)
 {
   size_t   length;
   uint8_t *data = packet_to_bytes(packet, &length);
 
-  LOG_INFO("SENDING:");
-  packet_print(packet);
+  if(trace_packets)
+  {
+    printf("SEND: ");
+    packet_print(packet);
+  }
   session->outgoing_data_callback(data, length, session->outgoing_data_callback_param);
 
   safe_free(data);
@@ -36,7 +41,7 @@ static void do_send_stuff(session_t *session)
       /* Create a new id / sequence number before sending the packet. That way,
        * lost SYN packets don't mess up future sessions. */
       session->id = rand() % 0xFFFF;
-      session->my_seq = 0; /* rand() % 0xFFFF; XXX: FIX THIS! */
+      session->my_seq = rand() % 0xFFFF; /* Random isn */
 
       LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
       packet = packet_create_syn(session->id, session->my_seq, 0);
@@ -152,9 +157,13 @@ static void clean_up_buffers(session_t *session)
 void session_recv(session_t *session, uint8_t *data, size_t length)
 {
   packet_t *packet = packet_parse(data, length);
+  NBBOOL new_bytes_acked = FALSE;
 
-  LOG_INFO("RECEIVED:");
-  packet_print(packet);
+  if(trace_packets)
+  {
+    printf("RECV: ");
+    packet_print(packet);
+  }
 
   if(packet)
   {
@@ -202,7 +211,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
             /* Validate the SEQ */
             if(packet->body.msg.seq == session->their_seq)
             {
-              /* Verify the ACK is sane */
+              /* Verify the ACK is sane TODO: I'm not sure that wraparound will work well here. */
               if(packet->body.msg.ack <= session->my_seq + buffer_get_remaining_bytes(session->outgoing_data))
               {
                 /* Increment their sequence number */
@@ -212,7 +221,11 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
                 buffer_consume(session->outgoing_data, packet->body.msg.ack - session->my_seq);
 
                 /* Increment my sequence number */
-                session->my_seq = packet->body.msg.ack;
+                if(session->my_seq != packet->body.msg.ack)
+                {
+                  session->my_seq = packet->body.msg.ack;
+                  new_bytes_acked = TRUE;
+                }
 
                 /* Print the data, if we received any */
                 if(packet->body.msg.data_length > 0)
@@ -280,9 +293,12 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
     exit(1);
   }
 
-  /* If there is still outgoing data to be sent, after getting a response, send it. */
-  if(buffer_get_remaining_bytes(session->outgoing_data) > 0)
+  /* If there is still outgoing data to be sent, and new data has been ACKed
+   * (ie, this isn't a retransmission), send it. */
+  if(buffer_get_remaining_bytes(session->outgoing_data) > 0 && new_bytes_acked)
+  {
     do_send_stuff(session);
+  }
 }
 
 void session_do_actions(session_t *session)

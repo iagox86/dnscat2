@@ -269,6 +269,7 @@ class Ui
   end
 
   def Ui.display(message)
+    raise("Shouldn't be using this")
   end
 
   def Ui.error(message)
@@ -318,6 +319,12 @@ class Ui
   end
 
   def Ui.session_destroyed(id)
+    puts("Session terminated: #{id}")
+
+    # If we're connected to the session, close it
+    if(!@@session.nil? && @@session.id == id)
+      Ui.detach()
+    end
   end
 
   def Ui.dnscat2_syn_received(my_seq, their_seq)

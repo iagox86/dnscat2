@@ -172,16 +172,13 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
 void packet_print(packet_t *packet)
 {
   if(packet->message_type == MESSAGE_TYPE_SYN)
-    LOG_INFO("Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+    printf("Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x\n", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
   else if(packet->message_type == MESSAGE_TYPE_MSG)
-    LOG_INFO("Type = MSG :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
+    printf("Type = MSG :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, ack = 0x%04x\n", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
   else if(packet->message_type == MESSAGE_TYPE_FIN)
-    LOG_INFO("Type = FIN :: packet_id = 0x%04x, session = 0x%04x", packet->packet_id, packet->session_id);
+    printf("Type = FIN :: packet_id = 0x%04x, session = 0x%04x\n", packet->packet_id, packet->session_id);
   else
-  {
-    LOG_FATAL("Unknown packet type!\n");
-    exit(1);
-  }
+    printf("Unknown packet type!\n");
 }
 
 void packet_destroy(packet_t *packet)

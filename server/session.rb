@@ -13,7 +13,7 @@ require 'log'
 
 class Session
   @@sessions = {}
-  @@isn = 0 #nil # nil = random
+  @@isn = nil # nil = random
 
   attr_reader :id, :state, :their_seq, :my_seq
 
