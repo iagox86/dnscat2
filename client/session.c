@@ -212,18 +212,20 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
             if(packet->body.msg.seq == session->their_seq)
             {
               /* Verify the ACK is sane TODO: I'm not sure that wraparound will work well here. */
-              if(packet->body.msg.ack <= session->my_seq + buffer_get_remaining_bytes(session->outgoing_data))
+              uint16_t bytes_acked = packet->body.msg.ack - session->my_seq;
+
+              if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_data))
               {
                 /* Increment their sequence number */
-                session->their_seq += packet->body.msg.data_length;
+                session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
 
                 /* Remove the acknowledged data from the buffer */
-                buffer_consume(session->outgoing_data, packet->body.msg.ack - session->my_seq);
+                buffer_consume(session->outgoing_data, bytes_acked);
 
                 /* Increment my sequence number */
-                if(session->my_seq != packet->body.msg.ack)
+                if(bytes_acked != 0)
                 {
-                  session->my_seq = packet->body.msg.ack;
+                  session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
                   new_bytes_acked = TRUE;
                 }
 
@@ -252,7 +254,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
               }
               else
               {
-                LOG_WARNING("Bad ACK received");
+                LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_data));
               }
             }
             else
