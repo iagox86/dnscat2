@@ -269,9 +269,6 @@ class Ui
   end
 
   def Ui.display(message)
-    puts()
-    puts(message)
-    prompt()
   end
 
   def Ui.error(message)
@@ -282,12 +279,12 @@ class Ui
   end
 
   def Ui.session_established(id)
-    # TODO
     puts("New session established: #{id}")
     if(!@@options["auto_command"].nil?)
       Session.find(id).queue_outgoing(@@options["auto_command"])
     end
 
+    # If we aren't already in a session, and auto-attach is enabled, attach to it
     if(@@session.nil?() && @@options["auto_attach"])
       Ui.attach(id)
     end
@@ -300,6 +297,7 @@ class Ui
 
     # If we're currently watching this session, display the data
     if(!@@session.nil? && @@session.id == id)
+      puts()
       puts(data)
       prompt()
     end
@@ -309,6 +307,11 @@ class Ui
   end
 
   def Ui.session_data_acknowledged(id, data)
+    if(!@@session.nil? && @@session.id == id)
+      puts()
+      puts("[ACK] #{data}")
+      prompt()
+    end
   end
 
   def Ui.session_data_queued(id, data)

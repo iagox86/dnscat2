@@ -135,7 +135,9 @@ class Session
     end
     Log.INFO("ACKing #{bytes_acked} bytes")
 
-    Session.notify_subscribers(:session_data_acknowledged, [@id, @outgoing_data[0..bytes_acked]])
+    if(bytes_acked > 0)
+      Session.notify_subscribers(:session_data_acknowledged, [@id, @outgoing_data[0..(bytes_acked-1)]])
+    end
 
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
