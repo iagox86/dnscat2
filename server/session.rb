@@ -63,6 +63,11 @@ class Session
     Session.notify_subscribers(:session_created, [@id])
   end
 
+  def Session.create_session(id)
+    session = Session.new(id)
+    @@sessions[id] = session
+  end
+
   def syn_valid?()
     return @state == STATE_NEW
   end
@@ -167,13 +172,7 @@ class Session
     return !@@sessions[id].nil?
   end
 
-  def Session.find(id) # TODO: Should this create a session if it doesn't exist?
-    # Get or create the session
-    if(@@sessions[id].nil?)
-      Log.INFO("Creating new session")
-      @@sessions[id] = Session.new(id)
-    end
-
+  def Session.find(id)
     return @@sessions[id]
   end
 

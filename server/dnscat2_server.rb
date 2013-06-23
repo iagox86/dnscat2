@@ -139,17 +139,30 @@ class Dnscat2
         # Store the session_id in a variable so we can close it if there's a problem
         session_id = packet.session_id
 
+        # Find the session
         session = Session.find(packet.session_id)
 
         response = nil
-        if(packet.type == Packet::MESSAGE_TYPE_SYN)
-          response = handle_syn(pipe, packet, session)
-        elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
-          response = handle_msg(pipe, packet, session)
-        elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
-          response = handle_fin(pipe, packet, session)
-        else
-          raise(IOError, "Unknown packet type: #{packet.type}")
+        if(session.nil?)
+          if(packet.type == Packet::MESSAGE_TYPE_SYN)
+            # If the session doesn't exist, and it's a SYN, create it
+            session = Session.create_session(packet.session_id)
+          else
+            # If the session doesn't exist
+            response = Packet.create_fin(packet.packet_id, packet.session_id)
+          end
+        end
+
+        if(!session.nil?)
+          if(packet.type == Packet::MESSAGE_TYPE_SYN)
+            response = handle_syn(pipe, packet, session)
+          elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
+            response = handle_msg(pipe, packet, session)
+          elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
+            response = handle_fin(pipe, packet, session)
+          else
+            raise(IOError, "Unknown packet type: #{packet.type}")
+          end
         end
 
         if(response)
