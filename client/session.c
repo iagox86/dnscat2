@@ -163,6 +163,13 @@ static void send_final_fin(session_t *session)
 void session_close(session_t *session)
 {
   session->is_closed = TRUE;
+
+  /* If the buffer is already empty, just die. */
+  if(buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
+  {
+    send_final_fin(session);
+    exit(0);
+  }
 }
 
 static void clean_up_buffers(session_t *session)

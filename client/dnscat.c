@@ -231,7 +231,7 @@ void dnscat_send(uint8_t *data, size_t length, void *o)
 
 void dnscat_close(options_t *options)
 {
-  LOG_INFO("Closing connection");
+  LOG_WARNING("Closing connection");
 
   assert(options->s && options->s != -1); /* We can't close a closed socket */
 
