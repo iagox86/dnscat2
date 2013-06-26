@@ -228,6 +228,8 @@ opts = Trollop::options do
     :type => :string,  :default => nil
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
+  opt :prompt,         "Display a prompt during sessions",
+    :type => :boolean,  :deafult => false
 end
 
 puts("debug = #{opts[:debug]}")
@@ -295,5 +297,6 @@ end
 Ui.set_option("auto_attach",  opts[:auto_attach])
 Ui.set_option("auto_command", opts[:auto_command])
 Ui.set_option("packet_trace", opts[:packet_trace])
+Ui.set_option("prompt",       opts[:prompt])
 Ui.go
 

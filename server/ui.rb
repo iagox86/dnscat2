@@ -67,7 +67,9 @@ class Ui
     if(@@session.nil?)
       print("dnscat> ")
     else
-      print("dnscat [#{@@session.id}]> ")
+      if(@@options['prompt'])
+        print("dnscat [#{@@session.id}]> ")
+      end
     end
   end
 
@@ -298,8 +300,13 @@ class Ui
 
     # If we're currently watching this session, display the data
     if(!@@session.nil? && @@session.id == id)
-      puts()
-      puts(data)
+      if(@@options['prompt'])
+        puts()
+        puts(data)
+      else
+        print(data)
+      end
+
       prompt()
     end
   end
