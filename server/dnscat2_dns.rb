@@ -9,12 +9,11 @@
 ##
 
 require 'rubydns'
-
 require 'log'
 
-class DnscatDNS
-  IN = Resolv::DNS::Resource::IN
+IN = Resolv::DNS::Resource::IN
 
+class DnscatDNS
   def max_packet_size()
     return 20 # TODO: do this better
   end
@@ -56,11 +55,14 @@ class DnscatDNS
   end
 
   def recv()
+    # Save the domain locally so the block can see it
+    domain = @domain
+
     start_dns_server() do
-      match(/\.skullseclabs.org$/, IN::TXT) do |transaction| # TODO: Make this a variable
+      match(/#{domain}/, IN::TXT) do |transaction|
         begin
           Log.INFO("Received: #{transaction.name}")
-          name = transaction.name.gsub(/\.skullseclabs.org$/, '')
+          name = transaction.name.gsub(/\.#{domain}$/, '')
           name = name.gsub(/\./, '')
           name = [name].pack("H*")
           response = yield(name)
@@ -68,7 +70,7 @@ class DnscatDNS
             Log.INFO("Sending nil response...")
             response = domain # TODO: Use the original domain
           else
-            response = "#{response.unpack("H*").pop}.skullseclabs.org"
+            response = "#{response.unpack("H*").pop}.#{domain}"
           end
           Log.INFO("Sending:  #{response}")
           transaction.respond!(response)
@@ -77,6 +79,13 @@ class DnscatDNS
           Log.FATAL(e.inspect)
           Log.FATAL(e.backtrace)
           exit
+        end
+      end
+
+      otherwise do |transaction|
+        begin
+          Log.ERROR("Request for unknown domain: #{transaction}")
+          Log.ERROR("Use --domain to change the domain, if desired")
         end
       end
     end

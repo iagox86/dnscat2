@@ -197,9 +197,7 @@ class Dnscat2
 end
 
 
-# Default options
-domain = "skullseclabs.org"
-
+# Options
 opts = Trollop::options do
   opt :dns,       "Start a DNS server",
     :type => :boolean, :default => true
@@ -208,7 +206,7 @@ opts = Trollop::options do
   opt :dnsport,   "The DNS port to listen on",
     :type => :integer, :default => 53
   opt :domain,    "The DNS domain to respond to [regex]",
-    :type => :string,  :default => ".*"
+    :type => :string,  :default => "skullseclabs.org"
 
   opt :tcp,       "Start a TCP server",
     :type => :boolean, :default => true
@@ -230,7 +228,7 @@ opts = Trollop::options do
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
   opt :prompt,         "Display a prompt during sessions",
-    :type => :boolean,  :deafult => false
+    :type => :boolean,  :default => false
 end
 
 puts("debug = #{opts[:debug]}")
@@ -285,6 +283,7 @@ if(opts[:tcp])
     end
   end
 end
+
 
 if(threads.length == 0)
   Log.FATAL("No UI was started! Use --dns or --tcp!")
