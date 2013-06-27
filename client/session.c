@@ -94,7 +94,7 @@ static void session_ui_closed_callback(void *s)
   session_close(session);
 }
 
-session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param)
+session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
 
@@ -103,7 +103,7 @@ session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
   session->is_closed     = FALSE;
-  session->max_packet_size = 20; /* TODO */
+  session->max_packet_size = max_size; /* TODO */
 
   session->incoming_data = buffer_create(BO_BIG_ENDIAN);
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);

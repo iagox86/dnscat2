@@ -54,7 +54,7 @@ typedef struct
 
 } session_t;
 
-session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param);
+session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size);
 void       session_destroy(session_t *session, select_group_t *group);
 
 void       session_set_name(session_t *session, char *name);

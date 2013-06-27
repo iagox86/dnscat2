@@ -29,6 +29,48 @@ messages, and, finally, a breakdown of the messages themselves.
 
 See LICENSE.TXT.
 
++-----+
+| DNS |
++-----+
+
+Although this protocol will work over any protocol, it's designed to
+work over DNS, which has some interesting restrictions:
+- Every message requires a response of some sort
+- Retransmissions and drops and out-of-order packets are extremely
+  common
+- DNS is restricted to alphanumeric characters, and isn't necessarily
+  case sensitive
+
+For that reason, we take some special considerations.
+
+The initial draft only supports TXT records. The request is always in
+the form of:
+- [encoded data].[domain]
+
+Where [encoded data] is the packet, as described below, converted
+directly to a hexadecimal representation, and [domain] is agreed upon in
+advance through some channel.
+
+The [encoded data] can be split across multiple fields, in the form of
+"a.b.c.d". The periods should be simply ignored and discarded. The
+official client endeavors to avoid splitting a byte across boundaries
+(eg, "41.4141" is preferred to "414.141"), but the server supports it.
+
+Each field (ie, the section between two periods) has a maximum length of
+63, per the DNS spec, and the maximum total amount of data is 255 bytes.
+All clients should respect that limitation, otherwise they won't work
+across the Internet.
+
+The [domain] can be any domain, and is discarded by the server before
+proceeding.
+
+The TXT response is simply the byte data, encoded in hex. The maximum
+length of the TXT response, per the spec, is 255 bytes. Nothing else -
+domain, periods, etc - may be present, the response is simply the data.
+
+Future versions will allow CNAME, MX, A, AAAA, and other record types.
+Currently, only TXT is supported it because it's the simplest.
+
 +-------------+
 | Connections |
 +-------------+

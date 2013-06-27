@@ -42,6 +42,18 @@ typedef struct
 
 #define VERSION              "0.00"
 
+#define MAX_FIELD_LENGTH 62
+#define MAX_DNS_LENGTH   255
+
+/* The max length is a little complicated:
+ * 255 because that's the max DNS length
+ * Halved, because we encode in hex
+ * Minus the length of the domain, which is appended
+ * Minus 1, for the period right before the domain
+ * Minus the number of periods that could appear within the name
+ */
+#define MAX_DNSCAT_LENGTH(domain) ((255/2) - strlen(domain) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
+
 /* Define this outside the function so we can clean it up later. */
 options_t *options = NULL;
 
@@ -178,6 +190,8 @@ void dnscat_send(uint8_t *data, size_t length, void *o)
   size_t        encoded_length;
   uint8_t      *dns_bytes;
   size_t        dns_length;
+  size_t        section_length;
+
 
   LOG_INFO("Entering DNS: queuing %d bytes of data to be sent", length);
 
@@ -200,16 +214,29 @@ void dnscat_send(uint8_t *data, size_t length, void *o)
   assert(options->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
+  assert(length <= MAX_DNSCAT_LENGTH(options->domain));
 
   buffer = buffer_create(BO_BIG_ENDIAN);
+  section_length = 0;
   for(i = 0; i < length; i++)
   {
     char hex_buf[3];
     sprintf(hex_buf, "%02x", data[i]);
     buffer_add_bytes(buffer, hex_buf, 2);
+
+    /* Add periods when we need them. */
+    section_length += 2;
+    if(section_length + 2 >= MAX_FIELD_LENGTH)
+    {
+      section_length = 0;
+      buffer_add_int8(buffer, '.');
+    }
   }
   buffer_add_ntstring(buffer, ".skullseclabs.org");
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
+
+  /* Double-check we didn't mess up the length. */
+  assert(encoded_length <= MAX_DNS_LENGTH);
 
   dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
   dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
@@ -276,7 +303,7 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  /* Set the default log level (TODO: Change to warning) */
+  /* Set the default log level */
   log_set_min_console_level(LOG_LEVEL_WARNING);
 
   options = safe_malloc(sizeof(options_t));
@@ -289,8 +316,6 @@ int main(int argc, char *argv[])
   options->domain   = DEFAULT_DOMAIN;
   options->group    = select_group_create();
   options->exec     = NULL;
-
-  options->session  = session_create(options->group, dnscat_send, options);
 
   /* Parse the command line options. */
   opterr = 0;
@@ -343,6 +368,9 @@ int main(int argc, char *argv[])
   LOG_INFO("DNS Server: %s", options->dns_host);
   LOG_INFO("DNS Port:   %d", options->dns_port);
   LOG_INFO("Domain:     %s", options->domain);
+
+  /* Create the session after we determine the domain. */
+  options->session  = session_create(options->group, dnscat_send, options, MAX_DNSCAT_LENGTH(options->domain));
 
   if(options->name)
   {
