@@ -15,7 +15,9 @@ class Packet
   MESSAGE_TYPE_FIN        = 0x02
   MESSAGE_TYPE_STRAIGHTUP = 0xFF
 
-  attr_reader :data, :type, :packet_id, :session_id, :options, :seq, :ack
+  OPT_NAME                = 0x01
+
+  attr_reader :data, :type, :packet_id, :session_id, :options, :seq, :ack, :name
 
   def at_least?(data, needed)
     if(data.length < needed)
@@ -38,6 +40,17 @@ class Packet
     at_least?(data, 4)
     @seq, @options = data.unpack("nn")
     data = data[4..-1]
+
+    # Parse the option name, if it has one
+    if((@options & OPT_NAME) == OPT_NAME)
+      if(data.index("\0").nil?)
+        raise(RuntimeError, "OPT_NAME set, but no null-terminated name given")
+      end
+      @name = data.unpack("Z*").pop
+      data = data[(@name.length+1)..-1]
+    else
+      @name = "[unnamed]"
+    end
 
     # Verify that that was the entire packet
     if(data.length > 0)

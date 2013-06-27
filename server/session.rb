@@ -15,7 +15,7 @@ class Session
   @@sessions = {}
   @@isn = nil # nil = random
 
-  attr_reader :id, :state, :their_seq, :my_seq
+  attr_reader :id, :state, :their_seq, :my_seq, :name
 
   # Session states
   STATE_NEW         = 0x00
@@ -59,6 +59,7 @@ class Session
 
     @incoming_data = ''
     @outgoing_data = ''
+    @name = ''
 
     Session.notify_subscribers(:session_created, [@id])
   end
@@ -87,6 +88,10 @@ class Session
     end
 
     @their_seq = seq
+  end
+
+  def set_name(name)
+    @name = name
   end
 
   def increment_their_seq(n)
@@ -182,8 +187,7 @@ class Session
   end
 
   def Session.list()
-    return @@sessions.keys
-    #return @@sessions.map do |session| session end
+    return @@sessions
   end
 
   def destroy()

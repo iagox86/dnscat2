@@ -28,6 +28,7 @@ typedef struct
   char           *domain;
   char           *dns_host;
   uint16_t        dns_port;
+  char           *name;
 
   char           *exec;
 
@@ -38,6 +39,8 @@ typedef struct
 #define DEFAULT_DNS_SERVER   "8.8.8.8"
 #define DEFAULT_DNS_PORT     53
 #define DEFAULT_DOMAIN       "skullseclabs.org"
+
+#define VERSION              "0.00"
 
 /* Define this outside the function so we can clean it up later. */
 options_t *options = NULL;
@@ -273,6 +276,7 @@ int main(int argc, char *argv[])
     {"exec",   required_argument, 0, 0}, /* Execute */
     {"e",      required_argument, 0, 0},
     {"trace-packets", no_argument, 0, 0}, /* Trace packets */
+    {"name",   required_argument, 0, 0}, /* Name */
     {0,        0,                 0, 0}  /* End */
   };
   char        c;
@@ -326,6 +330,10 @@ int main(int argc, char *argv[])
         {
           trace_packets = TRUE;
         }
+        else if(!strcmp(option_name, "name"))
+        {
+          options->name = optarg;
+        }
         else
         {
           LOG_FATAL("Unknown option");
@@ -344,6 +352,15 @@ int main(int argc, char *argv[])
   LOG_INFO("DNS Server: %s", options->dns_host);
   LOG_INFO("DNS Port:   %d", options->dns_port);
   LOG_INFO("Domain:     %s", options->domain);
+
+  if(options->name)
+  {
+    session_set_name(options->session, options->name);
+  }
+  else
+  {
+    session_set_name(options->session, "DNSCat2 "VERSION);
+  }
 
   /* Use the 'exec' UI */
   if(options->exec)

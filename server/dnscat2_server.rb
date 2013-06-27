@@ -60,6 +60,7 @@ class Dnscat2
     end
 
     session.set_their_seq(packet.seq)
+    session.set_name(packet.name)
     session.set_established()
 
     Dnscat2.notify_subscribers(:dnscat2_syn_received, [session.my_seq, packet.seq])

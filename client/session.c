@@ -45,6 +45,9 @@ static void do_send_stuff(session_t *session)
 
       LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
       packet = packet_create_syn(session->id, session->my_seq, 0);
+      if(session->name)
+        packet_syn_set_name(packet, session->name);
+
       session_send_packet(session, packet);
       packet_destroy(packet);
       break;
@@ -141,11 +144,20 @@ void session_destroy(session_t *session, select_group_t *group)
       LOG_FATAL("Unknown UI: %d", session->ui_type);
   }
 
+  if(session->name)
+    safe_free(session->name);
+
   buffer_destroy(session->incoming_data);
   buffer_destroy(session->outgoing_data);
   safe_free(session);
 }
 
+void session_set_name(session_t *session, char *name)
+{
+  if(session->name)
+    safe_free(session->name);
+  session->name = safe_strdup(name);
+}
 
 static void send_final_fin(session_t *session)
 {

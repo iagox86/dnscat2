@@ -35,6 +35,7 @@ typedef struct
   uint16_t        their_seq;
   uint16_t        my_seq;
   NBBOOL          is_closed;
+  char           *name;
 
   int             max_packet_size;
 
@@ -55,6 +56,8 @@ typedef struct
 
 session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param);
 void       session_destroy(session_t *session, select_group_t *group);
+
+void       session_set_name(session_t *session, char *name);
 
 void       session_recv(session_t *session, uint8_t *data, size_t length);
 void       session_send(session_t *session, uint8_t *data, size_t length);

@@ -88,6 +88,22 @@ packet_t *packet_create_fin(uint16_t session_id)
   return packet;
 }
 
+void packet_syn_set_name(packet_t *packet, char *name)
+{
+  if(packet->message_type != MESSAGE_TYPE_SYN)
+  {
+    LOG_FATAL("Attempted to set the 'name' field of a non-SYN message\n");
+    exit(1);
+  }
+
+  /* Free the name if it's already set */
+  if(packet->body.syn.name)
+    safe_free(packet->body.syn.name);
+
+  packet->body.syn.options |= OPT_NAME;
+  packet->body.syn.name = safe_strdup(name);
+}
+
 size_t packet_get_syn_size()
 {
   static size_t size = 0;
@@ -149,6 +165,9 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
     case MESSAGE_TYPE_SYN:
       buffer_add_int16(buffer, packet->body.syn.seq);
       buffer_add_int16(buffer, packet->body.syn.options);
+
+      if(packet->body.syn.options &= OPT_NAME)
+        buffer_add_ntstring(buffer, packet->body.syn.name);
       break;
 
     case MESSAGE_TYPE_MSG:
@@ -183,8 +202,16 @@ void packet_print(packet_t *packet)
 
 void packet_destroy(packet_t *packet)
 {
+  if(packet->message_type == MESSAGE_TYPE_SYN)
+  {
+    if(packet->body.syn.name)
+      safe_free(packet->body.syn.name);
+  }
+
   if(packet->message_type == MESSAGE_TYPE_MSG)
+  {
     safe_free(packet->body.msg.data);
+  }
 
   safe_free(packet);
 }

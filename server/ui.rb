@@ -139,7 +139,9 @@ class Ui
 
       :proc => Proc.new do |opts|
         puts("Sessions:")
-        puts(Session.list())
+        Session.list().each_pair do |id, session|
+          puts("%5d :: %s" % [id, session.name])
+        end
       end,
     },
 
