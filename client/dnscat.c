@@ -111,59 +111,50 @@ static SELECT_RESPONSE_t recv_callback(void *group, int s, uint8_t *data, size_t
     }
     else
     {
-      /* Find the domain, which should be at the end of the string */
-      char *domain = strstr(answer, options->domain);
-      if(!domain)
+      buffer_t *incoming_data = buffer_create(BO_BIG_ENDIAN);
+
+      /* Loop through the part of the answer before the 'domain' */
+      for(i = 0; i < dns->answers[0].answer->TEXT.length; i += 2)
       {
-        LOG_ERROR("ERROR: Answer didn't contain the domain");
+        /* Validate the answer */
+        if(answer[i] == '.')
+        {
+          /* ignore */
+        }
+        else if(answer[i+1] == '.')
+        {
+          LOG_ERROR("Answer contained an odd number of digits");
+        }
+        else if(!isxdigit((int)answer[i]))
+        {
+          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
+        }
+        else if(!isxdigit((int)answer[i+1]))
+        {
+          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
+        }
+        else
+        {
+          buf[0] = answer[i];
+          buf[1] = answer[i + 1];
+          buf[2] = '\0';
+
+          buffer_add_int8(incoming_data, strtol(buf, NULL, 16));
+        }
       }
-      else
+
+      /* Pass the buffer to the caller */
+      if(buffer_get_length(incoming_data) > 0)
       {
-        buffer_t *incoming_data = buffer_create(BO_BIG_ENDIAN);
+        size_t length;
+        uint8_t *data = buffer_create_string(incoming_data, &length);
 
-        /* Loop through the part of the answer before the 'domain' */
-        for(i = 0; answer + i < domain; i += 2)
-        {
-          /* Validate the answer */
-          if(answer[i] == '.')
-          {
-            /* ignore */
-          }
-          else if(answer[i+1] == '.')
-          {
-            LOG_ERROR("Answer contained an odd number of digits");
-          }
-          else if(!isxdigit((int)answer[i]))
-          {
-            LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
-          }
-          else if(!isxdigit((int)answer[i+1]))
-          {
-            LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
-          }
-          else
-          {
-            buf[0] = answer[i];
-            buf[1] = answer[i + 1];
-            buf[2] = '\0';
+        LOG_INFO("Leaving DNS: Passing %d bytes of data it to the session", length);
+        session_recv(options->session, data, length);
 
-            buffer_add_int8(incoming_data, strtol(buf, NULL, 16));
-          }
-        }
-
-        /* Pass the buffer to the caller */
-        if(buffer_get_length(incoming_data) > 0)
-        {
-          size_t length;
-          uint8_t *data = buffer_create_string(incoming_data, &length);
-
-          LOG_INFO("Leaving DNS: Passing %d bytes of data it to the session", length);
-          session_recv(options->session, data, length);
-
-          safe_free(data);
-        }
-        buffer_destroy(incoming_data);
+        safe_free(data);
       }
+      buffer_destroy(incoming_data);
     }
   }
   else

@@ -22,10 +22,6 @@ class DnscatTest
 
   SESSION_ID = 0x1234
 
-  def max_packet_size()
-    return 256
-  end
-
   def initialize()
     @data = []
 

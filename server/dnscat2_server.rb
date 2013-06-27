@@ -68,7 +68,7 @@ class Dnscat2
     return Packet.create_syn(packet.packet_id, session.id, session.my_seq, nil)
   end
 
-  def Dnscat2.handle_msg(pipe, packet, session)
+  def Dnscat2.handle_msg(pipe, packet, session, max_length)
     if(!session.msg_valid?())
       Log.WARNING("MSG invalid in this state (responding with an error)")
       return Packet.create_fin(packet.packet_id, session.id)
@@ -80,7 +80,7 @@ class Dnscat2
       Dnscat2.notify_subscribers(:dnscat2_msg_bad_seq, [session.their_seq, packet.seq])
 
       # Re-send the last packet
-      old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
+      old_data = session.read_outgoing(max_length - Packet.msg_header_size)
       return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
     end
 
@@ -89,7 +89,7 @@ class Dnscat2
       Dnscat2.notify_subscribers(:dnscat2_msg_bad_ack, [session.my_seq, packet.ack])
 
       # Re-send the last packet
-      old_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
+      old_data = session.read_outgoing(max_length - Packet.msg_header_size)
       return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
     end
 
@@ -102,7 +102,7 @@ class Dnscat2
     # Increment the expected sequence number
     session.increment_their_seq(packet.data.length)
 
-    new_data = session.read_outgoing(pipe.max_packet_size - Packet.msg_header_size)
+    new_data = session.read_outgoing(max_length - Packet.msg_header_size)
     Log.INFO("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
     Dnscat2.notify_subscribers(:dnscat2_msg, [packet.data, new_data])
 
@@ -126,13 +126,9 @@ class Dnscat2
 
   def Dnscat2.go(pipe)
     begin
-      if(pipe.max_packet_size < 16)
-        raise(Exception, "max_packet_size is too small")
-      end
-
       session_id = nil
 
-      pipe.recv() do |data|
+      pipe.recv() do |data, max_length|
         packet = Packet.parse(data)
 
         Dnscat2.notify_subscribers(:dnscat2_recv, [packet])
@@ -158,7 +154,7 @@ class Dnscat2
           if(packet.type == Packet::MESSAGE_TYPE_SYN)
             response = handle_syn(pipe, packet, session)
           elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
-            response = handle_msg(pipe, packet, session)
+            response = handle_msg(pipe, packet, session, max_length)
           elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
             response = handle_fin(pipe, packet, session)
           else
@@ -168,8 +164,8 @@ class Dnscat2
 
         if(response)
           Dnscat2.notify_subscribers(:dnscat2_send, [Packet.parse(response)])
-          if(response.length > pipe.max_packet_size)
-            raise(IOError, "Tried to send packet longer than max_packet_length")
+          if(response.length > max_length)
+            raise(IOError, "Tried to send packet of #{response.length} bytes, but max_length is #{max_length} bytes")
           end
         end
 

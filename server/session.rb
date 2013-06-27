@@ -122,15 +122,9 @@ class Session
     end
   end
 
-  def read_outgoing(n = nil)
-    if(n.nil? || n < @outgoing_data.length)
-      ret = @outgoing_data
-    else
-      ret = @outgoing_data[0,n]
-    end
-
+  def read_outgoing(n)
+    ret = @outgoing_data[0,n]
     Session.notify_subscribers(:session_data_sent, [@id, ret])
-
     return ret
   end
 

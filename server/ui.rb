@@ -26,8 +26,6 @@ require 'trollop' # We use this to parse commands
 
 
 class Ui
-  MAX_CHARACTERS = 4096
-
   @@session = nil
   @@data = {}
   @@options = {}
@@ -256,11 +254,7 @@ class Ui
           line.chomp!()
           Ui.process_line(line)
         else
-          if(line.length >= 12)
-            puts("Too long!") # TODO: Fix this
-          else
-            @@session.queue_outgoing(line)
-          end
+          @@session.queue_outgoing(line)
         end
 
         Ui.prompt()

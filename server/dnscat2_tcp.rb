@@ -12,10 +12,6 @@ require 'log'
 require 'socket'
 
 class DnscatTCP
-  def max_packet_size()
-    return 1024
-  end
-
   def initialize(s)
     @s = s
   end
@@ -33,7 +29,7 @@ class DnscatTCP
         raise(IOError, "Connection closed while reading packet")
       end
 
-      outgoing = yield(incoming)
+      outgoing = yield(incoming, 32767)
       if(!outgoing.nil?)
         outgoing = [outgoing.length, outgoing].pack("nA*")
         @s.write(outgoing)
