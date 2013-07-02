@@ -30,25 +30,18 @@ class Session
   # Begin subscriber stuff (this should be in a mixin, but static stuff doesn't
   # really seem to work
   @@subscribers = []
-  @@mutex = Mutex.new()
   def Session.subscribe(cls)
-#    @@mutex.lock() do
-      @@subscribers << cls
-#    end
+    @@subscribers << cls
   end
   def Session.unsubscribe(cls)
-#    @@mutex.lock() do
-      @@subscribers.delete(cls)
-#    end
+    @@subscribers.delete(cls)
   end
   def Session.notify_subscribers(method, args)
-#    @@mutex.lock do
-      @@subscribers.each do |subscriber|
-        if(subscriber.respond_to?(method))
-           subscriber.method(method).call(*args)
-        end
+    @@subscribers.each do |subscriber|
+      if(subscriber.respond_to?(method))
+         subscriber.method(method).call(*args)
       end
-#    end
+    end
   end
   # End subscriber stuff
 
