@@ -267,7 +267,7 @@ class Ui
   end
 
   def Ui.display(message)
-    raise("Shouldn't be using this")
+    raise(RuntimeError, "Shouldn't be using this")
   end
 
   def Ui.error(message)

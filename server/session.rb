@@ -10,6 +10,7 @@
 ##
 
 require 'log'
+require 'dnscat_exception'
 
 class Session
   @@sessions = {}
@@ -84,7 +85,7 @@ class Session
   def set_their_seq(seq)
     # This can only be done in the NEW state
     if(@state != STATE_NEW)
-      raise(IOError, "Trying to set remote side's SEQ in the wrong state")
+      raise(DnscatException, "Trying to set remote side's SEQ in the wrong state")
     end
 
     @their_seq = seq
@@ -96,7 +97,7 @@ class Session
 
   def increment_their_seq(n)
     if(@state != STATE_ESTABLISHED)
-      raise(IOError, "Trying to increment remote side's SEQ in the wrong state")
+      raise(DnscatException, "Trying to increment remote side's SEQ in the wrong state")
     end
 
     @their_seq = (@their_seq + n) & 0xFFFF;
@@ -104,7 +105,7 @@ class Session
 
   def set_established()
     if(@state != STATE_NEW)
-      raise(IOError, "Trying to make a connection established from the wrong state")
+      raise(DnscatException, "Trying to make a connection established from the wrong state")
     end
 
     @state = STATE_ESTABLISHED

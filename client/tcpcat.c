@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
   options->port    = DEFAULT_PORT;
   options->buffer  = buffer_create(BO_BIG_ENDIAN);
   options->group   = select_group_create();
-  options->session = session_create(options->group, tcpcat_send, options);
+  options->session = session_create(options->group, tcpcat_send, options, 65535);
 
   /* Parse the command line options. */
   opterr = 0;

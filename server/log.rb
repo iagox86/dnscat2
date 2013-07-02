@@ -58,7 +58,7 @@ class Log
       end
     else
       if(level < INFO || level > FATAL)
-        raise("Bad log level: #{level}")
+        raise(RuntimeError, "Bad log level: #{level}")
       end
 
       @@mutex.synchronize do

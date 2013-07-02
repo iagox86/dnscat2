@@ -8,6 +8,8 @@
 # Builds and parses dnscat2 packets.
 ##
 
+require 'dnscat_exception'
+
 class Packet
   # Message types
   MESSAGE_TYPE_SYN        = 0x00
@@ -21,7 +23,7 @@ class Packet
 
   def at_least?(data, needed)
     if(data.length < needed)
-      raise(RuntimeError, "Packet is too short")
+      raise(DnscatException, "Packet is too short")
     end
   end
 
@@ -44,7 +46,7 @@ class Packet
     # Parse the option name, if it has one
     if((@options & OPT_NAME) == OPT_NAME)
       if(data.index("\0").nil?)
-        raise(RuntimeError, "OPT_NAME set, but no null-terminated name given")
+        raise(DnscatException, "OPT_NAME set, but no null-terminated name given")
       end
       @name = data.unpack("Z*").pop
       data = data[(@name.length+1)..-1]
@@ -54,7 +56,7 @@ class Packet
 
     # Verify that that was the entire packet
     if(data.length > 0)
-      raise(RuntimeError, "Extra data on the end of an SYN packet")
+      raise(DnscatException, "Extra data on the end of an SYN packet")
     end
   end
 
@@ -65,7 +67,7 @@ class Packet
 
   def parse_fin(data)
     if(data.length > 0)
-      raise(RuntimeError, "Extra data on the end of a FIN packet")
+      raise(DnscatException, "Extra data on the end of a FIN packet")
     end
   end
 
@@ -87,7 +89,7 @@ class Packet
     elsif(@type == MESSAGE_TYPE_STRAIGHTUP) # TODO
       parse_straightup(data)
     else
-      raise(RuntimeError, "Unknown message type: #{parsed[:type]}")
+      raise(DnscatException, "Unknown message type: #{@type}")
     end
   end
 

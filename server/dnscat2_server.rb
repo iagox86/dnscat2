@@ -125,10 +125,10 @@ class Dnscat2
   end
 
   def Dnscat2.go(pipe)
-    begin
+    pipe.recv() do |data, max_length|
       session_id = nil
 
-      pipe.recv() do |data, max_length|
+      begin
         packet = Packet.parse(data)
 
         Dnscat2.notify_subscribers(:dnscat2_recv, [packet])
@@ -158,36 +158,48 @@ class Dnscat2
           elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
             response = handle_fin(pipe, packet, session)
           else
-            raise(IOError, "Unknown packet type: #{packet.type}")
+            raise(DnscatException, "Unknown packet type: #{packet.type}")
           end
         end
 
         if(response)
           Dnscat2.notify_subscribers(:dnscat2_send, [Packet.parse(response)])
           if(response.length > max_length)
-            raise(IOError, "Tried to send packet of #{response.length} bytes, but max_length is #{max_length} bytes")
+            raise(RuntimeError, "Tried to send packet of #{response.length} bytes, but max_length is #{max_length} bytes")
           end
         end
 
         response # Return it, in a way
-      end
-    rescue IOError => e
-      # Don't destroy the session on IOErrors, a new connection can resume the same session
-      raise(e)
 
-    rescue Exception => e
-      # Destroy the session on non-IOError exceptions
-      begin
-        if(!session_id.nil?)
-          Log.FATAL("Exception thrown; attempting to close session #{session_id}...")
-          Session.destroy(session_id)
-          Log.FATAL("Propagating the exception...")
+      rescue SystemExit
+        exit
+
+      # Catch IOErrors, but don't destroy the session - it may continue later
+      rescue IOError => e
+        raise(e)
+
+      # Destroy the session on protocol errors - the client will be informed if they
+      # send another message, because they'll get a FIN response
+      rescue DnscatException => e
+        begin
+          if(!session_id.nil?)
+            Log.FATAL("DnscatException caught; closing session #{session_id}...")
+            Session.destroy(session_id)
+            Log.FATAL("Propagating the exception...")
+          end
+        rescue
+          # Do nothing
         end
-      rescue
-        # Do nothing
-      end
 
-      raise(e)
+        raise(e)
+      rescue Exception => e
+        Log.FATAL("Fatal exception caught:")
+        Log.FATAL(e.inspect)
+        Log.FATAL(e.backtrace)
+
+        exit
+      end
+      # Let other exceptions propagate, they will be displayed by the parent
     end
   end
 end
@@ -257,7 +269,7 @@ if(opts[:dns])
     rescue SystemExit
       exit
     rescue Exception => e
-      Log.FATAL("Exception caught in DNS module:")
+      Log.FATAL("Fatal exception caught in DNS module:")
       Log.FATAL(e.inspect)
       Log.FATAL(e.backtrace)
       exit
@@ -272,7 +284,7 @@ if(opts[:tcp])
     rescue SystemExit
       exit
     rescue Exception => e
-      Log.FATAL("Exception caught in TCP module:")
+      Log.FATAL("Fatal exception caught in TCP module:")
       Log.FATAL(e.inspect)
       Log.FATAL(e.backtrace)
       exit

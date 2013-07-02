@@ -63,6 +63,7 @@ class DriverDNS
           name = name.gsub(/\./, '')
           name = [name].pack("H*")
           response = yield(name, MAX_TXT_LENGTH / 2) # TODO: Get rid of domain here
+
           if(response.nil?)
             Log.INFO("Sending nil response...")
             response = ''
@@ -71,8 +72,13 @@ class DriverDNS
           end
           Log.INFO("Sending:  #{response}")
           transaction.respond!(response)
+        rescue SystemExit
+          exit
+        rescue DnscatException => e
+          Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          Log.ERROR(e.inspect)
         rescue Exception => e
-          Log.FATAL("Exception caught in DNS module:")
+          Log.FATAL("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.FATAL(e.inspect)
           Log.FATAL(e.backtrace)
           exit
@@ -80,8 +86,7 @@ class DriverDNS
       end
 
       otherwise do |transaction|
-        Log.ERROR("Request for unknown domain: #{transaction}")
-        Log.ERROR("Use --domain to change the domain, if desired")
+        Log.ERROR("Unable to handle request: #{transaction}")
       end
     end
   end
