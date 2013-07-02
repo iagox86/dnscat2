@@ -11,7 +11,7 @@
 
 require 'packet'
 
-class DnscatTest
+class Test
   MY_DATA = "this is MY_DATA"
   MY_DATA2 = "this is MY_DATA2"
   MY_DATA3 = "this is MY_DATA3"
@@ -236,7 +236,7 @@ class DnscatTest
     # Do nothing
   end
 
-  def DnscatTest.do_test()
+  def Test.do_test()
     begin
       @@success = 0
       @@failure = 0
@@ -244,7 +244,7 @@ class DnscatTest
       Session.debug_set_isn(0x4444)
       session = Session.find(SESSION_ID)
       session.queue_outgoing(THEIR_DATA)
-      Dnscat2.go(DnscatTest.new)
+      Dnscat2.go(Test.new)
     rescue IOError => e
       puts("IOError was thrown (as expected): #{e}")
       puts("Tests passed: #{@@success} / #{@@success + @@failure}")

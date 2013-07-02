@@ -12,9 +12,9 @@
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 $LOAD_PATH << File.dirname(__FILE__) + '/rubydns/lib' # TODO: Is this still required
 
-require 'dnscat2_dns'
-require 'dnscat2_tcp'
-require 'dnscat2_test'
+require 'driver_dns'
+require 'driver_tcp'
+require 'test'
 
 require 'log'
 require 'packet'
@@ -253,7 +253,7 @@ threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
-      DnscatDNS.go(opts[:dnshost], opts[:dnsport], opts[:domain])
+      DriverDNS.go(opts[:dnshost], opts[:dnsport], opts[:domain])
     rescue SystemExit
       exit
     rescue Exception => e
@@ -268,7 +268,7 @@ end
 if(opts[:tcp])
   threads << Thread.new do
     begin
-      DnscatTCP.go(opts[:tcphost], opts[:tcpport])
+      DriverTCP.go(opts[:tcphost], opts[:tcpport])
     rescue SystemExit
       exit
     rescue Exception => e

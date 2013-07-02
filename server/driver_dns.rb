@@ -1,5 +1,5 @@
 ##
-# dnscat2_dns.rb
+# driver_dns.rb
 # Created March, 2013
 # By Ron Bowes
 #
@@ -13,7 +13,7 @@ require 'log'
 
 IN = Resolv::DNS::Resource::IN
 
-class DnscatDNS
+class DriverDNS
   def initialize(host, port, domain)
     Log.WARNING "Starting Dnscat2 DNS server on #{host}:#{port} [domain = #{domain}]..."
 
@@ -90,9 +90,9 @@ class DnscatDNS
     @s.close
   end
 
-  def DnscatDNS.go(host, port, domain)
+  def DriverDNS.go(host, port, domain)
     Log.WARNING("Starting DNS server...")
-    driver = DnscatDNS.new(host, port, domain)
+    driver = DriverDNS.new(host, port, domain)
     Dnscat2.go(driver)
   end
 end

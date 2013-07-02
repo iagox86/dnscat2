@@ -1,5 +1,5 @@
 ##
-# dnscat2_tcp.rb
+# driver_tcp.rb
 # Created March, 2013
 # By Ron Bowes
 #
@@ -11,7 +11,7 @@
 require 'log'
 require 'socket'
 
-class DnscatTCP
+class DriverTCP
   def initialize(s)
     @s = s
   end
@@ -41,7 +41,7 @@ class DnscatTCP
     @s.close
   end
 
-  def DnscatTCP.go(host, port)
+  def DriverTCP.go(host, port)
     Log.WARNING "Starting Dnscat2 TCP server on #{host}:#{port}..."
     server = TCPServer.new(port)
 
@@ -50,7 +50,7 @@ class DnscatTCP
         Log.INFO("Received a new connection from #{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})...")
 
         begin
-          tcp = DnscatTCP.new(s)
+          tcp = DriverTCP.new(s)
           Dnscat2.go(tcp)
         rescue IOError => e
           puts("IOError caught: #{e.inspect}")
