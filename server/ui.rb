@@ -48,12 +48,19 @@ class Ui
 
       puts("#{name} => [deleted]")
     else
+
       # Replace \n with actual newlines
       value = value.gsub(/\\n/, "\n")
 
       # Replace true/false with the proper values
       value = true if(value == "true")
       value = false if(value == "false")
+
+      # Validate the log level
+      if(name == "log_level" && Log.get_by_name(value).nil?)
+        puts("ERROR: Legal values for log_level are: #{Log::LEVELS}")
+        return
+      end
 
       @@options[name] = value
 
@@ -232,10 +239,6 @@ class Ui
   end
 
   def Ui.go()
-    # Subscribe to the session to get updates
-    Session.subscribe(Ui)
-    Dnscat2.subscribe(Ui)
-
     Ui.prompt()
     loop do
       line = nil
@@ -360,6 +363,24 @@ class Ui
   def Ui.dnscat2_send(packet)
     if(@@options["packet_trace"])
       puts("OUT: #{packet}")
+    end
+  end
+
+  def Ui.log(level, message)
+    begin
+      # Handle the special case, before a level is set
+      if(@@options["log_level"].nil?)
+        min = Log::INFO
+      else
+        min = Log.get_by_name(@@options["log_level"])
+      end
+
+      if(level >= min)
+        puts("[[#{Log::LEVELS[level]}]] :: #{message}")
+      end
+    rescue Exception => e
+      puts("Error in logging code: #{e}")
+      exit
     end
   end
 

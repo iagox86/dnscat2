@@ -14,24 +14,40 @@ require 'ui'
 class Log
   @@mutex = Mutex.new()
 
+  # Begin subscriber stuff (this should be in a mixin, but static stuff doesn't
+  # really seem to work
+  @@subscribers = []
+  def Log.subscribe(cls)
+    @@subscribers << cls
+  end
+  def Log.unsubscribe(cls)
+    @@subscribers.delete(cls)
+  end
+  def Log.notify_subscribers(method, args)
+    @@subscribers.each do |subscriber|
+      if(subscriber.respond_to?(method))
+         subscriber.method(method).call(*args)
+      end
+    end
+  end
+  # End subscriber stuff
+
   INFO    = 0
   WARNING = 1
   ERROR   = 2
   FATAL   = 3
 
-  @@min_level      = INFO
-  @@min_file_level = INFO
-  @@file           = nil
-
   LEVELS = [ "INFO", "WARNING", "ERROR", "FATAL" ]
 
-  def Log.set_min_level(min_level)
-    @@min_level = min_level
-  end
+  LEVELS_BY_NAME = {
+    "INFO" => 0,
+    "WARNING" => 1,
+    "ERROR" => 2,
+    "FATAL" => 3
+  }
 
-  def Log.set_file(file, min_level)
-    @@file = File.open(file, "w")
-    @@min_file_level = min_level
+  def Log.get_by_name(name)
+    return LEVELS_BY_NAME[name.upcase]
   end
 
   def Log.INFO(message)
@@ -62,13 +78,7 @@ class Log
       end
 
       @@mutex.synchronize do
-        if(level >= @@min_level)
-          Ui.error("[[ #{LEVELS[level]} ]] :: #{message}")
-        end
-
-        if(!@@file.nil? && level >= @@min_file_level)
-          @@file.puts("[[ #{LEVELS[level]} ]] :: #{message}")
-        end
+        Log.notify_subscribers(:log, [level, message])
       end
     end
   end

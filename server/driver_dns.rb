@@ -36,7 +36,6 @@ class DriverDNS
 
       # Setup server sockets
       options[:listen].each do |spec|
-        Log::INFO("Listening on #{spec.join(':')}")
         if spec[0] == :udp
           EventMachine.open_datagram_socket(spec[1], spec[2], RubyDNS::UDPHandler, server)
         elsif spec[0] == :tcp
@@ -62,7 +61,7 @@ class DriverDNS
           name = transaction.name.gsub(/\.#{domain}$/, '')
           name = name.gsub(/\./, '')
           name = [name].pack("H*")
-          response = yield(name, MAX_TXT_LENGTH / 2) # TODO: Get rid of domain here
+          response = yield(name, MAX_TXT_LENGTH / 2)
 
           if(response.nil?)
             Log.INFO("Sending nil response...")

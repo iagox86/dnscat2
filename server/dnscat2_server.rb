@@ -197,6 +197,10 @@ class Dnscat2
   end
 end
 
+# Subscribe the Ui to the important notifications
+Session.subscribe(Ui)
+Dnscat2.subscribe(Ui)
+Log.subscribe(Ui)
 
 # Options
 opts = Trollop::options do
@@ -232,18 +236,10 @@ opts = Trollop::options do
     :type => :boolean,  :default => false
 end
 
-puts("debug = #{opts[:debug]}")
-case opts[:debug]
-when "info"
-  Log.set_min_level(Log::INFO)
-when "warning"
-  Log.set_min_level(Log::WARNING)
-when "error"
-  Log.set_min_level(Log::ERROR)
-when "fatal"
-  Log.set_min_level(Log::FATAL)
-else
-  Trollop::die :debug, "must be 'info', 'warning', 'error', or 'fatal'"
+opts[:debug].upcase!()
+if(Log.get_by_name(opts[:debug]).nil?)
+  Trollop::die :debug, "level values are: #{Log::LEVELS}"
+  return
 end
 
 if(opts[:dnsport] < 0 || opts[:dnsport] > 65535)
@@ -295,9 +291,15 @@ if(opts[:do_tests])
   DnscatTest.do_test()
 end
 
+# This is simply to give up the thread's timeslice, allowing the driver threads
+# a small amount of time to initialize themselves
+sleep(0.01)
+
 Ui.set_option("auto_attach",  opts[:auto_attach])
 Ui.set_option("auto_command", opts[:auto_command])
 Ui.set_option("packet_trace", opts[:packet_trace])
 Ui.set_option("prompt",       opts[:prompt])
+Ui.set_option("log_level",    opts[:debug])
+
 Ui.go
 
