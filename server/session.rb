@@ -100,6 +100,7 @@ class Session
       raise(DnscatException, "Trying to increment remote side's SEQ in the wrong state")
     end
 
+    # Make sure we wrap their seq around after 0xFFFF, due to it being 16-bit
     @their_seq = (@their_seq + n) & 0xFFFF;
   end
 
@@ -138,7 +139,6 @@ class Session
     if(bytes_acked < 0)
       bytes_acked += 0x10000
     end
-    Log.INFO("ACKing #{bytes_acked} bytes")
 
     if(bytes_acked > 0)
       Session.notify_subscribers(:session_data_acknowledged, [@id, @outgoing_data[0..(bytes_acked-1)]])
@@ -158,16 +158,6 @@ class Session
     Session.notify_subscribers(:session_data_queued, [@id, data])
   end
 
-  # Queues outgoing data on all sessions (this is more for debugging, to make
-  # it easier to send on all teh things
-  def Session.queue_all_outgoing(data)
-    Log.INFO("Queueing #{data.length} bytes on #{@@sessions.size} sessions...")
-
-    @@sessions.each_pair do |id, s|
-      s.queue_outgoing(data)
-    end
-  end
-
   def Session.exists?(id)
     return !@@sessions[id].nil?
   end
@@ -177,8 +167,10 @@ class Session
   end
 
   def Session.destroy(id)
-    @@sessions.delete(id)
+    # Notify subscribers before deleting it, in case they want to do something with
+    # it first
     Session.notify_subscribers(:session_destroyed, [id])
+    @@sessions.delete(id)
   end
 
   def Session.list()

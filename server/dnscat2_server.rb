@@ -55,7 +55,7 @@ class Dnscat2
   def Dnscat2.handle_syn(pipe, packet, session)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!session.syn_valid?())
-      Log.WARNING("SYN invalid in this state (ignored)")
+      Dnscat2.notify_subscribers(:dnscat2_state_error, [session.id, "SYN received in invalid state"])
       return nil
     end
 
@@ -63,20 +63,23 @@ class Dnscat2
     session.set_name(packet.name)
     session.set_established()
 
-    Dnscat2.notify_subscribers(:dnscat2_syn_received, [session.my_seq, packet.seq])
+    Dnscat2.notify_subscribers(:dnscat2_syn_received, [session.id, session.my_seq, packet.seq])
 
     return Packet.create_syn(packet.packet_id, session.id, session.my_seq, nil)
   end
 
   def Dnscat2.handle_msg(pipe, packet, session, max_length)
     if(!session.msg_valid?())
-      Log.WARNING("MSG invalid in this state (responding with an error)")
+      Dnscat2.notify_subscribers(:dnscat2_state_error, [session.id, "MSG received in invalid state; sending FIN"])
+
+      # Kill the session as well - in case it exists
+      session.destroy()
+
       return Packet.create_fin(packet.packet_id, session.id)
     end
 
     # Validate the sequence number
     if(session.their_seq != packet.seq)
-      Log.WARNING("Bad sequence number; expected 0x%04x, got 0x%04x [re-sending]" % [session.their_seq, packet.seq])
       Dnscat2.notify_subscribers(:dnscat2_msg_bad_seq, [session.their_seq, packet.seq])
 
       # Re-send the last packet
@@ -85,7 +88,6 @@ class Dnscat2
     end
 
     if(!session.valid_ack?(packet.ack))
-      Log.WARNING("Impossible ACK received: 0x%04x, current SEQ is 0x%04x [re-sending]" % [packet.ack, session.my_seq])
       Dnscat2.notify_subscribers(:dnscat2_msg_bad_ack, [session.my_seq, packet.ack])
 
       # Re-send the last packet
@@ -103,7 +105,6 @@ class Dnscat2
     session.increment_their_seq(packet.data.length)
 
     new_data = session.read_outgoing(max_length - Packet.msg_header_size)
-    Log.INFO("Received MSG with #{packet.data.length} bytes; responding with our own message (#{new_data.length} bytes)")
     Dnscat2.notify_subscribers(:dnscat2_msg, [packet.data, new_data])
 
     # Build the new packet
@@ -113,12 +114,11 @@ class Dnscat2
   def Dnscat2.handle_fin(pipe, packet, session)
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!session.fin_valid?())
-      Log.WARNING("FIN invalid in this state")
+      Dnscat2.notify_subscribers(:dnscat2_state_error, [session.id, "FIN received in invalid state"])
       return nil
     end
 
-    Log.WARNING("Received FIN for session #{session.id}; closing session")
-    Dnscat2.notify_subscribers(:dnscat2_fin, [])
+    Dnscat2.notify_subscribers(:dnscat2_fin, [session.id])
 
     session.destroy()
     return Packet.create_fin(packet.packet_id, session.id)

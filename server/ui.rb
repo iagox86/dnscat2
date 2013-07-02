@@ -330,19 +330,25 @@ class Ui
     end
   end
 
-  def Ui.dnscat2_syn_received(my_seq, their_seq)
+  def Ui.dnscat2_state_error(session_id, message)
+    $stderr.puts("#{message} :: Session: #{session_id}")
+  end
+
+  def Ui.dnscat2_syn_received(session_id, my_seq, their_seq)
   end
 
   def Ui.dnscat2_msg_bad_seq(expected_seq, received_seq)
   end
 
   def Ui.dnscat2_msg_bad_ack(expected_ack, received_ack)
+    $stderr.puts("WARNING: Impossible ACK received: 0x%04x, current SEQ is 0x%04x" % [received_ack, expected_ack])
   end
 
   def Ui.dnscat2_msg(incoming, outgoing)
   end
 
   def Ui.dnscat2_fin()
+    $stderr.puts("Received FIN for session #{session.id}; closing session")
   end
 
   def Ui.dnscat2_recv(packet)
