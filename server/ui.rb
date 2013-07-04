@@ -29,10 +29,15 @@ require 'ui_session'
 
 class Ui
   @@options = {}
+  @@thread = Thread.current()
 
   @@ui_command = UiCommand.new()
   @@sessions = {}
   @@session = nil
+
+  class UiWakeup < Exception
+    # Nothing required
+  end
 
   # TODO: Handle options in a more structured way
   def Ui.set_option(name, value)
@@ -133,16 +138,21 @@ class Ui
 
   def Ui.go()
     loop do
-      # Verify that @@session is still active?
-      if(!@@session.nil? && !@@session.active?)
-        Ui.detach(@@session.id)
-      end
 
-      # Call the appropriate "go" function
-      if(@@session.nil?)
-        @@ui_command.go()
-      else
-        @@session.go()
+      begin
+        # Verify that @@session is still active?
+        if(!@@session.nil? && !@@session.active?)
+          Ui.detach(@@session.id)
+        end
+
+        # Call the appropriate "go" function
+        if(@@session.nil?)
+          @@ui_command.go()
+        else
+          @@session.go()
+        end
+      rescue UiWakeup
+        puts("Woken up!")
       end
     end
   end
@@ -236,5 +246,8 @@ class Ui
     end
   end
 
+  def Ui.wakeup()
+    @@thread.raise(UiWakeup)
+  end
 end
 

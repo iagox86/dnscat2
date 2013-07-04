@@ -50,29 +50,16 @@ class UiSession
   end
 
   def go
-    # The IO.select() seems to break when a signal is caught, and it fails to
-    # return (at least on cygwin, haven't tried other systems). Wrapping it in
-    # a 'Timeout' block with a slightly longer intervalworks around that
-    # problem.
-    result = nil
-    begin
-      Timeout::timeout(0.5) do
-        result = IO.select([$stdin], nil, nil, 0.25)
-      end
-    rescue Timeout::Error
-    end
-
-    # Make sure we're still in a session
-    if(!active?)
+    line = Readline::readline("dnscat [#{id}]> ", true)
+    if(line.nil?)
       return
     end
 
+    # Find the session we're a part of
     session = Session.find(id)
 
-    if(!result.nil? && result.length > 0)
-      line = $stdin.gets
-      session.queue_outgoing(line)
-    end
+    # Queue our outgoing data
+    session.queue_outgoing(line)
 
     # Read incoming data, if it exists
     if(session.incoming?)
@@ -100,8 +87,8 @@ class UiSession
   def handle_suspend()
     # Trap ctrl-z, just like Metasploit
     @orig_suspend = Signal.trap("TSTP") do
-      puts("TRAP")
       Ui.detach_session()
+      Ui.wakeup()
     end
   end
 

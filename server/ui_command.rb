@@ -7,6 +7,16 @@ require 'ui'
 
 class UiCommand
   COMMANDS = {
+#    "test" => {
+#      :parser => Trollop::Parser.new do
+#        banner("Testing code goes here")
+#      end,
+#
+#      :proc => Proc.new do |opts, optarg|
+#        raise(Ui::UiWakeup)
+#      end
+#    },
+
     "" => {
       :parser => Trollop::Parser.new do end,
       :proc => Proc.new do |opts| end,
@@ -124,7 +134,7 @@ class UiCommand
           end
         end
       end
-    }
+    },
   }
 
   def initialize()
