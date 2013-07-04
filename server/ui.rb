@@ -256,9 +256,6 @@ class Ui
             @@session.queue_outgoing(line)
           end
 
-          line = $stdin.gets
-          @@session.queue_outgoing(line)
-
           # Read incoming data, if it exists
           if(@@session.incoming?)
             Ui.display(@@session.read_incoming)
