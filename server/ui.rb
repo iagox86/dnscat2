@@ -35,6 +35,9 @@ class Ui
   @@sessions = {}
   @@session = nil
 
+  @@command_history = []
+  @@session_history = {}
+
   class UiWakeup < Exception
     # Nothing required
   end
@@ -87,10 +90,6 @@ class Ui
     $stderr.puts("ERROR: #{msg}")
   end
 
-  def Ui.create_session(session_id)
-    # TODO: Pass in the options array?
-    @@sessions[session_id] = ui_session.new(session_id)
-  end
 
   def Ui.destroy_session(session_id)
     if(!@@session.nil? && @@session.id == session_id)
@@ -99,13 +98,47 @@ class Ui
     if(!@@sessions[session_id].nil?)
       @@sessions[session_id].destroy
       @@sessions.delete(session_id)
+      @@session_history.delete(session_id)
     end
+  end
+
+  def Ui.save_history(session_id)
+    array = nil
+    if(session_id.nil?)
+      array = @@command_history
+    else
+      array = @@session_history[session_id]
+    end
+
+    Readline::HISTORY.each do |i|
+      array << i
+    end
+  end
+
+  def Ui.restore_history(session_id)
+    Readline::HISTORY.clear()
+
+    if(session_id.nil?)
+      @@command_history.each do |i|
+        Readline::HISTORY << i
+      end
+    else
+      @@session_history[session_id].each do |i|
+        Readline::HISTORY << i
+      end
+    end
+  end
+
+  def Ui.switch_history(from, to)
+    save_history(from)
+    restore_history(to)
   end
 
   def Ui.attach_session(session_id)
     if(@@sessions[session_id].nil?)
       Ui.error("Unknown session: #{session_id}")
     else
+      Ui.switch_history((@@session.nil? ? nil : @@session.id), session_id)
       @@session = @@sessions[session_id]
       @@session.attach
     end
@@ -117,6 +150,7 @@ class Ui
     end
 
     if(id.nil? || (@@session.id == id))
+      Ui.switch_history((@@session.nil? ? nil : @@session.id), nil)
       @@session.detach
       @@session = nil
     end
@@ -168,7 +202,7 @@ class Ui
   def Ui.session_established(id)
     puts("New session established: #{id}")
     @@sessions[id] = UiSession.new(id)
-
+    @@session_history[id] = []
   end
 
   def Ui.session_data_received(id, data)
