@@ -36,6 +36,10 @@ class UiSession
   def attach()
     @is_attached = true
     handle_suspend()
+
+    # Print the queued data
+    puts(@@data)
+    @@data = ''
   end
 
   def detach()
@@ -72,10 +76,11 @@ class UiSession
 
   def data_received(data)
     # TODO: Limit the length
-    @@data += data
 
     if(attached?)
       print(data)
+    else
+      @@data += data
     end
   end
 
@@ -84,6 +89,8 @@ class UiSession
     if(attached?)
       puts()
       puts("[ACK] #{data}")
+    else
+      @@data += "[ACK] #{data}"
     end
   end
 

@@ -174,7 +174,7 @@ class Ui
           @@session.go()
         end
       rescue UiWakeup
-        puts("Woken up!")
+        #puts("Woken up!")
       end
     end
   end
