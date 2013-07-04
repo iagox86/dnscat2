@@ -47,14 +47,13 @@ class UiSession
     @is_attached = false
   end
 
-  def prompt_session()
-    if(Ui.get_option("prompt"))
-      puts("dnscat [#{id}]> ", false)
-    end
-  end
-
   def go
-    line = Readline::readline("dnscat [#{id}]> ", true)
+    if(Ui.get_option("prompt"))
+      line = Readline::readline("dnscat [#{id}]> ", true)
+    else
+      line = Readline::readline("", true)
+    end
+
     if(line.nil?)
       return
     end
