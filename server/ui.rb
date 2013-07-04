@@ -90,18 +90,6 @@ class Ui
     $stderr.puts("ERROR: #{msg}")
   end
 
-
-  def Ui.destroy_session(session_id)
-    if(!@@session.nil? && @@session.id == session_id)
-      Ui.detach(session_id)
-    end
-    if(!@@sessions[session_id].nil?)
-      @@sessions[session_id].destroy
-      @@sessions.delete(session_id)
-      @@session_history.delete(session_id)
-    end
-  end
-
   def Ui.save_history(session_id)
     array = nil
     if(session_id.nil?)
@@ -226,7 +214,20 @@ class Ui
   end
 
   def Ui.session_destroyed(id)
-    Ui.destroy_session(id)
+    # If the session is attached, detach it
+    if(!@@session.nil? && @@session.id == id)
+      Ui.detach_session(id)
+    end
+
+    # If the session exists, kill it
+    if(!@@sessions[id].nil?)
+      @@sessions[id].destroy
+      @@sessions.delete(id)
+      @@session_history.delete(id)
+    end
+
+    # Make sure the UI is updated
+    Ui.wakeup()
   end
 
   def Ui.dnscat2_state_error(session_id, message)
@@ -247,7 +248,7 @@ class Ui
   end
 
   def Ui.dnscat2_fin(session_id)
-    Ui.session_destroy(session_id)
+    # Ui.session_destroyed() will take care of this
   end
 
   def Ui.dnscat2_recv(packet)
