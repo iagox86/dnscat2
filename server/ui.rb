@@ -6,6 +6,8 @@
 
 require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
+require 'ui_command'
+require 'ui_session'
 
 # Notification functions that are tied to a particular session:
 # - session_created(id)
@@ -25,16 +27,14 @@ require 'readline' # For i/o operations
 # - dnscat2_recv(packet)
 # - dnscat2_send(packet)
 
-
 class Ui
-  @@session = nil
-  @@data = {}
   @@options = {}
 
-  def Ui.detach()
-    @@session = nil
-  end
+  @@ui_command = UiCommand.new()
+  @@sessions = {}
+  @@session = nil
 
+  # TODO: Handle options in a more structured way
   def Ui.set_option(name, value)
     # Remove whitespace
     name  = name.to_s
@@ -68,242 +68,103 @@ class Ui
     end
   end
 
-  def Ui.prompt_session()
-    if(@@options['prompt'])
-      puts("dnscat [#{@@session.id}]> ", false)
+  def Ui.each_option()
+    @@options.each_pair do |k, v|
+      yield(k, v)
     end
   end
 
-  def Ui.attach(id)
-    session = Session.find(id)
-    puts("Interacting with session: #{session.id}")
-    if(!@@data[session.id].nil?)
-      puts(@@data[session.id])
-    end
-    @@session = session
-
-    prompt_session()
+  def Ui.get_option(name)
+    return @@options[name]
   end
 
-  COMMANDS = {
-    "" => {
-      :parser => Trollop::Parser.new do end,
-      :proc => Proc.new do |opts| end,
-    },
+  def Ui.error(msg)
+    $stderr.puts("ERROR: #{msg}")
+  end
 
-    "exit" => {
-      :parser => Trollop::Parser.new do
-        banner("Exits dnscat2")
-      end,
+  def Ui.create_session(session_id)
+    # TODO: Pass in the options array?
+    @@sessions[session_id] = ui_session.new(session_id)
+  end
 
-      :proc => Proc.new do |opts| exit end,
-    },
+  def Ui.destroy_session(session_id)
+    if(!@@session.nil? && @@session.id == session_id)
+      Ui.detach(session_id)
+    end
+    if(!@@sessions[session_id].nil?)
+      @@sessions[session_id].destroy
+      @@sessions.delete(session_id)
+    end
+  end
 
-    "quit" => {
-      :parser => Trollop::Parser.new do
-        banner("Exits dnscat2")
-      end,
-
-      :proc => Proc.new do |opts| exit end,
-    },
-
-    "help" => {
-      :parser => Trollop::Parser.new do
-        banner("Shows a help menu")
-      end,
-
-      :proc => Proc.new do |opts|
-        puts("Here are the available commands, listed alphabetically:")
-        COMMANDS.keys.sort.each do |name|
-          # Don't display the empty command
-          if(name != "")
-            puts("- #{name}")
-          end
-        end
-
-        puts("For more information, --help can be passed to any command")
-      end,
-    },
-
-    "clear" => {
-      :parser => Trollop::Parser.new do end,
-      :proc => Proc.new do |opts|
-        0.upto(1000) do puts() end
-      end,
-    },
-
-    "sessions" => {
-      :parser => Trollop::Parser.new do
-        banner("Lists the current active sessions")
-        # No args
-      end,
-
-      :proc => Proc.new do |opts|
-        puts("Sessions:")
-        Session.list().each_pair do |id, session|
-          puts("%5d :: %s" % [id, session.name])
-        end
-      end,
-    },
-
-    "session" => {
-      :parser => Trollop::Parser.new do
-        banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
-        opt :id, "Session id", :type => :integer, :required => true
-      end,
-
-      :proc => Proc.new do |opts|
-        if(!Session.exists?(opts[:id]))
-          Ui.error("Session #{opts[:id]} not found, run 'sessions' for a list")
-        else
-          Ui.attach(opts[:id])
-        end
-      end
-    },
-
-    "set" => {
-      :parser => Trollop::Parser.new do
-        banner("Set <name>=<value> variables")
-      end,
-
-      :proc => Proc.new do |opts, optarg|
-        if(optarg.length == 0)
-          puts("Usage: set <name>=<value>")
-        else
-          optarg = optarg.join(" ")
-
-          # Split at the '=' sign
-          optarg = optarg.split("=", 2)
-
-          # If we don't have a name=value setup, show an error
-          if(optarg.length != 2)
-            puts("Usage: set <name>=<value>")
-          else
-            set_option(optarg[0], optarg[1])
-          end
-        end
-      end
-    },
-
-    "show" => {
-      :parser => Trollop::Parser.new do
-        banner("Shows current variables if 'show options' is run. Currently no other functionality")
-      end,
-
-      :proc => Proc.new do |opts, optarg|
-        if(optarg.count != 1)
-          puts("Usage: show options")
-        else
-          if(optarg[0] == "options")
-            @@options.each_pair do |name, value|
-              puts("#{name} => #{value}")
-            end
-          else
-            puts("Usage: show options")
-          end
-        end
-      end
-    }
-  }
-
-  def Ui.process_line(line)
-    split = line.split(/ /)
-
-    if(split.length > 0)
-      command = split.shift
-      args = split
+  def Ui.attach_session(session_id)
+    if(@@sessions[session_id].nil?)
+      Ui.error("Unknown session: #{session_id}")
     else
-      command = ""
-      args = ""
+      @@session = @@sessions[session_id]
+      @@session.attach
+    end
+  end
+
+  def Ui.detach_session(id = nil)
+    if(@@session.nil?)
+      return
     end
 
-    if(COMMANDS[command].nil?)
-      puts("Unknown command: #{command}")
-    else
-      begin
-        command = COMMANDS[command]
-        opts = command[:parser].parse(args)
-        command[:proc].call(opts, args)
-      rescue Trollop::CommandlineError => e
-        Ui.error("ERROR: #{e}")
-      rescue Trollop::HelpNeeded => e
-        command[:parser].educate
-      rescue Trollop::VersionNeeded => e
-        Ui.error("Version needed!")
-      end
+    if(id.nil? || (@@session.id == id))
+      @@session.detach
+      @@session = nil
     end
+  end
+
+  def Ui.get_session(id)
+    session = @@sessions[id]
+    if(session.nil?)
+      Ui.error("Unknown session: #{id}")
+      return nil
+    end
+    if(!session.active?)
+      Ui.error("Inactive session: #{id}")
+      return nil
+    end
+
+    return session
   end
 
   def Ui.go()
     loop do
-      # If we're not interacting with a session, use Readline
+      # Verify that @@session is still active?
+      if(!@@session.nil? && !@@session.active?)
+        Ui.detach(@@session.id)
+      end
+
+      # Call the appropriate "go" function
       if(@@session.nil?)
-        line = Readline.readline("dnscat> ", true)
-        Ui.process_line(line)
+        @@ui_command.go()
       else
-        # If we're interacting with a session, use gets, for now
-        prompt_session()
-
-        # This select() is important for two reasons:
-        # 1. we want to be able to display incoming data
-        # 2. the session might get detached, and we need to know about it if it does
-        result = IO.select([$stdin], nil, nil, 0.25)
-
-        # Make sure we're still in a session
-        if(!@@session.nil?)
-          if(!result.nil? && result.length > 0)
-            line = $stdin.readline
-            @@session.queue_outgoing(line)
-          end
-
-          # Read incoming data, if it exists
-          if(@@session.incoming?)
-            Ui.display(@@session.read_incoming)
-          end
-        end
+        @@session.go()
       end
     end
   end
 
-  def Ui.display(message)
-    raise(RuntimeError, "Shouldn't be using this")
-  end
-
-  def Ui.error(message)
-    $stderr.puts(message)
-  end
+  #################
+  # The rest of this are callbacks
+  #################
 
   def Ui.session_created(id)
+    # Don't really care until the session is established
   end
 
   def Ui.session_established(id)
     puts("New session established: #{id}")
-    if(!@@options["auto_command"].nil?)
-      Session.find(id).queue_outgoing(@@options["auto_command"])
-    end
+    @@sessions[id] = UiSession.new(id)
 
-    # If we aren't already in a session, and auto-attach is enabled, attach to it
-    # TODO: I can't make auto-attach work until we find a way to break out of readline() cleanly
-#    if(@@session.nil?() && @@options["auto_attach"])
-#      Ui.attach(id)
-#    end
   end
 
   def Ui.session_data_received(id, data)
-    # TODO: Limit the length
-    @@data[id] = @@data[id] || ""
-    @@data[id] += data
-
-    # If we're currently watching this session, display the data
-    if(!@@session.nil? && @@session.id == id)
-      if(@@options['prompt'])
-        puts()
-        puts(data)
-      else
-        print(data)
-      end
-
-      prompt_session()
+    session = Ui.get_session(id)
+    if(!session.nil?)
+      session.data_received(data)
     end
   end
 
@@ -311,10 +172,9 @@ class Ui
   end
 
   def Ui.session_data_acknowledged(id, data)
-    if(!@@session.nil? && @@session.id == id)
-      puts()
-      puts("[ACK] #{data}")
-      prompt_session()
+    session = Ui.get_session(id)
+    if(!session.nil?)
+      session.data_acknowledged(data)
     end
   end
 
@@ -322,16 +182,11 @@ class Ui
   end
 
   def Ui.session_destroyed(id)
-    puts("Session terminated: #{id}")
-
-    # If we're connected to the session, close it
-    if(!@@session.nil? && @@session.id == id)
-      Ui.detach()
-    end
+    Ui.destroy_session(id)
   end
 
   def Ui.dnscat2_state_error(session_id, message)
-    $stderr.puts("#{message} :: Session: #{session_id}")
+    Ui.error("#{message} :: Session: #{session_id}")
   end
 
   def Ui.dnscat2_syn_received(session_id, my_seq, their_seq)
@@ -341,14 +196,14 @@ class Ui
   end
 
   def Ui.dnscat2_msg_bad_ack(expected_ack, received_ack)
-    $stderr.puts("WARNING: Impossible ACK received: 0x%04x, current SEQ is 0x%04x" % [received_ack, expected_ack])
+    Ui.error("WARNING: Impossible ACK received: 0x%04x, current SEQ is 0x%04x" % [received_ack, expected_ack])
   end
 
   def Ui.dnscat2_msg(incoming, outgoing)
   end
 
-  def Ui.dnscat2_fin()
-    $stderr.puts("Received FIN for session #{session.id}; closing session")
+  def Ui.dnscat2_fin(session_id)
+    Ui.session_destroy(session_id)
   end
 
   def Ui.dnscat2_recv(packet)
@@ -383,8 +238,3 @@ class Ui
 
 end
 
-# Trap ctrl-z, just like Metasploit
-Signal.trap("TSTP") do
-  puts()
-  Ui.detach
-end
