@@ -175,8 +175,7 @@ class Ui
   def Ui.go()
     # Ensure that USR1 does nothing, see the 'hacks' section in the file
     # comment
-    Signal.trap("USR1") do
-    end
+    Signal.trap("USR1", "IGNORE")
 
     loop do
       begin
