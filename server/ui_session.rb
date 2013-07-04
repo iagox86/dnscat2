@@ -55,6 +55,9 @@ class UiSession
       return
     end
 
+    # Add the newline that Readline strips
+    line = line + "\n"
+
     # Find the session we're a part of
     session = Session.find(id)
 
