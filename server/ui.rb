@@ -5,6 +5,7 @@
 ##
 
 require 'trollop' # We use this to parse commands
+require 'readline' # For i/o operations
 
 # Notification functions that are tied to a particular session:
 # - session_created(id)
@@ -32,7 +33,6 @@ class Ui
 
   def Ui.detach()
     @@session = nil
-    Ui.prompt()
   end
 
   def Ui.set_option(name, value)
@@ -68,13 +68,9 @@ class Ui
     end
   end
 
-  def Ui.prompt()
-    if(@@session.nil?)
-      print("dnscat> ")
-    else
-      if(@@options['prompt'])
-        print("dnscat [#{@@session.id}]> ")
-      end
+  def Ui.prompt_session()
+    if(@@options['prompt'])
+      puts("dnscat [#{@@session.id}]> ", false)
     end
   end
 
@@ -86,7 +82,7 @@ class Ui
     end
     @@session = session
 
-    prompt()
+    prompt_session()
   end
 
   COMMANDS = {
@@ -239,32 +235,35 @@ class Ui
   end
 
   def Ui.go()
-    Ui.prompt()
     loop do
-      line = nil
-      if(!@@session.nil?)
-        result = IO.select([$stdin], nil, nil, 0.25)
-        if(!result.nil? && result.length > 0)
-          line = $stdin.readline
-        end
+      # If we're not interacting with a session, use Readline
+      if(@@session.nil?)
+        line = Readline.readline("dnscat> ", true)
+        Ui.process_line(line)
       else
-        line = $stdin.readline
-      end
+        # If we're interacting with a session, use gets, for now
+        prompt_session()
 
-      # Check if we have any data typed by the user
-      if(!line.nil?)
-        if(@@session.nil?)
-          line.chomp!()
-          Ui.process_line(line)
-        else
+        # This select() is important for two reasons:
+        # 1. we want to be able to display incoming data
+        # 2. the session might get detached, and we need to know about it if it does
+        result = IO.select([$stdin], nil, nil, 0.25)
+
+        # Make sure we're still in a session
+        if(!@@session.nil?)
+          if(!result.nil? && result.length > 0)
+            line = $stdin.readline
+            @@session.queue_outgoing(line)
+          end
+
+          line = $stdin.gets
           @@session.queue_outgoing(line)
+
+          # Read incoming data, if it exists
+          if(@@session.incoming?)
+            Ui.display(@@session.read_incoming)
+          end
         end
-
-        Ui.prompt()
-      end
-
-      if(!@@session.nil? && @@session.incoming?)
-        Ui.display(@@session.read_incoming)
       end
     end
   end
@@ -287,9 +286,10 @@ class Ui
     end
 
     # If we aren't already in a session, and auto-attach is enabled, attach to it
-    if(@@session.nil?() && @@options["auto_attach"])
-      Ui.attach(id)
-    end
+    # TODO: I can't make auto-attach work until we find a way to break out of readline() cleanly
+#    if(@@session.nil?() && @@options["auto_attach"])
+#      Ui.attach(id)
+#    end
   end
 
   def Ui.session_data_received(id, data)
@@ -306,7 +306,7 @@ class Ui
         print(data)
       end
 
-      prompt()
+      prompt_session()
     end
   end
 
@@ -317,7 +317,7 @@ class Ui
     if(!@@session.nil? && @@session.id == id)
       puts()
       puts("[ACK] #{data}")
-      prompt()
+      prompt_session()
     end
   end
 
