@@ -75,7 +75,7 @@ class UiSession
     @@data += data
 
     if(attached?)
-      puts(data)
+      print(data)
     end
   end
 
