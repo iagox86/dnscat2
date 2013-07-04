@@ -195,7 +195,8 @@ class Ui
       # Capture the UiWakeup exception, see the 'hacks' section in the file
       # comment
       rescue UiWakeup
-        puts("Woken up!")
+        #puts("Woken up!")
+        puts()
       end
     end
   end
