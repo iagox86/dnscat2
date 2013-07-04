@@ -27,6 +27,18 @@ require 'ui_session'
 # - dnscat2_recv(packet)
 # - dnscat2_send(packet)
 
+# Hacks that I'm not proud of:
+# - To store multiple 'HISTORY' buffers on readline, we have to modify the
+#   contents of the Readline::HISTORY constant multiple times
+# - To break out of Readline.readline(), we define an exception and throw it
+#   at the thread whenever we need to break out
+# - To break out cleanly, we also have to send a signal, so we're using USR1
+#   and trapping it to do nothing
+#
+# I'm not proud of these, but they seem to work well and they avoid me having
+# to implement my own i/o operations from scratch or make the user experience
+# suffer.
+
 class Ui
   @@options = {}
   @@thread = Thread.current()
@@ -35,6 +47,8 @@ class Ui
   @@sessions = {}
   @@session = nil
 
+  # My own history buffers - see the 'hacks' section in the file comment for
+  # more information
   @@command_history = []
   @@session_history = {}
 
@@ -159,8 +173,12 @@ class Ui
   end
 
   def Ui.go()
-    loop do
+    # Ensure that USR1 does nothing, see the 'hacks' section in the file
+    # comment
+    Signal.trap("USR1") do
+    end
 
+    loop do
       begin
         # Verify that @@session is still active?
         if(!@@session.nil? && !@@session.active?)
@@ -173,8 +191,11 @@ class Ui
         else
           @@session.go()
         end
+
+      # Capture the UiWakeup exception, see the 'hacks' section in the file
+      # comment
       rescue UiWakeup
-        #puts("Woken up!")
+        puts("Woken up!")
       end
     end
   end
@@ -191,6 +212,13 @@ class Ui
     puts("New session established: #{id}")
     @@sessions[id] = UiSession.new(id)
     @@session_history[id] = []
+
+    # If no session is currently attached and we're auto-attaching sessions,
+    # attach it then trigger a wakeup
+    if(@@options['auto_attach'] == true && @@session.nil?)
+      Ui.attach_session(id)
+      Ui.wakeup()
+    end
   end
 
   def Ui.session_data_received(id, data)
@@ -283,6 +311,10 @@ class Ui
 
   def Ui.wakeup()
     @@thread.raise(UiWakeup)
+
+    # A signal has to be sent to wake up the thread, otherwise it waits for
+    # user input
+    Process.kill("USR1", 0)
   end
 end
 
