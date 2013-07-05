@@ -259,6 +259,9 @@ if(opts[:dns])
       DriverDNS.go(opts[:dnshost], opts[:dnsport], opts[:domain])
     rescue SystemExit
       exit
+    rescue DnscatException => e
+      Log.ERROR("Protocol exception caught in DNS module:")
+      Log.ERROR(e.inspect)
     rescue Exception => e
       Log.FATAL("Fatal exception caught in DNS module:")
       Log.FATAL(e.inspect)

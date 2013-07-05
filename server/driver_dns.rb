@@ -49,7 +49,10 @@ class DriverDNS
     server.fire(:stop)
   end
 
-  MAX_TXT_LENGTH = 255
+  MAX_TXT_LENGTH = 255 # The max value that can be expressed by a single byte
+  MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
+  MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
+
   def recv()
     # Save the domain locally so the block can see it
     domain = @domain
@@ -58,9 +61,12 @@ class DriverDNS
       match(/#{domain}$/, IN::TXT) do |transaction|
         begin
           Log.INFO("Received: #{transaction.name}")
-          name = transaction.name.gsub(/\.#{domain}$/, '')
+
+          name = transaction.name.gsub(/\.(#{domain})$/, '')
+          domain = $1 # Save the actual domain (in case they used a regex)
           name = name.gsub(/\./, '')
           name = [name].pack("H*")
+
           response = yield(name, MAX_TXT_LENGTH / 2)
 
           if(response.nil?)
@@ -77,11 +83,57 @@ class DriverDNS
           Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.ERROR(e.inspect)
         rescue Exception => e
-          Log.FATAL("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          Log.FATAL("Fatal exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.FATAL(e.inspect)
           Log.FATAL(e.backtrace)
           exit
         end
+
+        transaction # Return this, effectively
+      end
+
+      match(/(#{domain})$/, IN::A) do |transaction|
+        begin
+          Log.INFO("Received: #{transaction.name}")
+
+          # Parse the name
+          name = transaction.name.gsub(/\.(#{domain})$/, '')
+          domain = $1 # Save the actual domain (in case they used a regex)
+          name = name.gsub(/\./, '')
+          name = [name].pack("H*")
+
+          # Get the response
+          response = yield(name, MAX_A_LENGTH)
+
+          # Prepend the length
+          response = [response.length].pack("C") + response
+
+          # Loop through each 4-byte chunk
+          response.bytes.each_slice(4) do |slice|
+            # Make sure it's exactly 4 bytes long (to make life easy)
+            while(slice.length < 4)
+              slice << rand(255)
+            end
+
+            # Create the IP address
+            name = "%d.%d.%d.%d" % slice
+
+            # Add it to the response
+            transaction.respond!(name)
+          end
+        rescue SystemExit
+          exit
+        rescue DnscatException => e
+          Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          Log.ERROR(e.inspect)
+        rescue Exception => e
+          Log.FATAL("Fatal exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          Log.FATAL(e.inspect)
+          Log.FATAL(e.backtrace)
+          exit
+        end
+
+        transaction # Return this, effectively
       end
 
       otherwise do |transaction|
