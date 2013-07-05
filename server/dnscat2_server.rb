@@ -234,6 +234,8 @@ opts = Trollop::options do
     :type => :boolean,  :default => false
   opt :prompt,         "Display a prompt during sessions",
     :type => :boolean,  :default => false
+  opt :signals,        "Use to disable signals, which break rvmsudo",
+    :type => :boolean,  :default => true
 end
 
 opts[:debug].upcase!()
@@ -300,6 +302,7 @@ Ui.set_option("auto_command", opts[:auto_command])
 Ui.set_option("packet_trace", opts[:packet_trace])
 Ui.set_option("prompt",       opts[:prompt])
 Ui.set_option("log_level",    opts[:debug])
+Ui.set_option("signals",      opts[:signals])
 
 Ui.go
 

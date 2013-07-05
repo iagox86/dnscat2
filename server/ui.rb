@@ -175,7 +175,9 @@ class Ui
   def Ui.go()
     # Ensure that USR1 does nothing, see the 'hacks' section in the file
     # comment
-    Signal.trap("USR1", "IGNORE")
+    Signal.trap("USR1") do
+      # Do nothing
+    end
 
     loop do
       begin
@@ -312,9 +314,12 @@ class Ui
   def Ui.wakeup()
     @@thread.raise(UiWakeup)
 
-    # A signal has to be sent to wake up the thread, otherwise it waits for
-    # user input
-    Process.kill("USR1", 0)
+    if(@@options["signals"])
+      puts("SIGNALS")
+      # A signal has to be sent to wake up the thread, otherwise it waits for
+      # user input
+      Process.kill("USR1", 0)
+    end
   end
 end
 
