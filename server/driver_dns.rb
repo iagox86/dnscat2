@@ -53,6 +53,24 @@ class DriverDNS
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
   MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
 
+  def DriverDNS.parse_name(name, domain)
+    Log.INFO("Parsing: #{name}")
+
+    # Break out the name and domain
+    name.match(/^(.*)\.(#{domain})$/)
+    name = $1
+    domain = $2
+
+    # Remove the periods from the name
+    name = name.gsub(/\./, '')
+
+    # Convert the name from hex to binary
+    # TODO: Perhaps we can use other encodings?
+    name = [name].pack("H*")
+
+    return name, domain
+  end
+
   def recv()
     # Save the domain locally so the block can see it
     domain = @domain
@@ -60,12 +78,7 @@ class DriverDNS
     start_dns_server() do
       match(/#{domain}$/, IN::TXT) do |transaction|
         begin
-          Log.INFO("Received: #{transaction.name}")
-
-          name = transaction.name.gsub(/\.(#{domain})$/, '')
-          domain = $1 # Save the actual domain (in case they used a regex)
-          name = name.gsub(/\./, '')
-          name = [name].pack("H*")
+          name, domain = DriverDNS.parse_name(transaction.name, domain)
 
           response = yield(name, MAX_TXT_LENGTH / 2)
 
@@ -94,13 +107,7 @@ class DriverDNS
 
       match(/(#{domain})$/, IN::A) do |transaction|
         begin
-          Log.INFO("Received: #{transaction.name}")
-
-          # Parse the name
-          name = transaction.name.gsub(/\.(#{domain})$/, '')
-          domain = $1 # Save the actual domain (in case they used a regex)
-          name = name.gsub(/\./, '')
-          name = [name].pack("H*")
+          name, domain = DriverDNS.parse_name(transaction.name, domain)
 
           # Get the response
           response = yield(name, MAX_A_LENGTH)
