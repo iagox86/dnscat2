@@ -281,21 +281,30 @@ void cleanup()
   print_memory();
 }
 
+void usage(char *name)
+{
+  printf("Usage: %s [args] <domain>\n", name);
+  printf("\n");
+}
+
 int main(int argc, char *argv[])
 {
   /* Define the options specific to the DNS protocol. */
   struct option long_options[] =
   {
-    {"domain", required_argument, 0, 0}, /* Domain name */
-    {"d",      required_argument, 0, 0},
-    /* TODO: -h --help */
-    {"host",   required_argument, 0, 0}, /* DNS server */
-    {"port",   required_argument, 0, 0}, /* DNS port */
-    {"exec",   required_argument, 0, 0}, /* Execute */
-    {"e",      required_argument, 0, 0},
+    {"help",    no_argument,       0, 0}, /* Help */
+    {"h",       no_argument,       0, 0},
+
+    {"domain",  required_argument, 0, 0}, /* Domain name */
+    {"d",       required_argument, 0, 0},
+
+    {"host",    required_argument, 0, 0}, /* DNS server */
+    {"port",    required_argument, 0, 0}, /* DNS port */
+    {"exec",    required_argument, 0, 0}, /* Execute */
+    {"e",       required_argument, 0, 0},
     {"trace-packets", no_argument, 0, 0}, /* Trace packets */
-    {"name",   required_argument, 0, 0}, /* Name */
-    {0,        0,                 0, 0}  /* End */
+    {"name",    required_argument, 0, 0}, /* Name */
+    {0,         0,                 0, 0}  /* End */
   };
   char        c;
   int         option_index;
@@ -326,7 +335,12 @@ int main(int argc, char *argv[])
       case 0:
         option_name = long_options[option_index].name;
 
-        if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
+        if(!strcmp(option_name, "help") || !strcmp(option_name, "h"))
+        {
+          usage(argv[0]);
+          exit(0);
+        }
+        else if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
         {
           options->domain = optarg;
         }
