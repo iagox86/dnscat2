@@ -11,7 +11,8 @@
 require 'rubydns'
 require 'log'
 
-IN = Resolv::DNS::Resource::IN
+IN   = Resolv::DNS::Resource::IN
+Name = Resolv::DNS::Name
 
 class DriverDNS
   def initialize(host, port, domain)
@@ -52,6 +53,7 @@ class DriverDNS
   MAX_TXT_LENGTH = 255 # The max value that can be expressed by a single byte
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
   MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
+  MAX_MX_LENGTH = 250
 
   def DriverDNS.parse_name(name, domain)
     Log.INFO("Parsing: #{name}")
@@ -142,6 +144,47 @@ class DriverDNS
 
         transaction # Return this, effectively
       end
+
+      match(/(#{domain})$/, IN::MX) do |transaction|
+        begin
+          name, domain = DriverDNS.parse_name(transaction.name, domain)
+
+          # Get the response, be sure to leave room for the domain in the response
+          # Divided by 2 because we're encoding in hex
+          response = yield(name, (MAX_MX_LENGTH / 2) - domain.length)
+
+          response_name = nil
+          if(response.nil?)
+            Log.INFO("Sending nil response...")
+            response_name = domain
+          else
+            response = "#{response.unpack("H*").pop}"
+
+            # Add the name in chunks no bigger than 63 characters
+            response_name = ""
+            response.bytes.each_slice(63) do |slice|
+              response_name += slice.pack("C*")
+              response_name += "."
+            end
+            response_name += domain
+          end
+
+          transaction.respond!(10, Name.create(response_name))
+        rescue SystemExit
+          exit
+        rescue DnscatException => e
+          Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          Log.ERROR(e.inspect)
+        rescue Exception => e
+          Log.FATAL("Fatal exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          Log.FATAL(e.inspect)
+          Log.FATAL(e.backtrace)
+          exit
+        end
+
+        transaction # Return this, effectively
+      end
+
 
       otherwise do |transaction|
         Log.ERROR("Unable to handle request: #{transaction}")
