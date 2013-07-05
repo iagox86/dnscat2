@@ -72,8 +72,6 @@ class UiSession
   end
 
   def data_received(data)
-    # TODO: Limit the length
-
     if(attached?)
       print(data)
     else
@@ -82,7 +80,6 @@ class UiSession
   end
 
   def data_acknowledged(data)
-    # TODO: queue
     if(attached?)
       puts()
       puts("[ACK] #{data}")
