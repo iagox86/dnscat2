@@ -210,7 +210,7 @@ opts = Trollop::options do
     :type => :string,  :default => "0.0.0.0"
   opt :dnsport,   "The DNS port to listen on",
     :type => :integer, :default => 53
-  opt :domain,    "The DNS domain to respond to [regex]",
+  opt :domain,    "The DNS domain to respond to [regex, but must only match the non-dnscat portion of the string]",
     :type => :string,  :default => "skullseclabs.org"
 
   opt :tcp,       "Start a TCP server",
