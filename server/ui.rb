@@ -315,7 +315,6 @@ class Ui
     @@thread.raise(UiWakeup)
 
     if(@@options["signals"])
-      puts("SIGNALS")
       # A signal has to be sent to wake up the thread, otherwise it waits for
       # user input
       Process.kill("USR1", 0)

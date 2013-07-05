@@ -6,19 +6,17 @@ require 'timeout'
 
 class UiSession
   attr_accessor :id
-  @@data = ""
 
   def initialize(id)
     @id = id
     @is_active = true
     @is_attached = false
     @orig_suspend = nil
+    @data = ""
 
     if(!Ui.get_option("auto_command").nil?)
       Session.find(id).queue_outgoing(Ui.get_option("auto_command"))
     end
-
-    # TODO: Auto-attach
   end
 
   def destroy()
@@ -38,8 +36,8 @@ class UiSession
     handle_suspend()
 
     # Print the queued data
-    puts(@@data)
-    @@data = ''
+    puts(@data)
+    @data = ''
   end
 
   def detach()
@@ -79,7 +77,7 @@ class UiSession
     if(attached?)
       print(data)
     else
-      @@data += data
+      @data += data
     end
   end
 
@@ -89,7 +87,7 @@ class UiSession
       puts()
       puts("[ACK] #{data}")
     else
-      @@data += "[ACK] #{data}"
+      @data += "[ACK] #{data}"
     end
   end
 
