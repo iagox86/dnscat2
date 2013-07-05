@@ -295,9 +295,6 @@ int main(int argc, char *argv[])
     {"help",    no_argument,       0, 0}, /* Help */
     {"h",       no_argument,       0, 0},
 
-    {"domain",  required_argument, 0, 0}, /* Domain name */
-    {"d",       required_argument, 0, 0},
-
     {"host",    required_argument, 0, 0}, /* DNS server */
     {"port",    required_argument, 0, 0}, /* DNS port */
     {"exec",    required_argument, 0, 0}, /* Execute */
@@ -340,10 +337,6 @@ int main(int argc, char *argv[])
           usage(argv[0]);
           exit(0);
         }
-        else if(!strcmp(option_name, "domain") || !strcmp(option_name, "d"))
-        {
-          options->domain = optarg;
-        }
         else if(!strcmp(option_name, "host"))
         {
           options->dns_host = optarg;
@@ -378,10 +371,18 @@ int main(int argc, char *argv[])
     }
   }
 
+  /* Make sure they gave a domain. */
+  if(optind >= argc)
+  {
+    usage(argv[0]);
+    exit(1);
+  }
+  options->domain = argv[optind];
+
   /* Tell the user what's going on */
-  LOG_INFO("DNS Server: %s", options->dns_host);
-  LOG_INFO("DNS Port:   %d", options->dns_port);
-  LOG_INFO("Domain:     %s", options->domain);
+  LOG_WARNING("DNS Server: %s", options->dns_host);
+  LOG_WARNING("DNS Port:   %d", options->dns_port);
+  LOG_WARNING("Domain:     %s", options->domain);
 
   /* Create the session after we determine the domain. */
   options->session  = session_create(options->group, dnscat_send, options, MAX_DNSCAT_LENGTH(options->domain));
