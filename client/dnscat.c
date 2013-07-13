@@ -192,7 +192,6 @@ void dnscat_send(uint8_t *data, size_t length, void *o)
   size_t        dns_length;
   size_t        section_length;
 
-
   LOG_INFO("Entering DNS: queuing %d bytes of data to be sent", length);
 
   if(options->s == -1)
@@ -283,8 +282,29 @@ void cleanup()
 
 void usage(char *name)
 {
-  printf("Usage: %s [args] <domain>\n", name);
-  printf("\n");
+  fprintf(stderr,
+"Usage: %s [args] <domain>\n"
+"\n"
+
+"General options:\n"
+" --help -h               This page\n"
+" --name -n <name>        Give this connection a name, which will show up in\n"
+"                         the server list\n"
+" --exec -e <process>     Execute the given process across the DNS connection\n"
+/*" -L <port:host:hostport> Listen on the given port, and send the connection\n"*/
+/*"                         to the given host on the given port\n"*/
+/*" -D <port>               Listen on the given port, using the SOCKS protocol\n"*/
+"\n"
+
+"DNS-specific options:\n"
+" --host <host>           The DNS server [default: system DNS]\n"
+" --port <port>           The DNS port [default: 53]\n"
+"\n"
+
+"Debug options:\n"
+" --trace-packets         Display the packets as they come and go\n"
+, name
+);
 }
 
 int main(int argc, char *argv[])
@@ -292,15 +312,20 @@ int main(int argc, char *argv[])
   /* Define the options specific to the DNS protocol. */
   struct option long_options[] =
   {
+    /* General options */
     {"help",    no_argument,       0, 0}, /* Help */
     {"h",       no_argument,       0, 0},
-
-    {"host",    required_argument, 0, 0}, /* DNS server */
-    {"port",    required_argument, 0, 0}, /* DNS port */
+    {"name",    required_argument, 0, 0}, /* Name */
+    {"n",       required_argument, 0, 0},
     {"exec",    required_argument, 0, 0}, /* Execute */
     {"e",       required_argument, 0, 0},
+
+    /* DNS-specific options */
+    {"host",    required_argument, 0, 0}, /* DNS server */
+    {"port",    required_argument, 0, 0}, /* DNS port */
+
+    /* Debug options */
     {"trace-packets", no_argument, 0, 0}, /* Trace packets */
-    {"name",    required_argument, 0, 0}, /* Name */
     {0,         0,                 0, 0}  /* End */
   };
   char        c;
@@ -332,11 +357,22 @@ int main(int argc, char *argv[])
       case 0:
         option_name = long_options[option_index].name;
 
+        /* General options */
         if(!strcmp(option_name, "help") || !strcmp(option_name, "h"))
         {
           usage(argv[0]);
           exit(0);
         }
+        else if(!strcmp(option_name, "name"))
+        {
+          options->name = optarg;
+        }
+        else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
+        {
+          options->exec = optarg;
+        }
+
+        /* DNS-specific options */
         else if(!strcmp(option_name, "host"))
         {
           options->dns_host = optarg;
@@ -345,17 +381,11 @@ int main(int argc, char *argv[])
         {
           options->dns_port = atoi(optarg);
         }
-        else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
-        {
-          options->exec = optarg;
-        }
+
+        /* Debug options */
         else if(!strcmp(option_name, "trace-packets"))
         {
           trace_packets = TRUE;
-        }
-        else if(!strcmp(option_name, "name"))
-        {
-          options->name = optarg;
         }
         else
         {
@@ -387,14 +417,11 @@ int main(int argc, char *argv[])
   /* Create the session after we determine the domain. */
   options->session  = session_create(options->group, dnscat_send, options, MAX_DNSCAT_LENGTH(options->domain));
 
+  /* Set the session name, if necessary. */
   if(options->name)
-  {
     session_set_name(options->session, options->name);
-  }
   else
-  {
     session_set_name(options->session, "DNSCat2 "VERSION);
-  }
 
   /* Use the 'exec' UI */
   if(options->exec)
