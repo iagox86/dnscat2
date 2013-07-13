@@ -18,6 +18,7 @@ class Packet
   MESSAGE_TYPE_STRAIGHTUP = 0xFF
 
   OPT_NAME                = 0x01
+  OPT_TUNNEL              = 0x02
 
   attr_reader :data, :type, :packet_id, :session_id, :options, :seq, :ack, :name
 
