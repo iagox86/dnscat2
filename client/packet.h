@@ -14,10 +14,10 @@
 
 typedef enum
 {
-  MESSAGE_TYPE_SYN = 0x00,
-  MESSAGE_TYPE_MSG = 0x01,
-  MESSAGE_TYPE_FIN = 0x02,
-} message_type_t;
+  PACKET_TYPE_SYN = 0x00,
+  PACKET_TYPE_MSG = 0x01,
+  PACKET_TYPE_FIN = 0x02,
+} packet_type_t;
 
 typedef struct
 {
@@ -46,7 +46,7 @@ typedef struct
 
 typedef struct
 {
-  message_type_t message_type;
+  packet_type_t packet_type;
   uint16_t packet_id;
   uint16_t session_id;
 

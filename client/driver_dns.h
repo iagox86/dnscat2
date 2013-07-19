@@ -1,0 +1,24 @@
+#ifndef __DRIVER_DNS_H__
+#define __DRIVER_DNS_H__
+
+#include "select_group.h"
+#include "session.h"
+
+typedef struct
+{
+  int        s;
+
+  char      *domain;
+  char      *dns_host;
+  int        dns_port;
+
+  select_group_t     *group;
+  message_handler_t  *my_message_handler;
+  message_handler_t  *their_message_handler;
+  uint16_t            session_id;
+} driver_dns_t;
+
+driver_dns_t *driver_dns_create(select_group_t *group);
+void          driver_dns_init(driver_dns_t *driver, message_handler_t *their_message_handler);
+
+#endif

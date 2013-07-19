@@ -19,9 +19,14 @@
 #include <stdint.h>
 #endif
 
-/* This function definitely is frequently used within my code. */
+#include <stdlib.h>
+
 typedef void(simple_callback_t)(void *param);
 typedef void(data_callback_t)(uint8_t *data, size_t length, void *param);
+
+typedef void(session_callback_t)(uint16_t session_id, uint8_t *data, size_t length);
+typedef uint16_t(session_create_callback_t)();
+typedef void(session_closed_callback_t)(uint16_t session_id);
 
 #ifndef TRUE
 typedef enum

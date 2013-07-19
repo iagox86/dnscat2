@@ -9,21 +9,13 @@
 #include <stdint.h>
 
 #include "buffer.h"
-#include "ui_stdin.h"
-#include "ui_exec.h"
+#include "packet.h"
 
 typedef enum
 {
   SESSION_STATE_NEW,
   SESSION_STATE_ESTABLISHED
 } session_state_t;
-
-typedef enum
-{
-  UI_NONE,
-  UI_STDIN,
-  UI_EXEC
-} ui_t;
 
 extern NBBOOL trace_packets;
 
@@ -44,30 +36,19 @@ typedef struct
 
   data_callback_t *outgoing_data_callback;
   void            *outgoing_data_callback_param;
-
-  ui_t            ui_type;
-  union
-  {
-    ui_stdin_t   *ui_stdin;
-    ui_exec_t    *ui_exec;
-  } ui;
-
 } session_t;
 
-session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size);
-void       session_destroy(session_t *session, select_group_t *group);
+session_t *session_create(data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size);
+void       session_destroy(session_t *session);
 
 void       session_set_name(session_t *session, char *name);
 
-void       session_recv(session_t *session, uint8_t *data, size_t length);
+void       session_recv(session_t *session, packet_t *packet);
 void       session_send(session_t *session, uint8_t *data, size_t length);
 void       session_close(session_t *session);
 
 void       session_do_actions(session_t *session);
 
 void       session_go(session_t *session);
-
-void       session_set_ui_stdin(session_t *session, select_group_t *group);
-void       session_set_ui_exec(session_t *session, char *process, select_group_t *group);
 
 #endif

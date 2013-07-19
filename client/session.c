@@ -6,11 +6,7 @@
 #include "log.h"
 #include "memory.h"
 #include "packet.h"
-#include "select_group.h"
 #include "session.h"
-
-#include "ui_stdin.h"
-#include "ui_exec.h"
 
 NBBOOL trace_packets;
 
@@ -38,11 +34,6 @@ static void do_send_stuff(session_t *session)
   switch(session->state)
   {
     case SESSION_STATE_NEW:
-      /* Create a new id / sequence number before sending the packet. That way,
-       * lost SYN packets don't mess up future sessions. */
-      session->id = rand() % 0xFFFF;
-      session->my_seq = rand() % 0xFFFF; /* Random isn */
-
       LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
       packet = packet_create_syn(session->id, session->my_seq, 0);
       if(session->name)
@@ -74,10 +65,8 @@ static void do_send_stuff(session_t *session)
   }
 }
 
-static void session_ui_outgoing_callback(uint8_t *data, size_t length, void *s)
+void session_send(session_t *session, uint8_t *data, size_t length)
 {
-  session_t *session = (session_t*) s;
-
   LOG_INFO("Queuing %zd bytes of data to send", length);
 
   /* Add the data to the outgoing buffer. */
@@ -87,18 +76,14 @@ static void session_ui_outgoing_callback(uint8_t *data, size_t length, void *s)
   do_send_stuff(session);
 }
 
-static void session_ui_closed_callback(void *s)
-{
-  session_t *session = (session_t*) s;
-
-  session_close(session);
-}
-
-session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size)
+session_t *session_create(data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
 
   LOG_INFO("Creating a new session");
+
+  session->id            = rand() % 0xFFFF;
+  session->my_seq        = rand() % 0xFFFF; /* Random isn */
 
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
@@ -111,38 +96,12 @@ session_t *session_create(select_group_t *group, data_callback_t *outgoing_data_
   session->outgoing_data_callback = outgoing_data_callback;
   session->outgoing_data_callback_param = outgoing_data_callback_param;
 
-  session->ui_type = UI_NONE;
-
-/*(select_group_t *group,
- * data_callback_t *data_callback,
- * simple_callback_t *closed_callback,
- * void *callback_param);*/
-
   return session;
 }
 
-void session_destroy(session_t *session, select_group_t *group)
+void session_destroy(session_t *session)
 {
   LOG_INFO("Cleaning up the session");
-
-  /* Free the ui */
-  switch(session->ui_type)
-  {
-    case UI_NONE:
-      /* Do nothing */
-      break;
-
-    case UI_STDIN:
-      ui_stdin_destroy(session->ui.ui_stdin, group);
-      break;
-
-    case UI_EXEC:
-      ui_exec_destroy(session->ui.ui_exec, group);
-      break;
-
-    default:
-      LOG_FATAL("Unknown UI: %d", session->ui_type);
-  }
 
   if(session->name)
     safe_free(session->name);
@@ -192,9 +151,8 @@ static void clean_up_buffers(session_t *session)
     buffer_clear(session->incoming_data);
 }
 
-void session_recv(session_t *session, uint8_t *data, size_t length)
+void session_recv(session_t *session, packet_t *packet)
 {
-  packet_t *packet = packet_parse(data, length);
   NBBOOL new_bytes_acked = FALSE;
 
   if(trace_packets)
@@ -214,17 +172,17 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
       switch(session->state)
       {
         case SESSION_STATE_NEW:
-          if(packet->message_type == MESSAGE_TYPE_SYN)
+          if(packet->packet_type == PACKET_TYPE_SYN)
           {
             LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
             session->their_seq = packet->body.syn.seq;
             session->state = SESSION_STATE_ESTABLISHED;
           }
-          else if(packet->message_type == MESSAGE_TYPE_MSG)
+          else if(packet->packet_type == PACKET_TYPE_MSG)
           {
             LOG_WARNING("In SESSION_STATE_NEW, received unexpected MSG (ignoring)");
           }
-          else if(packet->message_type == MESSAGE_TYPE_FIN)
+          else if(packet->packet_type == PACKET_TYPE_FIN)
           {
             LOG_FATAL("In SESSION_STATE_NEW, received FIN - connection closed");
 
@@ -232,17 +190,17 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
           }
           else
           {
-            LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
+            LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
             exit(1);
           }
 
           break;
         case SESSION_STATE_ESTABLISHED:
-          if(packet->message_type == MESSAGE_TYPE_SYN)
+          if(packet->packet_type == PACKET_TYPE_SYN)
           {
             LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
           }
-          else if(packet->message_type == MESSAGE_TYPE_MSG)
+          else if(packet->packet_type == PACKET_TYPE_MSG)
           {
             LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
 
@@ -268,27 +226,8 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
                 }
 
                 /* Print the data, if we received any */
-                if(packet->body.msg.data_length > 0)
-                {
-                  switch(session->ui_type)
-                  {
-                    case UI_NONE:
-                      /* Do nothing */
-                      break;
-
-                    case UI_STDIN:
-                      ui_stdin_feed(session->ui.ui_stdin, packet->body.msg.data, packet->body.msg.data_length);
-                      break;
-
-                    case UI_EXEC:
-                      ui_exec_feed(session->ui.ui_exec, packet->body.msg.data, packet->body.msg.data_length);
-                      break;
-
-                    default:
-                      LOG_FATAL("Chosen UI not found: %d", session->ui_type);
-                      exit(1);
-                  }
-                }
+                /* TODO */
+                printf("TODO: Pass message data to the proper callback.\n");
               }
               else
               {
@@ -300,7 +239,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
               LOG_WARNING("Bad SEQ received");
             }
           }
-          else if(packet->message_type == MESSAGE_TYPE_FIN)
+          else if(packet->packet_type == PACKET_TYPE_FIN)
           {
             LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN - connection closed");
             packet_destroy(packet);
@@ -309,7 +248,7 @@ void session_recv(session_t *session, uint8_t *data, size_t length)
           }
           else
           {
-            LOG_FATAL("Unknown packet type: 0x%02x", packet->message_type);
+            LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
 
             packet_destroy(packet);
             send_final_fin(session);
@@ -355,45 +294,4 @@ void session_do_actions(session_t *session)
     send_final_fin(session);
     exit(0);
   }
-}
-
-static void session_kill_ui(session_t *session, select_group_t *group)
-{
-  switch(session->ui_type)
-  {
-    case UI_NONE:
-      /* Do nothing */
-      break;
-
-    case UI_STDIN:
-      ui_stdin_destroy(session->ui.ui_stdin, group);
-      break;
-
-    case UI_EXEC:
-      ui_exec_destroy(session->ui.ui_exec, group);
-      break;
-
-    default:
-      LOG_FATAL("Unknown UI: %d", session->ui_type);
-  }
-}
-
-void session_set_ui_stdin(session_t *session, select_group_t *group)
-{
-  /* Kill the old UI */
-  session_kill_ui(session, group);
-
-  /* Create the new UI */
-  session->ui_type = UI_STDIN;
-  session->ui.ui_stdin = ui_stdin_create(group, session_ui_outgoing_callback, session_ui_closed_callback, session);
-}
-
-void session_set_ui_exec(session_t *session, char *process, select_group_t *group)
-{
-  /* Kill the old UI */
-  session_kill_ui(session, group);
-
-  /* Create the new UI */
-  session->ui_type = UI_EXEC;
-  session->ui.ui_exec = ui_exec_create(group, process, session_ui_outgoing_callback, session_ui_closed_callback, session);
 }

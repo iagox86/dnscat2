@@ -14,14 +14,19 @@ LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
 OBJS=buffer.o\
+		 driver.o\
+		 driver_dns.o\
+		 driver_console.o\
 		 tcp.o\
 		 types.o\
 		 memory.o\
 		 dns.o\
 		 log.o\
+		 message.o\
 		 packet.o\
 		 select_group.o\
 		 session.o\
+		 sessions.o\
 		 udp.o\
 		 ui_stdin.o\
 		 ui_exec.o\
@@ -29,7 +34,10 @@ OBJS=buffer.o\
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 DNSCAT_TCP_OBJS=${OBJS} tcpcat.o
 
-all: tcpcat dnscat
+ENGINE_OBJS=${OBJS} engine.o
+
+all: engine
+#all: tcpcat dnscat
 	@echo Compile should be complete
 
 remove:
@@ -45,4 +53,7 @@ tcpcat: ${DNSCAT_TCP_OBJS}
 
 dnscat: ${DNSCAT_DNS_OBJS}
 	-${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
+
+engine: ${ENGINE_OBJS}
+	-${CC} ${CFLAGS} -o engine ${ENGINE_OBJS}
 
