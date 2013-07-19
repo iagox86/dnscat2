@@ -28,8 +28,8 @@ int main(int argc, const char *argv[])
   driver_t *driver1 = driver_create_console(group);
   driver_t *driver2 = driver_create_dns(group);
 
-  driver_console_init(driver1->console, driver1->console->my_message_handler);
-  driver_dns_init(driver2->dns, driver2->dns->my_message_handler);
+  driver_console_init(driver1->driver.console, driver1->driver.console->my_message_handler);
+  driver_dns_init(driver2->driver.dns, driver2->driver.dns->my_message_handler);
 
   srand(time(NULL));
 

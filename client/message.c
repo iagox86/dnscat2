@@ -36,9 +36,9 @@ message_t *message_data_create(uint16_t session_id, uint8_t *data, size_t length
 
   message->type = MESSAGE_DATA;
 
-  message->data.session_id = session_id;
-  message->data.data       = data;
-  message->data.length     = length;
+  message->message.data.session_id = session_id;
+  message->message.data.data       = data;
+  message->message.data.length     = length;
 
   return message;
 }
@@ -47,7 +47,7 @@ message_t *message_destroy_create(uint16_t session_id)
 {
   message_t *message = message_create();
   message->type = MESSAGE_DESTROY;
-  message->destroy.session_id = session_id;
+  message->message.destroy.session_id = session_id;
 
   return message;
 }

@@ -293,11 +293,11 @@ static void handle_message(message_t *message, void *d)
   switch(message->type)
   {
     case MESSAGE_CREATE:
-      message->create.out_session_id = handle_create(driver_dns);
+      message->message.create.out_session_id = handle_create(driver_dns);
       break;
 
     case MESSAGE_DATA:
-      handle_data(message->data.session_id, message->data.data, message->data.length, driver_dns);
+      handle_data(message->message.data.session_id, message->message.data.data, message->message.data.length, driver_dns);
       break;
 
     case MESSAGE_DESTROY:

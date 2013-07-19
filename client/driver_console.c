@@ -57,7 +57,7 @@ static void handle_message(message_t *message, void *d)
       break;
 
     case MESSAGE_DATA:
-      handle_data(message->data.data, message->data.length);
+      handle_data(message->message.data.data, message->message.data.length);
       break;
 
     case MESSAGE_DESTROY:
@@ -110,7 +110,7 @@ void driver_console_init(driver_console_t *driver, message_handler_t *their_mess
   driver->their_message_handler = their_message_handler;
 
   message_pass(their_message_handler, message);
-  driver->session_id = message->create.out_session_id;
+  driver->session_id = message->message.create.out_session_id;
 
   message_destroy(message);
 }

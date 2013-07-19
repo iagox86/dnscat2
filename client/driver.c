@@ -14,7 +14,7 @@ driver_t *driver_create_console(select_group_t *group)
 {
   driver_t *driver = driver_create();
   driver->type = DRIVER_TYPE_CONSOLE;
-  driver->console = driver_console_create(group);
+  driver->driver.console = driver_console_create(group);
 
   return driver;
 }
@@ -23,7 +23,7 @@ driver_t *driver_create_dns(select_group_t *group)
 {
   driver_t *driver = driver_create();
   driver->type = DRIVER_TYPE_DNS;
-  driver->dns = driver_dns_create(group);
+  driver->driver.dns = driver_dns_create(group);
 
   return driver;
 }

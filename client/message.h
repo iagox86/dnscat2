@@ -35,7 +35,7 @@ typedef struct
     message_create_t  create;
     message_data_t    data;
     message_destroy_t destroy;
-  };
+  } message;
 } message_t;
 
 typedef void(message_callback_t)(message_t *message, void *param);

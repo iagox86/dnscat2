@@ -23,7 +23,7 @@ typedef struct
   {
     driver_console_t *console;
     driver_dns_t     *dns;
-  };
+  } driver;
 } driver_t;
 
 driver_t *driver_create_console(select_group_t *group);
