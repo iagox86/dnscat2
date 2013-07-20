@@ -21,3 +21,8 @@ dnscat
 tcpcat
 test
 
+# Crash dumps
+core
+core.*
+*.stackdump
+
