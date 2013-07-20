@@ -20,7 +20,8 @@ static void session_send_packet(session_t *session, packet_t *packet)
     printf("SEND: ");
     packet_print(packet);
   }
-  session->outgoing_data_callback(data, length, session->outgoing_data_callback_param);
+
+  session->outgoing_data_callback(session->id, data, length, session->callback_param);
 
   safe_free(data);
 }
@@ -76,7 +77,7 @@ void session_send(session_t *session, uint8_t *data, size_t length)
   do_send_stuff(session);
 }
 
-session_t *session_create(data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size)
+session_t *session_create(session_data_callback_t *outgoing_data_callback, session_data_callback_t *incoming_data_callback, void *callback_param, size_t max_size)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
 
@@ -93,8 +94,9 @@ session_t *session_create(data_callback_t *outgoing_data_callback, void *outgoin
   session->incoming_data = buffer_create(BO_BIG_ENDIAN);
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
 
-  session->outgoing_data_callback = outgoing_data_callback;
-  session->outgoing_data_callback_param = outgoing_data_callback_param;
+  session->outgoing_data_callback       = outgoing_data_callback;
+  session->incoming_data_callback       = incoming_data_callback;
+  session->callback_param               = callback_param;
 
   return session;
 }
@@ -227,7 +229,8 @@ void session_recv(session_t *session, packet_t *packet)
 
                 /* Print the data, if we received any */
                 /* TODO */
-                printf("TODO: Pass message data to the proper callback.\n");
+                if(packet->body.msg.data_length > 0)
+                  session->incoming_data_callback(session->id, packet->body.msg.data, packet->body.msg.data_length, session->callback_param);
               }
               else
               {

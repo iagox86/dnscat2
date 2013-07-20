@@ -53,15 +53,18 @@ static void handle_message(message_t *message, void *d)
   {
     case MESSAGE_CREATE:
       LOG_FATAL("driver_console received a MESSAGE_CREATE message, which is illegal!");
+      abort();
       exit(1);
       break;
 
     case MESSAGE_DATA:
       handle_data(message->message.data.data, message->message.data.length);
+      LOG_INFO("Console :: Received a MESSAGE_DATA (%d bytes)", message->message.data.length);
       break;
 
     case MESSAGE_DESTROY:
       handle_closed();
+      LOG_INFO("Console :: MESSAGE_DESTROY received");
       break;
 
     default:
@@ -107,8 +110,9 @@ void driver_console_init(driver_console_t *driver, message_handler_t *their_mess
 {
   message_t *message = message_create_create();
 
-  driver->their_message_handler = their_message_handler;
+  LOG_INFO("Initializing console ui...");
 
+  driver->their_message_handler = their_message_handler;
   message_pass(their_message_handler, message);
   driver->session_id = message->message.create.out_session_id;
 

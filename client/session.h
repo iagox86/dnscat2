@@ -34,11 +34,12 @@ typedef struct
   buffer_t       *incoming_data;
   buffer_t       *outgoing_data;
 
-  data_callback_t *outgoing_data_callback;
-  void            *outgoing_data_callback_param;
+  session_data_callback_t *outgoing_data_callback;
+  session_data_callback_t *incoming_data_callback;
+  void                    *callback_param;
 } session_t;
 
-session_t *session_create(data_callback_t *outgoing_data_callback, void *outgoing_data_callback_param, size_t max_size);
+session_t *session_create(session_data_callback_t *outgoing_data_callback, session_data_callback_t *incoming_data_callback, void *callback_param, size_t max_size);
 void       session_destroy(session_t *session);
 
 void       session_set_name(session_t *session, char *name);

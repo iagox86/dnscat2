@@ -25,21 +25,20 @@ int main(int argc, const char *argv[])
   int             dns_port = 53; */
   select_group_t *group    = select_group_create();
 
-  driver_t *driver1 = driver_create_console(group);
-  driver_t *driver2 = driver_create_dns(group);
+  driver_t *driver1;
+  driver_t *driver2;
 
-  driver_console_init(driver1->driver.console, driver1->driver.console->my_message_handler);
-  driver_dns_init(driver2->driver.dns, driver2->driver.dns->my_message_handler);
+  /* Set the default log level */
+  log_set_min_console_level(LOG_LEVEL_INFO);
+
+  driver1 = driver_create_console(group);
+  driver2 = driver_create_dns(group);
+
+  driver_console_init(driver1->driver.console, driver2->driver.dns->my_message_handler);
+  driver_dns_init    (driver2->driver.dns,     driver1->driver.console->my_message_handler);
 
   srand(time(NULL));
 
-  /* Set the default log level */
-  log_set_min_console_level(LOG_LEVEL_WARNING);
-
-  while(TRUE)
-    select_group_do_select(group, 1000);
-
-  return 0;
 
   engine_go(driver1, driver2, group);
 

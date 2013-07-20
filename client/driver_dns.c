@@ -164,7 +164,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 }
 
 /* This function expects to receive the proper length of data. */
-static void dns_send(uint8_t *data, size_t length, void *d)
+static void dns_send(uint16_t session_id, uint8_t *data, size_t length, void *d)
 {
   size_t        i;
   dns_t        *dns;
@@ -218,6 +218,16 @@ static void dns_send(uint8_t *data, size_t length, void *d)
   dns_destroy(dns);
 }
 
+/* Called by the session object when incoming data arrives. */
+/* Just send it to the other side. */
+static void dns_recv(uint16_t session_id, uint8_t *data, size_t length, void *d)
+{
+  driver_dns_t *driver_dns = (driver_dns_t*) d;
+  message_t *message = message_data_create(session_id, data, length);
+  message_pass(driver_dns->their_message_handler, message);
+  message_destroy(message);
+}
+
 static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 {
   printf("dns driver: pipe broken\n");
@@ -262,7 +272,9 @@ void cleanup()
 /*********** ***********/
 static uint16_t handle_create(driver_dns_t *driver)
 {
-  session_t *session = session_create(dns_send, driver, 10); /* TODO: Fix the max size */
+  session_t *session = session_create(dns_send, dns_recv, driver, 10); /* TODO: Fix the max size */
+
+  sessions_add(session);
 
   return session->id;
 }
@@ -294,14 +306,17 @@ static void handle_message(message_t *message, void *d)
   {
     case MESSAGE_CREATE:
       message->message.create.out_session_id = handle_create(driver_dns);
+      LOG_INFO("DNS :: Got a MESSAGE_CREATE (returning id %d)", message->message.create.out_session_id);
       break;
 
     case MESSAGE_DATA:
       handle_data(message->message.data.session_id, message->message.data.data, message->message.data.length, driver_dns);
+      LOG_INFO("DNS :: Got a MESSAGE_DATA (%d bytes)", message->message.data.length);
       break;
 
     case MESSAGE_DESTROY:
       handle_closed(driver_dns);
+      LOG_INFO("DNS :: Got a MESSAGE_DESTROY");
       break;
 
     default:
@@ -346,6 +361,7 @@ driver_dns_t *driver_dns_create(select_group_t *group)
 
 void driver_dns_init(driver_dns_t *driver, message_handler_t *their_message_handler)
 {
+  LOG_INFO("Initializing DNS ui...");
   driver->their_message_handler = their_message_handler;
 }
 
