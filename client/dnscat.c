@@ -14,7 +14,6 @@
 
 #include "buffer.h"
 #include "dns.h"
-#include "driver.h"
 #include "driver_console.h"
 #include "driver_dns.h"
 #include "log.h"
@@ -102,16 +101,16 @@ int main(int argc, char *argv[])
     {"trace-packets", no_argument, 0, 0}, /* Trace packets */
     {0,         0,                 0, 0}  /* End */
   };
-  char        c;
-  int         option_index;
-  const char *option_name;
-  driver_t   *driver_console;
-  driver_t   *driver_dns;
+  char              c;
+  int               option_index;
+  const char       *option_name;
+  driver_console_t *driver_console;
+  driver_dns_t     *driver_dns;
 
 
   group = select_group_create();
-  driver_console = driver_create_console(group);
-  driver_dns     = driver_create_dns(group);
+  driver_console = driver_console_create(group);
+  driver_dns     = driver_dns_create(group);
 
   srand(time(NULL));
 
@@ -147,11 +146,11 @@ int main(int argc, char *argv[])
         /* DNS-specific options */
         else if(!strcmp(option_name, "host"))
         {
-          driver_dns->driver.dns->dns_host = optarg;
+          driver_dns->dns_host = optarg;
         }
         else if(!strcmp(option_name, "port"))
         {
-          driver_dns->driver.dns->dns_port = atoi(optarg);
+          driver_dns->dns_port = atoi(optarg);
         }
 
         /* Debug options */
@@ -179,7 +178,7 @@ int main(int argc, char *argv[])
     usage(argv[0]);
     exit(1);
   }
-  driver_dns->driver.dns->domain = argv[optind];
+  driver_dns->domain = argv[optind];
 
   /* TODO: Set the session name, if necessary. */
 #if 0

@@ -13,21 +13,20 @@ CFLAGS?=-Wall ${DEBUG_CFLAGS}
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=buffer.o\
-		 driver.o\
-		 driver_dns.o\
+OBJS=buffer.o        \
+		 driver_dns.o    \
 		 driver_console.o\
-		 tcp.o\
-		 types.o\
-		 memory.o\
-		 dns.o\
-		 log.o\
-		 message.o\
-		 packet.o\
-		 select_group.o\
-		 session.o\
-		 sessions.o\
-		 udp.o\
+		 tcp.o           \
+		 types.o         \
+		 memory.o        \
+		 dns.o           \
+		 log.o           \
+		 message.o       \
+		 packet.o        \
+		 select_group.o  \
+		 session.o       \
+		 sessions.o      \
+		 udp.o           \
 
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 DNSCAT_TCP_OBJS=${OBJS} tcpcat.o
