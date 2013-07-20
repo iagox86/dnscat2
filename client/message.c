@@ -30,6 +30,13 @@ message_t *message_create_start()
   return message;
 }
 
+void message_post_start()
+{
+  message_t *message = message_create_start();
+  message_post(message);
+  message_destroy(message);
+}
+
 message_t *message_create_session_create()
 {
   message_t *message = message_create();

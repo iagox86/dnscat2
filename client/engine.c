@@ -24,23 +24,14 @@ void engine_go(driver_t *driver1, driver_t *driver2, select_group_t *group)
 
 int main(int argc, const char *argv[])
 {
-/*  char           *domain   = "skullseclabs.org";
-  char           *dns_host = "localhost";
-  int             dns_port = 53; */
   select_group_t *group    = select_group_create();
-
-  driver_t *driver1;
-  driver_t *driver2;
 
   /* Set the default log level */
   log_set_min_console_level(LOG_LEVEL_INFO);
 
-  driver1 = driver_create_console(group);
-  driver2 = driver_create_dns(group);
-
   srand(time(NULL));
 
-  engine_go(driver1, driver2, group);
+  engine_go(driver_create_console(group), driver_create_dns(group), group);
 
   return 0;
 }

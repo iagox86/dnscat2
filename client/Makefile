@@ -32,9 +32,7 @@ OBJS=buffer.o\
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 DNSCAT_TCP_OBJS=${OBJS} tcpcat.o
 
-ENGINE_OBJS=${OBJS} engine.o
-
-all: engine
+all: dnscat
 #all: tcpcat dnscat
 	@echo Compile should be complete
 
@@ -51,7 +49,3 @@ tcpcat: ${DNSCAT_TCP_OBJS}
 
 dnscat: ${DNSCAT_DNS_OBJS}
 	-${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
-
-engine: ${ENGINE_OBJS}
-	-${CC} ${CFLAGS} -o engine ${ENGINE_OBJS}
-

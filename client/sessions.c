@@ -64,3 +64,10 @@ void sessions_do_actions()
   for(i = 0; i < session_count; i++)
     session_do_actions(sessions[i]);
 }
+
+void sessions_destroy()
+{
+  size_t i;
+  for(i = 0; i < session_count; i++)
+    session_destroy(sessions[i]);
+}

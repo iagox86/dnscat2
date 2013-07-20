@@ -19,11 +19,9 @@
 #include "driver_dns.h"
 
 /* Default options */
-#define DEFAULT_DNS_SERVER   "localhost"
-#define DEFAULT_DNS_PORT     5353
+#define DEFAULT_DNS_SERVER   "8.8.8.8"
+#define DEFAULT_DNS_PORT     53
 #define DEFAULT_DOMAIN       "skullseclabs.org"
-
-#define VERSION              "0.00"
 
 #define MAX_FIELD_LENGTH 62
 #define MAX_DNS_LENGTH   255
@@ -244,28 +242,6 @@ void dnscat_close(driver_dns_t *driver_dns)
   /* TODO: Why isn't this working? */
   /*select_group_remove_and_close_socket(driver_dns->group, driver_dns->s);*/
   driver_dns->s = -1;
-}
-
-void cleanup()
-{
-  LOG_WARNING("Terminating");
-
-  /* TODO: cleanup */
-#if 0
-  if(driver_dns)
-  {
-    session_destroy(driver_dns->session, driver_dns->group);
-    select_group_destroy(driver_dns->group);
-
-    /* Ensure the socket is closed */
-    if(driver_dns->s != -1)
-      dnscat_close(driver_dns);
-    safe_free(driver_dns);
-    driver_dns = NULL;
-  }
-#endif
-
-  print_memory();
 }
 
 /*********** ***********/
