@@ -22,19 +22,27 @@ static message_t *message_create()
   return (message_t *) safe_malloc(sizeof(message_t));
 }
 
-message_t *message_create_create()
+message_t *message_create_start()
 {
   message_t *message = message_create();
-  message->type = MESSAGE_CREATE;
+  message->type = MESSAGE_START;
 
   return message;
 }
 
-message_t *message_data_create(uint16_t session_id, uint8_t *data, size_t length)
+message_t *message_create_session_create()
+{
+  message_t *message = message_create();
+  message->type = MESSAGE_CREATE_SESSION;
+
+  return message;
+}
+
+message_t *message_data_in_create(uint16_t session_id, uint8_t *data, size_t length)
 {
   message_t *message = message_create();
 
-  message->type = MESSAGE_DATA;
+  message->type = MESSAGE_DATA_IN;
 
   message->message.data.session_id = session_id;
   message->message.data.data       = data;
@@ -43,21 +51,78 @@ message_t *message_data_create(uint16_t session_id, uint8_t *data, size_t length
   return message;
 }
 
-message_t *message_destroy_create(uint16_t session_id)
+message_t *message_data_out_create(uint16_t session_id, uint8_t *data, size_t length)
 {
   message_t *message = message_create();
-  message->type = MESSAGE_DESTROY;
-  message->message.destroy.session_id = session_id;
+
+  message->type = MESSAGE_DATA_OUT;
+
+  message->message.data.session_id = session_id;
+  message->message.data.data       = data;
+  message->message.data.length     = length;
 
   return message;
 }
+
+message_t *message_destroy_session_create(uint16_t session_id)
+{
+  message_t *message = message_create();
+  message->type = MESSAGE_DESTROY_SESSION;
+
+  return message;
+}
+
+message_t *message_create_destroy()
+{
+  message_t *message = message_create();
+  message->type = MESSAGE_DESTROY;
+
+  return message;
+}
+
 
 void message_destroy(message_t *message)
 {
   safe_free(message);
 }
 
-void message_pass(message_handler_t *handler, message_t *message)
+typedef struct _message_handler_entry_t
 {
-  handler->callback(message, handler->param);
+  message_handler_t *handler;
+  struct _message_handler_entry_t *next;
+} message_handler_entry_t;
+
+static message_handler_entry_t *handlers[MESSAGE_MAX_MESSAGE_TYPE];
+
+static NBBOOL is_initialized = FALSE;
+
+/* Put the entry at the start of the linked list. */
+void message_subscribe(message_type_t message_type, message_handler_t *handler)
+{
+  message_handler_entry_t *entry;
+  if(!is_initialized)
+  {
+    size_t i;
+    for(i = 0; i < MESSAGE_MAX_MESSAGE_TYPE; i++)
+      handlers[i] = NULL;
+    is_initialized = TRUE;
+  }
+
+  entry = (message_handler_entry_t *)safe_malloc(sizeof(message_handler_entry_t));
+  entry->handler = handler;
+  entry->next = handlers[message_type];
+  handlers[message_type] = entry;
+}
+
+void message_unsubscribe(message_type_t message_type, message_handler_t *handler)
+{
+  /* TODO */
+}
+
+void message_post(message_t *message)
+{
+  message_handler_entry_t *handler;
+
+  for(handler = handlers[message->type]; handler; handler = handler->next)
+    handler->handler->callback(message, handler->handler->param);
 }

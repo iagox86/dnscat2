@@ -14,6 +14,5 @@ typedef struct
 } driver_console_t;
 
 driver_console_t  *driver_console_create(select_group_t *group);
-void driver_console_init(driver_console_t *driver, message_handler_t *their_message_handler);
 
 #endif

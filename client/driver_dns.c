@@ -222,9 +222,8 @@ static void dns_send(uint16_t session_id, uint8_t *data, size_t length, void *d)
 /* Just send it to the other side. */
 static void dns_recv(uint16_t session_id, uint8_t *data, size_t length, void *d)
 {
-  driver_dns_t *driver_dns = (driver_dns_t*) d;
-  message_t *message = message_data_create(session_id, data, length);
-  message_pass(driver_dns->their_message_handler, message);
+  message_t *message = message_data_in_create(session_id, data, length);
+  message_post(message);
   message_destroy(message);
 }
 
@@ -304,23 +303,26 @@ static void handle_message(message_t *message, void *d)
 
   switch(message->type)
   {
-    case MESSAGE_CREATE:
-      message->message.create.out_session_id = handle_create(driver_dns);
-      LOG_INFO("DNS :: Got a MESSAGE_CREATE (returning id %d)", message->message.create.out_session_id);
+    case MESSAGE_START:
+      /* Not sure if I need to handler this... */
       break;
 
-    case MESSAGE_DATA:
+    case MESSAGE_DATA_OUT:
       handle_data(message->message.data.session_id, message->message.data.data, message->message.data.length, driver_dns);
-      LOG_INFO("DNS :: Got a MESSAGE_DATA (%d bytes)", message->message.data.length);
       break;
 
-    case MESSAGE_DESTROY:
+    case MESSAGE_CREATE_SESSION:
+      message->message.create.out.session_id = handle_create(driver_dns);
+      break;
+
+    case MESSAGE_DESTROY_SESSION:
       handle_closed(driver_dns);
-      LOG_INFO("DNS :: Got a MESSAGE_DESTROY");
       break;
 
     default:
-      LOG_FATAL("Unknown message type");
+      LOG_FATAL("driver_dns received an invalid message!");
+      abort();
+      exit(1);
   }
 }
 
@@ -353,15 +355,18 @@ driver_dns_t *driver_dns_create(select_group_t *group)
   select_set_timeout(group, timeout, driver_dns);
   select_set_closed(group, driver_dns->s, dns_data_closed);
 
-  driver_dns->group              = group;
+  /* Save the socket group in case we need it later. */
+  driver_dns->group = group;
+
+  /* Create and save a message handler. */
   driver_dns->my_message_handler = message_handler_create(handle_message, driver_dns);
 
-  return driver_dns;
-}
+  /* Subscribe to the messages we care about. */
+  message_subscribe(MESSAGE_START,           driver_dns->my_message_handler);
+  message_subscribe(MESSAGE_DATA_OUT,        driver_dns->my_message_handler);
+  message_subscribe(MESSAGE_CREATE_SESSION,  driver_dns->my_message_handler);
+  message_subscribe(MESSAGE_DESTROY_SESSION, driver_dns->my_message_handler);
 
-void driver_dns_init(driver_dns_t *driver, message_handler_t *their_message_handler)
-{
-  LOG_INFO("Initializing DNS ui...");
-  driver->their_message_handler = their_message_handler;
+  return driver_dns;
 }
 

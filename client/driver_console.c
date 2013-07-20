@@ -15,8 +15,9 @@
 static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *d)
 {
   driver_console_t *driver_console = (driver_console_t*) d;
-  message_t *message = message_data_create(driver_console->session_id, data, length);
-  message_pass(driver_console->their_message_handler, message);
+
+  message_t *message = message_data_out_create(driver_console->session_id, data, length);
+  message_post(message);
   message_destroy(message);
 
   return SELECT_OK;
@@ -25,14 +26,23 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 {
   driver_console_t *driver_console = (driver_console_t*) d;
-  message_t *message = message_destroy_create(driver_console->session_id);
-  message_pass(driver_console->their_message_handler, message);
+  message_t *message = message_destroy_session_create(driver_console->session_id);
+  message_post(message);
   message_destroy(message);
 
   return SELECT_OK;
 }
 
-static void handle_data(uint8_t *data, size_t length)
+/* This is called after the drivers are created, to kick things off. */
+static void handle_start(driver_console_t *driver)
+{
+  message_t *message = message_create_session_create();
+  message_post(message);
+  driver->session_id = message->message.create.out.session_id;
+  message_destroy(message);
+}
+
+static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)
 {
   size_t i;
 
@@ -40,7 +50,7 @@ static void handle_data(uint8_t *data, size_t length)
     fputc(data[i], stdout);
 }
 
-static void handle_closed()
+static void handle_destroy(driver_console_t *driver)
 {
   /* TODO: This can probably be handled better... */
   printf("Pipe broken [stdin]...\n");
@@ -49,26 +59,26 @@ static void handle_closed()
 
 static void handle_message(message_t *message, void *d)
 {
+  driver_console_t *driver = (driver_console_t*) d;
+
   switch(message->type)
   {
-    case MESSAGE_CREATE:
-      LOG_FATAL("driver_console received a MESSAGE_CREATE message, which is illegal!");
-      abort();
-      exit(1);
+    case MESSAGE_START:
+      handle_start(driver);
       break;
 
-    case MESSAGE_DATA:
-      handle_data(message->message.data.data, message->message.data.length);
-      LOG_INFO("Console :: Received a MESSAGE_DATA (%d bytes)", message->message.data.length);
+    case MESSAGE_DATA_IN:
+      handle_data_in(driver, message->message.data.data, message->message.data.length);
       break;
 
-    case MESSAGE_DESTROY:
-      handle_closed();
-      LOG_INFO("Console :: MESSAGE_DESTROY received");
+    case MESSAGE_DESTROY_SESSION:
+      handle_destroy(driver);
       break;
 
     default:
-      LOG_FATAL("Unknown message type");
+      LOG_FATAL("driver_console received an invalid message!");
+      abort();
+      exit(1);
   }
 }
 
@@ -100,21 +110,17 @@ driver_console_t *driver_console_create(select_group_t *group)
   select_set_closed(group, stdin_handle, console_stdin_closed);
 #endif
 
-  driver_console->group           = group;
+  /* Save the socket group in case we need it later. */
+  driver_console->group              = group;
+
+  /* Create and save a message handler. */
   driver_console->my_message_handler = driver_console_get_message_handler(driver_console);
+
+  /* Subscribe to the messages we care about. */
+  message_subscribe(MESSAGE_START,           driver_console->my_message_handler);
+  message_subscribe(MESSAGE_DATA_IN,         driver_console->my_message_handler);
+  message_subscribe(MESSAGE_DESTROY_SESSION, driver_console->my_message_handler);
 
   return driver_console;
 }
 
-void driver_console_init(driver_console_t *driver, message_handler_t *their_message_handler)
-{
-  message_t *message = message_create_create();
-
-  LOG_INFO("Initializing console ui...");
-
-  driver->their_message_handler = their_message_handler;
-  message_pass(their_message_handler, message);
-  driver->session_id = message->message.create.out_session_id;
-
-  message_destroy(message);
-}
