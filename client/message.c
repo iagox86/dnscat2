@@ -30,13 +30,6 @@ message_t *message_create_start()
   return message;
 }
 
-void message_post_start()
-{
-  message_t *message = message_create_start();
-  message_post(message);
-  message_destroy(message);
-}
-
 message_t *message_create_session_create()
 {
   message_t *message = message_create();
@@ -87,6 +80,26 @@ message_t *message_create_destroy()
   return message;
 }
 
+void message_post_start()
+{
+  message_t *message = message_create_start();
+  message_post(message);
+  message_destroy(message);
+}
+
+void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length)
+{
+  message_t *message = message_data_out_create(session_id, data, length);
+  message_post(message);
+  message_destroy(message);
+}
+
+void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length)
+{
+  message_t *message = message_data_in_create(session_id, data, length);
+  message_post(message);
+  message_destroy(message);
+}
 
 void message_destroy(message_t *message)
 {

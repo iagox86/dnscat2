@@ -9,7 +9,6 @@ typedef struct
 {
   select_group_t     *group; /* TODO: Do I need to keep this? */
   message_handler_t  *my_message_handler;
-  message_handler_t  *their_message_handler;
   uint16_t            session_id;
 } driver_console_t;
 

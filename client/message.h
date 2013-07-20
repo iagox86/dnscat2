@@ -74,6 +74,8 @@ message_t *message_create_destroy();
 void message_destroy(message_t *message);
 
 void message_post_start();
+void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length);
+void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length);
 
 void message_subscribe(message_type_t message_type, message_handler_t *handler);
 void message_unsubscribe(message_type_t message_type, message_handler_t *handler);

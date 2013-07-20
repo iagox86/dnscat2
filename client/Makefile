@@ -16,6 +16,7 @@ CFLAGS+=$(COMMON_CFLAGS)
 OBJS=buffer.o        \
 		 driver_dns.o    \
 		 driver_console.o\
+		 driver_exec.o   \
 		 tcp.o           \
 		 types.o         \
 		 memory.o        \

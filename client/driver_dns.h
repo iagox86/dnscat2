@@ -13,8 +13,8 @@ typedef struct
   int        dns_port;
 
   select_group_t     *group;
-  message_handler_t  *my_message_handler;
-  message_handler_t  *their_message_handler;
+
+  message_handler_t *my_message_handler;
 } driver_dns_t;
 
 driver_dns_t *driver_dns_create(select_group_t *group);
