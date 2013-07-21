@@ -17,40 +17,36 @@ typedef enum
 
 typedef struct
 {
-} message_start_t;
-
-typedef struct
-{
-  struct
-  {
-    uint16_t session_id;
-  } out;
-} message_create_t;
-
-typedef struct
-{
-  uint16_t   session_id;
-  uint8_t   *data;
-  size_t     length;
-} message_data_t;
-
-typedef struct
-{
-  uint16_t   session_id;
-} message_destroy_session_t;
-
-typedef struct
-{
-} message_destroy_t;
-
-typedef struct
-{
   message_type_t type;
   union
   {
-    message_create_t  create;
-    message_data_t    data;
-    message_destroy_t destroy;
+    struct
+    {
+    } start;
+
+    struct
+    {
+      struct
+      {
+        uint16_t session_id;
+      } out;
+    } create;
+
+    struct
+    {
+      uint16_t   session_id;
+      uint8_t   *data;
+      size_t     length;
+    } data;
+
+    struct
+    {
+      uint16_t session_id;
+    } destroy_session;
+
+    struct
+    {
+    } destroy;
   } message;
 } message_t;
 
