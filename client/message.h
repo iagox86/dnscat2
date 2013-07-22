@@ -5,6 +5,8 @@
 
 typedef enum
 {
+  /* This is called once, at the beginning of the process, and is used for
+   * initialization. */
   MESSAGE_START,
   MESSAGE_CREATE_SESSION,
   MESSAGE_DATA_OUT,
@@ -15,6 +17,8 @@ typedef enum
   MESSAGE_MAX_MESSAGE_TYPE,
 } message_type_t;
 
+/* This defines a message that can be passed around. It's basically a big
+ * union across all the message types. */
 typedef struct
 {
   message_type_t type;
@@ -30,7 +34,7 @@ typedef struct
       {
         uint16_t session_id;
       } out;
-    } create;
+    } create_session;
 
     struct
     {
@@ -50,8 +54,11 @@ typedef struct
   } message;
 } message_t;
 
+/* Define the callback function for messages. */
 typedef void(message_callback_t)(message_t *message, void *param);
 
+/* Define the message handler type, which is basically a callback function
+ * and the corresponding parameter to send with it. */
 typedef struct
 {
   message_callback_t *callback;
@@ -61,20 +68,13 @@ typedef struct
 message_handler_t *message_handler_create(message_callback_t *callback, void *param);
 void message_handler_destroy(message_handler_t *handler);
 
-message_t *message_create_start();
-message_t *message_create_session_create();
-message_t *message_data_in_create(uint16_t session_id, uint8_t *data, size_t length);
-message_t *message_data_out_create(uint16_t session_id, uint8_t *data, size_t length);
-message_t *message_destroy_session_create(uint16_t session_id);
-message_t *message_create_destroy();
-void message_destroy(message_t *message);
+void message_subscribe(message_type_t message_type, message_handler_t *handler);
 
 void message_post_start();
-void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length);
+uint16_t message_post_create_session();
 void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length);
-
-void message_subscribe(message_type_t message_type, message_handler_t *handler);
-void message_unsubscribe(message_type_t message_type, message_handler_t *handler);
-void message_post(message_t *message);
+void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length);
+void message_post_destroy_session(uint16_t session_id);
+void message_post_destroy();
 
 #endif

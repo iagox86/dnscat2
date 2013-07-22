@@ -16,9 +16,7 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 {
   driver_console_t *driver_console = (driver_console_t*) d;
 
-  message_t *message = message_data_out_create(driver_console->session_id, data, length);
-  message_post(message);
-  message_destroy(message);
+  message_post_data_out(driver_console->session_id, data, length);
 
   return SELECT_OK;
 }
@@ -26,9 +24,8 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 {
   driver_console_t *driver_console = (driver_console_t*) d;
-  message_t *message = message_destroy_session_create(driver_console->session_id);
-  message_post(message);
-  message_destroy(message);
+
+  message_post_destroy_session(driver_console->session_id);
 
   return SELECT_OK;
 }
@@ -36,10 +33,7 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_console_t *driver)
 {
-  message_t *message = message_create_session_create();
-  message_post(message);
-  driver->session_id = message->message.create.out.session_id;
-  message_destroy(message);
+  driver->session_id = message_post_create_session();
 }
 
 static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)

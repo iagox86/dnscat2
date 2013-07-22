@@ -3,6 +3,11 @@
  * Created January, 2010
  *
  * (See LICENSE.txt)
+ *
+ * This is a message-passing framework created by and used for dnscat2.
+ * Essentially, one or more modules can subscribe to a particular
+ * message type, and when that message is sent, it notifies every
+ * listener.
  */
 
 #include <ctype.h>

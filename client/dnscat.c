@@ -41,9 +41,7 @@ select_group_t *group = NULL;
 
 static void cleanup()
 {
-  message_t *message = message_create_destroy();
-  message_post(message);
-  message_destroy(message);
+  message_post_destroy();
 
   LOG_WARNING("Terminating");
 
@@ -105,14 +103,14 @@ int main(int argc, char *argv[])
   char              c;
   int               option_index;
   const char       *option_name;
-  /*driver_console_t *driver_console;*/
-  driver_exec_t    *driver_exec;
+  driver_console_t *driver_console;
+  /*driver_exec_t    *driver_exec;*/
   driver_dns_t     *driver_dns;
 
 
   group = select_group_create();
-  /*driver_console = driver_console_create(group);*/
-  driver_exec    = driver_exec_create(group, "cmd.exe");
+  driver_console = driver_console_create(group);
+  /*driver_exec    = driver_exec_create(group, "cmd.exe");*/
   driver_dns     = driver_dns_create(group);
 
   srand(time(NULL));

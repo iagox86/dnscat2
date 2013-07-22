@@ -220,9 +220,7 @@ static void dns_send(uint16_t session_id, uint8_t *data, size_t length, void *d)
 /* Just send it to the other side. */
 static void dns_recv(uint16_t session_id, uint8_t *data, size_t length, void *d)
 {
-  message_t *message = message_data_in_create(session_id, data, length);
-  message_post(message);
-  message_destroy(message);
+  message_post_data_in(session_id, data, length);
 }
 
 static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
@@ -288,7 +286,7 @@ static void handle_message(message_t *message, void *d)
       break;
 
     case MESSAGE_CREATE_SESSION:
-      message->message.create.out.session_id = handle_create(driver_dns);
+      message->message.create_session.out.session_id = handle_create(driver_dns);
       break;
 
     case MESSAGE_DESTROY_SESSION:
