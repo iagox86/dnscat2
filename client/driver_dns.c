@@ -310,11 +310,6 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-void dns_close_message_handler(message_handler_t *handler)
-{
-  message_handler_destroy(handler);
-}
-
 driver_dns_t *driver_dns_create(select_group_t *group)
 {
   driver_dns_t *driver_dns = (driver_dns_t*) safe_malloc(sizeof(driver_dns_t));
@@ -342,14 +337,11 @@ driver_dns_t *driver_dns_create(select_group_t *group)
   /* Save the socket group in case we need it later. */
   driver_dns->group = group;
 
-  /* Create and save a message handler. */
-  driver_dns->my_message_handler = message_handler_create(handle_message, driver_dns);
-
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START,           driver_dns->my_message_handler);
-  message_subscribe(MESSAGE_DATA_OUT,        driver_dns->my_message_handler);
-  message_subscribe(MESSAGE_SESSION_CREATED, driver_dns->my_message_handler);
-  message_subscribe(MESSAGE_DESTROY,         driver_dns->my_message_handler);
+  message_subscribe(MESSAGE_START,           handle_message, driver_dns);
+  message_subscribe(MESSAGE_DATA_OUT,        handle_message, driver_dns);
+  message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver_dns);
+  message_subscribe(MESSAGE_DESTROY,         handle_message, driver_dns);
 
   return driver_dns;
 }

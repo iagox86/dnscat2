@@ -122,11 +122,10 @@ static void handle_message(message_t *message, void *d)
 
 void log_init()
 {
-  message_handler_t *message_handler = message_handler_create(handle_message, NULL);
-  message_subscribe(MESSAGE_START,           message_handler);
-  message_subscribe(MESSAGE_CREATE_SESSION,  message_handler);
-  message_subscribe(MESSAGE_DATA_OUT,        message_handler);
-  message_subscribe(MESSAGE_DATA_IN,         message_handler);
-  message_subscribe(MESSAGE_DESTROY_SESSION, message_handler);
-  message_subscribe(MESSAGE_DESTROY,         message_handler);
+  message_subscribe(MESSAGE_START,           handle_message, NULL);
+  message_subscribe(MESSAGE_CREATE_SESSION,  handle_message, NULL);
+  message_subscribe(MESSAGE_DATA_OUT,        handle_message, NULL);
+  message_subscribe(MESSAGE_DATA_IN,         handle_message, NULL);
+  message_subscribe(MESSAGE_DESTROY_SESSION, handle_message, NULL);
+  message_subscribe(MESSAGE_DESTROY,         handle_message, NULL);
 }

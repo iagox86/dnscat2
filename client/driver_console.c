@@ -78,16 +78,6 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-message_handler_t *driver_console_get_message_handler(driver_console_t *driver)
-{
-  return message_handler_create(handle_message, driver);
-}
-
-void driver_console_close_message_handler(message_handler_t *handler)
-{
-  message_handler_destroy(handler);
-}
-
 driver_console_t *driver_console_create(select_group_t *group)
 {
   driver_console_t *driver_console = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
@@ -109,13 +99,10 @@ driver_console_t *driver_console_create(select_group_t *group)
   /* Save the socket group in case we need it later. */
   driver_console->group              = group;
 
-  /* Create and save a message handler. */
-  driver_console->my_message_handler = driver_console_get_message_handler(driver_console);
-
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START,           driver_console->my_message_handler);
-  message_subscribe(MESSAGE_DATA_IN,         driver_console->my_message_handler);
-  message_subscribe(MESSAGE_DESTROY_SESSION, driver_console->my_message_handler);
+  message_subscribe(MESSAGE_START,           handle_message, driver_console);
+  message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_console);
+  message_subscribe(MESSAGE_DESTROY_SESSION, handle_message, driver_console);
 
   return driver_console;
 }

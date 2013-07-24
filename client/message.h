@@ -77,10 +77,9 @@ typedef struct
   void *param;
 } message_handler_t;
 
-message_handler_t *message_handler_create(message_callback_t *callback, void *param);
-void message_handler_destroy(message_handler_t *handler);
-
-void message_subscribe(message_type_t message_type, message_handler_t *handler);
+void message_subscribe(message_type_t message_type, message_callback_t *callback, void *param);
+void message_unsubscribe(message_type_t message_type, message_callback_t *callback); /* TODO */
+void message_cleanup(); /* TODO */
 
 void message_post_start();
 void message_post_create_session(uint16_t *session_id);

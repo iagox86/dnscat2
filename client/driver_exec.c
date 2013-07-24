@@ -76,16 +76,6 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-message_handler_t *driver_exec_get_message_handler(driver_exec_t *driver)
-{
-  return message_handler_create(handle_message, driver);
-}
-
-void driver_exec_close_message_handler(message_handler_t *handler)
-{
-  message_handler_destroy(handler);
-}
-
 driver_exec_t *driver_exec_create(select_group_t *group, char *process)
 {
   driver_exec_t *driver_exec = (driver_exec_t*) safe_malloc(sizeof(driver_exec_t));
@@ -153,13 +143,10 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
   /* Save the socket group in case we need it later. */
   driver_exec->group              = group;
 
-  /* Create and save a message handler. */
-  driver_exec->my_message_handler = driver_exec_get_message_handler(driver_exec);
-
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START,           driver_exec->my_message_handler);
-  message_subscribe(MESSAGE_DATA_IN,         driver_exec->my_message_handler);
-  message_subscribe(MESSAGE_DESTROY_SESSION, driver_exec->my_message_handler);
+  message_subscribe(MESSAGE_START,           handle_message, driver_exec);
+  message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_exec);
+  message_subscribe(MESSAGE_DESTROY_SESSION, handle_message, driver_exec);
 
   return driver_exec;
 }

@@ -133,8 +133,6 @@ static void handle_message(message_t *message, void *d)
 
 void sessions_init()
 {
-  message_handler_t *message_handler = message_handler_create(handle_message, NULL);
-
-  message_subscribe(MESSAGE_CREATE_SESSION,  message_handler);
-  message_subscribe(MESSAGE_DESTROY_SESSION, message_handler);
+  message_subscribe(MESSAGE_CREATE_SESSION,  handle_message, NULL);
+  message_subscribe(MESSAGE_DESTROY_SESSION, handle_message, NULL);
 }

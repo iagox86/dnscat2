@@ -13,10 +13,21 @@ static message_handler_entry_t *handlers[MESSAGE_MAX_MESSAGE_TYPE];
 
 static NBBOOL is_initialized = FALSE;
 
-/* Put the entry at the start of the linked list. */
-void message_subscribe(message_type_t message_type, message_handler_t *handler)
+static message_handler_t *message_handler_create(message_callback_t *callback, void *param)
 {
+  message_handler_t *handler = (message_handler_t *)safe_malloc(sizeof(message_handler_t));
+  handler->callback = callback;
+  handler->param    = param;
+
+  return handler;
+}
+
+/* Put the entry at the start of the linked list. */
+void message_subscribe(message_type_t message_type, message_callback_t *callback, void *param)
+{
+  message_handler_t *handler = message_handler_create(callback, param);
   message_handler_entry_t *entry;
+
   if(!is_initialized)
   {
     size_t i;
@@ -31,17 +42,9 @@ void message_subscribe(message_type_t message_type, message_handler_t *handler)
   handlers[message_type] = entry;
 }
 
-void message_unsubscribe(message_type_t message_type, message_handler_t *handler)
+void message_unsubscribe(message_type_t message_type, message_callback_t *callback)
 {
   /* TODO */
-}
-message_handler_t *message_handler_create(message_callback_t *callback, void *param)
-{
-  message_handler_t *handler = (message_handler_t *)safe_malloc(sizeof(message_handler_t));
-  handler->callback = callback;
-  handler->param    = param;
-
-  return handler;
 }
 
 void message_handler_destroy(message_handler_t *handler)
