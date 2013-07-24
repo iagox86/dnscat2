@@ -44,13 +44,6 @@ static void handle_data_in(driver_exec_t *driver, uint8_t *data, size_t length)
   write(driver->pipe_stdin[PIPE_WRITE], data, length);
 }
 
-static void handle_destroy(driver_exec_t *driver)
-{
-  /* TODO: This can probably be handled better... */
-  printf("Pipe broken [stdin]...\n");
-  exit(1);
-}
-
 static void handle_message(message_t *message, void *d)
 {
   driver_exec_t *driver = (driver_exec_t*) d;
@@ -63,10 +56,6 @@ static void handle_message(message_t *message, void *d)
 
     case MESSAGE_DATA_IN:
       handle_data_in(driver, message->message.data.data, message->message.data.length);
-      break;
-
-    case MESSAGE_DESTROY_SESSION:
-      handle_destroy(driver);
       break;
 
     default:
@@ -146,7 +135,6 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_exec);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_exec);
-  message_subscribe(MESSAGE_DESTROY_SESSION, handle_message, driver_exec);
 
   return driver_exec;
 }

@@ -79,7 +79,7 @@ typedef struct
 
 void message_subscribe(message_type_t message_type, message_callback_t *callback, void *param);
 void message_unsubscribe(message_type_t message_type, message_callback_t *callback); /* TODO */
-void message_cleanup(); /* TODO */
+void message_cleanup();
 
 void message_post_start();
 void message_post_create_session(uint16_t *session_id);

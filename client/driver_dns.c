@@ -47,6 +47,7 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
     {
       sessions_close();
       sessions_destroy();
+      exit(0);
     }
   }
 
@@ -249,6 +250,7 @@ static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 
   message_post_destroy();
   sessions_destroy();
+  exit(0);
 
   return SELECT_OK;
 }

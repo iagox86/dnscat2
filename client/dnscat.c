@@ -41,11 +41,10 @@ select_group_t *group = NULL;
 
 static void cleanup()
 {
-  message_post_destroy();
-
   LOG_WARNING("Terminating");
 
   sessions_destroy();
+  message_cleanup();
   if(group)
     select_group_destroy(group);
 

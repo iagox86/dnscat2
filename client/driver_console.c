@@ -47,13 +47,6 @@ static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t lengt
     fputc(data[i], stdout);
 }
 
-static void handle_destroy(driver_console_t *driver)
-{
-  /* TODO: This can probably be handled better... */
-  printf("Pipe broken [stdin]...\n");
-  exit(1);
-}
-
 static void handle_message(message_t *message, void *d)
 {
   driver_console_t *driver = (driver_console_t*) d;
@@ -66,10 +59,6 @@ static void handle_message(message_t *message, void *d)
 
     case MESSAGE_DATA_IN:
       handle_data_in(driver, message->message.data.data, message->message.data.length);
-      break;
-
-    case MESSAGE_DESTROY_SESSION:
-      handle_destroy(driver);
       break;
 
     default:
@@ -102,7 +91,6 @@ driver_console_t *driver_console_create(select_group_t *group)
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_console);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_console);
-  message_subscribe(MESSAGE_DESTROY_SESSION, handle_message, driver_console);
 
   return driver_console;
 }
