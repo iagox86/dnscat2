@@ -297,7 +297,7 @@ static void handle_message(message_t *message, void *d)
       message->message.session_created.out.outgoing_callback = dns_send;
       message->message.session_created.out.incoming_callback = dns_recv;
       message->message.session_created.out.callback_param    = driver_dns;
-      message->message.session_created.out.max_size          = 10; /* TODO: Define this properly based on the domain. */
+      message->message.session_created.out.max_size          = MAX_DNSCAT_LENGTH(driver_dns->domain);
       break;
 
     case MESSAGE_DESTROY:
