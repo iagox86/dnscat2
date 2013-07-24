@@ -10,10 +10,39 @@
 
 NBBOOL trace_packets;
 
+static NBBOOL check_closed(session_t *session, char *name)
+{
+  if(session->is_closed)
+  {
+    LOG_ERROR("Tried to call %s() on a closed session!", name);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+static NBBOOL check_callbacks(session_t *session, char *name)
+{
+  if(session->incoming_data_callback == NULL || session->outgoing_data_callback == NULL)
+  {
+    LOG_ERROR("Tried to call %s() before setting callbacks!", name);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 static void session_send_packet(session_t *session, packet_t *packet)
 {
   size_t   length;
   uint8_t *data = packet_to_bytes(packet, &length);
+
+  /* Make sure the session isn't closed. */
+  if(check_closed(session, "session_send_packet"))
+    return;
+
+  if(!check_callbacks(session, "session_send_packet"))
+    return;
 
   if(trace_packets)
   {
@@ -31,6 +60,10 @@ static void do_send_stuff(session_t *session)
   packet_t *packet;
   uint8_t  *data;
   size_t    length;
+
+  /* Make sure the session isn't closed. */
+  if(check_closed(session, "do_send_stuff"))
+    return;
 
   switch(session->state)
   {
@@ -68,6 +101,10 @@ static void do_send_stuff(session_t *session)
 
 void session_send(session_t *session, uint8_t *data, size_t length)
 {
+  /* Make sure the session isn't closed. */
+  if(check_closed(session, "session_send"))
+    return;
+
   LOG_INFO("Queuing %zd bytes of data to send", length);
 
   /* Add the data to the outgoing buffer. */
@@ -89,21 +126,35 @@ session_t *session_create(session_data_callback_t *outgoing_data_callback, sessi
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
   session->is_closed     = FALSE;
-  session->max_packet_size = max_size; /* TODO */
 
   session->incoming_data = buffer_create(BO_BIG_ENDIAN);
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
 
+  session->outgoing_data_callback = NULL;
+  session->incoming_data_callback = NULL;
+  session->callback_param         = NULL;
+
+  return session;
+}
+
+void session_set_callbacks(session_t *session, session_data_callback_t *outgoing_data_callback, session_data_callback_t *incoming_data_callback, void *callback_param)
+{
   session->outgoing_data_callback       = outgoing_data_callback;
   session->incoming_data_callback       = incoming_data_callback;
   session->callback_param               = callback_param;
+}
 
-  return session;
+void session_set_max_size(session_t *session, size_t size)
+{
+  session->max_packet_size = size; /* TODO: Fix this again */
 }
 
 void session_destroy(session_t *session)
 {
   LOG_INFO("Cleaning up the session");
+
+  if(!session->is_closed)
+    session_close(session);
 
   if(session->name)
     safe_free(session->name);
@@ -115,34 +166,38 @@ void session_destroy(session_t *session)
 
 void session_set_name(session_t *session, char *name)
 {
+  /* Make sure the session isn't closed. */
+  if(check_closed(session, "session_set_name"))
+    return;
+
   if(session->name)
     safe_free(session->name);
   session->name = safe_strdup(name);
 }
 
-static void send_final_fin(session_t *session)
+void session_close(session_t *session)
 {
   packet_t *packet;
 
+  /* Make sure the session isn't closed. */
+  if(check_closed(session, "session_close"))
+    return;
+
   /* Alert the user */
-  LOG_INFO("Sending the final FIN to the server before closing");
+  LOG_WARNING("Sending the final FIN to the server before closing");
 
   /* Send the FIN */
   packet = packet_create_fin(session->id);
   session_send_packet(session, packet);
   packet_destroy(packet);
+
+  /* Mark the session as closed. */
+  session->is_closed = TRUE;
 }
 
-void session_close(session_t *session)
+size_t session_get_bytes_queued(session_t *session)
 {
-  session->is_closed = TRUE;
-
-  /* If the buffer is already empty, just die. */
-  if(buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
-  {
-    send_final_fin(session);
-    exit(0);
-  }
+  return buffer_get_remaining_bytes(session->outgoing_data);
 }
 
 static void clean_up_buffers(session_t *session)
@@ -156,6 +211,12 @@ static void clean_up_buffers(session_t *session)
 void session_recv(session_t *session, packet_t *packet)
 {
   NBBOOL new_bytes_acked = FALSE;
+
+  /* Make sure the session isn't closed. */
+  if(check_closed(session, "session_recv"))
+    return;
+  if(!check_callbacks(session, "session_recv"))
+    return;
 
   if(trace_packets)
   {
@@ -252,18 +313,15 @@ void session_recv(session_t *session, packet_t *packet)
           else
           {
             LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
-
             packet_destroy(packet);
-            send_final_fin(session);
-            exit(0);
+            session_close(session);
           }
 
           break;
         default:
           LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
           packet_destroy(packet);
-          send_final_fin(session);
-          exit(0);
+          session_close(session);
       }
     }
 
@@ -277,24 +335,20 @@ void session_recv(session_t *session, packet_t *packet)
 
   /* If there is still outgoing data to be sent, and new data has been ACKed
    * (ie, this isn't a retransmission), send it. */
-  if(buffer_get_remaining_bytes(session->outgoing_data) > 0 && new_bytes_acked)
-  {
-    do_send_stuff(session);
-  }
+  if(!session->is_closed)
+    if(buffer_get_remaining_bytes(session->outgoing_data) > 0 && new_bytes_acked)
+      do_send_stuff(session);
 }
 
 void session_do_actions(session_t *session)
 {
+  /* Make sure the session isn't closed. */
+  if(check_closed(session, "session_do_actions"))
+    return;
+
   /* Cleanup the incoming/outgoing buffers, if we can */
   clean_up_buffers(session);
 
   /* Send stuff if we can */
   do_send_stuff(session);
-
-  /* If the session is closed and no data is queued, close properly */
-  if(session->is_closed && buffer_get_remaining_bytes(session->incoming_data) == 0 && buffer_get_remaining_bytes(session->outgoing_data) == 0)
-  {
-    send_final_fin(session);
-    exit(0);
-  }
 }

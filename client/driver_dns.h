@@ -12,6 +12,8 @@ typedef struct
   char      *dns_host;
   int        dns_port;
 
+  NBBOOL     is_closed;
+
   select_group_t     *group;
 
   message_handler_t *my_message_handler;

@@ -36,7 +36,7 @@ static SELECT_RESPONSE_t exec_closed_callback(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_exec_t *driver)
 {
-  driver->session_id = message_post_create_session();
+  message_post_create_session(&driver->session_id);
 }
 
 static void handle_data_in(driver_exec_t *driver, uint8_t *data, size_t length)

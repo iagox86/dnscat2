@@ -39,14 +39,18 @@ typedef struct
   void                    *callback_param;
 } session_t;
 
-session_t *session_create(session_data_callback_t *outgoing_data_callback, session_data_callback_t *incoming_data_callback, void *callback_param, size_t max_size);
+session_t *session_create();
 void       session_destroy(session_t *session);
+
+void       session_set_callbacks(session_t *session, session_data_callback_t *outgoing_data_callback, session_data_callback_t *incoming_data_callback, void *callback_param);
+void       session_set_max_size(session_t *session, size_t size);
 
 void       session_set_name(session_t *session, char *name);
 
 void       session_recv(session_t *session, packet_t *packet);
 void       session_send(session_t *session, uint8_t *data, size_t length);
 void       session_close(session_t *session);
+size_t     session_get_bytes_queued(session_t *session);
 
 void       session_do_actions(session_t *session);
 

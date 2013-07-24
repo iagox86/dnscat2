@@ -23,17 +23,20 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 
 static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 {
-  driver_console_t *driver_console = (driver_console_t*) d;
+  /*driver_console_t *driver_console = (driver_console_t*) d;*/
 
-  message_post_destroy_session(driver_console->session_id);
+  /* When the stdin pipe is closed, the stdin driver signals the end. */
+  message_post_destroy();
 
-  return SELECT_OK;
+  /*message_post_destroy_session(driver_console->session_id);*/
+
+  return SELECT_CLOSE_REMOVE;
 }
 
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_console_t *driver)
 {
-  driver->session_id = message_post_create_session();
+  message_post_create_session(&driver->session_id);
 }
 
 static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)
@@ -72,7 +75,6 @@ static void handle_message(message_t *message, void *d)
     default:
       LOG_FATAL("driver_console received an invalid message!");
       abort();
-      exit(1);
   }
 }
 

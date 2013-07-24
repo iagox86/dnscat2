@@ -9,6 +9,7 @@ typedef enum
    * initialization. */
   MESSAGE_START,
   MESSAGE_CREATE_SESSION,
+  MESSAGE_SESSION_CREATED,
   MESSAGE_DATA_OUT,
   MESSAGE_DATA_IN,
   MESSAGE_DESTROY_SESSION,
@@ -35,6 +36,17 @@ typedef struct
         uint16_t session_id;
       } out;
     } create_session;
+
+    struct
+    {
+      struct
+      {
+        session_data_callback_t *outgoing_callback;
+        session_data_callback_t *incoming_callback;
+        void                    *callback_param;
+        size_t                   max_size;
+      } out;
+    } session_created;
 
     struct
     {
@@ -71,7 +83,8 @@ void message_handler_destroy(message_handler_t *handler);
 void message_subscribe(message_type_t message_type, message_handler_t *handler);
 
 void message_post_start();
-uint16_t message_post_create_session();
+void message_post_create_session(uint16_t *session_id);
+void message_post_session_created(session_data_callback_t **outgoing_callback, session_data_callback_t **incoming_callback, void **callback_param, size_t *max_size);
 void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length);
 void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length);
 void message_post_destroy_session(uint16_t session_id);

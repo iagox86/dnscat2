@@ -14,6 +14,8 @@ typedef enum
 #define LOG_ERROR   log_error
 #define LOG_FATAL   log_fatal
 
+void log_init();
+
 void log_to_file(char *filename, log_level_t min_level);
 void log_set_min_console_level(log_level_t level);
 

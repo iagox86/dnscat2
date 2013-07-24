@@ -24,7 +24,7 @@
 #define DEFAULT_DOMAIN       "skullseclabs.org"
 
 #define MAX_FIELD_LENGTH 62
-#define MAX_DNS_LENGTH   255
+#define MAX_DNS_LENGTH   255 /* TODO: Define this properly again */
 
 /* The max length is a little complicated:
  * 255 because that's the max DNS length
@@ -37,9 +37,18 @@
 
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
-  /*driver_dns_t *driver_dns = (driver_dns_t*) param;*/
+  driver_dns_t *driver_dns = (driver_dns_t*) param;
 
   sessions_do_actions();
+
+  if(driver_dns->is_closed)
+  {
+    if(sessions_total_bytes_queued() == 0)
+    {
+      sessions_close();
+      sessions_destroy();
+    }
+  }
 
   return SELECT_OK;
 }
@@ -143,8 +152,19 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
         packet_t *packet = packet_parse(data, length);
         session_t *session = sessions_get_by_id(packet->session_id);
 
-        LOG_INFO("Leaving DNS: Passing %d bytes of data it to the session", length);
-        session_recv(session, packet);
+        if(session == NULL)
+        {
+          LOG_WARNING("Received %d bytes of data to a non-existant session", length);
+        }
+        else if(session->is_closed)
+        {
+          LOG_WARNING("Received %d bytes of data to a closed session", length);
+        }
+        else
+        {
+          LOG_INFO("Received %d bytes of data", length);
+          session_recv(session, packet);
+        }
 
         safe_free(data);
       }
@@ -225,32 +245,15 @@ static void dns_recv(uint16_t session_id, uint8_t *data, size_t length, void *d)
 
 static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 {
-  printf("dns driver: pipe broken\n");
+  LOG_FATAL("DNS socket closed");
+
+  message_post_destroy();
+  sessions_destroy();
 
   return SELECT_OK;
 }
 
-void dnscat_close(driver_dns_t *driver_dns)
-{
-  LOG_WARNING("Closing connection");
-
-  assert(driver_dns->s && driver_dns->s != -1); /* We can't close a closed socket */
-
-  /* Remove from the select_group */
-  /* TODO: Why isn't this working? */
-  /*select_group_remove_and_close_socket(driver_dns->group, driver_dns->s);*/
-  driver_dns->s = -1;
-}
-
 /*********** ***********/
-static uint16_t handle_create(driver_dns_t *driver)
-{
-  session_t *session = session_create(dns_send, dns_recv, driver, 10); /* TODO: Fix the max size */
-
-  sessions_add(session);
-
-  return session->id;
-}
 
 static void handle_data(uint16_t session_id, uint8_t *data, size_t length, driver_dns_t *driver_dns)
 {
@@ -262,13 +265,18 @@ static void handle_data(uint16_t session_id, uint8_t *data, size_t length, drive
     LOG_FATAL("Unknown session id: %d\n", session_id);
     exit(1);
   }
+  if(session->is_closed)
+  {
+    LOG_ERROR("Tried to send data to a closed session: %d", session_id);
+    return;
+  }
 
   session_send(session, data, length);
 }
 
-static void handle_closed(driver_dns_t *driver)
+static void handle_destroy(driver_dns_t *driver)
 {
-  /* TODO: Kill the session. */
+  driver->is_closed = TRUE;
 }
 
 static void handle_message(message_t *message, void *d)
@@ -285,18 +293,20 @@ static void handle_message(message_t *message, void *d)
       handle_data(message->message.data.session_id, message->message.data.data, message->message.data.length, driver_dns);
       break;
 
-    case MESSAGE_CREATE_SESSION:
-      message->message.create_session.out.session_id = handle_create(driver_dns);
+    case MESSAGE_SESSION_CREATED:
+      message->message.session_created.out.outgoing_callback = dns_send;
+      message->message.session_created.out.incoming_callback = dns_recv;
+      message->message.session_created.out.callback_param    = driver_dns;
+      message->message.session_created.out.max_size          = 10; /* TODO: Define this properly based on the domain. */
       break;
 
-    case MESSAGE_DESTROY_SESSION:
-      handle_closed(driver_dns);
+    case MESSAGE_DESTROY:
+      handle_destroy(driver_dns);
       break;
 
     default:
       LOG_FATAL("driver_dns received an invalid message!");
       abort();
-      exit(1);
   }
 }
 
@@ -318,7 +328,7 @@ driver_dns_t *driver_dns_create(select_group_t *group)
     exit(1);
   }
 
-  /* TODO: Set these properly. */
+  /* Set the defaults. */
   driver_dns->domain   = DEFAULT_DOMAIN;
   driver_dns->dns_host = DEFAULT_DNS_SERVER;
   driver_dns->dns_port = DEFAULT_DNS_PORT;
@@ -338,8 +348,8 @@ driver_dns_t *driver_dns_create(select_group_t *group)
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           driver_dns->my_message_handler);
   message_subscribe(MESSAGE_DATA_OUT,        driver_dns->my_message_handler);
-  message_subscribe(MESSAGE_CREATE_SESSION,  driver_dns->my_message_handler);
-  message_subscribe(MESSAGE_DESTROY_SESSION, driver_dns->my_message_handler);
+  message_subscribe(MESSAGE_SESSION_CREATED, driver_dns->my_message_handler);
+  message_subscribe(MESSAGE_DESTROY,         driver_dns->my_message_handler);
 
   return driver_dns;
 }

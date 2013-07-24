@@ -4,6 +4,7 @@
 
 #include "assert.h"
 #include "memory.h"
+#include "message.h"
 
 #include "log.h"
 
@@ -83,4 +84,49 @@ void log_fatal(char *format, ...)
   va_start(args, format);
   log_internal(LOG_LEVEL_FATAL, format, args);
   va_end(args);
+}
+
+static void handle_message(message_t *message, void *d)
+{
+  switch(message->type)
+  {
+    case MESSAGE_START:
+      LOG_WARNING("Starting the tunnel...");
+      break;
+
+    case MESSAGE_CREATE_SESSION:
+      LOG_WARNING("Creating a session...");
+      break;
+
+    case MESSAGE_DATA_OUT:
+      LOG_WARNING("Sending %d bytes of data", message->message.data.length);
+      break;
+
+    case MESSAGE_DATA_IN:
+      LOG_WARNING("Received %d bytes of data", message->message.data.length);
+      break;
+
+    case MESSAGE_DESTROY_SESSION:
+      LOG_WARNING("Destroying session: %d\n", message->message.destroy_session.session_id);
+      break;
+
+    case MESSAGE_DESTROY:
+      LOG_WARNING("Destroying the tunnel...");
+      break;
+
+    default:
+      LOG_FATAL("Unknown message type: %d\n", message->type);
+      exit(1);
+  }
+}
+
+void log_init()
+{
+  message_handler_t *message_handler = message_handler_create(handle_message, NULL);
+  message_subscribe(MESSAGE_START,           message_handler);
+  message_subscribe(MESSAGE_CREATE_SESSION,  message_handler);
+  message_subscribe(MESSAGE_DATA_OUT,        message_handler);
+  message_subscribe(MESSAGE_DATA_IN,         message_handler);
+  message_subscribe(MESSAGE_DESTROY_SESSION, message_handler);
+  message_subscribe(MESSAGE_DESTROY,         message_handler);
 }

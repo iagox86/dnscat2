@@ -76,12 +76,25 @@ void message_post_start()
   message_destroy(message);
 }
 
-uint16_t message_post_create_session()
+void message_post_create_session(uint16_t *session_id)
 {
   message_t *message = message_create(MESSAGE_CREATE_SESSION);
   message_post(message);
+  *session_id = message->message.create_session.out.session_id;
+  message_destroy(message);
+}
 
-  return message->message.create_session.out.session_id;
+void message_post_session_created(session_data_callback_t **outgoing_callback, session_data_callback_t **incoming_callback, void **callback_param, size_t *max_size)
+{
+  message_t *message = message_create(MESSAGE_SESSION_CREATED);
+  message_post(message);
+
+  *outgoing_callback = message->message.session_created.out.outgoing_callback;
+  *incoming_callback = message->message.session_created.out.incoming_callback;
+  *callback_param    = message->message.session_created.out.callback_param;
+  *max_size          = message->message.session_created.out.max_size;
+
+  /* TODO: Return values. */
 }
 
 void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length)

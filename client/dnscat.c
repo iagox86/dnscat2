@@ -107,6 +107,8 @@ int main(int argc, char *argv[])
   /*driver_exec_t    *driver_exec;*/
   driver_dns_t     *driver_dns;
 
+  log_init();
+  sessions_init();
 
   group = select_group_create();
   driver_console = driver_console_create(group);
