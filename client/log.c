@@ -107,7 +107,7 @@ static void handle_message(message_t *message, void *d)
       break;
 
     case MESSAGE_DESTROY_SESSION:
-      LOG_WARNING("Destroying session: %d\n", message->message.destroy_session.session_id);
+      LOG_WARNING("Destroying session: %d", message->message.destroy_session.session_id);
       break;
 
     case MESSAGE_DESTROY:
@@ -115,7 +115,7 @@ static void handle_message(message_t *message, void *d)
       break;
 
     default:
-      LOG_FATAL("Unknown message type: %d\n", message->type);
+      LOG_FATAL("Unknown message type: %d", message->type);
       exit(1);
   }
 }

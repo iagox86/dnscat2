@@ -153,6 +153,12 @@ void session_destroy(session_t *session)
 {
   LOG_INFO("Cleaning up the session");
 
+  if(!session)
+  {
+    LOG_ERROR("Tried to free session a second time!");
+    return;
+  }
+
   if(!session->is_closed)
     session_close(session);
 
@@ -314,7 +320,7 @@ void session_recv(session_t *session, packet_t *packet)
           {
             LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
             packet_destroy(packet);
-            session_close(session);
+            session_close(session); /* TODO: I bet these break stuff, I should be using the message. */
           }
 
           break;

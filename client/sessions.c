@@ -79,16 +79,18 @@ void sessions_close()
 {
   size_t i;
   for(i = 0; i < session_count; i++)
-    message_post_destroy_session(sessions[i]->id);
+    session_close(sessions[i]);
 }
 
+/* TODO: I need a better way to close/destroy sessions still... */
 void sessions_destroy()
 {
   size_t i;
+
   for(i = 0; i < session_count; i++)
-  {
     session_destroy(sessions[i]);
-  }
+
+  session_count = 0;
 }
 
 static void handle_create(uint16_t *session_id_out)

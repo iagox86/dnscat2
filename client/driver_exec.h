@@ -7,8 +7,9 @@
 
 typedef struct
 {
-  uint16_t           session_id;
-  char              *process;
+  uint16_t        session_id;
+  char           *process;
+  select_group_t *group;
 
 #ifdef WIN32
 #else
