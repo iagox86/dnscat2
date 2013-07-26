@@ -126,6 +126,8 @@ int main(int argc, char *argv[])
 
     /* Debug options */
     {"trace-packets", no_argument, 0, 0}, /* Trace packets */
+    {"d",       no_argument,       0, 0}, /* More debug */
+    {"q",       no_argument,       0, 0}, /* Less debug */
     {0,         0,                 0, 0}  /* End */
   };
 
@@ -141,6 +143,8 @@ int main(int argc, char *argv[])
 
   NBBOOL            input_set = FALSE;
   NBBOOL            output_set = FALSE;
+
+  log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
   /* Initialize the modules that need initialization. */
   log_init();
@@ -159,7 +163,8 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
   /* Set the default log level */
-  log_set_min_console_level(LOG_LEVEL_WARNING);
+  log_set_min_console_level(min_log_level);
+
 
   /* Parse the command line options. */
   opterr = 0;
@@ -175,11 +180,13 @@ int main(int argc, char *argv[])
         {
           usage(argv[0], "--help requested");
         }
-        else if(!strcmp(option_name, "name"))
+        else if(!strcmp(option_name, "name") || !strcmp(option_name, "n"))
         {
           /* TODO: Handle 'name' again */
           /*options->name = optarg;*/
         }
+
+        /* Execute options. */
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
           if(input_set)
@@ -221,6 +228,16 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "trace-packets"))
         {
           trace_packets = TRUE;
+        }
+        else if(!strcmp(option_name, "d"))
+        {
+          min_log_level--;
+          log_set_min_console_level(min_log_level);
+        }
+        else if(!strcmp(option_name, "q"))
+        {
+          min_log_level++;
+          log_set_min_console_level(min_log_level);
         }
         else
         {
