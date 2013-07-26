@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
   /* Set the default log level */
-  log_set_min_console_level(LOG_LEVEL_INFO);
+  log_set_min_console_level(LOG_LEVEL_WARNING);
 
   /* Parse the command line options. */
   opterr = 0;
