@@ -114,7 +114,10 @@ int main(int argc, char *argv[])
   /*driver_exec    = driver_exec_create(group, "cmd.exe");*/
   driver_dns     = driver_dns_create(group);
 
-  srand(time(NULL));
+  /* TODO: This is a hack to get rid of a warning about driver_console not being used,
+   * when I eventually use it I can get rid of this. */
+  if(driver_console)
+    srand(time(NULL));
 
   /* Set the default log level */
   log_set_min_console_level(LOG_LEVEL_WARNING);

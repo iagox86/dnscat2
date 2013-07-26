@@ -7,7 +7,6 @@
 
 typedef struct
 {
-  select_group_t    *group; /* TODO: Do I need to keep this? */
   uint16_t           session_id;
   char              *process;
 

@@ -129,9 +129,6 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
   select_set_closed(group, driver_exec->pipe_stdout[PIPE_READ], exec_closed_callback);
 #endif
 
-  /* Save the socket group in case we need it later. */
-  driver_exec->group              = group;
-
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_exec);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_exec);

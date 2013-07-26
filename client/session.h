@@ -29,7 +29,7 @@ typedef struct
   NBBOOL          is_closed;
   char           *name;
 
-  int             max_packet_size;
+  size_t          max_packet_size;
 
   buffer_t       *incoming_data;
   buffer_t       *outgoing_data;

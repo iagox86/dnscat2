@@ -85,9 +85,6 @@ driver_console_t *driver_console_create(select_group_t *group)
   select_set_closed(group, stdin_handle, console_stdin_closed);
 #endif
 
-  /* Save the socket group in case we need it later. */
-  driver_console->group              = group;
-
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_console);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_console);

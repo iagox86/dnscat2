@@ -336,9 +336,6 @@ driver_dns_t *driver_dns_create(select_group_t *group)
   select_set_timeout(group, timeout, driver_dns);
   select_set_closed(group, driver_dns->s, dns_data_closed);
 
-  /* Save the socket group in case we need it later. */
-  driver_dns->group = group;
-
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_dns);
   message_subscribe(MESSAGE_DATA_OUT,        handle_message, driver_dns);
