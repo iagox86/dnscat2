@@ -16,6 +16,7 @@ typedef struct
 
 } driver_dns_t;
 
-driver_dns_t *driver_dns_create(select_group_t *group);
+driver_dns_t *driver_dns_create(select_group_t *group, char *domain);
+void          driver_dns_destroy();
 
 #endif

@@ -19,5 +19,6 @@ typedef struct
 } driver_exec_t;
 
 driver_exec_t *driver_exec_create(select_group_t *group, char *process);
+void           driver_exec_destroy();
 
 #endif

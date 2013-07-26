@@ -11,5 +11,6 @@ typedef struct
 } driver_console_t;
 
 driver_console_t  *driver_console_create(select_group_t *group);
+void               driver_console_destroy();
 
 #endif

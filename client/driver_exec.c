@@ -136,3 +136,7 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
   return driver_exec;
 }
 
+void driver_exec_destroy(driver_exec_t *driver)
+{
+  safe_free(driver);
+}

@@ -37,7 +37,16 @@
  */
 #define MAX_DNSCAT_LENGTH(domain) ((255/2) - strlen(domain) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
 
-select_group_t *group = NULL;
+/* Default options */
+#define DEFAULT_DNS_HOST "8.8.8.8"
+#define DEFAULT_DNS_PORT 53
+
+/* Define these outside the function so they can be freed by the atexec() */
+select_group_t   *group          = NULL;
+driver_console_t *driver_console = NULL;
+driver_exec_t    *driver_exec    = NULL;
+driver_dns_t     *driver_dns     = NULL;
+
 
 static void cleanup()
 {
@@ -47,14 +56,20 @@ static void cleanup()
   message_cleanup();
   if(group)
     select_group_destroy(group);
+  if(driver_console)
+    driver_console_destroy(driver_console);
+  if(driver_exec)
+    driver_exec_destroy(driver_exec);
+  if(driver_dns)
+    driver_dns_destroy(driver_dns);
 
   print_memory();
 }
 
-void usage(char *name)
+void usage(char *name, char *message)
 {
   fprintf(stderr,
-"Usage: %s [args] <domain>\n"
+"Usage: %s [args] [domain]\n"
 "\n"
 
 "General options:\n"
@@ -68,14 +83,19 @@ void usage(char *name)
 "\n"
 
 "DNS-specific options:\n"
+" --dns <domain>          Enable DNS mode with the given domain\n"
 " --host <host>           The DNS server [default: system DNS]\n"
 " --port <port>           The DNS port [default: 53]\n"
 "\n"
 
 "Debug options:\n"
 " --trace-packets         Display the packets as they come and go\n"
-, name
+"\n"
+"%s\n"
+"\n"
+, name, message
 );
+  exit(0);
 }
 
 int main(int argc, char *argv[])
@@ -88,31 +108,50 @@ int main(int argc, char *argv[])
     {"h",       no_argument,       0, 0},
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
-    {"exec",    required_argument, 0, 0}, /* Execute */
+
+    /* Execute-specific options. */
+    {"exec",    required_argument, 0, 0}, /* Enable execute */
     {"e",       required_argument, 0, 0},
 
+    /* Console options. */
+    {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
+    {"console", no_argument,       0, 0}, /* (alias) */
+
     /* DNS-specific options */
-    {"host",    required_argument, 0, 0}, /* DNS server */
-    {"port",    required_argument, 0, 0}, /* DNS port */
+    {"dns",        required_argument, 0, 0}, /* Enable DNS (default) */
+    {"dnshost",    required_argument, 0, 0}, /* DNS server */
+    {"host",       required_argument, 0, 0}, /* (alias) */
+    {"dnsport",    required_argument, 0, 0}, /* DNS port */
+    {"port",       required_argument, 0, 0}, /* (alias) */
 
     /* Debug options */
     {"trace-packets", no_argument, 0, 0}, /* Trace packets */
     {0,         0,                 0, 0}  /* End */
   };
+
+  /* Define DNS options so we can set them later. */
+  struct {
+    char     *host;
+    uint16_t  port;
+  } dns_options = { DEFAULT_DNS_HOST, DEFAULT_DNS_PORT };
+
   char              c;
   int               option_index;
   const char       *option_name;
-  driver_console_t *driver_console;
-  /*driver_exec_t    *driver_exec;*/
-  driver_dns_t     *driver_dns;
 
+  NBBOOL            input_set = FALSE;
+  NBBOOL            output_set = FALSE;
+
+  /* Initialize the modules that need initialization. */
   log_init();
   sessions_init();
 
   group = select_group_create();
+#if 0
   driver_console = driver_console_create(group);
   /*driver_exec    = driver_exec_create(group, "cmd.exe");*/
   driver_dns     = driver_dns_create(group);
+#endif
 
   /* TODO: This is a hack to get rid of a warning about driver_console not being used,
    * when I eventually use it I can get rid of this. */
@@ -120,7 +159,7 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
   /* Set the default log level */
-  log_set_min_console_level(LOG_LEVEL_WARNING);
+  log_set_min_console_level(LOG_LEVEL_INFO);
 
   /* Parse the command line options. */
   opterr = 0;
@@ -134,8 +173,7 @@ int main(int argc, char *argv[])
         /* General options */
         if(!strcmp(option_name, "help") || !strcmp(option_name, "h"))
         {
-          usage(argv[0]);
-          exit(0);
+          usage(argv[0], "--help requested");
         }
         else if(!strcmp(option_name, "name"))
         {
@@ -144,18 +182,39 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
-          /* TODO: Make this work again */
-          /*options->exec = optarg;*/
+          if(input_set)
+            usage(argv[0], "More than one of --exec and --stdin can't be set!");
+
+          input_set = TRUE;
+          driver_exec = driver_exec_create(group, optarg);
+        }
+
+        /* Console-specific options. */
+        else if(!strcmp(option_name, "stdin"))
+        {
+          if(input_set)
+            usage(argv[0], "More than one of --exec and --stdin can't be set!");
+
+          input_set = TRUE;
+          driver_console = driver_console_create(group);
         }
 
         /* DNS-specific options */
-        else if(!strcmp(option_name, "host"))
+        else if(!strcmp(option_name, "dns"))
         {
-          driver_dns->dns_host = optarg;
+          if(output_set)
+            usage(argv[0], "More than one of --exec and --stdin can't be set!");
+
+          output_set = TRUE;
+          driver_dns = driver_dns_create(group, optarg);
         }
-        else if(!strcmp(option_name, "port"))
+        else if(!strcmp(option_name, "dnshost") || !strcmp(option_name, "host"))
         {
-          driver_dns->dns_port = atoi(optarg);
+          dns_options.host = optarg;
+        }
+        else if(!strcmp(option_name, "dnsport") || !strcmp(option_name, "port"))
+        {
+          dns_options.port = atoi(optarg);
         }
 
         /* Debug options */
@@ -177,13 +236,49 @@ int main(int argc, char *argv[])
     }
   }
 
-  /* Make sure they gave a domain. */
-  if(optind >= argc)
+  /* If no input was created, default to console. */
+  if(!input_set)
+    driver_console = driver_console_create(group);
+
+  /* If no output was set, use the domain, and use the last option as the
+   * domain. */
+  if(!output_set)
   {
-    usage(argv[0]);
+    /* Make sure they gave a domain. */
+    if(optind >= argc)
+    {
+      usage(argv[0], "Please provide a domain (either with --dns or at the end of the commandline)");
+      exit(1);
+    }
+    driver_dns = driver_dns_create(group, argv[optind]);
+  }
+
+  if(driver_console)
+  {
+    LOG_WARNING("INPUT: Console");
+  }
+  else if(driver_exec)
+  {
+    LOG_WARNING("INPUT: Executing %s", driver_exec->process);
+  }
+  else
+  {
+    LOG_FATAL("INPUT: Ended up with an unknown input driver!");
     exit(1);
   }
-  driver_dns->domain = argv[optind];
+
+  if(driver_dns)
+  {
+    driver_dns->dns_host = dns_options.host;
+    driver_dns->dns_port = dns_options.port;
+    LOG_WARNING("OUTPUT: DNS tunnel to %s", driver_dns->domain);
+  }
+  else
+  {
+    LOG_FATAL("OUTPUT: Ended up with an unknown output driver!");
+    exit(1);
+  }
+
 
   /* TODO: Set the session name, if necessary. */
 #if 0

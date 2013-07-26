@@ -92,3 +92,7 @@ driver_console_t *driver_console_create(select_group_t *group)
   return driver_console;
 }
 
+void driver_console_destroy(driver_console_t *driver)
+{
+  safe_free(driver);
+}

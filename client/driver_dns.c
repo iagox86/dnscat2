@@ -18,11 +18,6 @@
 
 #include "driver_dns.h"
 
-/* Default options */
-#define DEFAULT_DNS_SERVER   "8.8.8.8"
-#define DEFAULT_DNS_PORT     53
-#define DEFAULT_DOMAIN       "skullseclabs.org"
-
 #define MAX_FIELD_LENGTH 62
 #define MAX_DNS_LENGTH   255 /* TODO: Define this properly again */
 
@@ -229,7 +224,7 @@ static void dns_send(uint16_t session_id, uint8_t *data, size_t length, void *d)
   dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
-  LOG_INFO("Sending DNS query for: %s", encoded_bytes);
+  LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver_dns->dns_host, driver_dns->dns_port);
   udp_send(driver_dns->s, driver_dns->dns_host, driver_dns->dns_port, dns_bytes, dns_length);
 
   safe_free(dns_bytes);
@@ -312,7 +307,7 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-driver_dns_t *driver_dns_create(select_group_t *group)
+driver_dns_t *driver_dns_create(select_group_t *group, char *domain)
 {
   driver_dns_t *driver_dns = (driver_dns_t*) safe_malloc(sizeof(driver_dns_t));
 
@@ -325,10 +320,8 @@ driver_dns_t *driver_dns_create(select_group_t *group)
     exit(1);
   }
 
-  /* Set the defaults. */
-  driver_dns->domain   = DEFAULT_DOMAIN;
-  driver_dns->dns_host = DEFAULT_DNS_SERVER;
-  driver_dns->dns_port = DEFAULT_DNS_PORT;
+  /* Set the domain. */
+  driver_dns->domain   = domain;
 
   /* If it succeeds, add it to the select_group */
   select_group_add_socket(group, driver_dns->s, SOCKET_TYPE_STREAM, driver_dns);
@@ -345,3 +338,7 @@ driver_dns_t *driver_dns_create(select_group_t *group)
   return driver_dns;
 }
 
+void driver_dns_destroy(driver_dns_t *driver)
+{
+  safe_free(driver);
+}
