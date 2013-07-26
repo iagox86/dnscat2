@@ -89,6 +89,8 @@ void usage(char *name, char *message)
 "\n"
 
 "Debug options:\n"
+" -d                      Display more debug info (can be used multiple times)\n"
+" -q                      Display less debug info (can be used multiple times)\n"
 " --trace-packets         Display the packets as they come and go\n"
 "\n"
 "%s\n"
