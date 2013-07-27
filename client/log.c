@@ -94,8 +94,8 @@ static void handle_message(message_t *message, void *d)
       LOG_WARNING("Starting the tunnel...");
       break;
 
-    case MESSAGE_CREATE_SESSION:
-      LOG_WARNING("Creating a session...");
+    case MESSAGE_SESSION_CREATED:
+      LOG_WARNING("Session created: %d", message->message.session_created.session_id);
       break;
 
     case MESSAGE_DATA_OUT:
@@ -106,8 +106,8 @@ static void handle_message(message_t *message, void *d)
       LOG_WARNING("Received %d bytes of data", message->message.data.length);
       break;
 
-    case MESSAGE_DESTROY_SESSION:
-      LOG_WARNING("Destroying session: %d", message->message.destroy_session.session_id);
+    case MESSAGE_SESSION_DESTROYED:
+      LOG_WARNING("Session destroyed: %d", message->message.session_destroyed.session_id);
       break;
 
     case MESSAGE_DESTROY:
@@ -122,10 +122,10 @@ static void handle_message(message_t *message, void *d)
 
 void log_init()
 {
-  message_subscribe(MESSAGE_START,           handle_message, NULL);
-  message_subscribe(MESSAGE_CREATE_SESSION,  handle_message, NULL);
-  message_subscribe(MESSAGE_DATA_OUT,        handle_message, NULL);
-  message_subscribe(MESSAGE_DATA_IN,         handle_message, NULL);
-  message_subscribe(MESSAGE_DESTROY_SESSION, handle_message, NULL);
-  message_subscribe(MESSAGE_DESTROY,         handle_message, NULL);
+  message_subscribe(MESSAGE_START,             handle_message, NULL);
+  message_subscribe(MESSAGE_SESSION_CREATED,   handle_message, NULL);
+  message_subscribe(MESSAGE_DATA_OUT,          handle_message, NULL);
+  message_subscribe(MESSAGE_DATA_IN,           handle_message, NULL);
+  message_subscribe(MESSAGE_SESSION_DESTROYED, handle_message, NULL);
+  message_subscribe(MESSAGE_DESTROY,           handle_message, NULL);
 }

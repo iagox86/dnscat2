@@ -22,7 +22,6 @@
 #include "message.h"
 #include "select_group.h"
 #include "session.h"
-#include "sessions.h"
 #include "udp.h"
 
 /* Default options */
@@ -150,7 +149,6 @@ int main(int argc, char *argv[])
 
   /* Initialize the modules that need initialization. */
   log_init();
-  sessions_init();
 
   group = select_group_create();
 #if 0

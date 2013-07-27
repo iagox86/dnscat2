@@ -5,13 +5,114 @@
 
 #include "log.h"
 #include "memory.h"
+#include "message.h"
 #include "packet.h"
 #include "session.h"
 
 NBBOOL trace_packets;
 
+typedef struct _session_entry_t
+{
+  session_t *session;
+  struct _session_entry_t *next;
+} session_entry_t;
+
+static session_entry_t *first_session;
+
+void sessions_add(session_t *session)
+{
+  session_entry_t *entry = safe_malloc(sizeof(session_entry_t));
+  entry->session = session;
+  entry->next = first_session;
+  first_session = entry;
+}
+
+session_t *sessions_get_by_id(uint16_t session_id)
+{
+  session_entry_t *entry;
+
+  for(entry = first_session; entry; entry = entry->next)
+    if(entry->session->id == session_id)
+      return entry->session;
+  return NULL;
+}
+
+#if 0
+static void sessions_remove(uint16_t session_id)
+{
+  session_entry_t *entry;
+  session_entry_t *previous = NULL;
+
+  for(entry = first_session; entry; entry = entry->next)
+  {
+    if(entry->session->id == session_id)
+    {
+      if(previous == NULL)
+        first_session = entry->next;
+      else
+        previous->next = entry->next;
+
+      safe_free(entry);
+
+      return;
+    }
+  }
+}
+#endif
+
+void sessions_do_actions()
+{
+  session_entry_t *entry;
+
+  for(entry = first_session; entry; entry = entry->next)
+    session_do_actions(entry->session);
+}
+
+size_t sessions_total_bytes_queued()
+{
+  session_entry_t *entry;
+  size_t bytes_queued = 0;
+
+  for(entry = first_session; entry; entry = entry->next)
+    bytes_queued += session_get_bytes_queued(entry->session);
+
+  return bytes_queued;
+}
+
+void sessions_close()
+{
+  session_entry_t *entry;
+
+  for(entry = first_session; entry; entry = entry->next)
+    session_close(entry->session);
+}
+
+/* TODO: I need a better way to close/destroy sessions still... */
+void sessions_destroy()
+{
+  session_entry_t *entry;
+  session_entry_t *next;
+
+  entry = first_session;
+
+  while(entry)
+  {
+    next = entry->next;
+    session_destroy(entry->session);
+    safe_free(entry);
+    entry = next;
+  }
+  first_session = NULL;
+}
+
 static NBBOOL check_closed(session_t *session, char *name)
 {
+  if(!session)
+  {
+    LOG_ERROR("Tried to call %s() on an invalid session!", name);
+    return TRUE;
+  }
+
   if(session->is_closed)
   {
     LOG_ERROR("Tried to call %s() on a closed session!", name);
@@ -134,6 +235,8 @@ session_t *session_create(session_data_callback_t *outgoing_data_callback, sessi
   session->incoming_data_callback = NULL;
   session->callback_param         = NULL;
 
+  message_post_session_created(session->id, &session->outgoing_data_callback, &session->incoming_data_callback, &session->callback_param, &session->max_packet_size);
+
   return session;
 }
 
@@ -151,16 +254,13 @@ void session_set_max_size(session_t *session, size_t size)
 
 void session_destroy(session_t *session)
 {
-  LOG_INFO("Cleaning up the session");
-
   if(!session)
   {
     LOG_ERROR("Tried to free session a second time!");
     return;
   }
 
-  if(!session->is_closed)
-    session_close(session);
+  message_post_session_destroyed(session->id);
 
   if(session->name)
     safe_free(session->name);

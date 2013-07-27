@@ -39,7 +39,16 @@ typedef struct
   void                    *callback_param;
 } session_t;
 
+session_t *sessions_get_by_id(uint16_t session_id);
+void       sessions_do_actions();
+size_t     sessions_total_bytes_queued();
+void       sessions_close();
+void       sessions_destroy();
+
+void sessions_add(session_t *session);
+
 session_t *session_create();
+
 void       session_destroy(session_t *session);
 
 void       session_set_callbacks(session_t *session, session_data_callback_t *outgoing_data_callback, session_data_callback_t *incoming_data_callback, void *callback_param);

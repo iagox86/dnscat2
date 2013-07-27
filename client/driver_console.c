@@ -23,12 +23,8 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 
 static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 {
-  /*driver_console_t *driver_console = (driver_console_t*) d;*/
-
   /* When the stdin pipe is closed, the stdin driver signals the end. */
   message_post_destroy();
-
-  /*message_post_destroy_session(driver_console->session_id);*/
 
   return SELECT_CLOSE_REMOVE;
 }
@@ -36,7 +32,11 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_console_t *driver)
 {
-  message_post_create_session(&driver->session_id);
+  session_t *session = session_create();
+  sessions_add(session);
+  driver->session_id = session->id;
+
+  LOG_INFO("Created new session: %d", session->id);
 }
 
 static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)

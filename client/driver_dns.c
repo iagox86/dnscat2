@@ -12,7 +12,6 @@
 #include "memory.h"
 #include "message.h"
 #include "packet.h"
-#include "sessions.h"
 #include "types.h"
 #include "udp.h"
 

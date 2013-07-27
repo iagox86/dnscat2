@@ -8,11 +8,10 @@ typedef enum
   /* This is called once, at the beginning of the process, and is used for
    * initialization. */
   MESSAGE_START,
-  MESSAGE_CREATE_SESSION,
   MESSAGE_SESSION_CREATED,
   MESSAGE_DATA_OUT,
   MESSAGE_DATA_IN,
-  MESSAGE_DESTROY_SESSION,
+  MESSAGE_SESSION_DESTROYED,
   MESSAGE_DESTROY,
 
   MESSAGE_MAX_MESSAGE_TYPE,
@@ -31,14 +30,7 @@ typedef struct
 
     struct
     {
-      struct
-      {
-        uint16_t session_id;
-      } out;
-    } create_session;
-
-    struct
-    {
+      uint16_t session_id;
       struct
       {
         session_data_callback_t *outgoing_callback;
@@ -58,7 +50,7 @@ typedef struct
     struct
     {
       uint16_t session_id;
-    } destroy_session;
+    } session_destroyed;
 
     struct
     {
@@ -82,11 +74,10 @@ void message_unsubscribe(message_type_t message_type, message_callback_t *callba
 void message_cleanup();
 
 void message_post_start();
-void message_post_create_session(uint16_t *session_id);
-void message_post_session_created(session_data_callback_t **outgoing_callback, session_data_callback_t **incoming_callback, void **callback_param, size_t *max_size);
+void message_post_session_created(uint16_t session_id, session_data_callback_t **outgoing_callback, session_data_callback_t **incoming_callback, void **callback_param, size_t *max_size);
 void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length);
 void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length);
-void message_post_destroy_session(uint16_t session_id);
+void message_post_session_destroyed(uint16_t session_id);
 void message_post_destroy();
 
 #endif

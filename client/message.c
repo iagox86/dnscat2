@@ -96,17 +96,10 @@ void message_post_start()
   message_destroy(message);
 }
 
-void message_post_create_session(uint16_t *session_id)
-{
-  message_t *message = message_create(MESSAGE_CREATE_SESSION);
-  message_post(message);
-  *session_id = message->message.create_session.out.session_id;
-  message_destroy(message);
-}
-
-void message_post_session_created(session_data_callback_t **outgoing_callback, session_data_callback_t **incoming_callback, void **callback_param, size_t *max_size)
+void message_post_session_created(uint16_t session_id, session_data_callback_t **outgoing_callback, session_data_callback_t **incoming_callback, void **callback_param, size_t *max_size)
 {
   message_t *message = message_create(MESSAGE_SESSION_CREATED);
+  message->message.session_created.session_id = session_id;
   message_post(message);
 
   *outgoing_callback = message->message.session_created.out.outgoing_callback;
@@ -137,10 +130,10 @@ void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length)
   message_destroy(message);
 }
 
-void message_post_destroy_session(uint16_t session_id)
+void message_post_session_destroyed(uint16_t session_id)
 {
-  message_t *message = message_create(MESSAGE_DESTROY_SESSION);
-  message->message.destroy_session.session_id = session_id;
+  message_t *message = message_create(MESSAGE_SESSION_DESTROYED);
+  message->message.session_destroyed.session_id = session_id;
   message_post(message);
   message_destroy(message);
 }
