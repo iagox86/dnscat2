@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "buffer.h"
 #include "dns.h"
 #include "log.h"
 #include "memory.h"
@@ -29,21 +30,10 @@
  */
 #define MAX_DNSCAT_LENGTH(domain) ((255/2) - strlen(domain) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
 
-static SELECT_RESPONSE_t timeout(void *group, void *param)
+static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 {
-  driver_dns_t *driver_dns = (driver_dns_t*) param;
-
-  sessions_do_actions();
-
-  if(driver_dns->is_closed)
-  {
-    if(sessions_total_bytes_queued() == 0)
-    {
-      sessions_close();
-      sessions_destroy();
-      exit(0);
-    }
-  }
+  LOG_FATAL("DNS socket closed!");
+  exit(0);
 
   return SELECT_OK;
 }
@@ -51,7 +41,7 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
 static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
   driver_dns_t *driver_dns = param;
-  dns_t    *dns      = dns_create_from_packet(data, length);
+  dns_t        *dns        = dns_create_from_packet(data, length);
 
   LOG_INFO("DNS response received (%d bytes)", length);
 
@@ -145,22 +135,11 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
         /* Parse the dnscat packet. */
         packet_t *packet = packet_parse(data, length);
-        session_t *session = sessions_get_by_id(packet->session_id);
 
-        if(session == NULL)
-        {
-          LOG_WARNING("Received %d bytes of data to a non-existant session", length);
-        }
-        else if(session->is_closed)
-        {
-          LOG_WARNING("Received %d bytes of data to a closed session", length);
-        }
-        else
-        {
-          LOG_INFO("Received %d bytes of data", length);
-          session_recv(session, packet);
-        }
+        /* Pass the data elsewhere. */
+        message_post_packet_in(packet);
 
+        packet_destroy(packet);
         safe_free(data);
       }
       buffer_destroy(incoming_data);
@@ -177,7 +156,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 }
 
 /* This function expects to receive the proper length of data. */
-static void dns_send(uint16_t session_id, uint8_t *data, size_t length, void *d)
+static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
 {
   size_t        i;
   dns_t        *dns;
@@ -188,14 +167,13 @@ static void dns_send(uint16_t session_id, uint8_t *data, size_t length, void *d)
   size_t        dns_length;
   size_t        section_length;
 
-  driver_dns_t *driver_dns = (driver_dns_t*) d;
+  size_t        length;
+  uint8_t      *data = packet_to_bytes(packet, &length);
 
-  LOG_INFO("Entering DNS: queuing %d bytes of data to be sent", length);
-
-  assert(driver_dns->s != -1); /* Make sure we have a valid socket. */
+  assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
-  assert(length <= MAX_DNSCAT_LENGTH(driver_dns->domain));
+  assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
 
   buffer = buffer_create(BO_BIG_ENDIAN);
   section_length = 0;
@@ -223,56 +201,12 @@ static void dns_send(uint16_t session_id, uint8_t *data, size_t length, void *d)
   dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
-  LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver_dns->dns_host, driver_dns->dns_port);
-  udp_send(driver_dns->s, driver_dns->dns_host, driver_dns->dns_port, dns_bytes, dns_length);
+  LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_host, driver->dns_port);
+  udp_send(driver->s, driver->dns_host, driver->dns_port, dns_bytes, dns_length);
 
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
   dns_destroy(dns);
-}
-
-/* Called by the session object when incoming data arrives. */
-/* Just send it to the other side. */
-static void dns_recv(uint16_t session_id, uint8_t *data, size_t length, void *d)
-{
-  message_post_data_in(session_id, data, length);
-}
-
-static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
-{
-  LOG_FATAL("DNS socket closed");
-
-  message_post_destroy();
-  sessions_destroy();
-  exit(0);
-
-  return SELECT_OK;
-}
-
-/*********** ***********/
-
-static void handle_data(uint16_t session_id, uint8_t *data, size_t length, driver_dns_t *driver_dns)
-{
-  /* Queue data into the session. */
-  session_t *session = sessions_get_by_id(session_id);
-
-  if(!session)
-  {
-    LOG_FATAL("Unknown session id: %d\n", session_id);
-    exit(1);
-  }
-  if(session->is_closed)
-  {
-    LOG_ERROR("Tried to send data to a closed session: %d", session_id);
-    return;
-  }
-
-  session_send(session, data, length);
-}
-
-static void handle_destroy(driver_dns_t *driver)
-{
-  driver->is_closed = TRUE;
 }
 
 static void handle_message(message_t *message, void *d)
@@ -281,23 +215,8 @@ static void handle_message(message_t *message, void *d)
 
   switch(message->type)
   {
-    case MESSAGE_START:
-      /* Not sure if I need to handler this... */
-      break;
-
-    case MESSAGE_DATA_OUT:
-      handle_data(message->message.data.session_id, message->message.data.data, message->message.data.length, driver_dns);
-      break;
-
-    case MESSAGE_SESSION_CREATED:
-      message->message.session_created.out.outgoing_callback = dns_send;
-      message->message.session_created.out.incoming_callback = dns_recv;
-      message->message.session_created.out.callback_param    = driver_dns;
-      message->message.session_created.out.max_size          = MAX_DNSCAT_LENGTH(driver_dns->domain);
-      break;
-
-    case MESSAGE_DESTROY:
-      handle_destroy(driver_dns);
+    case MESSAGE_PACKET_OUT:
+      handle_packet_out(driver_dns, message->message.packet_out.packet);
       break;
 
     default:
@@ -325,14 +244,10 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain)
   /* If it succeeds, add it to the select_group */
   select_group_add_socket(group, driver_dns->s, SOCKET_TYPE_STREAM, driver_dns);
   select_set_recv(group, driver_dns->s, recv_socket_callback);
-  select_set_timeout(group, timeout, driver_dns);
   select_set_closed(group, driver_dns->s, dns_data_closed);
 
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START,           handle_message, driver_dns);
-  message_subscribe(MESSAGE_DATA_OUT,        handle_message, driver_dns);
-  message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver_dns);
-  message_subscribe(MESSAGE_DESTROY,         handle_message, driver_dns);
+  message_subscribe(MESSAGE_PACKET_OUT, handle_message, driver_dns);
 
   return driver_dns;
 }

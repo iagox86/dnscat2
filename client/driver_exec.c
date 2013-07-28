@@ -26,7 +26,7 @@ static SELECT_RESPONSE_t exec_callback(void *group, int socket, uint8_t *data, s
 
 static SELECT_RESPONSE_t exec_closed_callback(void *group, int socket, void *d)
 {
-  message_post_destroy();
+  message_post_shutdown();
 
   return SELECT_CLOSE_REMOVE;
 }
@@ -34,9 +34,7 @@ static SELECT_RESPONSE_t exec_closed_callback(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_exec_t *driver)
 {
-  session_t *session = session_create();
-  sessions_add(session);
-  driver->session_id = session->id;
+  message_post_create_session();
 
   /* Create the exec socket */
 #ifdef WIN32
@@ -95,7 +93,11 @@ static void handle_start(driver_exec_t *driver)
   select_set_recv(driver->group,   driver->pipe_stdout[PIPE_READ], exec_callback);
   select_set_closed(driver->group, driver->pipe_stdout[PIPE_READ], exec_closed_callback);
 #endif
+}
 
+void handle_session_created(driver_exec_t *driver, uint16_t session_id)
+{
+  driver->session_id = session_id;
 }
 
 static void handle_data_in(driver_exec_t *driver, uint8_t *data, size_t length)
@@ -113,8 +115,12 @@ static void handle_message(message_t *message, void *d)
       handle_start(driver);
       break;
 
+    case MESSAGE_SESSION_CREATED:
+      handle_session_created(driver, message->message.session_created.session_id);
+      break;
+
     case MESSAGE_DATA_IN:
-      handle_data_in(driver, message->message.data.data, message->message.data.length);
+      handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
       break;
 
     default:
@@ -132,6 +138,7 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_exec);
+  message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver_exec);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_exec);
 
   return driver_exec;

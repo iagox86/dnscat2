@@ -24,7 +24,7 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 {
   /* When the stdin pipe is closed, the stdin driver signals the end. */
-  message_post_destroy();
+  message_post_shutdown();
 
   return SELECT_CLOSE_REMOVE;
 }
@@ -32,11 +32,12 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_console_t *driver)
 {
-  session_t *session = session_create();
-  sessions_add(session);
-  driver->session_id = session->id;
+  message_post_create_session();
+}
 
-  LOG_INFO("Created new session: %d", session->id);
+static void handle_session_created(driver_console_t *driver, uint16_t session_id)
+{
+  driver->session_id = session_id;
 }
 
 static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)
@@ -57,8 +58,12 @@ static void handle_message(message_t *message, void *d)
       handle_start(driver);
       break;
 
+    case MESSAGE_SESSION_CREATED:
+      handle_session_created(driver, message->message.session_created.session_id);
+      break;
+
     case MESSAGE_DATA_IN:
-      handle_data_in(driver, message->message.data.data, message->message.data.length);
+      handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
       break;
 
     default:
@@ -87,6 +92,7 @@ driver_console_t *driver_console_create(select_group_t *group)
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_console);
+  message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver_console);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_console);
 
   return driver_console;

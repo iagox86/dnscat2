@@ -166,7 +166,7 @@ void *safe_memcpy_internal(const void *data, size_t length, char *file, int line
   return ret;
 }
 
-void safe_free(void *ptr)
+void safe_free_internal(void *ptr, char *file, int line)
 {
   remove_entry(ptr);
   free(ptr);

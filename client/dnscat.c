@@ -46,13 +46,19 @@ driver_console_t *driver_console = NULL;
 driver_exec_t    *driver_exec    = NULL;
 driver_dns_t     *driver_dns     = NULL;
 
+static SELECT_RESPONSE_t timeout(void *group, void *param)
+{
+  message_post_heartbeat();
+
+  return SELECT_OK;
+}
 
 static void cleanup()
 {
   LOG_WARNING("Terminating");
 
-  sessions_destroy();
-  message_cleanup();
+  message_post_shutdown();
+
   if(group)
     select_group_destroy(group);
   if(driver_console)
@@ -149,6 +155,7 @@ int main(int argc, char *argv[])
 
   /* Initialize the modules that need initialization. */
   log_init();
+  sessions_init();
 
   group = select_group_create();
 #if 0
@@ -227,7 +234,7 @@ int main(int argc, char *argv[])
         /* Debug options */
         else if(!strcmp(option_name, "trace-packets"))
         {
-          trace_packets = TRUE;
+          /* TODO */
         }
         else if(!strcmp(option_name, "d"))
         {
@@ -241,7 +248,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-          LOG_FATAL("Unknown option");
+          usage(argv[0], "Unknown option");
           /* TODO: Usage */
         }
         break;
@@ -296,21 +303,14 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-
-  /* TODO: Set the session name, if necessary. */
-#if 0
-  if(options->name)
-    session_set_name(options->session, options->name);
-  else
-    session_set_name(options->session, "dnscat2 "VERSION);
-#endif
-
   /* Be sure we clean up at exit. */
   atexit(cleanup);
 
   /* Kick things off */
   message_post_start();
 
+  /* Add the timeout function */
+  select_set_timeout(group, timeout, NULL);
   while(TRUE)
     select_group_do_select(group, 1000);
 

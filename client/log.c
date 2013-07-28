@@ -91,27 +91,47 @@ static void handle_message(message_t *message, void *d)
   switch(message->type)
   {
     case MESSAGE_START:
-      LOG_WARNING("Starting the tunnel...");
+      LOG_WARNING("Dnscat starting");
+      break;
+
+    case MESSAGE_SHUTDOWN:
+      LOG_WARNING("Dnscat shutting down");
+      break;
+
+    case MESSAGE_CREATE_SESSION:
+      LOG_WARNING("Session creation request");
       break;
 
     case MESSAGE_SESSION_CREATED:
-      LOG_WARNING("Session created: %d", message->message.session_created.session_id);
+      LOG_WARNING("Session successfully created: %d", message->message.session_created.session_id);
+      break;
+
+    case MESSAGE_CLOSE_SESSION:
+      LOG_WARNING("Session closure request: %d", message->message.close_session.session_id);
+      break;
+
+    case MESSAGE_SESSION_CLOSED:
+      LOG_WARNING("Session closed: %d", message->message.session_closed.session_id);
       break;
 
     case MESSAGE_DATA_OUT:
-      LOG_WARNING("Sending %d bytes of data", message->message.data.length);
+      LOG_WARNING("Data queued: %d bytes to session %d", message->message.data_out.length, message->message.data_out.session_id);
+      break;
+
+    case MESSAGE_PACKET_OUT:
+      LOG_WARNING("Data being sent out");
+      break;
+
+    case MESSAGE_PACKET_IN:
+      LOG_WARNING("Data received");
       break;
 
     case MESSAGE_DATA_IN:
-      LOG_WARNING("Received %d bytes of data", message->message.data.length);
+      LOG_WARNING("Data being returned to the client; %d bytes to session %d", message->message.data_in.length, message->message.data_in.session_id);
       break;
 
-    case MESSAGE_SESSION_DESTROYED:
-      LOG_WARNING("Session destroyed: %d", message->message.session_destroyed.session_id);
-      break;
-
-    case MESSAGE_DESTROY:
-      LOG_WARNING("Destroying the tunnel...");
+    case MESSAGE_HEARTBEAT:
+      LOG_WARNING("Heartbeat...");
       break;
 
     default:
@@ -122,10 +142,15 @@ static void handle_message(message_t *message, void *d)
 
 void log_init()
 {
-  message_subscribe(MESSAGE_START,             handle_message, NULL);
-  message_subscribe(MESSAGE_SESSION_CREATED,   handle_message, NULL);
-  message_subscribe(MESSAGE_DATA_OUT,          handle_message, NULL);
-  message_subscribe(MESSAGE_DATA_IN,           handle_message, NULL);
-  message_subscribe(MESSAGE_SESSION_DESTROYED, handle_message, NULL);
-  message_subscribe(MESSAGE_DESTROY,           handle_message, NULL);
+  message_subscribe(MESSAGE_START,            handle_message, NULL);
+  message_subscribe(MESSAGE_SHUTDOWN,         handle_message, NULL);
+  message_subscribe(MESSAGE_CREATE_SESSION,   handle_message, NULL);
+  message_subscribe(MESSAGE_SESSION_CREATED,  handle_message, NULL);
+  message_subscribe(MESSAGE_CLOSE_SESSION,    handle_message, NULL);
+  message_subscribe(MESSAGE_SESSION_CLOSED,   handle_message, NULL);
+  message_subscribe(MESSAGE_DATA_OUT,         handle_message, NULL);
+  message_subscribe(MESSAGE_PACKET_OUT,       handle_message, NULL);
+  message_subscribe(MESSAGE_PACKET_IN,        handle_message, NULL);
+  message_subscribe(MESSAGE_DATA_IN,          handle_message, NULL);
+  message_subscribe(MESSAGE_HEARTBEAT,        handle_message, NULL);
 }
