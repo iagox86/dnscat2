@@ -10,9 +10,6 @@
 #include "packet.h"
 #include "session.h"
 
-/* TODO: Validate that this still works. */
-NBBOOL trace_packets;
-
 /* Set to TRUE after getting the 'shutdown' message. */
 NBBOOL is_shutdown = FALSE;
 
@@ -232,12 +229,6 @@ static void handle_data_in(packet_t *packet)
   NBBOOL new_bytes_acked = FALSE;
   /* TODO Check if the session actually exists */
   session_t *session = sessions_get_by_id(packet->session_id);
-
-  if(trace_packets)
-  {
-    printf("RECV: ");
-    packet_print(packet);
-  }
 
   switch(session->state)
   {

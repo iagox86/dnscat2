@@ -97,7 +97,6 @@ void usage(char *name, char *message)
 "Debug options:\n"
 " -d                      Display more debug info (can be used multiple times)\n"
 " -q                      Display less debug info (can be used multiple times)\n"
-" --trace-packets         Display the packets as they come and go\n"
 "\n"
 "%s\n"
 "\n"
@@ -133,7 +132,6 @@ int main(int argc, char *argv[])
     {"port",       required_argument, 0, 0}, /* (alias) */
 
     /* Debug options */
-    {"trace-packets", no_argument, 0, 0}, /* Trace packets */
     {"d",       no_argument,       0, 0}, /* More debug */
     {"q",       no_argument,       0, 0}, /* Less debug */
     {0,         0,                 0, 0}  /* End */
@@ -230,10 +228,6 @@ int main(int argc, char *argv[])
         }
 
         /* Debug options */
-        else if(!strcmp(option_name, "trace-packets"))
-        {
-          /* TODO */
-        }
         else if(!strcmp(option_name, "d"))
         {
           min_log_level--;
@@ -247,7 +241,6 @@ int main(int argc, char *argv[])
         else
         {
           usage(argv[0], "Unknown option");
-          /* TODO: Usage */
         }
         break;
 
