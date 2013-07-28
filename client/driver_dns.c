@@ -155,6 +155,11 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   return SELECT_OK;
 }
 
+static void handle_start(driver_dns_t *driver)
+{
+  message_post_config_int("max_packet_length", MAX_DNSCAT_LENGTH(driver->domain));
+}
+
 /* This function expects to receive the proper length of data. */
 static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
 {
@@ -216,6 +221,10 @@ static void handle_message(message_t *message, void *d)
 
   switch(message->type)
   {
+    case MESSAGE_START:
+      handle_start(driver_dns);
+      break;
+
     case MESSAGE_PACKET_OUT:
       handle_packet_out(driver_dns, message->message.packet_out.packet);
       break;
@@ -248,6 +257,7 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain)
   select_set_closed(group, driver_dns->s, dns_data_closed);
 
   /* Subscribe to the messages we care about. */
+  message_subscribe(MESSAGE_START, handle_message, driver_dns);
   message_subscribe(MESSAGE_PACKET_OUT, handle_message, driver_dns);
 
   return driver_dns;

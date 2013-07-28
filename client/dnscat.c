@@ -165,10 +165,7 @@ int main(int argc, char *argv[])
   driver_dns     = driver_dns_create(group);
 #endif
 
-  /* TODO: This is a hack to get rid of a warning about driver_console not being used,
-   * when I eventually use it I can get rid of this. */
-  if(driver_console)
-    srand(time(NULL));
+  srand(time(NULL));
 
   /* Set the default log level */
   log_set_min_console_level(min_log_level);

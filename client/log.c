@@ -90,6 +90,14 @@ static void handle_message(message_t *message, void *d)
 {
   switch(message->type)
   {
+    case MESSAGE_CONFIG:
+      if(message->message.config.type == CONFIG_INT)
+        LOG_WARNING("Setting config: %s => %d", message->message.config.name, message->message.config.value.int_value);
+      else if(message->message.config.type == CONFIG_STRING)
+        LOG_WARNING("Setting config: %s => %s", message->message.config.name, message->message.config.value.string_value);
+      else
+        LOG_WARNING("Setting config: %s => [unknown type]", message->message.config.name);
+
     case MESSAGE_START:
       LOG_WARNING("Dnscat starting");
       break;
@@ -142,6 +150,7 @@ static void handle_message(message_t *message, void *d)
 
 void log_init()
 {
+  message_subscribe(MESSAGE_CONFIG,           handle_message, NULL);
   message_subscribe(MESSAGE_START,            handle_message, NULL);
   message_subscribe(MESSAGE_SHUTDOWN,         handle_message, NULL);
   message_subscribe(MESSAGE_CREATE_SESSION,   handle_message, NULL);

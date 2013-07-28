@@ -89,6 +89,26 @@ void message_post(message_t *message)
     handler->handler->callback(message, handler->handler->param);
 }
 
+void message_post_config_int(char *name, int value)
+{
+  message_t *message = message_create(MESSAGE_CONFIG);
+  message->message.config.name = name;
+  message->message.config.type = CONFIG_INT;
+  message->message.config.value.int_value = value;
+  message_post(message);
+  message_destroy(message);
+}
+
+void message_post_config_string(char *name, char *value)
+{
+  message_t *message = message_create(MESSAGE_CONFIG);
+  message->message.config.name = name;
+  message->message.config.type = CONFIG_STRING;
+  message->message.config.value.string_value = value;
+  message_post(message);
+  message_destroy(message);
+}
+
 void message_post_start()
 {
   message_t *message = message_create(MESSAGE_START);

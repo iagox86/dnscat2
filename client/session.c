@@ -16,6 +16,9 @@ NBBOOL trace_packets;
 /* Set to TRUE after getting the 'shutdown' message. */
 NBBOOL is_shutdown = FALSE;
 
+/* The maximum length of packets. */
+size_t max_packet_length = 10000;
+
 typedef enum
 {
   SESSION_STATE_NEW,
@@ -31,8 +34,6 @@ typedef struct
   uint16_t        my_seq;
   NBBOOL          is_closed;
   char           *name;
-
-  size_t          max_packet_size;
 
   buffer_t       *outgoing_data;
 } session_t;
@@ -74,7 +75,7 @@ static void do_send_stuff(session_t *session)
 
     case SESSION_STATE_ESTABLISHED:
       /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
-      data = buffer_read_remaining_bytes(session->outgoing_data, &length, session->max_packet_size - packet_get_msg_size(), FALSE);
+      data = buffer_read_remaining_bytes(session->outgoing_data, &length, max_packet_length - packet_get_msg_size(), FALSE);
       LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
 
       /* Create a packet with that data */
@@ -151,6 +152,16 @@ static void remove_completed_sessions()
   }
 }
 
+static void handle_config_int(char *name, int value)
+{
+  if(!strcmp(name, "max_packet_length"))
+    max_packet_length = value;
+}
+
+static void handle_config_string(char *name, char *value)
+{
+}
+
 static void handle_shutdown()
 {
   session_entry_t *entry;
@@ -174,8 +185,6 @@ static void handle_create_session()
   session->is_closed     = FALSE;
 
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
-
-  session->max_packet_size = 20; /* TODO: Make this better. */
 
   /* Add it to the linked list. */
   entry = safe_malloc(sizeof(session_entry_t));
@@ -348,6 +357,13 @@ static void handle_message(message_t *message, void *param)
 {
   switch(message->type)
   {
+    case MESSAGE_CONFIG:
+      if(message->message.config.type == CONFIG_INT)
+        handle_config_int(message->message.config.name, message->message.config.value.int_value);
+      else if(message->message.config.type == CONFIG_STRING)
+        handle_config_string(message->message.config.name, message->message.config.value.string_value);
+      break;
+
     case MESSAGE_SHUTDOWN:
       handle_shutdown();
       break;
@@ -379,6 +395,7 @@ static void handle_message(message_t *message, void *param)
 
 void sessions_init()
 {
+  message_subscribe(MESSAGE_CONFIG,         handle_message, NULL);
   message_subscribe(MESSAGE_SHUTDOWN,       handle_message, NULL);
   message_subscribe(MESSAGE_CREATE_SESSION, handle_message, NULL);
   message_subscribe(MESSAGE_CLOSE_SESSION,  handle_message, NULL);

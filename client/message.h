@@ -6,6 +6,9 @@
 
 typedef enum
 {
+  /* This is used to set a configuration value in another listener. */
+  MESSAGE_CONFIG,
+
   /* This is posted once, when the dnscat process starts, and is when any
    * initial connections should be made. */
   MESSAGE_START,
@@ -53,6 +56,12 @@ typedef enum
   MESSAGE_MAX_MESSAGE_TYPE,
 } message_type_t;
 
+typedef enum
+{
+  CONFIG_INT,
+  CONFIG_STRING
+} config_type_t;
+
 /* This defines a message that can be passed around. It's basically a big
  * union across all the message types. */
 typedef struct
@@ -60,6 +69,17 @@ typedef struct
   message_type_t type;
   union
   {
+    struct
+    {
+      char *name;
+      config_type_t type;
+      union
+      {
+        int int_value;
+        char *string_value;
+      } value;
+    } config;
+
     struct
     {
     } start;
@@ -131,6 +151,9 @@ typedef struct
 void message_subscribe(message_type_t message_type, message_callback_t *callback, void *param);
 void message_unsubscribe(message_type_t message_type, message_callback_t *callback); /* TODO */
 void message_cleanup();
+
+void message_post_config_int(char *name, int value);
+void message_post_config_string(char *name, char *value);
 
 void message_post_start();
 void message_post_shutdown();
