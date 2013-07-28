@@ -58,8 +58,6 @@ static SELECT_RESPONSE_t listener_accept(void *group, int s, void *d)
   driver_listener_t *driver = (driver_listener_t*) d;
   client_entry_t *client = safe_malloc(sizeof(client_entry_t));
 
-  printf("HIHI\n");
-
   client->s          = tcp_accept(s, &client->address, &client->port);
   client->session_id = message_post_create_session();
   client->driver     = driver;
