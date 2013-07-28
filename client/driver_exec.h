@@ -1,6 +1,8 @@
 #ifndef __DRIVER_EXEC_H__
 #define __DRIVER_EXEC_H__
 
+#include <sys/types.h>
+
 #include "message.h"
 #include "select_group.h"
 #include "session.h"
