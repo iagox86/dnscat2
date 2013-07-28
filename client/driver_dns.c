@@ -19,7 +19,7 @@
 #include "driver_dns.h"
 
 #define MAX_FIELD_LENGTH 62
-#define MAX_DNS_LENGTH   255 /* TODO: Define this properly again */
+#define MAX_DNS_LENGTH   255
 
 /* The max length is a little complicated:
  * 255 because that's the max DNS length
@@ -85,7 +85,6 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     char buf[3];
     size_t i;
 
-    /* TODO: We don't actually need the .domain suffix if we use TEXT records */
     answer = (char*)dns->answers[0].answer->TEXT.text;
     LOG_INFO("Received a DNS TXT response: %s", answer);
 

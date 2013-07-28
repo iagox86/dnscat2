@@ -194,7 +194,12 @@ static void handle_create_session()
 
 static void handle_close_session(uint16_t session_id)
 {
-  session_t *session = sessions_get_by_id(session_id); /* TODO: Verify the session every time we use it like this. */
+  session_t *session = sessions_get_by_id(session_id);
+  if(!session)
+  {
+    LOG_ERROR("Tried to access a non-existent session: %d", session_id);
+    return;
+  }
 
   if(session->is_closed)
   {
@@ -212,7 +217,7 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
   session_t *session = sessions_get_by_id(session_id);
   if(!session)
   {
-    LOG_ERROR("Tried to queue data in a non-existent session: %d", session_id);
+    LOG_ERROR("Tried to access a non-existent session: %d", session_id);
     return;
   }
 
@@ -227,8 +232,12 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
 static void handle_data_in(packet_t *packet)
 {
   NBBOOL new_bytes_acked = FALSE;
-  /* TODO Check if the session actually exists */
   session_t *session = sessions_get_by_id(packet->session_id);
+  if(!session)
+  {
+    LOG_ERROR("Tried to access a non-existent session: %d", packet->session_id);
+    return;
+  }
 
   switch(session->state)
   {
@@ -287,7 +296,6 @@ static void handle_data_in(packet_t *packet)
             }
 
             /* Print the data, if we received any */
-            /* TODO */
             if(packet->body.msg.data_length > 0)
               message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
           }
