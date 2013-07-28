@@ -14,9 +14,6 @@
 
 #include "buffer.h"
 #include "dns.h"
-#include "driver_console.h"
-#include "driver_dns.h"
-#include "driver_exec.h"
 #include "log.h"
 #include "memory.h"
 #include "message.h"
@@ -24,17 +21,13 @@
 #include "session.h"
 #include "udp.h"
 
+#include "driver_console.h"
+#include "driver_dns.h"
+#include "driver_exec.h"
+#include "driver_listener.h"
+
 /* Default options */
 #define VERSION "0.00"
-
-/* The max length is a little complicated:
- * 255 because that's the max DNS length
- * Halved, because we encode in hex
- * Minus the length of the domain, which is appended
- * Minus 1, for the period right before the domain
- * Minus the number of periods that could appear within the name
- */
-#define MAX_DNSCAT_LENGTH(domain) ((255/2) - strlen(domain) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
 
 /* Default options */
 #define DEFAULT_DNS_HOST "8.8.8.8"
@@ -42,8 +35,13 @@
 
 /* Define these outside the function so they can be freed by the atexec() */
 select_group_t   *group          = NULL;
-driver_console_t *driver_console = NULL;
-driver_exec_t    *driver_exec    = NULL;
+
+/* Input drivers. */
+driver_console_t  *driver_console  = NULL;
+driver_exec_t     *driver_exec     = NULL;
+driver_listener_t *driver_listener = NULL;
+
+/* Output drivers. */
 driver_dns_t     *driver_dns     = NULL;
 
 static SELECT_RESPONSE_t timeout(void *group, void *param)
@@ -62,12 +60,15 @@ static void cleanup()
 
   if(group)
     select_group_destroy(group);
+
   if(driver_console)
     driver_console_destroy(driver_console);
-  if(driver_exec)
-    driver_exec_destroy(driver_exec);
   if(driver_dns)
     driver_dns_destroy(driver_dns);
+  if(driver_exec)
+    driver_exec_destroy(driver_exec);
+  if(driver_listener)
+    driver_listener_destroy(driver_listener);
 
   print_memory();
 }
@@ -82,15 +83,17 @@ void usage(char *name, char *message)
 " --help -h               This page\n"
 " --name -n <name>        Give this connection a name, which will show up in\n"
 "                         the server list\n"
-" --exec -e <process>     Execute the given process across the DNS connection\n"
-/*" -L <port:host:hostport> Listen on the given port, and send the connection\n"*/
-/*"                         to the given host on the given port\n"*/
-/*" -D <port>               Listen on the given port, using the SOCKS protocol\n"*/
+"\n"
+"Input options:\n"
+" --console --stdin       Send/receive output to the console [default]\n"
+" --exec -e <process>     Execute the given process and link it to the stream\n"
+" --listen -l <port>      Listen on the given port and link each connection to\n"
+"                         a new stream"
 "\n"
 
 "DNS-specific options:\n"
 " --dns <domain>          Enable DNS mode with the given domain\n"
-" --host <host>           The DNS server [default: system DNS]\n"
+" --host <host>           The DNS server\n" /* TODO: Default to system dns */
 " --port <port>           The DNS port [default: 53]\n"
 "\n"
 
@@ -116,13 +119,18 @@ int main(int argc, char *argv[])
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
 
+    /* Console options. */
+    {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
+    {"console", no_argument,       0, 0}, /* (alias) */
+
     /* Execute-specific options. */
     {"exec",    required_argument, 0, 0}, /* Enable execute */
     {"e",       required_argument, 0, 0},
 
-    /* Console options. */
-    {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
-    {"console", no_argument,       0, 0}, /* (alias) */
+    /* Listener options */
+    {"listen",  required_argument, 0, 0}, /* Enable listener */
+    {"l",       required_argument, 0, 0},
+
 
     /* DNS-specific options */
     {"dns",        required_argument, 0, 0}, /* Enable DNS (default) */
@@ -189,24 +197,34 @@ int main(int argc, char *argv[])
           /*options->name = optarg;*/
         }
 
+        /* Console-specific options. */
+        else if(!strcmp(option_name, "stdin"))
+        {
+          if(input_set)
+            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
+
+          input_set = TRUE;
+          driver_console = driver_console_create(group);
+        }
+
         /* Execute options. */
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec and --stdin can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
 
           input_set = TRUE;
           driver_exec = driver_exec_create(group, optarg);
         }
 
-        /* Console-specific options. */
-        else if(!strcmp(option_name, "stdin"))
+        /* Listener options. */
+        else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
           if(input_set)
             usage(argv[0], "More than one of --exec and --stdin can't be set!");
 
           input_set = TRUE;
-          driver_console = driver_console_create(group);
+          driver_listener = driver_listener_create(group, "0.0.0.0", atoi(optarg));
         }
 
         /* DNS-specific options */
@@ -271,6 +289,10 @@ int main(int argc, char *argv[])
   if(driver_console)
   {
     LOG_WARNING("INPUT: Console");
+  }
+  else if(driver_listener)
+  {
+    LOG_WARNING("INPUT: Listening on port %d", driver_listener->port);
   }
   else if(driver_exec)
   {

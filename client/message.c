@@ -123,11 +123,18 @@ void message_post_shutdown()
   message_destroy(message);
 }
 
-void message_post_create_session()
+uint16_t message_post_create_session()
 {
+  uint16_t session_id;
+
   message_t *message = message_create(MESSAGE_CREATE_SESSION);
   message_post(message);
+
+  session_id = message->message.create_session.out.session_id;
+
   message_destroy(message);
+
+  return session_id;
 }
 
 void message_post_session_created(uint16_t session_id)

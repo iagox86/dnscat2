@@ -5,8 +5,6 @@
  * (See LICENSE.txt)
  */
 
-#define _BSD_SOURCE /* For strdup(). */
-
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -101,32 +99,4 @@ void nbdie(char *str)
 {
   nberror(str);
   exit(EXIT_FAILURE);
-}
-
-char *nbstrcasestr(char *haystack, char *needle)
-{
-  size_t i;
-  char *haystack_lc = safe_strdup(haystack);
-  char *needle_lc   = safe_strdup(needle);
-  char *result;
-
-  /* Make them both lowercase. Note: 'int' typecast fixes compiler warning on cygwin. */
-  for(i = 0; i < strlen(haystack_lc); i++)
-    haystack_lc[i] = tolower((int)haystack_lc[i]);
-  for(i = 0; i < strlen(needle_lc); i++)
-    needle_lc[i] = tolower((int)needle_lc[i]);
-
-  printf("Searching for '%s' in '%s'...\n", needle_lc, haystack_lc);
-
-  result = strstr(haystack_lc, needle_lc);
-
-  if(!result)
-    return NULL;
-
-  result = haystack + (haystack_lc - result);
-
-  safe_free(haystack_lc);
-  safe_free(needle_lc);
-
-  return result;
 }

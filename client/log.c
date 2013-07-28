@@ -99,6 +99,7 @@ static void handle_message(message_t *message, void *d)
         LOG_WARNING("Setting config: %s => %s", message->message.config.name, message->message.config.value.string_value);
       else
         LOG_WARNING("Setting config: %s => [unknown type]", message->message.config.name);
+      break;
 
     case MESSAGE_START:
       LOG_WARNING("Dnscat starting");

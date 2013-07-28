@@ -13,20 +13,21 @@ CFLAGS?=-Wall -D_BSD_SOURCE ${DEBUG_CFLAGS}
 LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=buffer.o        \
-		 driver_dns.o    \
-		 driver_console.o\
-		 driver_exec.o   \
-		 tcp.o           \
-		 types.o         \
-		 memory.o        \
-		 dns.o           \
-		 log.o           \
-		 message.o       \
-		 packet.o        \
-		 select_group.o  \
-		 session.o       \
-		 udp.o           \
+OBJS=buffer.o \
+		 driver_console.o \
+		 driver_dns.o \
+		 driver_exec.o \
+		 driver_listener.o \
+		 tcp.o \
+		 types.o \
+		 memory.o \
+		 dns.o \
+		 log.o \
+		 message.o \
+		 packet.o \
+		 select_group.o \
+		 session.o \
+		 udp.o \
 
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 DNSCAT_TCP_OBJS=${OBJS} tcpcat.o

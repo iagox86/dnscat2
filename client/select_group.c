@@ -5,8 +5,6 @@
  * (See LICENSE.txt)
  */
 
-#define _BSD_SOURCE /* For inet_ntoa. */
-
 #include <stdio.h>
 #include <string.h>
 

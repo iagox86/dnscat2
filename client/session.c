@@ -169,7 +169,7 @@ static void handle_shutdown()
     message_post_close_session(entry->session->id);
 }
 
-static void handle_create_session()
+static uint16_t handle_create_session()
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
   session_entry_t *entry;
@@ -190,6 +190,8 @@ static void handle_create_session()
   first_session = entry;
 
   message_post_session_created(session->id);
+
+  return session->id;
 }
 
 static void handle_close_session(uint16_t session_id)
@@ -368,7 +370,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_CREATE_SESSION:
-      handle_create_session();
+      message->message.create_session.out.session_id = handle_create_session();
       break;
 
     case MESSAGE_CLOSE_SESSION:
