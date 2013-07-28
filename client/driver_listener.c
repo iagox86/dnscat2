@@ -87,7 +87,6 @@ static void handle_start(driver_listener_t *driver)
   select_group_add_socket(driver->group, driver->s, SOCKET_TYPE_LISTEN, driver);
   select_set_listen(driver->group, driver->s, listener_accept);
   select_set_closed(driver->group, driver->s, listener_closed);
-  printf("BYEBYE\n");
 }
 
 static void handle_session_closed(driver_listener_t *driver, uint16_t session_id)
