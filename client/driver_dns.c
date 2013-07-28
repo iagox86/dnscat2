@@ -204,6 +204,7 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_host, driver->dns_port);
   udp_send(driver->s, driver->dns_host, driver->dns_port, dns_bytes, dns_length);
 
+  safe_free(data);
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
   dns_destroy(dns);

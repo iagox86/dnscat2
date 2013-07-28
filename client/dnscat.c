@@ -58,6 +58,7 @@ static void cleanup()
   LOG_WARNING("Terminating");
 
   message_post_shutdown();
+  message_cleanup();
 
   if(group)
     select_group_destroy(group);
