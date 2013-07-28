@@ -88,6 +88,8 @@ void log_fatal(char *format, ...)
 
 static void handle_message(message_t *message, void *d)
 {
+  char *tmp;
+
   switch(message->type)
   {
     case MESSAGE_CONFIG:
@@ -123,23 +125,28 @@ static void handle_message(message_t *message, void *d)
       break;
 
     case MESSAGE_DATA_OUT:
-      LOG_WARNING("Data queued: %d bytes to session %d", message->message.data_out.length, message->message.data_out.session_id);
+      LOG_INFO("Data queued: %d bytes to session %d", message->message.data_out.length, message->message.data_out.session_id);
       break;
 
     case MESSAGE_PACKET_OUT:
-      LOG_WARNING("Data being sent out");
+      tmp = packet_to_s(message->message.packet_out.packet);
+      LOG_INFO("[OUT]: %s", tmp);
+      safe_free(tmp);
       break;
 
     case MESSAGE_PACKET_IN:
-      LOG_WARNING("Data received");
+      tmp = packet_to_s(message->message.packet_in.packet);
+      LOG_INFO("[IN]: %s", tmp);
+      safe_free(tmp);
       break;
 
     case MESSAGE_DATA_IN:
-      LOG_WARNING("Data being returned to the client; %d bytes to session %d", message->message.data_in.length, message->message.data_in.session_id);
+      LOG_INFO("Data being returned to the client; %d bytes to session %d", message->message.data_in.length, message->message.data_in.session_id);
       break;
 
     case MESSAGE_HEARTBEAT:
-      LOG_WARNING("Heartbeat...");
+      /* Logging this is just annoying. */
+      /* LOG_WARNING("Heartbeat..."); */
       break;
 
     default:

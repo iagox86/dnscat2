@@ -77,6 +77,9 @@ size_t packet_get_fin_size();
 /* Free the packet data structures. */
 void packet_destroy(packet_t *packet);
 
+/* Get a user-readable display of the packet (don't forget to safe_free() the memory!) */
+char *packet_to_s(packet_t *packet);
+
 /* Print the packet (debugging, mostly) */
 void packet_print(packet_t *packet);
 

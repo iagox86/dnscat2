@@ -188,16 +188,28 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
   return buffer_create_string_and_destroy(buffer, length);
 }
 
+char *packet_to_s(packet_t *packet)
+{
+  /* This is ugly, but I don't have a good automatic "printf" allocator. */
+  char *ret = safe_malloc(1024);
+
+  if(packet->packet_type == PACKET_TYPE_SYN)
+    snprintf(ret, 1024, "Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+  else if(packet->packet_type == PACKET_TYPE_MSG)
+    snprintf(ret, 1024, "Type = MSG :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
+  else if(packet->packet_type == PACKET_TYPE_FIN)
+    snprintf(ret, 1024, "Type = FIN :: packet_id = 0x%04x, session = 0x%04x", packet->packet_id, packet->session_id);
+  else
+    snprintf(ret, 1024, "Unknown packet type!");
+
+  return ret;
+}
+
 void packet_print(packet_t *packet)
 {
-  if(packet->packet_type == PACKET_TYPE_SYN)
-    printf("Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x\n", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
-  else if(packet->packet_type == PACKET_TYPE_MSG)
-    printf("Type = MSG :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, ack = 0x%04x\n", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
-  else if(packet->packet_type == PACKET_TYPE_FIN)
-    printf("Type = FIN :: packet_id = 0x%04x, session = 0x%04x\n", packet->packet_id, packet->session_id);
-  else
-    printf("Unknown packet type!\n");
+  char *str = packet_to_s(packet);
+  printf("%s\n", str);
+  safe_free(str);
 }
 
 void packet_destroy(packet_t *packet)
