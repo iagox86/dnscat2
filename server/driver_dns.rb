@@ -81,7 +81,7 @@ class DriverDNS
     domain = @domain
 
     start_dns_server() do
-      match(/#{domain}$/, IN::TXT) do |transaction|
+      match(/\.#{domain}$/, IN::TXT) do |transaction|
         begin
           name, domain = DriverDNS.parse_name(transaction.name, domain)
 
@@ -110,7 +110,7 @@ class DriverDNS
         transaction # Return this, effectively
       end
 
-      match(/(#{domain})$/, IN::A) do |transaction|
+      match(/(\.#{domain})$/, IN::A) do |transaction|
         begin
           name, domain = DriverDNS.parse_name(transaction.name, domain)
 
