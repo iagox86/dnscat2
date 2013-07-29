@@ -3,13 +3,16 @@ require 'socket'
 class Tunnel
   def initialize(session_id, host, port)
     @session_id = session_id
-    @s = TCPSocket.new(host, port)
-    @thread = nil
-  end
+    @buffer = ""
 
-  def go()
     @thread = Thread.new() do
       begin
+        @s = TCPSocket.new(host, port)
+        if(@buffer.length > 0)
+          @s.write(@buffer)
+          @buffer = nil
+        end
+
         loop do
           data = @s.recv(0xFFFF)
           if(data.nil?)
@@ -34,11 +37,17 @@ class Tunnel
   end
 
   def send(data)
-    @s.write(data)
+    if(@s.nil?)
+      @buffer = @buffer + data
+    else
+      @s.write(data)
+    end
   end
 
   def kill()
     @thread.kill
-    @s.close
+    if(!@s.nil?)
+      @s.close
+    end
   end
 end

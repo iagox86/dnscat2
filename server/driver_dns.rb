@@ -50,7 +50,7 @@ class DriverDNS
     server.fire(:stop)
   end
 
-  MAX_TXT_LENGTH = 255 # The max value that can be expressed by a single byte
+  MAX_TXT_LENGTH = 254 # The max value that can be expressed by a single byte
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
   MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
   MAX_MX_LENGTH = 250
@@ -85,7 +85,7 @@ class DriverDNS
         begin
           name, domain = DriverDNS.parse_name(transaction.name, domain)
 
-          response = yield(name, MAX_TXT_LENGTH / 2)
+          response = yield(name, MAX_TXT_LENGTH / 2) # TODO: Should be '2'
 
           if(response.nil?)
             Log.INFO("Sending nil response...")

@@ -157,7 +157,7 @@ static void remove_completed_sessions()
 static void handle_config_int(char *name, int value)
 {
   if(!strcmp(name, "max_packet_length"))
-    max_packet_length = value - 10; /* TODO: This shouldn't be necessary. */
+    max_packet_length = value;
 }
 
 static void handle_config_string(char *name, char *value)

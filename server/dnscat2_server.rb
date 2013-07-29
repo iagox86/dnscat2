@@ -71,7 +71,6 @@ class Dnscat2
       begin
         Log.WARNING("Creating a tunnel to #{packet.tunnel_host}:#{packet.tunnel_port}")
         @@tunnels[session.id] = Tunnel.new(session.id, packet.tunnel_host, packet.tunnel_port)
-        @@tunnels[session.id].go
       rescue Exception => e
         Log.ERROR("Couldn't create a tunnel: #{e}")
         Dnscat2.kill_session(session)

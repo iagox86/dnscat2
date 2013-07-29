@@ -73,11 +73,11 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   }
   else if(dns->question_count != 1)
   {
-    LOG_ERROR("DNS returned the wrong number of response fields.");
+    LOG_ERROR("DNS returned the wrong number of response fields (question_count should be 1, was instead %d).", dns->question_count);
   }
   else if(dns->answer_count != 1)
   {
-    LOG_ERROR("DNS returned the wrong number of response fields.");
+    LOG_ERROR("DNS returned the wrong number of response fields (answer_count should be 1, was instead %d).", dns->answer_count);
   }
   else if(dns->answers[0].type == DNS_TYPE_TEXT)
   {
