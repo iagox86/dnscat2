@@ -90,6 +90,9 @@ typedef struct
 
     struct
     {
+      char    *tunnel_host;
+      uint16_t tunnel_port;
+
       struct
       {
         uint16_t session_id;
@@ -162,6 +165,7 @@ void message_post_config_string(char *name, char *value);
 void message_post_start();
 void message_post_shutdown();
 uint16_t message_post_create_session();
+uint16_t message_post_create_session_with_tunnel(char *host, uint16_t port);
 void message_post_session_created(uint16_t session_id);
 void message_post_close_session(uint16_t session_id);
 void message_post_session_closed(uint16_t session_id);

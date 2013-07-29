@@ -83,6 +83,8 @@ void usage(char *name, char *message)
 " --help -h               This page\n"
 " --name -n <name>        Give this connection a name, which will show up in\n"
 "                         the server list\n"
+" --tunnel <host:port>    Requests the server to forward all messages to the\n"
+"                         given server and port on the user's behalf.\n"
 "\n"
 "Input options:\n"
 " --console --stdin       Send/receive output to the console [default]\n"
@@ -118,6 +120,7 @@ int main(int argc, char *argv[])
     {"h",       no_argument,       0, 0},
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
+    {"tunnel",  required_argument, 0, 0}, /* Tunnel */
 
     /* Console options. */
     {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
@@ -130,7 +133,6 @@ int main(int argc, char *argv[])
     /* Listener options */
     {"listen",  required_argument, 0, 0}, /* Enable listener */
     {"l",       required_argument, 0, 0},
-
 
     /* DNS-specific options */
     {"dns",        required_argument, 0, 0}, /* Enable DNS (default) */
@@ -150,6 +152,11 @@ int main(int argc, char *argv[])
     char     *host;
     uint16_t  port;
   } dns_options = { DEFAULT_DNS_HOST, DEFAULT_DNS_PORT };
+
+  struct {
+    char    *host;
+    uint16_t port;
+  } tunnel = { NULL, -1 };
 
   char              c;
   int               option_index;
@@ -195,6 +202,17 @@ int main(int argc, char *argv[])
         {
           /* TODO: Handle 'name' again */
           /*options->name = optarg;*/
+        }
+        else if(!strcmp(option_name, "tunnel"))
+        {
+          char *colon = strchr(optarg, ':');
+
+          if(!colon)
+            usage(argv[0], "--tunnel must be in the format <host:port>");
+
+          *colon = '\0';
+          tunnel.host = optarg;
+          tunnel.port = atoi(colon + 1);
         }
 
         /* Console-specific options. */
@@ -289,10 +307,14 @@ int main(int argc, char *argv[])
   if(driver_console)
   {
     LOG_WARNING("INPUT: Console");
+    if(tunnel.host)
+      driver_console_set_tunnel(driver_console, tunnel.host, tunnel.port);
   }
   else if(driver_listener)
   {
     LOG_WARNING("INPUT: Listening on port %d", driver_listener->port);
+    if(tunnel.host)
+      driver_listener_set_tunnel(driver_listener, tunnel.host, tunnel.port);
   }
   else if(driver_exec)
   {

@@ -32,6 +32,9 @@ typedef struct
   NBBOOL          is_closed;
   char           *name;
 
+  char           *tunnel_host;
+  uint16_t        tunnel_port;
+
   buffer_t       *outgoing_data;
 } session_t;
 typedef struct _session_entry_t
@@ -65,6 +68,8 @@ static void do_send_stuff(session_t *session)
       packet = packet_create_syn(session->id, session->my_seq, 0);
       if(session->name)
         packet_syn_set_name(packet, session->name);
+      if(session->tunnel_host)
+        packet_syn_set_tunnel(packet, session->tunnel_host, session->tunnel_port);
 
       message_post_packet_out(packet);
       packet_destroy(packet);
@@ -152,7 +157,7 @@ static void remove_completed_sessions()
 static void handle_config_int(char *name, int value)
 {
   if(!strcmp(name, "max_packet_length"))
-    max_packet_length = value;
+    max_packet_length = value - 10; /* TODO: This shouldn't be necessary. */
 }
 
 static void handle_config_string(char *name, char *value)
@@ -169,7 +174,7 @@ static void handle_shutdown()
     message_post_close_session(entry->session->id);
 }
 
-static uint16_t handle_create_session()
+static uint16_t handle_create_session(char *tunnel_host, uint16_t tunnel_port)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
   session_entry_t *entry;
@@ -180,6 +185,9 @@ static uint16_t handle_create_session()
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
   session->is_closed     = FALSE;
+
+  session->tunnel_host = tunnel_host;
+  session->tunnel_port = tunnel_port;
 
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
 
@@ -370,7 +378,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_CREATE_SESSION:
-      message->message.create_session.out.session_id = handle_create_session();
+      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.tunnel_host, message->message.create_session.tunnel_port);
       break;
 
     case MESSAGE_CLOSE_SESSION:

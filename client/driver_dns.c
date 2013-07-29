@@ -181,6 +181,7 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
 
   buffer = buffer_create(BO_BIG_ENDIAN);
   section_length = 0;
+  /* TODO: I don't much care for this loop... */
   for(i = 0; i < length; i++)
   {
     char hex_buf[3];
@@ -189,13 +190,15 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
 
     /* Add periods when we need them. */
     section_length += 2;
-    if(section_length + 2 >= MAX_FIELD_LENGTH)
+    if(i + 1 != length && section_length + 2 >= MAX_FIELD_LENGTH)
     {
       section_length = 0;
       buffer_add_int8(buffer, '.');
     }
   }
-  buffer_add_ntstring(buffer, ".skullseclabs.org");
+
+  buffer_add_int8(buffer, '.');
+  buffer_add_ntstring(buffer, driver->domain); /* TODO: Hardcoded domain name! */
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
   /* Double-check we didn't mess up the length. */

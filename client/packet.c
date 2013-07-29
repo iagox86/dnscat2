@@ -180,16 +180,17 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
       buffer_add_int16(buffer, packet->body.syn.seq);
       buffer_add_int16(buffer, packet->body.syn.options);
 
-      if(packet->body.syn.options &= OPT_NAME)
+      if(packet->body.syn.options & OPT_NAME)
       {
         buffer_add_ntstring(buffer, packet->body.syn.name);
       }
 
-      if(packet->body.syn.options &= OPT_TUNNEL)
+      if(packet->body.syn.options & OPT_TUNNEL)
       {
         buffer_add_ntstring(buffer, packet->body.syn.tunnel_host);
         buffer_add_int16(buffer, packet->body.syn.tunnel_port);
       }
+
       break;
 
     case PACKET_TYPE_MSG:
@@ -216,13 +217,24 @@ char *packet_to_s(packet_t *packet)
   char *ret = safe_malloc(1024);
 
   if(packet->packet_type == PACKET_TYPE_SYN)
-    snprintf(ret, 1024, "Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+  {
+    if(packet->body.syn.tunnel_host)
+      snprintf(ret, 1024, "Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x, tunnel = %s:%d", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options, packet->body.syn.tunnel_host, packet->body.syn.tunnel_port);
+    else
+      snprintf(ret, 1024, "Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+  }
   else if(packet->packet_type == PACKET_TYPE_MSG)
+  {
     snprintf(ret, 1024, "Type = MSG :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
+  }
   else if(packet->packet_type == PACKET_TYPE_FIN)
+  {
     snprintf(ret, 1024, "Type = FIN :: packet_id = 0x%04x, session = 0x%04x", packet->packet_id, packet->session_id);
+  }
   else
+  {
     snprintf(ret, 1024, "Unknown packet type!");
+  }
 
   return ret;
 }

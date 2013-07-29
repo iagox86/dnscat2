@@ -69,6 +69,7 @@ class Dnscat2
 
     if(!packet.tunnel_host.nil?)
       begin
+        Log.WARNING("Creating a tunnel to #{packet.tunnel_host}:#{packet.tunnel_port}")
         @@tunnels[session.id] = Tunnel.new(session.id, packet.tunnel_host, packet.tunnel_port)
         @@tunnels[session.id].go
       rescue Exception => e

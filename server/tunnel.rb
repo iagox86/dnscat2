@@ -11,7 +11,7 @@ class Tunnel
     @thread = Thread.new() do
       begin
         loop do
-          data = @s.read(1)
+          data = @s.recv(0xFFFF)
           if(data.nil?)
             Session.find(@session_id).destroy()
             break

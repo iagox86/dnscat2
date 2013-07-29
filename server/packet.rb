@@ -60,13 +60,15 @@ class Packet
 
     @tunnel_host = nil
     @tunnel_port = nil
+
     if((@options & OPT_TUNNEL) == OPT_TUNNEL)
-      @tunnel_host, @tunnel = data.unpack("Z*n")
+      @tunnel_host, @tunnel_port = data.unpack("Z*n")
+      data = data[(@tunnel_host.length + 1 + 2)..-1]
     end
 
     # Verify that that was the entire packet
     if(data.length > 0)
-      raise(DnscatException, "Extra data on the end of an SYN packet")
+      raise(DnscatException, "Extra data on the end of an SYN packet :: #{data.unpack("H*")}")
     end
   end
 

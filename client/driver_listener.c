@@ -59,7 +59,10 @@ static SELECT_RESPONSE_t listener_accept(void *group, int s, void *d)
   client_entry_t *client = safe_malloc(sizeof(client_entry_t));
 
   client->s          = tcp_accept(s, &client->address, &client->port);
-  client->session_id = message_post_create_session();
+  if(driver->tunnel_host)
+    client->session_id = message_post_create_session_with_tunnel(driver->tunnel_host, driver->tunnel_port);
+  else
+    client->session_id = message_post_create_session();
   client->driver     = driver;
   client->next       = first_client;
   first_client       = client;
@@ -161,6 +164,8 @@ driver_listener_t *driver_listener_create(select_group_t *group, char *host, int
   driver->group = group;
   driver->host  = host;
   driver->port  = port;
+  driver->tunnel_host = NULL;
+  driver->tunnel_port = -1;
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver);
@@ -169,6 +174,12 @@ driver_listener_t *driver_listener_create(select_group_t *group, char *host, int
   message_subscribe(MESSAGE_SHUTDOWN,        handle_message, driver);
 
   return driver;
+}
+
+void driver_listener_set_tunnel(driver_listener_t *driver, char *host, uint16_t port)
+{
+  driver->tunnel_host = host;
+  driver->tunnel_port = port;
 }
 
 void driver_listener_destroy(driver_listener_t *driver)
