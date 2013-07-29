@@ -59,18 +59,21 @@ class DriverDNS
     Log.INFO("Parsing: #{name}")
 
     # Break out the name and domain
-    name.match(/^(.*)\.(#{domain})$/)
-    name = $1
-    domain = $2
+    if(name.match(/^(.*)\.(#{domain})$/))
+      name = $1
+      domain = $2
 
-    # Remove the periods from the name
-    name = name.gsub(/\./, '')
+      # Remove the periods from the name
+      name = name.gsub(/\./, '')
 
-    # Convert the name from hex to binary
-    # TODO: Perhaps we can use other encodings?
-    name = [name].pack("H*")
+      # Convert the name from hex to binary
+      # TODO: Perhaps we can use other encodings?
+      name = [name].pack("H*")
 
-    return name, domain
+      return name, domain
+    end
+
+    raise(DnscatException, "Name didn't contain the expected dnscat values: #{name}")
   end
 
   def recv()
