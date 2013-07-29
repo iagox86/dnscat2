@@ -29,7 +29,7 @@ class DriverDNS
     server = RubyDNS::Server.new(&block)
     server.logger.level = Logger::FATAL
 
-    options[:listen] ||= [[:udp, @host, @port], [:tcp, @host, @port]]
+    options[:listen] ||= [[:udp, @host, @port]]
     #options[:listen] ||= [[:tcp, "0.0.0.0", 5353], [:udp, "0.0.0.0", 5353]]
 
     EventMachine.run do
@@ -50,7 +50,7 @@ class DriverDNS
     server.fire(:stop)
   end
 
-  MAX_TXT_LENGTH = 254 # The max value that can be expressed by a single byte
+  MAX_TXT_LENGTH = 250 # The max value that can be expressed by a single byte
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
   MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
   MAX_MX_LENGTH = 250
