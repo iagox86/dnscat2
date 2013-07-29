@@ -104,6 +104,20 @@ void packet_syn_set_name(packet_t *packet, char *name)
   packet->body.syn.name = safe_strdup(name);
 }
 
+void packet_syn_set_tunnel(packet_t *packet, char *host, uint16_t port)
+{
+  if(packet->packet_type != PACKET_TYPE_SYN)
+  {
+    LOG_FATAL("Attempted to set the 'tunnel' field of a non-SYN message\n");
+    exit(1);
+  }
+
+  /* Free the name if it's already set */
+  packet->body.syn.options |= OPT_TUNNEL;
+  packet->body.syn.tunnel_host = host;
+  packet->body.syn.tunnel_port = port;
+}
+
 size_t packet_get_syn_size()
 {
   static size_t size = 0;
@@ -167,7 +181,15 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
       buffer_add_int16(buffer, packet->body.syn.options);
 
       if(packet->body.syn.options &= OPT_NAME)
+      {
         buffer_add_ntstring(buffer, packet->body.syn.name);
+      }
+
+      if(packet->body.syn.options &= OPT_TUNNEL)
+      {
+        buffer_add_ntstring(buffer, packet->body.syn.tunnel_host);
+        buffer_add_int16(buffer, packet->body.syn.tunnel_port);
+      }
       break;
 
     case PACKET_TYPE_MSG:
