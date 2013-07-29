@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "buffer.h"
@@ -36,6 +37,8 @@ typedef struct
   uint16_t        tunnel_port;
 
   buffer_t       *outgoing_data;
+
+  time_t          last_transmit;
 } session_t;
 typedef struct _session_entry_t
 {
@@ -44,6 +47,28 @@ typedef struct _session_entry_t
 } session_entry_t;
 
 static session_entry_t *first_session;
+
+#define RETRANSMIT_DELAY 2 /* Seconds */
+
+/* Allow anything to go out. Call this at the start or after receiving legit data. */
+static void reset_counter(session_t *session)
+{
+  session->last_transmit = 0;
+}
+
+/* Wait for a delay or incoming data before retransmitting. Call this after transmitting data. */
+static void update_counter(session_t *session)
+{
+  session->last_transmit = time(NULL);
+}
+
+/* Decide whether or not we should transmit data yet. */
+static NBBOOL can_i_transmit_yet(session_t *session)
+{
+  if(time(NULL) - session->last_transmit > RETRANSMIT_DELAY)
+    return TRUE;
+  return FALSE;
+}
 
 static session_t *sessions_get_by_id(uint16_t session_id)
 {
@@ -61,6 +86,13 @@ static void do_send_stuff(session_t *session)
   uint8_t  *data;
   size_t    length;
 
+  /* Don't transmit too quickly without receiving anything. */
+  if(!can_i_transmit_yet(session))
+  {
+    LOG_INFO("Retransmission timer hasn't expired, not re-sending...");
+    return;
+  }
+
   switch(session->state)
   {
     case SESSION_STATE_NEW:
@@ -71,7 +103,9 @@ static void do_send_stuff(session_t *session)
       if(session->tunnel_host)
         packet_syn_set_tunnel(packet, session->tunnel_host, session->tunnel_port);
 
+      update_counter(session);
       message_post_packet_out(packet);
+
       packet_destroy(packet);
       break;
 
@@ -84,6 +118,7 @@ static void do_send_stuff(session_t *session)
       packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, length);
 
       /* Send the packet */
+      update_counter(session);
       message_post_packet_out(packet);
 
       /* Free everything */
@@ -191,6 +226,8 @@ static uint16_t handle_create_session(char *tunnel_host, uint16_t tunnel_port)
 
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
 
+  session->last_transmit = 0;
+
   /* Add it to the linked list. */
   entry = safe_malloc(sizeof(session_entry_t));
   entry->session = session;
@@ -239,7 +276,7 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
 
 }
 
-static void handle_data_in(packet_t *packet)
+static void handle_packet_in(packet_t *packet)
 {
   NBBOOL new_bytes_acked = FALSE;
   session_t *session = sessions_get_by_id(packet->session_id);
@@ -292,6 +329,9 @@ static void handle_data_in(packet_t *packet)
 
           if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_data))
           {
+            /* Reset the retransmit counter since we got some valid data. */
+            reset_counter(session);
+
             /* Increment their sequence number */
             session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
 
@@ -312,11 +352,13 @@ static void handle_data_in(packet_t *packet)
           else
           {
             LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_data));
+            return;
           }
         }
         else
         {
-          LOG_WARNING("Bad SEQ received");
+          LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.seq);
+          return;
         }
       }
       else if(packet->packet_type == PACKET_TYPE_FIN)
@@ -390,7 +432,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_PACKET_IN:
-      handle_data_in(message->message.packet_in.packet);
+      handle_packet_in(message->message.packet_in.packet);
       break;
 
     case MESSAGE_HEARTBEAT:

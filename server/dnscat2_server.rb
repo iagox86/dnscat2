@@ -111,18 +111,20 @@ class Dnscat2
     end
 
     # Acknowledge the data that has been received so far
+    # Note: this is where @my_seq is updated
     session.ack_outgoing(packet.ack)
-
-    if(!@@tunnels[session.id].nil?)
-      # Send the data on if it's a tunnel
-      @@tunnels[session.id].send(packet.data)
-    end
 
     # Write the incoming data to the session
     session.queue_incoming(packet.data)
 
     # Increment the expected sequence number
     session.increment_their_seq(packet.data.length)
+
+    # Send the data through a tunnel, if necessary
+    if(!@@tunnels[session.id].nil?)
+      # Send the data on if it's a tunnel
+      @@tunnels[session.id].send(packet.data)
+    end
 
     new_data = session.read_outgoing(max_length - Packet.msg_header_size)
     Dnscat2.notify_subscribers(:dnscat2_msg, [packet.data, new_data])
