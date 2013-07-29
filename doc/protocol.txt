@@ -193,7 +193,7 @@ MESSAGE_TYPE_SYN [0x00]
 If OPT_NAME is set:
   - (ntstring) name
 if OPT_TUNNEL is set:
-  - (uint32_t) remote ip
+  - (ntstring) remote address (ip, hostname, etc)
   - (uint16_t) remote port
 
 (Client to server)
@@ -211,9 +211,9 @@ if OPT_TUNNEL is set:
       is a free-form field containing user-readable data
     - (ntstring) session_name
   - OPT_TUNNEL - 0x02
-    - The server should forward all connections to the specified server
-      on the given port
-    - (uint32_t) remote ip address
+    - The server should make a connection to the specified host on the
+      given port, and send all traffic to that host
+    - (ntstring) remote ip address
     - (uint16_t) remote port
 
 (Server to client)

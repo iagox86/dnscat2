@@ -19,6 +19,7 @@ require 'test'
 require 'log'
 require 'packet'
 require 'session'
+require 'tunnel'
 require 'ui'
 
 # Option parsing
@@ -27,6 +28,8 @@ require 'trollop'
 # This class should be totally stateless, and rely on the Session class
 # for any long-term session storage
 class Dnscat2
+  @@tunnels = {}
+
   # Begin subscriber stuff (this should be in a mixin, but static stuff doesn't
   # really seem to work
   @@subscribers = []
@@ -45,6 +48,14 @@ class Dnscat2
   end
   # End subscriber stuff
 
+  def Dnscat2.kill_session(session)
+    if(!@@tunnels[session.id].nil?)
+      @@tunnels[session.id].kill
+    end
+
+    session.destroy
+  end
+
   def Dnscat2.handle_syn(pipe, packet, session)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!session.syn_valid?())
@@ -56,6 +67,17 @@ class Dnscat2
     session.set_name(packet.name)
     session.set_established()
 
+    if(!packet.tunnel_host.nil?)
+      begin
+        @@tunnels[session.id] = Tunnel.new(session.id, packet.tunnel_host, packet.tunnel_port)
+        @@tunnels[session.id].go
+      rescue Exception => e
+        Log.ERROR("Couldn't create a tunnel: #{e}")
+        Dnscat2.kill_session(session)
+        return Packet.create_fin(packet.packet_id, session.id)
+      end
+    end
+
     Dnscat2.notify_subscribers(:dnscat2_syn_received, [session.id, session.my_seq, packet.seq])
 
     return Packet.create_syn(packet.packet_id, session.id, session.my_seq, nil)
@@ -66,7 +88,7 @@ class Dnscat2
       Dnscat2.notify_subscribers(:dnscat2_state_error, [session.id, "MSG received in invalid state; sending FIN"])
 
       # Kill the session as well - in case it exists
-      session.destroy()
+      Dnscat2.kill_session(session)
 
       return Packet.create_fin(packet.packet_id, session.id)
     end
@@ -91,6 +113,11 @@ class Dnscat2
     # Acknowledge the data that has been received so far
     session.ack_outgoing(packet.ack)
 
+    if(!@@tunnels[session.id].nil?)
+      # Send the data on if it's a tunnel
+      @@tunnels[session.id].send(packet.data)
+    end
+
     # Write the incoming data to the session
     session.queue_incoming(packet.data)
 
@@ -113,7 +140,7 @@ class Dnscat2
 
     Dnscat2.notify_subscribers(:dnscat2_fin, [session.id])
 
-    session.destroy()
+    Dnscat2.kill_session(session)
     return Packet.create_fin(packet.packet_id, session.id)
   end
 
@@ -177,7 +204,7 @@ class Dnscat2
         begin
           if(!session_id.nil?)
             Log.FATAL("DnscatException caught; closing session #{session_id}...")
-            Session.destroy(session_id)
+            Dnscat2.kill_session(session)
             Log.FATAL("Propagating the exception...")
           end
         rescue

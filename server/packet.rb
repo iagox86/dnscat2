@@ -20,7 +20,9 @@ class Packet
   OPT_NAME                = 0x01
   OPT_TUNNEL              = 0x02
 
-  attr_reader :data, :type, :packet_id, :session_id, :options, :seq, :ack, :name
+  attr_reader :data, :type, :packet_id, :session_id, :options, :seq, :ack
+  attr_reader :name
+  attr_reader :tunnel_host, :tunnel_port
 
   def at_least?(data, needed)
     if(data.length < needed)
@@ -45,6 +47,7 @@ class Packet
     data = data[4..-1]
 
     # Parse the option name, if it has one
+    @name = nil
     if((@options & OPT_NAME) == OPT_NAME)
       if(data.index("\0").nil?)
         raise(DnscatException, "OPT_NAME set, but no null-terminated name given")
@@ -53,6 +56,12 @@ class Packet
       data = data[(@name.length+1)..-1]
     else
       @name = "[unnamed]"
+    end
+
+    @tunnel_host = nil
+    @tunnel_port = nil
+    if((@options & OPT_TUNNEL) == OPT_TUNNEL)
+      @tunnel_host, @tunnel = data.unpack("Z*n")
     end
 
     # Verify that that was the entire packet

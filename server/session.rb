@@ -16,7 +16,8 @@ class Session
   @@sessions = {}
   @@isn = nil # nil = random
 
-  attr_reader :id, :state, :their_seq, :my_seq, :name
+  attr_reader :id, :state, :their_seq, :my_seq
+  attr_reader :name
 
   # Session states
   STATE_NEW         = 0x00
@@ -123,7 +124,6 @@ class Session
     return ret
   end
 
-  # TODO: Handle overflows
   def ack_outgoing(n)
     # "n" is the current ACK value
     bytes_acked = (n - @my_seq)

@@ -56,7 +56,6 @@ class Ui
     # Nothing required
   end
 
-  # TODO: Handle options in a more structured way
   def Ui.set_option(name, value)
     # Remove whitespace
     name  = name.to_s
