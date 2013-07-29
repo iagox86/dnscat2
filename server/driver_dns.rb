@@ -148,7 +148,7 @@ class DriverDNS
         transaction # Return this, effectively
       end
 
-      match(/(#{domain})$/, IN::MX) do |transaction|
+      match(/(\.#{domain})$/, IN::MX) do |transaction|
         begin
           name, domain = DriverDNS.parse_name(transaction.name, domain)
 
