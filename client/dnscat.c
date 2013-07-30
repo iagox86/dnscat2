@@ -30,7 +30,7 @@
 #define VERSION "0.00"
 
 /* Default options */
-#define DEFAULT_DNS_HOST "8.8.8.8"
+#define DEFAULT_DNS_HOST NULL
 #define DEFAULT_DNS_PORT 53
 
 /* Define these outside the function so they can be freed by the atexec() */
@@ -328,7 +328,11 @@ int main(int argc, char *argv[])
 
   if(driver_dns)
   {
-    driver_dns->dns_host = dns_options.host;
+    if(driver_dns->dns_host == DEFAULT_DNS_HOST)
+      driver_dns->dns_host = dns_get_system();
+    else
+      driver_dns->dns_host = safe_strdup(dns_options.host);
+
     driver_dns->dns_port = dns_options.port;
     LOG_WARNING("OUTPUT: DNS tunnel to %s", driver_dns->domain);
   }

@@ -267,5 +267,7 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain)
 
 void driver_dns_destroy(driver_dns_t *driver)
 {
+  if(driver->dns_host)
+    safe_free(driver->dns_host);
   safe_free(driver);
 }
