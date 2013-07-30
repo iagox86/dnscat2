@@ -7,6 +7,10 @@
 #include "memory.h"
 #include "packet.h"
 
+/* Header for snprintf(), since cygwin doesn't expose it on c89
+ * programs. */
+int snprintf(char *STR, size_t SIZE, const char *FORMAT, ...);
+
 packet_t *packet_parse(uint8_t *data, size_t length)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
