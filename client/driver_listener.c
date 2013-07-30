@@ -23,7 +23,7 @@ typedef struct _listener_client_t
   struct _listener_client_t *next;
 } client_entry_t;
 
-client_entry_t *first_client = NULL;
+static client_entry_t *first_client = NULL;
 
 static SELECT_RESPONSE_t client_recv(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *c)
 {
