@@ -278,7 +278,7 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
 
 static void handle_packet_in(packet_t *packet)
 {
-  NBBOOL new_bytes_acked = FALSE;
+  NBBOOL poll_right_away = FALSE;
   session_t *session = sessions_get_by_id(packet->session_id);
   if(!session)
   {
@@ -342,12 +342,15 @@ static void handle_packet_in(packet_t *packet)
             if(bytes_acked != 0)
             {
               session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
-              new_bytes_acked = TRUE;
+              poll_right_away = TRUE;
             }
 
-            /* Print the data, if we received any */
+            /* Print the data, if we received any, and then immediately receive more. */
             if(packet->body.msg.data_length > 0)
+            {
               message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
+              poll_right_away = TRUE;
+            }
           }
           else
           {
@@ -382,7 +385,7 @@ static void handle_packet_in(packet_t *packet)
 
   /* If there is still outgoing data to be sent, and new data has been ACKed
    * (ie, this isn't a retransmission), send it. */
-  if(buffer_get_remaining_bytes(session->outgoing_data) > 0 && new_bytes_acked)
+  if(poll_right_away)
     do_send_stuff(session);
 }
 

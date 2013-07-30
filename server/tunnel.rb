@@ -24,14 +24,9 @@ class Tunnel
         end
       rescue SystemExit
         exit
-      rescue DnscatException => e
-        Log.ERROR("Protocol exception caught in DNS module:")
-        Log.ERROR(e.inspect)
       rescue Exception => e
-        Log.FATAL("Fatal exception caught in DNS module:")
+        Log.FATAL("Exception caught in Tunnel module:")
         Log.FATAL(e.inspect)
-        Log.FATAL(e.backtrace)
-        exit
       end
     end
   end
