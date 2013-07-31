@@ -164,8 +164,13 @@ If an unexpected FIN is received, the server will ignore it:
 #define MESSAGE_TYPE_STRAIGHTUP (0xFF)
 
 /* Options */
-#define OPT_NAME    (0x01)
-#define OPT_CONNECT (0x02)
+#define OPT_NAME     (0x01)
+#define OPT_CONNECT  (0x02)
+#define OPT_ENCODING (0x03)
+
+/* Encoding options */
+#define ENCODING_HEX    (0x00)
+#define ENCODING_BASE36 (0x01)
 
 +----------+
 | Messages |
@@ -192,9 +197,11 @@ MESSAGE_TYPE_SYN [0x00]
 - (uint16_t) options
 If OPT_NAME is set:
   - (ntstring) name
-if OPT_TUNNEL is set:
+If OPT_TUNNEL is set:
   - (ntstring) remote address (ip, hostname, etc)
   - (uint16_t) remote port
+If OPT_ENCODING is set:
+  - (uint32_t) encoding options (default if not set: ENCODING_HEX)
 
 (Client to server)
 - Each connection is initiated by a client sending a SYN containing a
@@ -215,6 +222,10 @@ if OPT_TUNNEL is set:
       given port, and send all traffic to that host
     - (ntstring) remote ip address
     - (uint16_t) remote port
+  - OPT_ENCODING - 0x04
+    - Used to set special encoding options in subsequent packets (the
+      encoding of the initial SYN packet will still be the default HEX).
+    - (uint32_t) encoding options
 
 (Server to client)
 - The server responds with its own SYN, containing its initial sequence
@@ -227,6 +238,12 @@ if OPT_TUNNEL is set:
   not incremental or static or anything, to make connection-hijacking
   attacks more difficult (the two sequence numbers and the session_id
   give us approximately 48-bits of entropy per connection).
+- There are various encoding options available:
+  - HEX: Each character is encoded as the two-byte hex characters, for
+    example, "A" becomes "41".
+  - BASE36: Each character is encoded as base-36 characters. For more
+    information, see the wiki page:
+    https://en.wikipedia.org/wiki/Base_36
 
 (Out-of-state packets)
 - If a client or server receives an errant SYN, it should be ignored.
@@ -277,6 +294,11 @@ MESSAGE_TYPE_MSG: [0x01]
   ignored.
 - If a server receives an errant MSG from a client, it should respond
   with a FIN and close the connection.
+
+Notes:
+- The client and server shouldn't increment their sequence numbers or
+  their saved acknowledgement numbers until the other side has
+  acknowledged the value in a response.
 
 ------------------------
 MESSAGE_TYPE_FIN: [0x02]
