@@ -12,7 +12,7 @@
 #include "memory.h"
 #include "types.h"
 
-static char *hex_chars = "01234567890abcdef";
+static char *hex_chars = "0123456789abcdef";
 static char *encode_hex(uint8_t *value, size_t length)
 {
   char *encoded;
@@ -44,18 +44,18 @@ uint8_t *decode_hex(char *text, size_t *length)
     if(text[i] >= '0' && text[i] <= '9')
       c1 = text[i] - '0';
     else if(text[i] >= 'a' && text[i] <= 'f')
-      c1 = text[i] - 'a';
+      c1 = text[i] - 'a' + 10;
     else if(text[i] >= 'A' && text[i] <= 'F')
-      c1 = text[i] - 'A';
+      c1 = text[i] - 'A' + 10;
     else
       return NULL;
 
     if(text[i+1] >= '0' && text[i+1] <= '9')
       c2 = text[i+1] - '0';
     else if(text[i+1] >= 'a' && text[i+1] <= 'f')
-      c2 = text[i+1] - 'a';
+      c2 = text[i+1] - 'a' + 10;
     else if(text[i+1] >= 'A' && text[i+1] <= 'F')
-      c2 = text[i+1] - 'A';
+      c2 = text[i+1] - 'A' + 10;
     else
       return NULL;
 
@@ -288,13 +288,26 @@ int main(int argc, const char *argv[])
     output = encode_base32(input, size_in);
     other_output = decode_base32(output, &size_out);
 
-    /*
-    for(j = 0; j < size_in; j++)
+    if(size_out != size_in)
+    {
+      printf("Size error! In = %d, out = %d\n", size_in, size_out);
+      exit(1);
+    }
+
+    if(memcmp(input, other_output, size_in))
+    {
+      printf("Output doesn't match input [base32]!\n");
+      exit(1);
+    }
+
+    output = encode_hex(input, size_in);
+    other_output = decode_hex(output, &size_out);
+
+/*    for(j = 0; j < size_in; j++)
       printf("%02x", input[j]);
     printf("\n");
-    for(j = 0; j < size_in; j++)
-      printf("%02x", other_output[j]);
-    printf("\n"); */
+
+    printf("%s\n", output); */
 
     if(size_out != size_in)
     {
@@ -304,7 +317,7 @@ int main(int argc, const char *argv[])
 
     if(memcmp(input, other_output, size_in))
     {
-      printf("Output doesn't match input!\n");
+      printf("Output doesn't match input [hex]!\n");
       exit(1);
     }
   }
