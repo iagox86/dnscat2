@@ -191,7 +191,6 @@ int main(int argc, char *argv[])
   /* Set the default log level */
   log_set_min_console_level(min_log_level);
 
-
   /* Parse the command line options. */
   opterr = 0;
   while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != EOF)
@@ -266,7 +265,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "dns"))
         {
           if(output_set)
-            usage(argv[0], "More than one of --exec and --stdin can't be set!");
+            usage(argv[0], "More than one of --dns and --tcp can't be set!");
 
           output_set = TRUE;
           driver_dns = driver_dns_create(group, optarg);
@@ -349,8 +348,8 @@ int main(int argc, char *argv[])
 
   if(driver_dns)
   {
-    if(driver_dns->dns_host == DEFAULT_DNS_HOST)
-      driver_dns->dns_host = "localhost"; /*dns_get_system();*/ /* TODO */
+    if(dns_options.host == DEFAULT_DNS_HOST)
+      driver_dns->dns_host = dns_get_system();
     else
       driver_dns->dns_host = safe_strdup(dns_options.host);
 
