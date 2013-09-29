@@ -48,7 +48,10 @@ uint8_t *decode_hex(char *text, size_t *length)
     else if(text[i] >= 'A' && text[i] <= 'F')
       c1 = text[i] - 'A' + 10;
     else
+    {
+      safe_free(decoded);
       return NULL;
+    }
 
     if(text[i+1] >= '0' && text[i+1] <= '9')
       c2 = text[i+1] - '0';
@@ -57,7 +60,10 @@ uint8_t *decode_hex(char *text, size_t *length)
     else if(text[i+1] >= 'A' && text[i+1] <= 'F')
       c2 = text[i+1] - 'A' + 10;
     else
+    {
+      safe_free(decoded);
       return NULL;
+    }
 
 
     decoded[i / 2] = (c1 << 4) | (c2 << 0);
@@ -98,7 +104,7 @@ char *encode_base32(uint8_t *data, size_t length)
   size_t i;
 
   /* 5 bytes become 8 */
-  size_t out_size = BASE32_LENGTH(length);
+  size_t out_size = BASE32_LENGTH(length) + 1;
 
   encoded = safe_malloc(out_size);
 
@@ -228,12 +234,6 @@ uint8_t *decode_base32(const char *text, size_t *length)
 
     in0 = in1 = in2 = in3 = in4 = in5 = in6 = in7 = 0;
 
-    decoded[index_out+0] = '\0';
-    decoded[index_out+1] = '\0';
-    decoded[index_out+2] = '\0';
-    decoded[index_out+3] = '\0';
-    decoded[index_out+4] = '\0';
-
     in0 = b32_to_c(text[i + 0]);
 
     if(index_out + 0 < *length)
@@ -274,7 +274,6 @@ uint8_t *decode_base32(const char *text, size_t *length)
   return decoded;
 }
 
-#if 0
 #define TESTS 100000
 int main(int argc, const char *argv[])
 {
@@ -290,33 +289,20 @@ int main(int argc, const char *argv[])
 
   for(i = 0; i < TESTS; i++)
   {
+    printf("%d\n", i);
     size_in = i;
-    printf("Length: %d (0x%08x)\n", size_in, size_in);
 
     for(j = 0; j < size_in; j++)
-    {
       input[j] = rand();
-    }
 
-    printf("Hi\n");
+    /* Try to send 'invalid' data into the decoder. */
+    other_output = decode_base32(input, &size_out);
+    if(other_output)
+      safe_free(other_output);
 
-/*  input[size_in] = 0;
-    printf("Input:\n%s\n", input);
-    for(j = 0; j < size_in; j++)
-      printf("%02x ", input[j] & 0x0FF);
-    printf("\n\n"); */
-
+    input[size_in] = 0;
     output = encode_base32(input, size_in);
-/*  printf("Base32:\n%s\n", output);
-    for(j = 0; j < strlen(output); j++)
-      printf("%02x ", output[j] & 0x0FF);
-    printf("\n\n");*/
-
     other_output = decode_base32(output, &size_out);
-/*  printf("Output:\n%s\n", other_output);
-    for(j = 0; j < size_out; j++)
-      printf("%02x ", other_output[j] & 0x0FF);
-    printf("\n\n");*/
 
     if(size_out != size_in)
     {
@@ -330,15 +316,16 @@ int main(int argc, const char *argv[])
       exit(1);
     }
 
+    safe_free(output);
+    safe_free(other_output);
+
+    /* Try to send 'invalid' data into the decoder. */
+    other_output = decode_hex(input, &size_out);
+    if(other_output)
+      safe_free(other_output);
+
     output = encode_hex(input, size_in);
     other_output = decode_hex(output, &size_out);
-
-/*    for(j = 0; j < size_in; j++)
-      printf("%02x", input[j]);
-    printf("\n");
-
-    printf("%s\n", output); */
-
 
     if(size_out != size_in)
     {
@@ -352,9 +339,11 @@ int main(int argc, const char *argv[])
       exit(1);
     }
 
-    printf("Passed!\n");
+    safe_free(output);
+    safe_free(other_output);
   }
+
+  print_memory();
 
   return 0;
 }
-#endif
