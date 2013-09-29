@@ -74,11 +74,5 @@ void nbdie(char *str);
 /* Implementation of strcasestr() for Windows. */
 char *nbstrcasestr(char *haystack, char *needle);
 
-static char *encode_hex(uint8_t *value, size_t length);
-uint8_t *decode_hex(char *text, size_t *length);
-
-static char *encode_base36(long unsigned int value);
-static long unsigned int decode_base36(const char *text);
-
 #endif
 

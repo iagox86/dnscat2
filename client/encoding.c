@@ -67,21 +67,30 @@ uint8_t *decode_hex(char *text, size_t *length)
   return decoded;
 }
 
-static char base32_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567=";
-static char find_char(char c)
-{
-  size_t i;
+#define c_to_b32(B) ((char)( \
+     (B) ==  0  ? 'A': (B) ==  1  ? 'B' : (B) == 2  ? 'C' : (B) == 3   ? 'D' :  \
+     (B) ==  4  ? 'E': (B) ==  5  ? 'F' : (B) == 6  ? 'G' : (B) == 7   ? 'H' :  \
+     (B) ==  8  ? 'I': (B) ==  9  ? 'J' : (B) == 10 ? 'K' : (B) == 11  ? 'L' :  \
+     (B) ==  12 ? 'M': (B) ==  13 ? 'N' : (B) == 14 ? 'O' : (B) == 15  ? 'P' :  \
+     (B) ==  16 ? 'Q': (B) ==  17 ? 'R' : (B) == 18 ? 'S' : (B) == 19  ? 'T' :  \
+     (B) ==  20 ? 'U': (B) ==  21 ? 'V' : (B) == 22 ? 'W' : (B) == 23  ? 'X' :  \
+     (B) ==  24 ? 'Y': (B) ==  25 ? 'Z' : (B) == 26 ? '2' : (B) == 27  ? '3' :  \
+     (B) ==  28 ? '4': (B) ==  29 ? '5' : (B) == 30 ? '6' : (B) == 31  ? '7' :  \
+     -1))
 
-  if(c == '=')
-    return 0;
+#define b32_to_c(B) ((char)( \
+     (B) == 'A' ? 0  : (B) == 'B' ? 1  : (B) == 'C' ? 2   : (B) == 'D' ? 3 : \
+     (B) == 'E' ? 4  : (B) == 'F' ? 5  : (B) == 'G' ? 6   : (B) == 'H' ? 7 : \
+     (B) == 'I' ? 8  : (B) == 'J' ? 9  : (B) == 'K' ? 10  : (B) == 'L' ? 11: \
+     (B) == 'M' ? 12 : (B) == 'N' ? 13 : (B) == 'O' ? 14  : (B) == 'P' ? 15: \
+     (B) == 'Q' ? 16 : (B) == 'R' ? 17 : (B) == 'S' ? 18  : (B) == 'T' ? 19: \
+     (B) == 'U' ? 20 : (B) == 'V' ? 21 : (B) == 'W' ? 22  : (B) == 'X' ? 23: \
+     (B) == 'Y' ? 24 : (B) == 'Z' ? 25 : (B) == '2' ? 26  : (B) == '3' ? 27: \
+     (B) == '4' ? 28 : (B) == '5' ? 29 : (B) == '6' ? 30  : (B) == '7' ? 31: \
+     -1))
 
-  for(i = 0; i < sizeof(base32_chars); i++)
-    if(base32_chars[i] == c)
-      return i;
-
-  printf("Couldn't find char: %c\n", c);
-  return -1;
-}
+/* 5 bytes become 8 (rounded up) */
+#define BASE32_LENGTH(l) ((((l) + 4) / 5) * 8)
 
 static char *encode_base32(uint8_t *data, size_t length)
 {
@@ -89,7 +98,7 @@ static char *encode_base32(uint8_t *data, size_t length)
   size_t i;
 
   /* 5 bytes become 8 */
-  size_t out_size = (((length + 5 - 1) / 5) * 8) + 1;
+  size_t out_size = BASE32_LENGTH(length);
 
   encoded = safe_malloc(out_size);
 
@@ -131,14 +140,14 @@ static char *encode_base32(uint8_t *data, size_t length)
 
     if(i + 0 < length)
     {
-      encoded[index_out+0] = base32_chars[out0];
-      encoded[index_out+1] = base32_chars[out1];
+      encoded[index_out+0] = c_to_b32(out0);
+      encoded[index_out+1] = c_to_b32(out1);
     }
 
     if(i + 1 < length)
     {
-      encoded[index_out+2] = base32_chars[out2];
-      encoded[index_out+3] = base32_chars[out3];
+      encoded[index_out+2] = c_to_b32(out2);
+      encoded[index_out+3] = c_to_b32(out3);
     }
     else
     {
@@ -148,7 +157,7 @@ static char *encode_base32(uint8_t *data, size_t length)
 
     if(i + 2 < length)
     {
-      encoded[index_out+4] = base32_chars[out4];
+      encoded[index_out+4] = c_to_b32(out4);
     }
     else
     {
@@ -157,8 +166,8 @@ static char *encode_base32(uint8_t *data, size_t length)
 
     if(i + 3 < length)
     {
-      encoded[index_out+5] = base32_chars[out5];
-      encoded[index_out+6] = base32_chars[out6];
+      encoded[index_out+5] = c_to_b32(out5);
+      encoded[index_out+6] = c_to_b32(out6);
     }
     else
     {
@@ -168,7 +177,7 @@ static char *encode_base32(uint8_t *data, size_t length)
 
     if(i + 4 < length)
     {
-      encoded[index_out+7] = base32_chars[out7];
+      encoded[index_out+7] = c_to_b32(out7);
     }
     else
     {
@@ -216,10 +225,8 @@ uint8_t *decode_base32(const char *text, size_t *length)
   for(i = 0; i < strlen(text); i += 8)
   {
     char in0,  in1,  in2,  in3,  in4 , in5,  in6,  in7;
-    char out0, out1, out2, out3, out4;
 
     in0 = in1 = in2 = in3 = in4 = in5 = in6 = in7 = 0;
-    out0 = out1 = out2 = out3 = out4 = 0;
 
     decoded[index_out+0] = '\0';
     decoded[index_out+1] = '\0';
@@ -227,33 +234,33 @@ uint8_t *decode_base32(const char *text, size_t *length)
     decoded[index_out+3] = '\0';
     decoded[index_out+4] = '\0';
 
-    in0 = find_char(text[i + 0]);
+    in0 = b32_to_c(text[i + 0]);
 
     if(index_out + 0 < *length)
     {
-      in1 = find_char(text[i + 1]);
-      in2 = find_char(text[i + 2]);
+      in1 = b32_to_c(text[i + 1]);
+      in2 = b32_to_c(text[i + 2]);
       decoded[index_out+0] = ((in0 << 3) & 0xF8) | (in1 >> 2); /* 00000111 */
 
       if(index_out + 1 < *length)
       {
-        in3 = find_char(text[i + 3]);
+        in3 = b32_to_c(text[i + 3]);
         decoded[index_out+1] = ((in1 << 6) & 0xC0) | ((in2 << 1) & 0x3E) | (in3 >> 4); /* 11222223 */
 
         if(index_out + 2 < *length)
         {
-          in4 = find_char(text[i + 4]);
+          in4 = b32_to_c(text[i + 4]);
           decoded[index_out+2] = ((in3 << 4) & 0xF0) | (in4 >> 1); /* 33334444 */
 
           if(index_out + 3 < *length)
           {
-            in5 = find_char(text[i + 5]);
-            in6 = find_char(text[i + 6]);
+            in5 = b32_to_c(text[i + 5]);
+            in6 = b32_to_c(text[i + 6]);
             decoded[index_out+3] = ((in4 << 7) & 0x80) | ((in5 << 2) & 0x7c) | (in6 >> 3); /* 45555566 */
 
             if(index_out + 4 < *length)
             {
-              in7 = find_char(text[i + 7]);
+              in7 = b32_to_c(text[i + 7]);
               decoded[index_out+4] = ((in6 << 5) & 0xE0) | (in7 & 0x1F); /* 66677777 */
             }
           }
@@ -267,11 +274,11 @@ uint8_t *decode_base32(const char *text, size_t *length)
   return decoded;
 }
 
-#define TESTS 1000000
-#define MAX_LENGTH 26
+#if 0
+#define TESTS 100000
 int main(int argc, const char *argv[])
 {
-  uint8_t input[1024];
+  uint8_t input[TESTS];
   char    *output;
   uint8_t *other_output;
   size_t   size_in;
@@ -279,14 +286,37 @@ int main(int argc, const char *argv[])
 
   size_t i, j;
 
+  srand(time(0));
+
   for(i = 0; i < TESTS; i++)
   {
-    size_in = rand() % MAX_LENGTH;
+    size_in = i;
+    printf("Length: %d (0x%08x)\n", size_in, size_in);
+
     for(j = 0; j < size_in; j++)
-      input[j] = rand() % 0xFF;
+    {
+      input[j] = rand();
+    }
+
+    printf("Hi\n");
+
+/*  input[size_in] = 0;
+    printf("Input:\n%s\n", input);
+    for(j = 0; j < size_in; j++)
+      printf("%02x ", input[j] & 0x0FF);
+    printf("\n\n"); */
 
     output = encode_base32(input, size_in);
+/*  printf("Base32:\n%s\n", output);
+    for(j = 0; j < strlen(output); j++)
+      printf("%02x ", output[j] & 0x0FF);
+    printf("\n\n");*/
+
     other_output = decode_base32(output, &size_out);
+/*  printf("Output:\n%s\n", other_output);
+    for(j = 0; j < size_out; j++)
+      printf("%02x ", other_output[j] & 0x0FF);
+    printf("\n\n");*/
 
     if(size_out != size_in)
     {
@@ -309,6 +339,7 @@ int main(int argc, const char *argv[])
 
     printf("%s\n", output); */
 
+
     if(size_out != size_in)
     {
       printf("Size error! In = %d, out = %d\n", size_in, size_out);
@@ -320,7 +351,10 @@ int main(int argc, const char *argv[])
       printf("Output doesn't match input [hex]!\n");
       exit(1);
     }
+
+    printf("Passed!\n");
   }
 
   return 0;
 }
+#endif
