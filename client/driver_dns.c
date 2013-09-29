@@ -9,6 +9,7 @@
 
 #include "buffer.h"
 #include "dns.h"
+#include "encoding.h"
 #include "log.h"
 #include "memory.h"
 #include "message.h"
@@ -169,10 +170,10 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   size_t        encoded_length;
   uint8_t      *dns_bytes;
   size_t        dns_length;
-  size_t        section_length;
 
   size_t        length;
   uint8_t      *data = packet_to_bytes(packet, &length);
+  char         *encoded_string;
 
   assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
@@ -180,25 +181,19 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
 
   buffer = buffer_create(BO_BIG_ENDIAN);
-  section_length = 0;
-  /* TODO: I don't much care for this loop... */
-  for(i = 0; i < length; i++)
+
+  /* Encode the string appropriately. */
+  encoded_string = encode_hex(data, length);
+
+  /* Add the periods as needed. */
+  for(i = 0; i < strlen(encoded_string); i += MAX_FIELD_LENGTH)
   {
-    char hex_buf[3];
-    sprintf(hex_buf, "%02x", data[i]);
-    buffer_add_bytes(buffer, hex_buf, 2);
-
-    /* Add periods when we need them. */
-    section_length += 2;
-    if(i + 1 != length && section_length + 2 >= MAX_FIELD_LENGTH)
-    {
-      section_length = 0;
-      buffer_add_int8(buffer, '.');
-    }
+    buffer_add_bytes(buffer, encoded_string + i, MIN(MAX_FIELD_LENGTH, strlen(encoded_string) - i));
+    buffer_add_int8(buffer, '.');
   }
+  safe_free(encoded_string);
 
-  buffer_add_int8(buffer, '.');
-  buffer_add_ntstring(buffer, driver->domain); /* TODO: Hardcoded domain name! */
+  buffer_add_ntstring(buffer, driver->domain);
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
   /* Double-check we didn't mess up the length. */

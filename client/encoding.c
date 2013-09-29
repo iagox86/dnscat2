@@ -92,7 +92,7 @@ uint8_t *decode_hex(char *text, size_t *length)
 /* 5 bytes become 8 (rounded up) */
 #define BASE32_LENGTH(l) ((((l) + 4) / 5) * 8)
 
-static char *encode_base32(uint8_t *data, size_t length)
+char *encode_base32(uint8_t *data, size_t length)
 {
   char *encoded;
   size_t i;

@@ -94,13 +94,13 @@ void usage(char *name, char *message)
 " --console --stdin       Send/receive output to the console [default]\n"
 " --exec -e <process>     Execute the given process and link it to the stream\n"
 " --listen -l <port>      Listen on the given port and link each connection to\n"
-"                         a new stream"
+"                         a new stream\n"
 " --socks4 <port>         Expose a SOCKS4 proxy on the give port\n"
 "\n"
 
 "DNS-specific options:\n"
 " --dns <domain>          Enable DNS mode with the given domain\n"
-" --host <host>           The DNS server\n" /* TODO: Default to system dns */
+" --host <host>           The DNS server [default: %s]\n"
 " --port <port>           The DNS port [default: 53]\n"
 "\n"
 
@@ -110,7 +110,7 @@ void usage(char *name, char *message)
 "\n"
 "%s\n"
 "\n"
-, name, message
+, name, dns_get_system(), message
 );
   exit(0);
 }
@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
   if(driver_dns)
   {
     if(driver_dns->dns_host == DEFAULT_DNS_HOST)
-      driver_dns->dns_host = dns_get_system();
+      driver_dns->dns_host = "localhost"; /*dns_get_system();*/ /* TODO */
     else
       driver_dns->dns_host = safe_strdup(dns_options.host);
 
