@@ -13,7 +13,7 @@
 #include "types.h"
 
 static char *hex_chars = "0123456789abcdef";
-static char *encode_hex(uint8_t *value, size_t length)
+char *encode_hex(uint8_t *value, size_t length)
 {
   char *encoded;
   size_t i;
