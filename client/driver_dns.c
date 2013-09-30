@@ -9,7 +9,7 @@
 
 #include "buffer.h"
 #include "dns.h"
-#include "encoding.h"
+#include "encode.h"
 #include "log.h"
 #include "memory.h"
 #include "message.h"

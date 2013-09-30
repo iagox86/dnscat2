@@ -12,7 +12,7 @@
 #include "memory.h"
 #include "types.h"
 
-#include "encoding.h"
+#include "encode.h"
 
 char *encode(encode_types_t type, uint8_t *value, size_t  length)
 {
