@@ -83,8 +83,6 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   else if(dns->answers[0].type == DNS_TYPE_TEXT)
   {
     char *answer;
-    char buf[3];
-    size_t i;
 
     answer = (char*)dns->answers[0].answer->TEXT.text;
     LOG_INFO("Received a DNS TXT response: %s", answer);
@@ -95,44 +93,13 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     }
     else
     {
-      buffer_t *incoming_data = buffer_create(BO_BIG_ENDIAN);
-
       /* Loop through the part of the answer before the 'domain' */
-      for(i = 0; i < dns->answers[0].answer->TEXT.length; i += 2)
-      {
-        /* Validate the answer */
-        if(answer[i] == '.')
-        {
-          /* ignore */
-        }
-        else if(answer[i+1] == '.')
-        {
-          LOG_ERROR("Answer contained an odd number of digits");
-        }
-        else if(!isxdigit((int)answer[i]))
-        {
-          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
-        }
-        else if(!isxdigit((int)answer[i+1]))
-        {
-          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
-        }
-        else
-        {
-          buf[0] = answer[i];
-          buf[1] = answer[i + 1];
-          buf[2] = '\0';
-
-          buffer_add_int8(incoming_data, strtol(buf, NULL, 16));
-        }
-      }
+      size_t   length = dns->answers[0].answer->TEXT.length;
+      uint8_t *data = decode_hex(answer, &length);
 
       /* Pass the buffer to the caller */
-      if(buffer_get_length(incoming_data) > 0)
+      if(length > 0)
       {
-        size_t length;
-        uint8_t *data = buffer_create_string(incoming_data, &length);
-
         /* Parse the dnscat packet. */
         packet_t *packet = packet_parse(data, length);
 
@@ -142,7 +109,6 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
         packet_destroy(packet);
         safe_free(data);
       }
-      buffer_destroy(incoming_data);
     }
   }
   else

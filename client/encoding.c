@@ -32,12 +32,13 @@ char *encode_hex(uint8_t *value, size_t length)
 
 uint8_t *decode_hex(char *text, size_t *length)
 {
-  uint8_t *decoded = safe_malloc(strlen(text) / 2);
+  size_t in_length = (*length == -1) ? strlen(text) : (*length);
+  uint8_t *decoded = safe_malloc(in_length / 2);
   size_t i;
 
-  *length = strlen(text) / 2;
+  *length = in_length / 2;
 
-  for(i = 0; i < strlen(text); i += 2)
+  for(i = 0; i < in_length; i += 2)
   {
     char c1, c2;
 
@@ -201,19 +202,20 @@ char *encode_base32(uint8_t *data, size_t length)
 
 uint8_t *decode_base32(const char *text, size_t *length)
 {
+  size_t   in_length = (*length == -1) ? strlen(text) : (*length);
   uint8_t *decoded;
-  size_t i;
+  size_t   i;
 
   /* 5 bytes become 8 */
   char *end = strchr(text, '=');
   if(!end)
   {
-    *length = (strlen(text) / 8) * 5;
+    *length = (in_length / 8) * 5;
   }
   else
   {
     size_t data_len = (end - text) % 8;
-    *length = (strlen(text) / 8) * 5;
+    *length = (in_length / 8) * 5;
 
     if(data_len <= 2)
       *length -= 4;
@@ -228,7 +230,7 @@ uint8_t *decode_base32(const char *text, size_t *length)
   decoded = safe_malloc(*length);
 
   size_t index_out = 0;
-  for(i = 0; i < strlen(text); i += 8)
+  for(i = 0; i < in_length; i += 8)
   {
     char in0,  in1,  in2,  in3,  in4 , in5,  in6,  in7;
 
@@ -274,7 +276,8 @@ uint8_t *decode_base32(const char *text, size_t *length)
   return decoded;
 }
 
-#define TESTS 100000
+#if 0
+#define TESTS 2000
 int main(int argc, const char *argv[])
 {
   uint8_t input[TESTS];
@@ -296,12 +299,14 @@ int main(int argc, const char *argv[])
       input[j] = rand();
 
     /* Try to send 'invalid' data into the decoder. */
+    size_out = -1;
     other_output = decode_base32(input, &size_out);
     if(other_output)
       safe_free(other_output);
 
     input[size_in] = 0;
     output = encode_base32(input, size_in);
+    size_out = -1;
     other_output = decode_base32(output, &size_out);
 
     if(size_out != size_in)
@@ -320,11 +325,13 @@ int main(int argc, const char *argv[])
     safe_free(other_output);
 
     /* Try to send 'invalid' data into the decoder. */
+    size_out = -1;
     other_output = decode_hex(input, &size_out);
     if(other_output)
       safe_free(other_output);
 
     output = encode_hex(input, size_in);
+    size_out = -1;
     other_output = decode_hex(output, &size_out);
 
     if(size_out != size_in)
@@ -347,3 +354,4 @@ int main(int argc, const char *argv[])
 
   return 0;
 }
+#endif
