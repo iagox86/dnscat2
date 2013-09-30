@@ -118,16 +118,13 @@ uint8_t *decode_hex(char *text, size_t *length)
      (B) == '4' ? 28 : (B) == '5' ? 29 : (B) == '6' ? 30  : (B) == '7' ? 31: \
      -1))
 
-/* 5 bytes become 8 (rounded up) */
-#define BASE32_LENGTH(l) ((((l) + 4) / 5) * 8)
-
 char *encode_base32(uint8_t *data, size_t length)
 {
   char *encoded;
   size_t i;
 
   /* 5 bytes become 8 */
-  size_t out_size = BASE32_LENGTH(length) + 1;
+  size_t out_size = ((((length) + 4) / 5) * 8) + 1;
 
   encoded = safe_malloc(out_size);
 
@@ -180,8 +177,8 @@ char *encode_base32(uint8_t *data, size_t length)
     }
     else
     {
-      encoded[index_out+2] = '=';
-      encoded[index_out+3] = '=';
+      encoded[index_out+2] = '\0';
+      encoded[index_out+3] = '\0';
     }
 
     if(i + 2 < length)
@@ -190,7 +187,7 @@ char *encode_base32(uint8_t *data, size_t length)
     }
     else
     {
-      encoded[index_out+4] = '=';
+      encoded[index_out+4] = '\0';
     }
 
     if(i + 3 < length)
@@ -200,8 +197,8 @@ char *encode_base32(uint8_t *data, size_t length)
     }
     else
     {
-      encoded[index_out+5] = '=';
-      encoded[index_out+6] = '=';
+      encoded[index_out+5] = '\0';
+      encoded[index_out+6] = '\0';
     }
 
     if(i + 4 < length)
@@ -210,7 +207,7 @@ char *encode_base32(uint8_t *data, size_t length)
     }
     else
     {
-      encoded[index_out+7] = '=';
+      encoded[index_out+7] = '\0';
     }
 
     /* Set the next character to '\0' in case we're at the end. */
@@ -229,15 +226,14 @@ uint8_t *decode_base32(const char *text, size_t *length)
   size_t   i;
 
   /* 5 bytes become 8 */
-  char *end = strchr(text, '=');
-  if(!end)
+  if(in_length % 8 == 0)
   {
     *length = (in_length / 8) * 5;
   }
   else
   {
-    size_t data_len = (end - text) % 8;
-    *length = (in_length / 8) * 5;
+    size_t data_len = in_length % 8;
+    *length = ((in_length + 8) / 8) * 5;
 
     if(data_len <= 2)
       *length -= 4;
@@ -249,6 +245,8 @@ uint8_t *decode_base32(const char *text, size_t *length)
       *length -= 1;
   }
 
+  /* TODO: Figure out why I have to allocate 4 extra bytes to not crash
+   * the heap */
   decoded = safe_malloc(*length);
 
   size_t index_out = 0;
@@ -298,8 +296,7 @@ uint8_t *decode_base32(const char *text, size_t *length)
   return decoded;
 }
 
-#if 0
-#define TESTS 2000
+#define TESTS 20000
 int main(int argc, const char *argv[])
 {
   uint8_t input[TESTS];
@@ -345,7 +342,6 @@ int main(int argc, const char *argv[])
 
     safe_free(output);
     safe_free(other_output);
-
     /* Try to send 'invalid' data into the decoder. */
     size_out = -1;
     other_output = decode_hex(input, &size_out);
@@ -376,4 +372,3 @@ int main(int argc, const char *argv[])
 
   return 0;
 }
-#endif
