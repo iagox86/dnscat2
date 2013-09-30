@@ -95,7 +95,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     {
       /* Loop through the part of the answer before the 'domain' */
       size_t   length = dns->answers[0].answer->TEXT.length;
-      uint8_t *data = decode_hex(answer, &length);
+      uint8_t *data = decode(HEX_ENCODE, answer, &length);
 
       /* Pass the buffer to the caller */
       if(length > 0)
@@ -149,7 +149,7 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   buffer = buffer_create(BO_BIG_ENDIAN);
 
   /* Encode the string appropriately. */
-  encoded_string = encode_hex(data, length);
+  encoded_string = encode(HEX_ENCODE, data, length);
 
   /* Add the periods as needed. */
   for(i = 0; i < strlen(encoded_string); i += MAX_FIELD_LENGTH)

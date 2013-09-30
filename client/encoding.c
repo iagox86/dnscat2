@@ -12,6 +12,28 @@
 #include "memory.h"
 #include "types.h"
 
+#include "encoding.h"
+
+char *encode(encode_types_t type, uint8_t *value, size_t  length)
+{
+  if(type == HEX_ENCODE)
+    return encode_hex(value, length);
+  else if(type == BASE32_ENCODE)
+    return encode_base32(value, length);
+  else
+    return NULL;
+}
+
+uint8_t *decode(encode_types_t type, char *text,  size_t *length)
+{
+  if(type == HEX_ENCODE)
+    return decode_hex(text, length);
+  else if(type == BASE32_ENCODE)
+    return decode_base32(text, length);
+  else
+    return NULL;
+}
+
 static char *hex_chars = "0123456789abcdef";
 char *encode_hex(uint8_t *value, size_t length)
 {
