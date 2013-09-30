@@ -296,6 +296,7 @@ uint8_t *decode_base32(const char *text, size_t *length)
   return decoded;
 }
 
+#if 0
 #define TESTS 20000
 int main(int argc, const char *argv[])
 {
@@ -372,3 +373,4 @@ int main(int argc, const char *argv[])
 
   return 0;
 }
+#endif
