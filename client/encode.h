@@ -3,8 +3,8 @@
 
 typedef enum
 {
-  HEX_ENCODE,
-  BASE32_ENCODE
+  HEX,
+  BASE32
 } encode_types_t;
 
 char    *encode(encode_types_t type, uint8_t *value, size_t  length);

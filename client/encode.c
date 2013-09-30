@@ -16,9 +16,9 @@
 
 char *encode(encode_types_t type, uint8_t *value, size_t  length)
 {
-  if(type == HEX_ENCODE)
+  if(type == HEX)
     return encode_hex(value, length);
-  else if(type == BASE32_ENCODE)
+  else if(type == BASE32)
     return encode_base32(value, length);
   else
     return NULL;
@@ -26,9 +26,9 @@ char *encode(encode_types_t type, uint8_t *value, size_t  length)
 
 uint8_t *decode(encode_types_t type, char *text,  size_t *length)
 {
-  if(type == HEX_ENCODE)
+  if(type == HEX)
     return decode_hex(text, length);
-  else if(type == BASE32_ENCODE)
+  else if(type == BASE32)
     return decode_base32(text, length);
   else
     return NULL;
