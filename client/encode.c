@@ -17,9 +17,9 @@
 char *encode(encode_types_t type, uint8_t *value, size_t  length)
 {
   if(type == HEX)
-    return encode_hex(value, length);
+    return hex_encode(value, length);
   else if(type == BASE32)
-    return encode_base32(value, length);
+    return base32_encode(value, length);
   else
     return NULL;
 }
@@ -27,15 +27,15 @@ char *encode(encode_types_t type, uint8_t *value, size_t  length)
 uint8_t *decode(encode_types_t type, char *text,  size_t *length)
 {
   if(type == HEX)
-    return decode_hex(text, length);
+    return hex_decode(text, length);
   else if(type == BASE32)
-    return decode_base32(text, length);
+    return base32_decode(text, length);
   else
     return NULL;
 }
 
 static char *hex_chars = "0123456789abcdef";
-char *encode_hex(uint8_t *value, size_t length)
+char *hex_encode(uint8_t *value, size_t length)
 {
   char *encoded;
   size_t i;
@@ -52,7 +52,7 @@ char *encode_hex(uint8_t *value, size_t length)
   return encoded;
 }
 
-uint8_t *decode_hex(char *text, size_t *length)
+uint8_t *hex_decode(char *text, size_t *length)
 {
   size_t in_length = (*length == -1) ? strlen(text) : (*length);
   uint8_t *decoded = safe_malloc(in_length / 2);
@@ -118,7 +118,7 @@ uint8_t *decode_hex(char *text, size_t *length)
      (B) == '4' ? 28 : (B) == '5' ? 29 : (B) == '6' ? 30  : (B) == '7' ? 31: \
      -1))
 
-char *encode_base32(uint8_t *data, size_t length)
+char *base32_encode(uint8_t *data, size_t length)
 {
   char *encoded;
   size_t i;
@@ -219,7 +219,7 @@ char *encode_base32(uint8_t *data, size_t length)
   return encoded;
 }
 
-uint8_t *decode_base32(const char *text, size_t *length)
+uint8_t *base32_decode(const char *text, size_t *length)
 {
   size_t   in_length = (*length == -1) ? strlen(text) : (*length);
   uint8_t *decoded;
@@ -320,14 +320,14 @@ int main(int argc, const char *argv[])
 
     /* Try to send 'invalid' data into the decoder. */
     size_out = -1;
-    other_output = decode_base32(input, &size_out);
+    other_output = base32_decode(input, &size_out);
     if(other_output)
       safe_free(other_output);
 
     input[size_in] = 0;
-    output = encode_base32(input, size_in);
+    output = base32_encode(input, size_in);
     size_out = -1;
-    other_output = decode_base32(output, &size_out);
+    other_output = base32_decode(output, &size_out);
 
     if(size_out != size_in)
     {
@@ -345,13 +345,13 @@ int main(int argc, const char *argv[])
     safe_free(other_output);
     /* Try to send 'invalid' data into the decoder. */
     size_out = -1;
-    other_output = decode_hex(input, &size_out);
+    other_output = hex_decode(input, &size_out);
     if(other_output)
       safe_free(other_output);
 
-    output = encode_hex(input, size_in);
+    output = hex_encode(input, size_in);
     size_out = -1;
-    other_output = decode_hex(output, &size_out);
+    other_output = hex_decode(output, &size_out);
 
     if(size_out != size_in)
     {

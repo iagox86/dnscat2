@@ -10,10 +10,10 @@ typedef enum
 char    *encode(encode_types_t type, uint8_t *value, size_t  length);
 uint8_t *decode(encode_types_t type, char    *text,  size_t *length);
 
-char    *encode_hex(uint8_t *value, size_t length);
-uint8_t *decode_hex(char *text,     size_t *length);
+char    *hex_encode(uint8_t *value, size_t length);
+uint8_t *hex_decode(char *text,     size_t *length);
 
-char    *encode_base32(uint8_t *data,    size_t length);
-uint8_t *decode_base32(const char *text, size_t *length);
+char    *base32_encode(uint8_t *data,    size_t length);
+uint8_t *base32_decode(const char *text, size_t *length);
 
 #endif
