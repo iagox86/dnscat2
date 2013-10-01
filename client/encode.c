@@ -33,6 +33,20 @@ uint8_t *decode(encode_types_t type, char *text,  size_t *length)
   else
     return NULL;
 }
+size_t get_decoded_size(encode_types_t type, size_t encoded_bytes)
+{
+  if(type == HEX)
+    return hex_get_decoded_size(encoded_bytes);
+  else if(type == BASE32)
+    return base32_get_decoded_size(encoded_bytes);
+  else
+    return -1;
+}
+
+size_t hex_get_decoded_size(size_t encoded_bytes)
+{
+  return encoded_bytes / 2;
+}
 
 static char *hex_chars = "0123456789abcdef";
 char *hex_encode(uint8_t *value, size_t length)
@@ -58,7 +72,7 @@ uint8_t *hex_decode(char *text, size_t *length)
   uint8_t *decoded = safe_malloc(in_length / 2);
   size_t i;
 
-  *length = in_length / 2;
+  *length = hex_get_decoded_size(in_length);
 
   for(i = 0; i < in_length; i += 2)
   {
@@ -96,6 +110,7 @@ uint8_t *hex_decode(char *text, size_t *length)
   return decoded;
 }
 
+
 #define c_to_b32(B) ((char)( \
      (B) ==  0  ? 'A': (B) ==  1  ? 'B' : (B) == 2  ? 'C' : (B) == 3   ? 'D' :  \
      (B) ==  4  ? 'E': (B) ==  5  ? 'F' : (B) == 6  ? 'G' : (B) == 7   ? 'H' :  \
@@ -117,6 +132,31 @@ uint8_t *hex_decode(char *text, size_t *length)
      (B) == 'Y' ? 24 : (B) == 'Z' ? 25 : (B) == '2' ? 26  : (B) == '3' ? 27: \
      (B) == '4' ? 28 : (B) == '5' ? 29 : (B) == '6' ? 30  : (B) == '7' ? 31: \
      -1))
+
+size_t base32_get_decoded_size(size_t encoded_bytes)
+{
+  size_t length;
+  if(encoded_bytes % 8 == 0)
+  {
+    length = (encoded_bytes / 8) * 5;
+  }
+  else
+  {
+    size_t data_len = encoded_bytes % 8;
+    length = ((encoded_bytes + 8) / 8) * 5;
+
+    if(data_len <= 2)
+      length -= 4;
+    else if(data_len <= 4)
+      length -= 3;
+    else if(data_len <= 5)
+      length -= 2;
+    else if(data_len <= 7)
+      length -= 1;
+  }
+
+  return length;
+}
 
 char *base32_encode(uint8_t *data, size_t length)
 {
@@ -225,28 +265,8 @@ uint8_t *base32_decode(const char *text, size_t *length)
   uint8_t *decoded;
   size_t   i;
 
-  /* 5 bytes become 8 */
-  if(in_length % 8 == 0)
-  {
-    *length = (in_length / 8) * 5;
-  }
-  else
-  {
-    size_t data_len = in_length % 8;
-    *length = ((in_length + 8) / 8) * 5;
+  *length = base32_get_decoded_size(in_length);
 
-    if(data_len <= 2)
-      *length -= 4;
-    else if(data_len <= 4)
-      *length -= 3;
-    else if(data_len <= 5)
-      *length -= 2;
-    else if(data_len <= 7)
-      *length -= 1;
-  }
-
-  /* TODO: Figure out why I have to allocate 4 extra bytes to not crash
-   * the heap */
   decoded = safe_malloc(*length);
 
   size_t index_out = 0;
@@ -307,12 +327,13 @@ int main(int argc, const char *argv[])
   size_t   size_out;
 
   size_t i, j;
+  size_t predicted_size;
 
   srand(time(0));
 
   for(i = 0; i < TESTS; i++)
   {
-    printf("%d\n", i);
+    printf("%zu\n", i);
     size_in = i;
 
     for(j = 0; j < size_in; j++)
@@ -324,14 +345,19 @@ int main(int argc, const char *argv[])
     if(other_output)
       safe_free(other_output);
 
+
     input[size_in] = 0;
     output = base32_encode(input, size_in);
     size_out = -1;
     other_output = base32_decode(output, &size_out);
 
+    predicted_size = base32_get_decoded_size(strlen(output));
+    if(predicted_size != size_out)
+      printf("Predicted size = %zu, actual size = %zu!\n", predicted_size, size_out);
+
     if(size_out != size_in)
     {
-      printf("Size error! In = %d, out = %d\n", size_in, size_out);
+      printf("Size error! In = %zu, out = %zu\n", size_in, size_out);
       exit(1);
     }
 
@@ -355,7 +381,7 @@ int main(int argc, const char *argv[])
 
     if(size_out != size_in)
     {
-      printf("Size error! In = %d, out = %d\n", size_in, size_out);
+      printf("Size error! In = %zu, out = %zu\n", size_in, size_out);
       exit(1);
     }
 
