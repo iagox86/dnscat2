@@ -14,7 +14,7 @@
 
 #include "encode.h"
 
-char *encode(encode_types_t type, uint8_t *value, size_t  length)
+char *encode(encoding_type_t type, uint8_t *value, size_t  length)
 {
   if(type == HEX)
     return hex_encode(value, length);
@@ -24,7 +24,7 @@ char *encode(encode_types_t type, uint8_t *value, size_t  length)
     return NULL;
 }
 
-uint8_t *decode(encode_types_t type, char *text,  size_t *length)
+uint8_t *decode(encoding_type_t type, char *text,  size_t *length)
 {
   if(type == HEX)
     return hex_decode(text, length);
@@ -33,7 +33,7 @@ uint8_t *decode(encode_types_t type, char *text,  size_t *length)
   else
     return NULL;
 }
-size_t get_decoded_size(encode_types_t type, size_t encoded_bytes)
+size_t get_decoded_size(encoding_type_t type, size_t encoded_bytes)
 {
   if(type == HEX)
     return hex_get_decoded_size(encoded_bytes);

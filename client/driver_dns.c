@@ -19,17 +19,32 @@
 
 #include "driver_dns.h"
 
-#define MAX_FIELD_LENGTH 62
+#define MAX_FIELD_LENGTH 63
 #define MAX_DNS_LENGTH   255
 
-/* The max length is a little complicated:
- * 255 because that's the max DNS length
- * Halved, because we encode in hex
- * Minus the length of the domain, which is appended
- * Minus 1, for the period right before the domain
- * Minus the number of periods that could appear within the name
- */
-#define MAX_DNSCAT_LENGTH(domain) ((255/2) - strlen(domain) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
+static size_t max_dnscat_length(char *domain, encoding_type_t type)
+{
+  size_t used_size = 0;
+  size_t available_size;
+
+  /* Leading period. */
+  used_size += 1;
+
+  /* Domain name */
+  used_size += strlen(domain);
+
+  /* The maximum number of periods that can be present in the domain. */
+  used_size += (MAX_DNS_LENGTH / MAX_FIELD_LENGTH);
+
+  /* The "null" terminator */
+  used_size += 1;
+
+  /* Get the number of available bytes. */
+  available_size = MAX_DNS_LENGTH - used_size;
+
+  /* Figure out the maximum number of encoded characters that could fit. */
+  return get_decoded_size(type, available_size);
+}
 
 static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 {
@@ -123,7 +138,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
 static void handle_start(driver_dns_t *driver)
 {
-  message_post_config_int("max_packet_length", MAX_DNSCAT_LENGTH(driver->domain));
+  message_post_config_int("max_packet_length", max_dnscat_length(driver->domain, HEX));
 }
 
 /* This function expects to receive the proper length of data. */
@@ -144,7 +159,7 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
-  assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
+  assert(length <= max_dnscat_length(driver->domain, HEX));
 
   buffer = buffer_create(BO_BIG_ENDIAN);
 
