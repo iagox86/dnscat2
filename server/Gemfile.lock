@@ -2,17 +2,18 @@ GEM
   remote: https://rubygems.org/
   specs:
     eventmachine (1.0.3)
-    rainbow (1.1.4)
-    rexec (1.5.1)
+    rainbow (2.0.0)
+    rexec (1.6.3)
       rainbow
-    rubydns (0.6.1)
+    rubydns (0.7.3)
       eventmachine (~> 1.0.0)
-      rexec (~> 1.5.1)
+      rexec (~> 1.6.2)
     trollop (2.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  rainbow
   rubydns
   trollop

@@ -11,10 +11,15 @@
 require 'rubydns'
 require 'log'
 
-IN   = Resolv::DNS::Resource::IN
-Name = Resolv::DNS::Name
-
 class DriverDNS
+  # Use upstream DNS for name resolution.
+  UPSTREAM = RubyDNS::Resolver.new([[:udp, "8.8.8.8", 53]])
+
+  MAX_TXT_LENGTH = 250 # The max value that can be expressed by a single byte
+  MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
+  MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
+  MAX_MX_LENGTH = 250
+
   def initialize(host, port, domain)
     Log.WARNING "Starting Dnscat2 DNS server on #{host}:#{port} [domain = #{domain}]..."
 
@@ -22,38 +27,6 @@ class DriverDNS
     @port   = port
     @domain = domain
   end
-
-  # I have to re-implement RubyDNS::start_server() in order to disable the
-  # annoying logging (I'd love to have a better way!)
-  def start_dns_server(options = {}, &block)
-    server = RubyDNS::Server.new(&block)
-    server.logger.level = Logger::FATAL
-
-    options[:listen] ||= [[:udp, @host, @port]]
-    #options[:listen] ||= [[:tcp, "0.0.0.0", 5353], [:udp, "0.0.0.0", 5353]]
-
-    EventMachine.run do
-      server.fire(:setup)
-
-      # Setup server sockets
-      options[:listen].each do |spec|
-        if spec[0] == :udp
-          EventMachine.open_datagram_socket(spec[1], spec[2], RubyDNS::UDPHandler, server)
-        elsif spec[0] == :tcp
-          EventMachine.start_server(spec[1], spec[2], RubyDNS::TCPHandler, server)
-        end
-      end
-
-      server.fire(:start)
-    end
-
-    server.fire(:stop)
-  end
-
-  MAX_TXT_LENGTH = 250 # The max value that can be expressed by a single byte
-  MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
-  MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
-  MAX_MX_LENGTH = 250
 
   def DriverDNS.parse_name(name, domain)
     Log.INFO("Parsing: #{name}")
@@ -76,11 +49,21 @@ class DriverDNS
     raise(DnscatException, "Name didn't contain the expected dnscat values: #{name}")
   end
 
+  Name = Resolv::DNS::Name
+  IN = Resolv::DNS::Resource::IN
+
+
   def recv()
     # Save the domain locally so the block can see it
     domain = @domain
 
-    start_dns_server() do
+    interfaces = [
+      [:udp, @host, @port],
+    ]
+
+    RubyDNS::run_server(:listen => interfaces) do |s|
+      s.logger.level = Logger::FATAL
+
       match(/\.#{domain}$/, IN::TXT) do |transaction|
         begin
           name, domain = DriverDNS.parse_name(transaction.name, domain)
@@ -110,87 +93,10 @@ class DriverDNS
         transaction # Return this, effectively
       end
 
-      match(/(\.#{domain})$/, IN::A) do |transaction|
-        begin
-          name, domain = DriverDNS.parse_name(transaction.name, domain)
-
-          # Get the response
-          response = yield(name, MAX_A_LENGTH)
-
-          # Prepend the length
-          response = [response.length].pack("C") + response
-
-          # Loop through each 4-byte chunk
-          response.bytes.each_slice(4) do |slice|
-            # Make sure it's exactly 4 bytes long (to make life easy)
-            while(slice.length < 4)
-              slice << rand(255)
-            end
-
-            # Create the IP address
-            name = "%d.%d.%d.%d" % slice
-
-            # Add it to the response
-            transaction.respond!(name)
-          end
-        rescue SystemExit
-          exit
-        rescue DnscatException => e
-          Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-          Log.ERROR(e.inspect)
-        rescue Exception => e
-          Log.FATAL("Fatal exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-          Log.FATAL(e.inspect)
-          Log.FATAL(e.backtrace)
-          exit
-        end
-
-        transaction # Return this, effectively
-      end
-
-      match(/(\.#{domain})$/, IN::MX) do |transaction|
-        begin
-          name, domain = DriverDNS.parse_name(transaction.name, domain)
-
-          # Get the response, be sure to leave room for the domain in the response
-          # Divided by 2 because we're encoding in hex
-          response = yield(name, (MAX_MX_LENGTH / 2) - domain.length)
-
-          response_name = nil
-          if(response.nil?)
-            Log.INFO("Sending nil response...")
-            response_name = domain
-          else
-            response = "#{response.unpack("H*").pop}"
-
-            # Add the name in chunks no bigger than 63 characters
-            response_name = ""
-            response.bytes.each_slice(63) do |slice|
-              response_name += slice.pack("C*")
-              response_name += "."
-            end
-            response_name += domain
-          end
-
-          transaction.respond!(10, Name.create(response_name))
-        rescue SystemExit
-          exit
-        rescue DnscatException => e
-          Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-          Log.ERROR(e.inspect)
-        rescue Exception => e
-          Log.FATAL("Fatal exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-          Log.FATAL(e.inspect)
-          Log.FATAL(e.backtrace)
-          exit
-        end
-
-        transaction # Return this, effectively
-      end
-
-
+      # Default DNS handler
       otherwise do |transaction|
-        Log.ERROR("Unable to handle request: #{transaction}")
+        Log.ERROR("Unable to handle request, passing upstream: #{transaction}")
+        transaction.passthrough!(UPSTREAM)
       end
     end
   end
