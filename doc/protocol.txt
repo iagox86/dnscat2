@@ -72,20 +72,6 @@ response is simply the data.
 Future versions will allow CNAME, MX, A, AAAA, and other record types.
 Currently, only TXT is supported it because it's the simplest.
 
-+----------+
-| Encoding |
-+----------+
-Some protocols require data to be encoded in a certain way. For example,
-the DNS protocol doesn't allow special characters. As a result, an
-encoding must be agreed upon.
-
-The SYN packets (both client to server and server to client) will have a
-default, stated encoding (for example, DNS's default encoding is
-Hexadecimal). If a different encoding isn't chosen in the SYN packet,
-then the default encoding is used for the entire session. If the
-encoding field in the SYN packet is set, then the encoding is switched
-to the given encoding type.
-
 +-------------+
 | Connections |
 +-------------+
@@ -181,12 +167,6 @@ If an unexpected FIN is received, the server will ignore it:
 /* Options */
 #define OPT_NAME     (0x01)
 #define OPT_CONNECT  (0x02)
-#define OPT_ENCODING (0x03)
-
-/* Encoding options */
-#define ENCODING_PLAINTEXT (0x00)
-#define ENCODING_HEX       (0x01)
-#define ENCODING_BASE32    (0x02)
 
 +----------+
 | Messages |
@@ -216,8 +196,6 @@ If OPT_NAME is set:
 If OPT_TUNNEL is set:
   - (ntstring) remote address (ip, hostname, etc)
   - (uint16_t) remote port
-If OPT_ENCODING is set:
-  - (uint32_t) encoding options (default if not set: ENCODING_HEX)
 
 (Client to server)
 - Each connection is initiated by a client sending a SYN containing a
@@ -238,10 +216,6 @@ If OPT_ENCODING is set:
       given port, and send all traffic to that host
     - (ntstring) remote ip address
     - (uint16_t) remote port
-  - OPT_ENCODING - 0x04
-    - Used to set special encoding options in subsequent packets (the
-      encoding of the initial SYN packet will still be the default HEX).
-    - (uint32_t) encoding options
 
 (Server to client)
 - The server responds with its own SYN, containing its initial sequence
@@ -254,16 +228,6 @@ If OPT_ENCODING is set:
   not incremental or static or anything, to make connection-hijacking
   attacks more difficult (the two sequence numbers and the session_id
   give us approximately 48-bits of entropy per connection).
-- The SYN packet itself, as well as the response SYN, are always in the
-  standard encoding for the protocol
-- The server is required to support all encodings; the client is not.
-- There are various encoding options available:
-  - PLAINTEXT: Characters are not encoded. Not generally a good idea.
-  - HEX: Each character is encoded as the two-byte hex characters, for
-    example, "A" becomes "41".
-  - BASE32: Each character is encoded as base-32 characters. For more
-    information, see the wiki page:
-    https://en.wikipedia.org/wiki/Base_32
 
 (Out-of-state packets)
 - If a client or server receives an errant SYN, it should be ignored.
