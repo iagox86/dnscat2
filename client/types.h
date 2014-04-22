@@ -56,7 +56,7 @@ typedef int socklen_t;
 #endif
 
 #define DIE(a) {fprintf(stderr, "Unrecoverable error in %s(%d): %s\n\n", __FILE__, __LINE__, a); abort();}
-#define DIE_MEM() {print_memory();DIE("Out of memory.");}
+#define DIE_MEM() {DIE("Out of memory.");}
 
 /* Drop privileges to the chosen user, then verify that root can't be re-enabled. */
 void drop_privileges(char *username);

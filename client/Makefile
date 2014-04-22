@@ -19,7 +19,6 @@ OBJS=buffer.o \
 		 driver_exec.o \
 		 driver_listener.o \
 		 driver_socks4.o \
-		 encode.o \
 		 tcp.o \
 		 types.o \
 		 memory.o \

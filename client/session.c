@@ -48,7 +48,7 @@ typedef struct _session_entry_t
 
 static session_entry_t *first_session;
 
-#define RETRANSMIT_DELAY 1 /* Seconds */
+#define RETRANSMIT_DELAY 2 /* Seconds */
 
 /* Allow anything to go out. Call this at the start or after receiving legit data. */
 static void reset_counter(session_t *session)

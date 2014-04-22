@@ -9,7 +9,6 @@
 
 #include "buffer.h"
 #include "dns.h"
-#include "encode.h"
 #include "log.h"
 #include "memory.h"
 #include "message.h"
@@ -19,32 +18,17 @@
 
 #include "driver_dns.h"
 
-#define MAX_FIELD_LENGTH 63
+#define MAX_FIELD_LENGTH 62
 #define MAX_DNS_LENGTH   255
 
-static size_t max_dnscat_length(char *domain, encoding_type_t type)
-{
-  size_t used_size = 0;
-  size_t available_size;
-
-  /* Leading period. */
-  used_size += 1;
-
-  /* Domain name */
-  used_size += strlen(domain);
-
-  /* The maximum number of periods that can be present in the domain. */
-  used_size += (MAX_DNS_LENGTH / MAX_FIELD_LENGTH);
-
-  /* The "null" terminator */
-  used_size += 1;
-
-  /* Get the number of available bytes. */
-  available_size = MAX_DNS_LENGTH - used_size;
-
-  /* Figure out the maximum number of encoded characters that could fit. */
-  return get_decoded_size(type, available_size);
-}
+/* The max length is a little complicated:
+ * 255 because that's the max DNS length
+ * Halved, because we encode in hex
+ * Minus the length of the domain, which is appended
+ * Minus 1, for the period right before the domain
+ * Minus the number of periods that could appear within the name
+ */
+#define MAX_DNSCAT_LENGTH(domain) ((255/2) - strlen(domain) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
 
 static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 {
@@ -98,6 +82,8 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   else if(dns->answers[0].type == DNS_TYPE_TEXT)
   {
     char *answer;
+    char buf[3];
+    size_t i;
 
     answer = (char*)dns->answers[0].answer->TEXT.text;
     LOG_INFO("Received a DNS TXT response: %s", answer);
@@ -108,13 +94,44 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     }
     else
     {
+      buffer_t *incoming_data = buffer_create(BO_BIG_ENDIAN);
+
       /* Loop through the part of the answer before the 'domain' */
-      size_t   length = dns->answers[0].answer->TEXT.length;
-      uint8_t *data = decode(HEX, answer, &length);
+      for(i = 0; i < dns->answers[0].answer->TEXT.length; i += 2)
+      {
+        /* Validate the answer */
+        if(answer[i] == '.')
+        {
+          /* ignore */
+        }
+        else if(answer[i+1] == '.')
+        {
+          LOG_ERROR("Answer contained an odd number of digits");
+        }
+        else if(!isxdigit((int)answer[i]))
+        {
+          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
+        }
+        else if(!isxdigit((int)answer[i+1]))
+        {
+          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
+        }
+        else
+        {
+          buf[0] = answer[i];
+          buf[1] = answer[i + 1];
+          buf[2] = '\0';
+
+          buffer_add_int8(incoming_data, strtol(buf, NULL, 16));
+        }
+      }
 
       /* Pass the buffer to the caller */
-      if(length > 0)
+      if(buffer_get_length(incoming_data) > 0)
       {
+        size_t length;
+        uint8_t *data = buffer_create_string(incoming_data, &length);
+
         /* Parse the dnscat packet. */
         packet_t *packet = packet_parse(data, length);
 
@@ -124,6 +141,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
         packet_destroy(packet);
         safe_free(data);
       }
+      buffer_destroy(incoming_data);
     }
   }
   else
@@ -138,7 +156,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
 static void handle_start(driver_dns_t *driver)
 {
-  message_post_config_int("max_packet_length", max_dnscat_length(driver->domain, HEX));
+  message_post_config_int("max_packet_length", MAX_DNSCAT_LENGTH(driver->domain));
 }
 
 /* This function expects to receive the proper length of data. */
@@ -151,30 +169,36 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   size_t        encoded_length;
   uint8_t      *dns_bytes;
   size_t        dns_length;
+  size_t        section_length;
 
   size_t        length;
   uint8_t      *data = packet_to_bytes(packet, &length);
-  char         *encoded_string;
 
   assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
-  assert(length <= max_dnscat_length(driver->domain, HEX));
+  assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
 
   buffer = buffer_create(BO_BIG_ENDIAN);
-
-  /* Encode the string appropriately. */
-  encoded_string = encode(HEX, data, length);
-
-  /* Add the periods as needed. */
-  for(i = 0; i < strlen(encoded_string); i += MAX_FIELD_LENGTH)
+  section_length = 0;
+  /* TODO: I don't much care for this loop... */
+  for(i = 0; i < length; i++)
   {
-    buffer_add_bytes(buffer, encoded_string + i, MIN(MAX_FIELD_LENGTH, strlen(encoded_string) - i));
-    buffer_add_int8(buffer, '.');
-  }
-  safe_free(encoded_string);
+    char hex_buf[3];
+    sprintf(hex_buf, "%02x", data[i]);
+    buffer_add_bytes(buffer, hex_buf, 2);
 
-  buffer_add_ntstring(buffer, driver->domain);
+    /* Add periods when we need them. */
+    section_length += 2;
+    if(i + 1 != length && section_length + 2 >= MAX_FIELD_LENGTH)
+    {
+      section_length = 0;
+      buffer_add_int8(buffer, '.');
+    }
+  }
+
+  buffer_add_int8(buffer, '.');
+  buffer_add_ntstring(buffer, driver->domain); /* TODO: Hardcoded domain name! */
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
   /* Double-check we didn't mess up the length. */

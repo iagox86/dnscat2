@@ -48,8 +48,8 @@ the form of:
 - [encoded data].[domain]
 
 Where [encoded data] is the packet, as described below, converted
-directly to a DNS-safe representation agreed upon in the SYN packet ,
-and [domain] is agreed upon in advance through some channel.
+directly to a hexadecimal representation, and [domain] is agreed upon in
+advance through some channel.
 
 The [encoded data] can be split across multiple fields, in the form of
 "a.b.c.d". The periods should be simply ignored and discarded. The
