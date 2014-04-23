@@ -280,6 +280,7 @@ class Ui
     # Ui.session_destroyed() will take care of this
   end
 
+  # TODO: This doesn't work because I got rid of the send/recv messages
   def Ui.dnscat2_recv(packet)
     if(@@options["packet_trace"])
       puts("IN: #{packet}")

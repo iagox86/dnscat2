@@ -34,8 +34,8 @@ class SessionManager
     @@subscribers << cls
   end
 
-  def SessionManager.session_exists?(id)
-    return !@sessions[id].nil?
+  def SessionManager.exists?(id)
+    return !@@sessions[id].nil?
   end
 
   def SessionManager.find(id)

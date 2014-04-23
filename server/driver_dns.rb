@@ -68,7 +68,7 @@ class DriverDNS
         begin
           name, domain = DriverDNS.parse_name(transaction.name, domain)
 
-          response = yield(name, MAX_TXT_LENGTH / 2) # TODO: Should be '2'
+          response = yield(name, MAX_TXT_LENGTH / 2)
 
           if(response.nil?)
             Log.INFO("Sending nil response...")
