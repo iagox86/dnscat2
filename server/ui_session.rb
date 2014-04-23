@@ -15,7 +15,7 @@ class UiSession
     @orig_suspend = nil
     @data = ""
 
-    if(!Ui.get_option("auto_command").nil?)
+    if(!Ui.get_option("auto_command").nil? && Ui.get_option("auto_command").length > 0)
       SessionManager.find(id).queue_outgoing(Ui.get_option("auto_command") + "\n")
     end
   end

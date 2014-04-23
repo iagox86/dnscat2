@@ -176,11 +176,11 @@ If an unexpected FIN is received, the server will ignore it:
 #define MESSAGE_TYPE_SYN        (0x00)
 #define MESSAGE_TYPE_MSG        (0x01)
 #define MESSAGE_TYPE_FIN        (0x02)
-#define MESSAGE_TYPE_STRAIGHTUP (0xFF)
 
 /* Options */
 #define OPT_NAME     (0x01)
 #define OPT_CONNECT  (0x02)
+#define OPT_DATAGRAM (0x04)
 
 +----------+
 | Messages |
@@ -225,6 +225,12 @@ If OPT_TUNNEL is set:
       given port, and send all traffic to that host
     - (ntstring) remote ip address
     - (uint16_t) remote port
+  - OPT_DATAGRAM - 0x04
+    - The server and client choose not to use seq/ack numbers
+    - This will be faster, but much, much less reliable
+    - This should only be used when there's a higher-level transport
+      protocol looking after dupes/drops, or if those seriously don't
+      matter
 
 (Server to client)
 - The server responds with its own SYN, containing its initial sequence
@@ -298,6 +304,10 @@ MESSAGE_TYPE_MSG: [0x01]
   their saved acknowledgement numbers until the other side has
   acknowledged the value in a response.
 
+('Datagram' mode)
+- The seq and ack numbers should be zeroed out and ignored in datagram
+  mode.
+
 ------------------------
 MESSAGE_TYPE_FIN: [0x02]
 ------------------------
@@ -319,16 +329,3 @@ MESSAGE_TYPE_FIN: [0x02]
 (Out-of-state packets)
 - Once a FIN has been sent, the client or server should no longer
   attempt to respond to anything from that connection.
-
--------------------------------
-MESSAGE_TYPE_STRAIGHTUP: [0xFF] // TODO
--------------------------------
-- (byte[]) data
-
-(Notes)
-- This is currently just an idea and isn't implemented.
-- The plan for this is to be a purely connectionless/datagram-style
-  message. A server would have to be specially configured to accept
-  STRAIGHTUP packets, and one would have to assume that they're only
-  going to come from a single source (since there is no associated
-  session_id or seq/ack numbers).
