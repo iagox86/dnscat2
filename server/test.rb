@@ -7,9 +7,16 @@
 #
 # Self tests for dnscat2_server.rb - implements a fake "client" that's
 # basically just a class.
+#
+# NOTE: Run this by using 'ruby dnscat2_server.rb --test'
 ##
 
+$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
+
 require 'packet'
+require 'log'
+require 'session'
+require 'dnscat2_server'
 
 class Test
   MY_DATA = "this is MY_DATA"
@@ -17,10 +24,12 @@ class Test
   MY_DATA3 = "this is MY_DATA3"
   THEIR_DATA = "This is THEIR_DATA"
 
-  THEIR_ISN = 0x4444
-  MY_ISN    = 0x3333
+  THEIR_ISN = 0xFFF0
+  MY_ISN    = 0xFFF8
 
   SESSION_ID = 0x1234
+
+  MAX_LENGTH = 0xFF
 
   def initialize()
     @data = []
@@ -36,9 +45,8 @@ class Test
     }
 
     @data << {
-    #                            PACKET_ID, ID          SEQ        ACK                      DATA
       :send => Packet.create_fin(packet_id, SESSION_ID),
-      :recv => nil,
+      :recv => Packet.create_fin(packet_id, SESSION_ID),
       :name => "Sending an unexpected FIN (should respond with a FIN)",
     }
 
@@ -49,14 +57,14 @@ class Test
     }
 
     @data << {
-      :send => Packet.create_syn(packet_id, SESSION_ID, 0x3333, 0), # Duplicate SYN
+      :send => Packet.create_syn(packet_id, SESSION_ID, MY_ISN, 0), # Duplicate SYN
       :recv => nil,
       :name => "Duplicate SYN (should be ignored)",
     }
 
     @data << {
-      :send => Packet.create_syn(packet_id, 0x4321, 0x5555),
-      :recv => Packet.create_syn(packet_id, 0x4321, 0x4444),
+      :send => Packet.create_syn(packet_id, 0x4321, MY_ISN),
+      :recv => Packet.create_syn(packet_id, 0x4321, THEIR_ISN),
       :name => "Initial SYN, session 0x4321 (SEQ 0x5555 => 0x4444) (should create new session)",
     }
 
@@ -67,11 +75,13 @@ class Test
     }
     my_seq += MY_DATA.length # Update my seq
 
+    return
     @data << {
       :send => Packet.create_msg(packet_id, SESSION_ID, my_seq+1,   0,     "This is more data with a bad SEQ"),
       :recv => Packet.create_msg(packet_id, SESSION_ID, their_seq, my_seq, THEIR_DATA),
       :name => "Sending data with a bad SEQ (too low), this should trigger a re-send",
     }
+
 
     @data << {
       :send => Packet.create_msg(packet_id, SESSION_ID, my_seq - 100,   0,   "This is more data with a bad SEQ"),
@@ -214,7 +224,7 @@ class Test
       end
 
       out = @data.shift
-      response = yield(out[:send])
+      response = yield(out[:send], MAX_LENGTH)
 
       if(response != out[:recv])
         @@failure += 1
@@ -241,9 +251,9 @@ class Test
       @@success = 0
       @@failure = 0
 
-      Session.debug_set_isn(0x4444)
-      session = Session.find(SESSION_ID)
-      session.queue_outgoing(THEIR_DATA)
+      Session.debug_set_isn(THEIR_ISN)
+      s = Session.create_session(SESSION_ID)
+      s.queue_outgoing(THEIR_DATA)
       Dnscat2.go(Test.new)
     rescue IOError => e
       puts("IOError was thrown (as expected): #{e}")
@@ -252,4 +262,12 @@ class Test
 
     exit
   end
+
+  def Test.log(level, message)
+    puts("#{Log::LEVELS[level]} :: #{message}")
+  end
 end
+
+Log.subscribe(Test)
+Test.do_test()
+

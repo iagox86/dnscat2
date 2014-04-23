@@ -137,6 +137,7 @@ class Session
       Session.notify_subscribers(:session_data_acknowledged, [@id, @outgoing_data[0..(bytes_acked-1)]])
     end
 
+    puts("ACKing...")
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
   end
@@ -148,6 +149,7 @@ class Session
 
   def queue_outgoing(data)
     @outgoing_data = @outgoing_data + data
+    puts("outgoing data: #{@outgoing_data}")
     Session.notify_subscribers(:session_data_queued, [@id, data])
   end
 
@@ -172,5 +174,9 @@ class Session
 
   def destroy()
     Session.destroy(@id)
+  end
+
+  def to_s()
+    return "id: 0x%04x, state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 end

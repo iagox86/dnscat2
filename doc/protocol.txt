@@ -76,6 +76,20 @@ Currently, only TXT is supported it because it's the simplest.
 | Connections |
 +-------------+
 
+These are all the problems I can think of that come up in a protocol
+like this (this applies to SYN, MSG, or FIN packets):
+- A request/response is dropped
+- A request/response is repeated
+- An old request/response arrives late
+
+All of those need to be considered when handling the message types
+below.
+
+The concept of a connection is like a TCP connection. A connection is
+denoted by a 16-bit SessionID value in the header. A client is designed
+to deal with just a single session (usually), whereas the server is
+expected to handle multiple simultaneous sessions.
+
 A valid connection starts with the client sending a SYN to the server,
 and the server responding to that SYN. From that point, until either
 side sends a FIN (or an arbitrary timeout value is reached), the
@@ -177,17 +191,12 @@ Note:
 - It is assumed that we know the length of the datagram; if we don't, a
   lower-level wrapper is required (eg, for TCP I prefix a 2-byte length
   header)
-- The packet_id field used throughout is simply echoed back from the
-  server to the client - the client can choose it any way it likes
-  (random, sequential, always the same, whatever). This helps with
-  protocols where caching is an issue (like DNS).
 
 -----------------------
 MESSAGE_TYPE_SYN [0x00]
 -----------------------
 
 - (uint8_t)  message_type [0x00]
-- (uint16_t) packet_id
 - (uint16_t) session_id
 - (uint16_t) initial seq number
 - (uint16_t) options
@@ -220,8 +229,6 @@ If OPT_TUNNEL is set:
 (Server to client)
 - The server responds with its own SYN, containing its initial sequence
   number and its options.
-- No options are currently defined, and the options field should be set
-  to 0.
 
 (Notes)
 - Both the session_id and initial sequence number should be randomized,
@@ -229,15 +236,22 @@ If OPT_TUNNEL is set:
   attacks more difficult (the two sequence numbers and the session_id
   give us approximately 48-bits of entropy per connection).
 
-(Out-of-state packets)
-- If a client or server receives an errant SYN, it should be ignored.
+(Error states)
+- If a client doesn't receive a response to a SYN packet, it means
+  either the request or response was dropped. The client can choose to
+  re-send the SYN packet for the same session, or it can generate a new
+  SYN packet or session.
+- If a server receives a second SYN for the same session before it
+  receives a MSG packet, it should respond as if it's valid (the
+  response may have been lost).
+- If a client or server receives a SYN for a connection during said
+  connection, it should be silently discarded.
 
 ------------------------
 MESSAGE_TYPE_MSG: [0x01]
 ------------------------
 
 - (uint8_t)  message_type [0x01]
-- (uint16_t) packet_id
 - (uint16_t) session_id
 - (uint16_t) sequence number
 - (uint16_t) acknowledgement number
@@ -247,7 +261,7 @@ MESSAGE_TYPE_MSG: [0x01]
 (Client to server)
 - The client should poll the server with a MSG from time to time (how
   frequently depends on the transport protocol and how much efficiency
-  is desired).
+  is desired). Once/second works well.
 - The client sends its current sequence number, which is the intial
   sequence number plus the number of bytes that have been acknowledged
   by the server, so far.
@@ -257,8 +271,6 @@ MESSAGE_TYPE_MSG: [0x01]
   of data is acceptable when polling for data).
 - If the message is not acknowledged in due time, the client should
   re-transmit.
-- The acknowledgement message must contain proper sequence and
-  acknowledgement numbers, or it's ignored
 
 (Server to client)
 - The server responds to MSG packets with its own MSG.
@@ -267,19 +279,21 @@ MESSAGE_TYPE_MSG: [0x01]
   the client, so far
 - The server's acknowledgement number is the client's initial sequence
   number, plus the number of bytes successfully received so far.
-- The server's data, if any, is sent.
 - If the client's MSG contains invalid an invalid sequence or
   acknowledgement number, the server responds with its current
   sequence/acknowledgement/data (which will likely be a
   re-transmission).
 
-(Out-of-state packets)
-- If a client receives an errant MSG from the server, it should be
-  ignored.
+(Error states)
+- If a server fails to acknowledge data from the client, it likely means
+  that a MSG packet was dropped and should be re-transmitted
+- Likewise if a client fails to acknowledge data from the server
+- Both parties should respond to old MSGs with the appropriate
+  acknowledgement, even if they've already acknowledged it
+- Neither party should never allow its sequence or acknowledgement number
+  to get lower
 - If a server receives an errant MSG from a client, it should respond
   with a FIN and close the connection.
-
-Notes:
 - The client and server shouldn't increment their sequence numbers or
   their saved acknowledgement numbers until the other side has
   acknowledged the value in a response.
@@ -289,7 +303,6 @@ MESSAGE_TYPE_FIN: [0x02]
 ------------------------
 
 - (uint8_t)  message_type [0x02]
-- (uint16_t) packet_id
 - (uint16_t) session_id
 - (variable) other fields, as defined by 'options'
 
@@ -304,8 +317,8 @@ MESSAGE_TYPE_FIN: [0x02]
   the connection.
 
 (Out-of-state packets)
-- Neither a client nor server should respond to an errant FIN packet,
-  because that behaviour can lead to infinite loops.
+- Once a FIN has been sent, the client or server should no longer
+  attempt to respond to anything from that connection.
 
 -------------------------------
 MESSAGE_TYPE_STRAIGHTUP: [0xFF] // TODO
