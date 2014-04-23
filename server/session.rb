@@ -18,7 +18,6 @@ class Session
 
   attr_reader :id, :state, :their_seq, :my_seq
   attr_reader :name
-  attr_reader :datagram
 
   # Session states
   STATE_NEW         = 0x00
@@ -33,12 +32,11 @@ class Session
     @my_seq = n
   end
 
-  def initialize(id, datagram = false)
+  def initialize(id)
     @id = id
     @state = STATE_NEW
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
-    @datagram  = datagram
 
     @incoming_data = ''
     @outgoing_data = ''

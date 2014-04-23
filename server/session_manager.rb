@@ -25,8 +25,8 @@ class SessionManager
   STATE_NEW         = 0x00
   STATE_ESTABLISHED = 0x01
 
-  def SessionManager.create_session(id, datagram = false)
-    session = Session.new(id, datagram)
+  def SessionManager.create_session(id)
+    session = Session.new(id)
     session.subscribe(@@subscribers)
     @@sessions[id] = session
   end
@@ -76,7 +76,7 @@ class SessionManager
 
     if(session.nil?)
       # If the session doesn't exist, and it's a SYN, create it
-      session = create_session(packet.session_id, packet.datagram)
+      session = create_session(packet.session_id)
     end
 
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
@@ -121,37 +121,32 @@ class SessionManager
       return Packet.create_fin(packet.packet_id, session.id)
     end
 
-    # Don't bother with any of this in datagram mode
-    if(!session.datagram)
-      # Validate the sequence number
-      if(session.their_seq != packet.seq)
-        session.notify_subscribers(:dnscat2_msg_bad_seq, [session.their_seq, packet.seq])
+    # Validate the sequence number
+    if(session.their_seq != packet.seq)
+      session.notify_subscribers(:dnscat2_msg_bad_seq, [session.their_seq, packet.seq])
 
-        # Re-send the last packet
-        old_data = session.read_outgoing(max_length - Packet.msg_header_size)
-        return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
-      end
-
-      if(!session.valid_ack?(packet.ack))
-        session.notify_subscribers(:dnscat2_msg_bad_ack, [session.my_seq, packet.ack])
-
-        # Re-send the last packet
-        old_data = session.read_outgoing(max_length - Packet.msg_header_size)
-        return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
-      end
-
-      # Acknowledge the data that has been received so far
-      # Note: this is where @my_seq is updated
-      session.ack_outgoing(packet.ack)
+      # Re-send the last packet
+      old_data = session.read_outgoing(max_length - Packet.msg_header_size)
+      return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
     end
+
+    if(!session.valid_ack?(packet.ack))
+      session.notify_subscribers(:dnscat2_msg_bad_ack, [session.my_seq, packet.ack])
+
+      # Re-send the last packet
+      old_data = session.read_outgoing(max_length - Packet.msg_header_size)
+      return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
+    end
+
+    # Acknowledge the data that has been received so far
+    # Note: this is where @my_seq is updated
+    session.ack_outgoing(packet.ack)
 
     # Write the incoming data to the session
     session.queue_incoming(packet.data)
 
-    if(!session.datagram)
-      # Increment the expected sequence number
-      session.increment_their_seq(packet.data.length)
-    end
+    # Increment the expected sequence number
+    session.increment_their_seq(packet.data.length)
 
     # Send the data through a tunnel, if necessary
     if(!@@tunnels[session.id].nil?)

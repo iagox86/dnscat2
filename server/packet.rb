@@ -15,15 +15,14 @@ class Packet
   MESSAGE_TYPE_SYN        = 0x00
   MESSAGE_TYPE_MSG        = 0x01
   MESSAGE_TYPE_FIN        = 0x02
+  MESSAGE_TYPE_STRAIGHTUP = 0xFF
 
   OPT_NAME                = 0x01
   OPT_TUNNEL              = 0x02
-  OPT_DATAGRAM            = 0x04
 
   attr_reader :data, :type, :packet_id, :session_id, :options, :seq, :ack
   attr_reader :name
   attr_reader :tunnel_host, :tunnel_port
-  attr_reader :datagram
 
   def at_least?(data, needed)
     if(data.length < needed)
@@ -67,11 +66,6 @@ class Packet
       data = data[(@tunnel_host.length + 1 + 2)..-1]
     end
 
-    @datagram = false
-    if((@options & OPT_DATAGRAM) == OPT_DATAGRAM)
-      @datagram = true
-    end
-
     # Verify that that was the entire packet
     if(data.length > 0)
       raise(DnscatException, "Extra data on the end of an SYN packet :: #{data.unpack("H*")}")
@@ -89,6 +83,10 @@ class Packet
     end
   end
 
+  def parse_straightup(data)
+    raise(Exception, "Not implemented yet")
+  end
+
   def initialize(data)
     # Parse the hader
     data = parse_header(data)
@@ -100,6 +98,8 @@ class Packet
       parse_msg(data)
     elsif(@type == MESSAGE_TYPE_FIN)
       parse_fin(data)
+    elsif(@type == MESSAGE_TYPE_STRAIGHTUP) # TODO
+      parse_straightup(data)
     else
       raise(DnscatException, "Unknown message type: #{@type}")
     end
