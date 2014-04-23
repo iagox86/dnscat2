@@ -15,8 +15,7 @@ $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'packet'
 require 'log'
-require 'session'
-require 'dnscat2_server'
+require 'session_manager'
 
 class Test
   MY_DATA = "this is MY_DATA"
@@ -28,6 +27,7 @@ class Test
   MY_ISN    = 0xFFF8
 
   SESSION_ID = 0x1234
+  KILLED_SESSION_ID = 0x4321
 
   MAX_LENGTH = 0xFF
 
@@ -39,8 +39,8 @@ class Test
     packet_id  = rand(0xFFFF)
 
     @data << {
-      :send => Packet.create_msg(packet_id, SESSION_ID, my_seq, their_seq, MY_DATA),
-      :recv => Packet.create_fin(packet_id, SESSION_ID),
+      :send => Packet.create_msg(packet_id, KILLED_SESSION_ID, my_seq, their_seq, MY_DATA),
+      :recv => Packet.create_fin(packet_id, KILLED_SESSION_ID),
       :name => "Sending an unexpected MSG (should respond with a FIN)",
     }
 
@@ -75,13 +75,11 @@ class Test
     }
     my_seq += MY_DATA.length # Update my seq
 
-    return
     @data << {
       :send => Packet.create_msg(packet_id, SESSION_ID, my_seq+1,   0,     "This is more data with a bad SEQ"),
       :recv => Packet.create_msg(packet_id, SESSION_ID, their_seq, my_seq, THEIR_DATA),
       :name => "Sending data with a bad SEQ (too low), this should trigger a re-send",
     }
-
 
     @data << {
       :send => Packet.create_msg(packet_id, SESSION_ID, my_seq - 100,   0,   "This is more data with a bad SEQ"),
@@ -210,7 +208,7 @@ class Test
 
     @data << {
       :send => Packet.create_fin(packet_id, SESSION_ID),
-      :recv => nil,
+      :recv => Packet.create_fin(packet_id, SESSION_ID),
       :name => "Sending a FIN for a session that's already closed, it should ignore it",
     }
 
@@ -230,7 +228,11 @@ class Test
         @@failure += 1
         puts(out[:name])
         puts(" >> Expected: #{out[:recv].nil? ? "<no response> " : Packet.parse(out[:recv])}")
-        puts(" >> Received: #{Packet.parse(response)}")
+        if(response.nil?)
+          puts(" >> Received: [nil]")
+        else
+          puts(" >> Received: #{Packet.parse(response)}")
+        end
       else
         @@success += 1
         puts("SUCCESS: #{out[:name]}")
@@ -252,9 +254,14 @@ class Test
       @@failure = 0
 
       Session.debug_set_isn(THEIR_ISN)
-      s = Session.create_session(SESSION_ID)
+
+      # Create a 'good' session
+      s = SessionManager.create_session(SESSION_ID)
       s.queue_outgoing(THEIR_DATA)
-      Dnscat2.go(Test.new)
+
+      # Create a session that we'll kill right away
+      s = SessionManager.create_session(KILLED_SESSION_ID)
+      SessionManager.go(Test.new)
     rescue IOError => e
       puts("IOError was thrown (as expected): #{e}")
       puts("Tests passed: #{@@success} / #{@@success + @@failure}")

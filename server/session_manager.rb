@@ -1,10 +1,11 @@
 ##
-# sessionmanager.rb
+# session_manager.rb
 # Created April, 2014
 # By Ron Bowes
 #
 # See: LICENSE.txt
 #
+# This keeps track of all the currently active sessions.
 ##
 
 require 'log'
@@ -57,11 +58,6 @@ class SessionManager
     end
   end
 
-  def destroy(id)
-    puts("...using old code...")
-    return kill_session(id)
-  end
-
   def SessionManager.list()
     return @@sessions
   end
@@ -99,7 +95,7 @@ class SessionManager
         @@tunnels[session.id] = Tunnel.new(session.id, packet.tunnel_host, packet.tunnel_port)
       rescue Exception => e
         Log.ERROR("Couldn't create a tunnel: #{e}")
-        kill_session(session)
+        kill_session(session.id)
         return Packet.create_fin(packet.packet_id, session.id)
       end
     end
@@ -120,7 +116,7 @@ class SessionManager
       session.notify_subscribers(:dnscat2_state_error, [session.id, "MSG received in invalid state; sending FIN"])
 
       # Kill the session as well - in case it exists
-      kill_session(session)
+      kill_session(session.id)
 
       return Packet.create_fin(packet.packet_id, session.id)
     end
@@ -170,18 +166,18 @@ class SessionManager
 
     if(session.nil?)
       Log.WARNING("FIN received in non-existent session: %d" % packet.session_id)
-      return nil
+      return Packet.create_fin(packet.packet_id, packet.session_id)
     end
 
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!session.fin_valid?())
       session.notify_subscribers(:dnscat2_state_error, [session.id, "FIN received in invalid state"])
-      return nil
+      return Packet.create_fin(packet.packet_id, session.id)
     end
 
     session.notify_subscribers(:dnscat2_fin, [session.id])
+    kill_session(session.id)
 
-    kill_session(session)
     return Packet.create_fin(packet.packet_id, session.id)
   end
 
@@ -227,7 +223,7 @@ class SessionManager
         begin
           if(!session_id.nil?)
             Log.FATAL("DnscatException caught; closing session #{session_id}...")
-            kill_session(session)
+            kill_session(session.id)
             Log.FATAL("Propagating the exception...")
           end
         rescue
