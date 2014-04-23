@@ -14,9 +14,9 @@ encode the various control fields - things like sequence number - into
 the DNS protocol and use that.
 
 dnscat2, on the other hand, treats everything as a stream of bytes, and
-uses logic to convert that stream of bytes into dns requests. Thus, it's
-a layered protocol, with DNS being a lower layer (for testing, I
-actually used a TCP layer).
+converts that stream of bytes into dns requests. Thus, it's a layered
+protocol, with DNS being a lower layer (for testing, I actually used a
+TCP layer).
 
 I invented a protocol that I'm calling the dnscat protocol. You can find
 documentation about it in docs/protocol.txt. It's a simple polling
