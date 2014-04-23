@@ -26,7 +26,7 @@ require 'trollop'
 Thread::abort_on_exception = true
 
 # Subscribe the Ui to the important notifications
-SessionManager.get_instance().subscribe(Ui)
+SessionManager.subscribe(Ui)
 Log.subscribe(Ui)
 
 # Options
@@ -82,7 +82,7 @@ if(opts[:dns])
     begin
       Log.WARNING("Starting DNS server...")
       driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], opts[:domain])
-      SessionManager.get_instance().go(driver)
+      SessionManager.go(driver)
     rescue DnscatException => e
       Log.ERROR("Protocol exception caught in DNS module:")
       Log.ERROR(e.inspect)

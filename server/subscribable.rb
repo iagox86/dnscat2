@@ -11,12 +11,24 @@ module Subscribable
   # really seem to work
   def subscribe(cls)
     @subscribers = @subscribers || []
-    @subscribers << cls
+    if(cls.is_a?(Array))
+      cls.each do |a|
+        @subscribers << a
+      end
+    else
+      @subscribers << cls
+    end
   end
 
   def unsubscribe(cls)
     @subscribers = @subscribers || []
-    @subscribers.delete(cls)
+    if(cls.is_a?(Array))
+      cls.each do |a|
+        @subscribers.delete(a)
+      end
+    else
+      @subscribers.delete(cls)
+    end
   end
 
   def notify_subscribers(method, args)
@@ -32,13 +44,6 @@ module Subscribable
   def get_subscribers()
     @subscribers = @subscribers || []
     return @subscribers
-  end
-
-  def bestow_subscribers_upon(cls)
-    @subscribers = @subscribers || []
-    @subscribers.each do |s|
-      cls.subscribe(s)
-    end
   end
 end
 
