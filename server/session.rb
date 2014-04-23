@@ -27,6 +27,10 @@ class Session
     Log.FATAL("Using debug code")
     @@isn = n
   end
+  def debug_set_seq(n)
+    Log.FATAL("Using debug code")
+    @my_seq = n
+  end
 
   def initialize(id)
     @id = id
