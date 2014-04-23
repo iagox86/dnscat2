@@ -16,8 +16,7 @@ class UiSession
     @data = ""
 
     if(!Ui.get_option("auto_command").nil?)
-      Log.ERROR("TODO: implement auto-command")
-      SessionManager.find(id).queue_outgoing(Ui.get_option("auto_command"))
+      SessionManager.find(id).queue_outgoing(Ui.get_option("auto_command") + "\n")
     end
   end
 
