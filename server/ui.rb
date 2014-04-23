@@ -293,20 +293,15 @@ class Ui
   end
 
   def Ui.log(level, message)
-    begin
-      # Handle the special case, before a level is set
-      if(@@options["log_level"].nil?)
-        min = Log::INFO
-      else
-        min = Log.get_by_name(@@options["log_level"])
-      end
+    # Handle the special case, before a level is set
+    if(@@options["log_level"].nil?)
+      min = Log::INFO
+    else
+      min = Log.get_by_name(@@options["log_level"])
+    end
 
-      if(level >= min)
-        puts("[[#{Log::LEVELS[level]}]] :: #{message}")
-      end
-    rescue Exception => e
-      puts("Error in logging code: #{e}")
-      exit
+    if(level >= min)
+      puts("[[#{Log::LEVELS[level]}]] :: #{message}")
     end
   end
 

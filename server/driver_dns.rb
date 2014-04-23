@@ -78,16 +78,9 @@ class DriverDNS
           end
           Log.INFO("Sending:  #{response}")
           transaction.respond!(response)
-        rescue SystemExit
-          exit
         rescue DnscatException => e
           Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.ERROR(e.inspect)
-        rescue Exception => e
-          Log.FATAL("Fatal exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-          Log.FATAL(e.inspect)
-          Log.FATAL(e.backtrace)
-          exit
         end
 
         transaction # Return this, effectively
@@ -103,12 +96,6 @@ class DriverDNS
 
   def close()
     @s.close
-  end
-
-  def DriverDNS.go(host, port, domain)
-    Log.WARNING("Starting DNS server...")
-    driver = DriverDNS.new(host, port, domain)
-    Dnscat2.go(driver)
   end
 end
 

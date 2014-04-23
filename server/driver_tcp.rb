@@ -52,14 +52,8 @@ class DriverTCP
         begin
           tcp = DriverTCP.new(s)
           Dnscat2.go(tcp)
-        rescue SystemExcit
-          exit
         rescue IOError => e
           puts("IOError caught: #{e.inspect}")
-          puts(e.inspect)
-          puts(e.backtrace)
-        rescue Exception => e
-          puts("Exception caught: #{e.inspect}")
           puts(e.inspect)
           puts(e.backtrace)
         end

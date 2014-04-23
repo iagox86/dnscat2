@@ -6,27 +6,20 @@ class Tunnel
     @buffer = ""
 
     @thread = Thread.new() do
-      begin
-        @s = TCPSocket.new(host, port)
-        if(@buffer.length > 0)
-          @s.write(@buffer)
-          @buffer = nil
-        end
+      @s = TCPSocket.new(host, port)
+      if(@buffer.length > 0)
+        @s.write(@buffer)
+        @buffer = nil
+      end
 
-        loop do
-          data = @s.recv(0xFFFF)
-          if(data.nil?)
-            Session.find(@session_id).destroy()
-            break
-          else
-            Session.find(@session_id).queue_outgoing(data)
-          end
+      loop do
+        data = @s.recv(0xFFFF)
+        if(data.nil?)
+          Session.find(@session_id).destroy()
+          break
+        else
+          Session.find(@session_id).queue_outgoing(data)
         end
-      rescue SystemExit
-        exit
-      rescue Exception => e
-        Log.FATAL("Exception caught in Tunnel module:")
-        Log.FATAL(e.inspect)
       end
     end
   end

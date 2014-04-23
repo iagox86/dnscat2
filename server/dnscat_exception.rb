@@ -4,5 +4,5 @@
 #
 # Implements a simple exception class for DNSCat protocol errors.
 
-class DnscatException < Exception
+class DnscatException < StandardError
 end

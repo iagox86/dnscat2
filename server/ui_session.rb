@@ -2,6 +2,7 @@
 # By Ron Bowes
 # Created July 4, 2013
 
+require 'session_manager'
 require 'timeout'
 
 class UiSession
@@ -15,7 +16,8 @@ class UiSession
     @data = ""
 
     if(!Ui.get_option("auto_command").nil?)
-      Session.find(id).queue_outgoing(Ui.get_option("auto_command"))
+      Log.ERROR("TODO: implement auto-command")
+      SessionManager.find(id).queue_outgoing(Ui.get_option("auto_command"))
     end
   end
 
@@ -60,7 +62,7 @@ class UiSession
     line = line + "\n"
 
     # Find the session we're a part of
-    session = Session.find(id)
+    session = SessionManager.find(id)
 
     # Queue our outgoing data
     session.queue_outgoing(line)

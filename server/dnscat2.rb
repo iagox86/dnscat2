@@ -14,19 +14,19 @@ $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 require 'driver_dns'
 require 'driver_tcp'
 
-require 'dnscat2_server'
 require 'log'
 require 'packet'
-require 'session'
+require 'session_manager'
 require 'tunnel'
 require 'ui'
 
 # Option parsing
 require 'trollop'
 
+Thread::abort_on_exception = true
+
 # Subscribe the Ui to the important notifications
-Session.subscribe(Ui)
-Dnscat2.subscribe(Ui)
+SessionManager.get_instance().subscribe(Ui)
 Log.subscribe(Ui)
 
 # Options
@@ -80,35 +80,26 @@ threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
-      DriverDNS.go(opts[:dnshost], opts[:dnsport], opts[:domain])
-    rescue SystemExit
-      exit
+      Log.WARNING("Starting DNS server...")
+      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], opts[:domain])
+      SessionManager.get_instance().go(driver)
     rescue DnscatException => e
       Log.ERROR("Protocol exception caught in DNS module:")
       Log.ERROR(e.inspect)
     rescue Exception => e
-      Log.FATAL("Fatal exception caught in DNS module:")
-      Log.FATAL(e.inspect)
-      Log.FATAL(e.backtrace)
-      exit
+      puts(":)")
     end
   end
 end
 
-if(opts[:tcp])
-  threads << Thread.new do
-    begin
-      DriverTCP.go(opts[:tcphost], opts[:tcpport])
-    rescue SystemExit
-      exit
-    rescue Exception => e
-      Log.FATAL("Fatal exception caught in TCP module:")
-      Log.FATAL(e.inspect)
-      Log.FATAL(e.backtrace)
-      exit
-    end
-  end
-end
+# TODO: Disabling TCP for now
+#if(opts[:tcp])
+#  threads << Thread.new do
+#    Log.WARNING("Starting DNS server...")
+#    driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], opts[:domain])
+#    SessionManager.get_instance().go(driver)
+#  end
+#end
 
 
 if(threads.length == 0)
@@ -127,5 +118,5 @@ Ui.set_option("prompt",       opts[:prompt])
 Ui.set_option("log_level",    opts[:debug])
 Ui.set_option("signals",      opts[:signals])
 
-Ui.go
+Ui.go()
 

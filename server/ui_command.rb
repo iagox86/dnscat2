@@ -3,6 +3,7 @@
 # Created July 4, 2013
 
 require "readline"
+require 'session_manager'
 require 'ui'
 
 class UiCommand
@@ -71,7 +72,7 @@ class UiCommand
 
       :proc => Proc.new do |opts|
         puts("Sessions:")
-        Session.list().each_pair do |id, session|
+        SessionManager.list().each_pair do |id, session|
           puts("%5d :: %s" % [id, session.name])
         end
       end,
@@ -84,7 +85,7 @@ class UiCommand
       end,
 
       :proc => Proc.new do |opts|
-        if(!Session.exists?(opts[:id]))
+        if(!SessionManager.exists?(opts[:id]))
           Ui.error("Session #{opts[:id]} not found, run 'sessions' for a list")
         else
           Ui.attach_session(opts[:id])
