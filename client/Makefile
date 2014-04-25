@@ -18,7 +18,6 @@ OBJS=buffer.o \
 		 driver_dns.o \
 		 driver_exec.o \
 		 driver_listener.o \
-		 driver_socks4.o \
 		 tcp.o \
 		 types.o \
 		 memory.o \

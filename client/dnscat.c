@@ -25,7 +25,6 @@
 #include "driver_dns.h"
 #include "driver_exec.h"
 #include "driver_listener.h"
-#include "driver_socks4.h"
 
 /* Default options */
 #define VERSION "0.00"
@@ -41,7 +40,6 @@ select_group_t   *group          = NULL;
 driver_console_t  *driver_console  = NULL;
 driver_exec_t     *driver_exec     = NULL;
 driver_listener_t *driver_listener = NULL;
-driver_socks4_t   *driver_socks4   = NULL;
 
 /* Output drivers. */
 driver_dns_t     *driver_dns     = NULL;
@@ -71,8 +69,6 @@ static void cleanup()
     driver_exec_destroy(driver_exec);
   if(driver_listener)
     driver_listener_destroy(driver_listener);
-  if(driver_socks4)
-    driver_socks4_destroy(driver_socks4);
 
   print_memory();
 }
@@ -87,15 +83,12 @@ void usage(char *name, char *message)
 " --help -h               This page\n"
 " --name -n <name>        Give this connection a name, which will show up in\n"
 "                         the server list\n"
-" --tunnel <host:port>    Requests the server to forward all messages to the\n"
-"                         given server and port on the user's behalf.\n"
 "\n"
 "Input options:\n"
 " --console --stdin       Send/receive output to the console [default]\n"
 " --exec -e <process>     Execute the given process and link it to the stream\n"
 " --listen -l <port>      Listen on the given port and link each connection to\n"
 "                         a new stream\n"
-" --socks4 <port>         Expose a SOCKS4 proxy on the give port\n"
 "\n"
 
 "DNS-specific options:\n"
@@ -125,7 +118,6 @@ int main(int argc, char *argv[])
     {"h",       no_argument,       0, 0},
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
-    {"tunnel",  required_argument, 0, 0}, /* Tunnel */
 
     /* Console options. */
     {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
@@ -138,9 +130,6 @@ int main(int argc, char *argv[])
     /* Listener options */
     {"listen",  required_argument, 0, 0}, /* Enable listener */
     {"l",       required_argument, 0, 0},
-
-    /* SOCKS4 options */
-    {"socks4",  required_argument, 0, 0}, /* Enable socks4 */
 
     /* DNS-specific options */
     {"dns",        required_argument, 0, 0}, /* Enable DNS (default) */
@@ -160,11 +149,6 @@ int main(int argc, char *argv[])
     char     *host;
     uint16_t  port;
   } dns_options = { DEFAULT_DNS_HOST, DEFAULT_DNS_PORT };
-
-  struct {
-    char    *host;
-    uint16_t port;
-  } tunnel = { NULL, -1 };
 
   char              c;
   int               option_index;
@@ -210,23 +194,12 @@ int main(int argc, char *argv[])
           /* TODO: Handle 'name' again */
           /*options->name = optarg;*/
         }
-        else if(!strcmp(option_name, "tunnel"))
-        {
-          char *colon = strchr(optarg, ':');
-
-          if(!colon)
-            usage(argv[0], "--tunnel must be in the format <host:port>");
-
-          *colon = '\0';
-          tunnel.host = optarg;
-          tunnel.port = atoi(colon + 1);
-        }
 
         /* Console-specific options. */
         else if(!strcmp(option_name, "stdin"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --socks4 can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
 
           input_set = TRUE;
           driver_console = driver_console_create(group);
@@ -236,7 +209,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --socks4 can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
 
           input_set = TRUE;
           driver_exec = driver_exec_create(group, optarg);
@@ -246,19 +219,10 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --socks4 can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
 
           input_set = TRUE;
           driver_listener = driver_listener_create(group, "0.0.0.0", atoi(optarg));
-        }
-
-        else if(!strcmp(option_name, "socks4"))
-        {
-          if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --socks4 can't be set!");
-
-          input_set = TRUE;
-          driver_socks4 = driver_socks4_create(group, "0.0.0.0", atoi(optarg));
         }
 
         /* DNS-specific options */
@@ -323,18 +287,10 @@ int main(int argc, char *argv[])
   if(driver_console)
   {
     LOG_WARNING("INPUT: Console");
-    if(tunnel.host)
-      driver_console_set_tunnel(driver_console, tunnel.host, tunnel.port);
   }
   else if(driver_listener)
   {
     LOG_WARNING("INPUT: Listening on port %d", driver_listener->port);
-    if(tunnel.host)
-      driver_listener_set_tunnel(driver_listener, tunnel.host, tunnel.port);
-  }
-  else if(driver_socks4)
-  {
-    LOG_WARNING("INPUT: SOCKS4 listening on port %d", driver_socks4->port);
   }
   else if(driver_exec)
   {

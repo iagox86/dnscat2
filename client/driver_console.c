@@ -32,11 +32,7 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_console_t *driver)
 {
-  /*message_post_create_session();*/
-  if(driver->tunnel_host)
-    message_post_create_session_with_tunnel(driver->tunnel_host, driver->tunnel_port);
-  else
-    message_post_create_session();
+  message_post_create_session();
 }
 
 static void handle_session_created(driver_console_t *driver, uint16_t session_id)
@@ -80,9 +76,6 @@ driver_console_t *driver_console_create(select_group_t *group)
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
 
-  driver->tunnel_host = NULL;
-  driver->tunnel_port = -1;
-
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
   HANDLE stdin_handle = get_stdin_handle();
@@ -103,12 +96,6 @@ driver_console_t *driver_console_create(select_group_t *group)
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
 
   return driver;
-}
-
-void driver_console_set_tunnel(driver_console_t *driver, char *host, uint16_t port)
-{
-  driver->tunnel_host = host;
-  driver->tunnel_port = port;
 }
 
 void driver_console_destroy(driver_console_t *driver)

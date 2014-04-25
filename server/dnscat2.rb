@@ -17,7 +17,6 @@ require 'driver_tcp'
 require 'log'
 require 'packet'
 require 'session_manager'
-require 'tunnel'
 require 'ui'
 
 # Option parsing

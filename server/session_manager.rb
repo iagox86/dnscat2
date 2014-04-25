@@ -14,7 +14,6 @@ require 'subscribable'
 require 'session'
 
 class SessionManager
-  @@tunnels = {}
   @@subscribers = []
   @@sessions = {}
 
@@ -50,10 +49,6 @@ class SessionManager
     if(!session.nil?)
       session.notify_subscribers(:session_destroyed, [id])
 
-      if(!@@tunnels[session.id].nil?)
-        @@tunnels[session.id].kill
-      end
-
       @@sessions.delete(id)
     end
   end
@@ -88,18 +83,6 @@ class SessionManager
     session.set_their_seq(packet.seq)
     session.set_name(packet.name)
     session.set_established()
-
-    if(!packet.tunnel_host.nil?)
-      begin
-        Log.WARNING("Creating a tunnel to #{packet.tunnel_host}:#{packet.tunnel_port}")
-        @@tunnels[session.id] = Tunnel.new(session.id, packet.tunnel_host, packet.tunnel_port)
-      rescue Exception => e
-        Log.ERROR("Couldn't create a tunnel: #{e}")
-        kill_session(session.id)
-        return Packet.create_fin(packet.packet_id, session.id)
-      end
-    end
-
     session.notify_subscribers(:dnscat2_syn_received, [session.id, session.my_seq, packet.seq])
 
     return Packet.create_syn(packet.packet_id, session.id, session.my_seq, nil)
@@ -147,12 +130,6 @@ class SessionManager
 
     # Increment the expected sequence number
     session.increment_their_seq(packet.data.length)
-
-    # Send the data through a tunnel, if necessary
-    if(!@@tunnels[session.id].nil?)
-      # Send the data on if it's a tunnel
-      @@tunnels[session.id].send(packet.data)
-    end
 
     new_data = session.read_outgoing(max_length - Packet.msg_header_size)
     session.notify_subscribers(:dnscat2_msg, [packet.data, new_data])

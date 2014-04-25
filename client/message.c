@@ -125,16 +125,9 @@ void message_post_shutdown()
 
 uint16_t message_post_create_session()
 {
-  return message_post_create_session_with_tunnel(NULL, -1);
-}
-
-uint16_t message_post_create_session_with_tunnel(char *host, uint16_t port)
-{
   uint16_t session_id;
 
   message_t *message = message_create(MESSAGE_CREATE_SESSION);
-  message->message.create_session.tunnel_host = host;
-  message->message.create_session.tunnel_port = port;
   message_post(message);
 
   session_id = message->message.create_session.out.session_id;
