@@ -24,7 +24,6 @@ packet_t *packet_parse(uint8_t *data, size_t length)
   }
 
   packet->packet_type = buffer_read_next_int8(buffer);
-  packet->packet_id    = buffer_read_next_int16(buffer);
   packet->session_id   = buffer_read_next_int16(buffer);
 
   switch(packet->packet_type)
@@ -58,7 +57,6 @@ packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
   packet->packet_type     = PACKET_TYPE_SYN;
-  packet->packet_id        = rand() % 0xFFFF;
   packet->session_id       = session_id;
   packet->body.syn.seq     = seq;
   packet->body.syn.options = options;
@@ -71,7 +69,6 @@ packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uin
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type         = PACKET_TYPE_MSG;
-  packet->packet_id            = rand() % 0xFFFF;
   packet->session_id           = session_id;
   packet->body.msg.seq         = seq;
   packet->body.msg.ack         = ack;
@@ -86,7 +83,6 @@ packet_t *packet_create_fin(uint16_t session_id)
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type     = PACKET_TYPE_FIN;
-  packet->packet_id        = rand() % 0xFFFF;
   packet->session_id       = session_id;
 
   return packet;
@@ -161,7 +157,6 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
 
   buffer_add_int8(buffer, packet->packet_type);
-  buffer_add_int16(buffer, packet->packet_id);
   buffer_add_int16(buffer, packet->session_id);
 
   switch(packet->packet_type)
@@ -202,15 +197,15 @@ char *packet_to_s(packet_t *packet)
 
   if(packet->packet_type == PACKET_TYPE_SYN)
   {
-    snprintf(ret, 1024, "Type = SYN :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+    snprintf(ret, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
   }
   else if(packet->packet_type == PACKET_TYPE_MSG)
   {
-    snprintf(ret, 1024, "Type = MSG :: packet_id = 0x%04x, session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
+    snprintf(ret, 1024, "Type = MSG :: session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
   }
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
-    snprintf(ret, 1024, "Type = FIN :: packet_id = 0x%04x, session = 0x%04x", packet->packet_id, packet->session_id);
+    snprintf(ret, 1024, "Type = FIN :: session = 0x%04x", packet->session_id);
   }
   else
   {

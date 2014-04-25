@@ -47,7 +47,6 @@ typedef struct
 typedef struct
 {
   packet_type_t packet_type;
-  uint16_t packet_id;
   uint16_t session_id;
 
   union

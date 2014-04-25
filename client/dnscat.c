@@ -246,8 +246,11 @@ int main(int argc, char *argv[])
         /* Debug options */
         else if(!strcmp(option_name, "d"))
         {
-          min_log_level--;
-          log_set_min_console_level(min_log_level);
+          if(min_log_level > 0)
+          {
+            min_log_level--;
+            log_set_min_console_level(min_log_level);
+          }
         }
         else if(!strcmp(option_name, "q"))
         {

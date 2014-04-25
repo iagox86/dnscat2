@@ -18,28 +18,27 @@ class Packet
 
   OPT_NAME                = 0x01
 
-  attr_reader :data, :type, :packet_id, :session_id, :options, :seq, :ack
+  attr_reader :data, :type, :session_id, :options, :seq, :ack
   attr_reader :name
 
   def at_least?(data, needed)
-    if(data.length < needed)
-      raise(DnscatException, "Packet is too short")
-    end
+    return (data.length >= needed)
   end
 
   def parse_header(data)
-    at_least?(data, 3)
+    at_least?(data, 3) || raise(DnscatException, "Packet is too short (header)")
 
     # (uint8_t) message_type
-    # (uint16_t) packet_id
     # (uint16_t) session_id
-    @type, @packet_id, @session_id = data.unpack("Cnn")
+    @type, @session_id = data.unpack("Cn")
 
-    return data[5..-1]
+    return data[3..-1]
   end
 
   def parse_syn(data)
-    at_least?(data, 4)
+    puts("Data: #{data.unpack("H*")} (#{data.length})")
+
+    at_least?(data, 4) || raise(DnscatException, "Packet is too short (syn)")
     @seq, @options = data.unpack("nn")
     data = data[4..-1]
 
@@ -62,6 +61,8 @@ class Packet
   end
 
   def parse_msg(data)
+    at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg)")
+
     @seq, @ack = data.unpack("nn")
     @data = data[4..-1] # Remove the first four bytes
   end
@@ -92,29 +93,29 @@ class Packet
     return Packet.new(data)
   end
 
-  def Packet.create_header(type, packet_id, session_id)
-    return [type, packet_id, session_id].pack("Cnn")
+  def Packet.create_header(type, session_id)
+    return [type, session_id].pack("Cn")
   end
 
-  def Packet.create_syn(packet_id, session_id, seq, options = nil)
+  def Packet.create_syn(session_id, seq, options = nil)
     options = options.nil? ? 0 : options
-    return create_header(MESSAGE_TYPE_SYN, packet_id, session_id) + [seq, options].pack("nn")
+    return create_header(MESSAGE_TYPE_SYN, session_id) + [seq, options].pack("nn")
   end
 
   def Packet.syn_header_size()
     return create_syn(0, 0, 0, nil).length
   end
 
-  def Packet.create_msg(packet_id, session_id, seq, ack, msg)
-    return create_header(MESSAGE_TYPE_MSG, packet_id, session_id) + [seq, ack, msg].pack("nnA*")
+  def Packet.create_msg(session_id, seq, ack, msg)
+    return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, msg].pack("nnA*")
   end
 
   def Packet.msg_header_size()
-    return create_msg(0, 0, 0, 0, "").length
+    return create_msg(0, 0, 0, "").length
   end
 
-  def Packet.create_fin(packet_id, session_id)
-    return create_header(MESSAGE_TYPE_FIN, packet_id, session_id)
+  def Packet.create_fin(session_id)
+    return create_header(MESSAGE_TYPE_FIN, session_id)
   end
 
   def Packet.fin_header_size()
@@ -123,12 +124,12 @@ class Packet
 
   def to_s()
     if(@type == MESSAGE_TYPE_SYN)
-      return "[[SYN]] :: packet_id = %04x, session = %04x, seq = %04x, options = %04x" % [@packet_id, @session_id, @seq, @options]
+      return "[[SYN]] :: session = %04x, seq = %04x, options = %04x" % [@session_id, @seq, @options]
     elsif(@type == MESSAGE_TYPE_MSG)
       data = @data.gsub(/\n/, '\n')
-      return "[[MSG]] :: packet_id = %04x, session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@packet_id, @session_id, @seq, @ack, data]
+      return "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, data]
     elsif(@type == MESSAGE_TYPE_FIN)
-      return "[[FIN]] :: packet_id = %04x, session = %04x" % [@packet_id, @session_id]
+      return "[[FIN]] :: session = %04x" % [@session_id]
     end
   end
 end

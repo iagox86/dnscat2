@@ -85,14 +85,14 @@ class SessionManager
     session.set_established()
     session.notify_subscribers(:dnscat2_syn_received, [session.id, session.my_seq, packet.seq])
 
-    return Packet.create_syn(packet.packet_id, session.id, session.my_seq, nil)
+    return Packet.create_syn(session.id, session.my_seq, nil)
   end
 
   def SessionManager.handle_msg(packet, max_length)
     session = find(packet.session_id)
     if(session.nil?)
       Log.WARNING("MSG received in non-existent session: %d" % packet.session_id)
-      return Packet.create_fin(packet.packet_id, packet.session_id)
+      return Packet.create_fin(packet.session_id)
     end
 
     if(!session.msg_valid?())
@@ -101,7 +101,7 @@ class SessionManager
       # Kill the session as well - in case it exists
       kill_session(session.id)
 
-      return Packet.create_fin(packet.packet_id, session.id)
+      return Packet.create_fin(session.id)
     end
 
     # Validate the sequence number
@@ -110,7 +110,7 @@ class SessionManager
 
       # Re-send the last packet
       old_data = session.read_outgoing(max_length - Packet.msg_header_size)
-      return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
+      return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
     end
 
     if(!session.valid_ack?(packet.ack))
@@ -118,7 +118,7 @@ class SessionManager
 
       # Re-send the last packet
       old_data = session.read_outgoing(max_length - Packet.msg_header_size)
-      return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, old_data)
+      return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
     end
 
     # Acknowledge the data that has been received so far
@@ -135,7 +135,7 @@ class SessionManager
     session.notify_subscribers(:dnscat2_msg, [packet.data, new_data])
 
     # Build the new packet
-    return Packet.create_msg(packet.packet_id, session.id, session.my_seq, session.their_seq, new_data)
+    return Packet.create_msg(session.id, session.my_seq, session.their_seq, new_data)
   end
 
   def SessionManager.handle_fin(packet)
@@ -143,19 +143,19 @@ class SessionManager
 
     if(session.nil?)
       Log.WARNING("FIN received in non-existent session: %d" % packet.session_id)
-      return Packet.create_fin(packet.packet_id, packet.session_id)
+      return Packet.create_fin(packet.session_id)
     end
 
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!session.fin_valid?())
       session.notify_subscribers(:dnscat2_state_error, [session.id, "FIN received in invalid state"])
-      return Packet.create_fin(packet.packet_id, session.id)
+      return Packet.create_fin(session.id)
     end
 
     session.notify_subscribers(:dnscat2_fin, [session.id])
     kill_session(session.id)
 
-    return Packet.create_fin(packet.packet_id, session.id)
+    return Packet.create_fin(session.id)
   end
 
   def SessionManager.go(pipe)
