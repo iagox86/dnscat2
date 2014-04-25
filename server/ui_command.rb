@@ -7,6 +7,22 @@ require 'session_manager'
 require 'ui'
 
 class UiCommand
+  ALIASES = {
+    "q" => "quit"
+  }
+
+  def UiCommand.do_show_options()
+    Ui.each_option do |name, value|
+      puts("#{name} => #{value}")
+    end
+  end
+
+  def UiCommand.do_show_sessions()
+    SessionManager.list().each_pair do |id, session|
+      puts("%5d :: %s" % [id, session.name])
+    end
+  end
+
   COMMANDS = {
 #    "test" => {
 #      :parser => Trollop::Parser.new do
@@ -72,23 +88,29 @@ class UiCommand
 
       :proc => Proc.new do |opts|
         puts("Sessions:")
-        SessionManager.list().each_pair do |id, session|
-          puts("%5d :: %s" % [id, session.name])
-        end
+        UiCommand.do_show_sessions()
       end,
     },
 
     "session" => {
       :parser => Trollop::Parser.new do
         banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
-        opt :id, "Session id", :type => :integer, :required => true
+        opt :i, "Interact with the chosen session", :type => :integer, :required => false
+        opt :l, "List sessions"
       end,
 
       :proc => Proc.new do |opts|
-        if(!SessionManager.exists?(opts[:id]))
-          Ui.error("Session #{opts[:id]} not found, run 'sessions' for a list")
+        if(opts[:l])
+          puts("Known sessions:")
+          UiCommand.do_show_sessions()
+        elsif(opts[:i].nil?)
+          puts("Known sessions:")
+          UiCommand.do_show_sessions()
+        elsif(!SessionManager.exists?(opts[:i]))
+          Ui.error("Session #{opts[:i]} not found!")
+          UiCommand.do_show_sessions()
         else
-          Ui.attach_session(opts[:id])
+          Ui.attach_session(opts[:i])
         end
       end
     },
@@ -101,6 +123,8 @@ class UiCommand
       :proc => Proc.new do |opts, optarg|
         if(optarg.length == 0)
           puts("Usage: set <name>=<value>")
+          puts()
+          UiCommand.do_show_options()
         else
           optarg = optarg.join(" ")
 
@@ -127,9 +151,7 @@ class UiCommand
           puts("Usage: show options")
         else
           if(optarg[0] == "options")
-            Ui.each_option do |name, value|
-              puts("#{name} => #{value}")
-            end
+            UiCommand.do_show_options()
           else
             puts("Usage: show options")
           end
@@ -150,6 +172,10 @@ class UiCommand
     else
       command = ""
       args = ""
+    end
+
+    if(ALIASES[command])
+      command = ALIASES[command]
     end
 
     if(COMMANDS[command].nil?)
