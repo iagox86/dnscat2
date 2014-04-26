@@ -3,7 +3,6 @@
 # Created July 4, 2013
 
 require "readline"
-require 'session_manager'
 require 'ui'
 
 class UiCommand
@@ -18,21 +17,12 @@ class UiCommand
   end
 
   def UiCommand.do_show_sessions()
-    SessionManager.list().each_pair do |id, session|
-      puts("%5d :: %s" % [id, session.name])
+    Ui.each_real_session do |local_id, session|
+      puts("%5d :: %s" % [local_id, session.name])
     end
   end
 
   COMMANDS = {
-#    "test" => {
-#      :parser => Trollop::Parser.new do
-#        banner("Testing code goes here")
-#      end,
-#
-#      :proc => Proc.new do |opts, optarg|
-#        raise(Ui::UiWakeup)
-#      end
-#    },
 
     "" => {
       :parser => Trollop::Parser.new do end,
@@ -106,7 +96,7 @@ class UiCommand
         elsif(opts[:i].nil?)
           puts("Known sessions:")
           UiCommand.do_show_sessions()
-        elsif(!SessionManager.exists?(opts[:i]))
+        elsif(Ui.get_ui_session(opts[:i]).nil?)
           Ui.error("Session #{opts[:i]} not found!")
           UiCommand.do_show_sessions()
         else

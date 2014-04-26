@@ -44,8 +44,15 @@ class Ui
   @@thread = Thread.current()
 
   @@ui_command = UiCommand.new()
-  @@sessions = {}
+
+  # The current session we're interacting with, or nil
   @@session = nil
+
+  # The sessions are indexed using the local_id, not the actual session_id!!
+  @@real_sessions = {}
+  @@ui_sessions = {}
+
+  @@local_ids = {}
 
   # My own history buffers - see the 'hacks' section in the file comment for
   # more information
@@ -103,12 +110,12 @@ class Ui
     $stderr.puts("ERROR: #{msg}")
   end
 
-  def Ui.save_history(session_id)
+  def Ui.save_history(local_id)
     array = nil
-    if(session_id.nil?)
+    if(local_id.nil?)
       array = @@command_history
     else
-      array = @@session_history[session_id]
+      array = @@session_history[local_id]
     end
 
     Readline::HISTORY.each do |i|
@@ -116,15 +123,15 @@ class Ui
     end
   end
 
-  def Ui.restore_history(session_id)
+  def Ui.restore_history(local_id)
     Readline::HISTORY.clear()
 
-    if(session_id.nil?)
+    if(local_id.nil?)
       @@command_history.each do |i|
         Readline::HISTORY << i
       end
     else
-      @@session_history[session_id].each do |i|
+      @@session_history[local_id].each do |i|
         Readline::HISTORY << i
       end
     end
@@ -135,40 +142,57 @@ class Ui
     restore_history(to)
   end
 
-  def Ui.attach_session(session_id)
-    if(@@sessions[session_id].nil?)
-      Ui.error("Unknown session: #{session_id}")
+  def Ui.attach_session(local_id)
+    if(@@ui_sessions[local_id].nil?)
+      Ui.error("Unknown session: #{local_id}")
     else
-      Ui.switch_history((@@session.nil? ? nil : @@session.id), session_id)
-      @@session = @@sessions[session_id]
+      Ui.switch_history((@@session.nil? ? nil : local_id), local_id)
+      @@session = @@ui_sessions[local_id]
       @@session.attach
     end
   end
 
-  def Ui.detach_session(id = nil)
+  def Ui.detach_session(local_id = nil)
     if(@@session.nil?)
       return
     end
 
-    if(id.nil? || (@@session.id == id))
-      Ui.switch_history((@@session.nil? ? nil : @@session.id), nil)
+    # TODO: What does this do, and can I make it simpler?
+    if(local_id.nil? || (@@session.local_id == local_id))
+      Ui.switch_history((@@session.nil? ? nil : @@session.local_id), nil)
       @@session.detach
       @@session = nil
     end
   end
 
-  def Ui.get_session(id)
-    session = @@sessions[id]
+  def Ui.get_ui_session(local_id)
+    session = @@ui_sessions[local_id]
     if(session.nil?)
-      Ui.error("Unknown session: #{id}")
+      Ui.error("Unknown session: #{local_id}")
       return nil
     end
     if(!session.active?)
-      Ui.error("Inactive session: #{id}")
+      Ui.error("Inactive session: #{local_id}")
       return nil
     end
 
     return session
+  end
+
+  def Ui.get_real_session(local_id)
+    session = @@real_sessions[local_id]
+    if(session.nil?)
+      Ui.error("Unknown session: #{local_id}")
+      return nil
+    end
+
+    return session
+  end
+
+  # Map a real_id to a local_id
+  def Ui.create_local_id(real_id)
+    @@local_ids[real_id] = @@local_ids.size + 1 # +1 so it starts at 1, not 0
+    return @@local_ids[real_id]
   end
 
   def Ui.go()
@@ -201,69 +225,85 @@ class Ui
     end
   end
 
+  def Ui.each_real_session()
+    @@real_sessions.each_pair do |k, v|
+      yield(k, v)
+    end
+  end
+
   #################
   # The rest of this are callbacks
   #################
 
-  def Ui.session_created(id)
+  def Ui.session_created(real_id)
     # Don't really care until the session is established
   end
 
-  def Ui.session_established(id)
-    puts("New session established: #{id}")
-    @@sessions[id] = UiSession.new(id)
-    @@session_history[id] = []
+  def Ui.session_established(real_id)
+    local_id = Ui.create_local_id(real_id)
+
+    puts("New session established: #{local_id}")
+    @@ui_sessions[local_id] = UiSession.new(local_id)
+    @@real_sessions[local_id] = SessionManager.find(real_id)
+    @@session_history[local_id] = []
 
     # If no session is currently attached and we're auto-attaching sessions,
     # attach it then trigger a wakeup
     if(@@options['auto_attach'] == true && @@session.nil?)
-      Ui.attach_session(id)
+      Ui.attach_session(local_id)
       Ui.wakeup()
     end
   end
 
-  def Ui.session_data_received(id, data)
-    session = Ui.get_session(id)
+  def Ui.session_data_received(real_id, data)
+    local_id = @@local_ids[real_id]
+    session = Ui.get_ui_session(local_id)
     if(!session.nil?)
       session.data_received(data)
     end
   end
 
-  def Ui.session_data_sent(id, data)
+  def Ui.session_data_sent(real_id, data)
+    #local_id = @@local_ids[real_id]
   end
 
-  def Ui.session_data_acknowledged(id, data)
-    session = Ui.get_session(id)
+  def Ui.session_data_acknowledged(real_id, data)
+    local_id = @@local_ids[real_id]
+    session = Ui.get_ui_session(local_id)
     if(!session.nil?)
       session.data_acknowledged(data)
     end
   end
 
-  def Ui.session_data_queued(id, data)
+  def Ui.session_data_queued(real_id, data)
+    #local_id = @@local_ids[real_id]
   end
 
-  def Ui.session_destroyed(id)
+  def Ui.session_destroyed(real_id)
+    local_id = @@local_ids[real_id]
+
     # If the session is attached, detach it
-    if(!@@session.nil? && @@session.id == id)
-      Ui.detach_session(id)
+    if(!@@session.nil? && @@session.id == local_id)
+      Ui.detach_session(local_id)
     end
 
     # If the session exists, kill it
-    if(!@@sessions[id].nil?)
-      @@sessions[id].destroy
-      @@sessions.delete(id)
-      @@session_history.delete(id)
+    if(!@@ui_sessions[local_id].nil?)
+      @@ui_sessions[local_id].destroy
+      @@ui_sessions.delete(local_id)
+      @@session_history.delete(local_id)
     end
 
     # Make sure the UI is updated
     Ui.wakeup()
   end
 
-  def Ui.dnscat2_state_error(session_id, message)
-    Ui.error("#{message} :: Session: #{session_id}")
+  def Ui.dnscat2_state_error(real_id, message)
+    local_id = @@local_ids[real_id]
+    Ui.error("#{message} :: Session: #{local_id}")
   end
 
-  def Ui.dnscat2_syn_received(session_id, my_seq, their_seq)
+  def Ui.dnscat2_syn_received(real_id, my_seq, their_seq)
   end
 
   def Ui.dnscat2_msg_bad_seq(expected_seq, received_seq)
@@ -276,7 +316,7 @@ class Ui
   def Ui.dnscat2_msg(incoming, outgoing)
   end
 
-  def Ui.dnscat2_fin(session_id)
+  def Ui.dnscat2_fin(real_id)
     # Ui.session_destroyed() will take care of this
   end
 

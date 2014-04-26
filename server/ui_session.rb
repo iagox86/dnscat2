@@ -2,21 +2,21 @@
 # By Ron Bowes
 # Created July 4, 2013
 
-require 'session_manager'
 require 'timeout'
 
 class UiSession
-  attr_accessor :id
+  attr_accessor :local_id
 
-  def initialize(id)
-    @id = id
+  def initialize(local_id)
+    @local_id = local_id
     @is_active = true
     @is_attached = false
     @orig_suspend = nil
     @data = ""
 
     if(!Ui.get_option("auto_command").nil? && Ui.get_option("auto_command").length > 0)
-      SessionManager.find(id).queue_outgoing(Ui.get_option("auto_command") + "\n")
+      # TODO: FIXME
+      #Ui.get_session(local_id).queue_outgoing(Ui.get_option("auto_command") + "\n")
     end
   end
 
@@ -48,7 +48,7 @@ class UiSession
 
   def go
     if(Ui.get_option("prompt"))
-      line = Readline::readline("dnscat [#{id}]> ", true)
+      line = Readline::readline("dnscat [#{@local_id}]> ", true)
     else
       line = Readline::readline("", true)
     end
@@ -61,7 +61,7 @@ class UiSession
     line = line + "\n"
 
     # Find the session we're a part of
-    session = SessionManager.find(id)
+    session = Ui.get_real_session(@local_id)
 
     # Queue our outgoing data
     session.queue_outgoing(line)
