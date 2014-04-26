@@ -11,7 +11,7 @@ Immediate needs:
 - Choose better default names for each driver
 - Add a 'kill' command
 - Windows support
-- Figure out why [Ack] isn't displayed if you send a bunch of messages quickly
+- combine add_history() and puts() in the ui_session.rb code, so it automatically splits and stuff
 
 Future stuff:
 - Other protocols (ping/http/etc)

@@ -101,9 +101,16 @@ class UiSession
   def data_acknowledged(data)
     if(attached?)
       puts()
-      puts("[ACK] #{data}")
-    else
-      add_history("[ACK] %s" % data)
+    end
+
+    data = data.chomp().gsub(/\r/, '')
+    data = data.split(/\n/)
+
+    data.each do |d|
+      if(attached?)
+        puts("[ACK] #{d}")
+      end
+      add_history("[ACK] %s" % d)
     end
   end
 
