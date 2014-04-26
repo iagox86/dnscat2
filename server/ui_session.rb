@@ -8,18 +8,34 @@ class UiSession
   attr_accessor :local_id
   attr_accessor :session
 
+  HISTORY_MAX_LENGTH = 10000
+
+
   def initialize(local_id, session)
     @local_id = local_id
     @session  = session
+    @history = []
 
     @is_active = true
     @is_attached = false
     @orig_suspend = nil # Used for trapping ctrl-z
-    @data = ""
 
     if(!Ui.get_option("auto_command").nil? && Ui.get_option("auto_command").length > 0)
       @session.queue_outgoing(Ui.get_option("auto_command") + "\n")
     end
+  end
+
+  # Implements a very, very simple ring buffer
+  def add_history(str)
+    str = str.chomp().gsub(/\r/, '')
+    @history += str.split(/\n/)
+    if(@history.length > HISTORY_MAX_LENGTH)
+      @history.shift()
+    end
+  end
+
+  def get_history()
+    return @history.join("\n")
   end
 
   def destroy()
@@ -39,8 +55,7 @@ class UiSession
     handle_suspend()
 
     # Print the queued data
-    puts(@data)
-    @data = ''
+    puts(get_history())
   end
 
   def detach()
@@ -65,7 +80,11 @@ class UiSession
     # Queue our outgoing data
     @session.queue_outgoing(line)
 
+    # Add it to our history
+    add_history("[OUT] %s" % line)
+
     # Read incoming data, if it exists
+    # TODO: Does this actually work?
     if(@session.incoming?)
       Ui.display(@session.read_incoming)
     end
@@ -74,9 +93,9 @@ class UiSession
   def data_received(data)
     if(attached?)
       print(data)
-    else
-      @data += data
     end
+
+    add_history("[IN]  %s" % data)
   end
 
   def data_acknowledged(data)
@@ -84,7 +103,7 @@ class UiSession
       puts()
       puts("[ACK] #{data}")
     else
-      @data += "[ACK] #{data}"
+      add_history("[ACK] %s" % data)
     end
   end
 

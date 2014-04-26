@@ -271,7 +271,7 @@ class Ui
     local_id = @@local_ids[real_id]
 
     # If the session is attached, detach it
-    if(!@@session.nil? && @@session.id == local_id)
+    if(!@@session.nil? && @@session.local_id == local_id)
       Ui.detach_session(local_id)
     end
 

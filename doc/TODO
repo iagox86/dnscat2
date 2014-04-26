@@ -1,5 +1,4 @@
 Immediate needs:
-- Proper synchronization (mutexes)
 - TEST on Linux :: Catch ctrl-c and send a FIN
 - Client should give up after a certain number of failed SYNs or MSGs
 - Implement other DNS types (A, AAAA, CNAME, etc)
@@ -7,11 +6,12 @@ Immediate needs:
 - Get tab completion on Ruby working properly
 - Display how long a session has been idle for on the server
 - Client should automatically terminate if it can't find a server
-- Figure out a sub-protocol for transferring files
+- Figure out a (simple) sub-protocol for transferring files
 - Implement 'control mode' on the client
 - Choose better default names for each driver
 - Add a 'kill' command
-- Re-play some history when attaching to a session
+- Windows support
+- Figure out why [Ack] isn't displayed if you send a bunch of messages quickly
 
 Future stuff:
 - Other protocols (ping/http/etc)
