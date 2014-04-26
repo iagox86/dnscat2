@@ -7,7 +7,8 @@
 
 typedef struct
 {
-  uint16_t            session_id;
+  uint16_t   session_id;
+  char      *name;
 } driver_console_t;
 
 driver_console_t  *driver_console_create(select_group_t *group);

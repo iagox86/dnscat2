@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -59,7 +60,12 @@ static SELECT_RESPONSE_t listener_accept(void *group, int s, void *d)
   client_entry_t *client = safe_malloc(sizeof(client_entry_t));
 
   client->s          = tcp_accept(s, &client->address, &client->port);
-  client->session_id = message_post_create_session();
+
+  if(driver->name)
+    client->session_id = message_post_create_session(driver->name);
+  else
+    client->session_id = message_post_create_session("[unnamed listener]");
+
   client->driver     = driver;
   client->next       = first_client;
   first_client       = client;
@@ -126,6 +132,23 @@ static void handle_shutdown()
   /* TODO: Clean up. */
 }
 
+static void handle_config_int(driver_listener_t *driver, char *name, int value)
+{
+  LOG_WARNING("Unknown configuration option: %s", name);
+}
+
+static void handle_config_string(driver_listener_t *driver, char *name, char *value)
+{
+  if(!strcmp(name, "name"))
+  {
+    driver->name = value;
+  }
+  else
+  {
+    LOG_WARNING("Unknown configuration option: %s", name);
+  }
+}
+
 static void handle_message(message_t *message, void *d)
 {
   driver_listener_t *driver = (driver_listener_t*) d;
@@ -148,6 +171,18 @@ static void handle_message(message_t *message, void *d)
       handle_shutdown();
       break;
 
+    case MESSAGE_CONFIG:
+      if(message->message.config.type == CONFIG_INT)
+        handle_config_int(driver, message->message.config.name, message->message.config.value.int_value);
+      else if(message->message.config.type == CONFIG_STRING)
+        handle_config_string(driver, message->message.config.name, message->message.config.value.string_value);
+      else
+      {
+        LOG_FATAL("Unknown config type: %d", message->message.config.type);
+        abort();
+      }
+      break;
+
     default:
       LOG_FATAL("driver_listener received an invalid message!");
       abort();
@@ -167,6 +202,7 @@ driver_listener_t *driver_listener_create(select_group_t *group, char *host, int
   message_subscribe(MESSAGE_SESSION_CLOSED,  handle_message, driver);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
   message_subscribe(MESSAGE_SHUTDOWN,        handle_message, driver);
+  message_subscribe(MESSAGE_CONFIG,          handle_message, driver);
 
   return driver;
 }

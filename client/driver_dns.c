@@ -259,7 +259,7 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain)
   select_set_closed(group, driver_dns->s, dns_data_closed);
 
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START, handle_message, driver_dns);
+  message_subscribe(MESSAGE_START,      handle_message, driver_dns);
   message_subscribe(MESSAGE_PACKET_OUT, handle_message, driver_dns);
 
   return driver_dns;

@@ -123,11 +123,12 @@ void message_post_shutdown()
   message_destroy(message);
 }
 
-uint16_t message_post_create_session()
+uint16_t message_post_create_session(char *name)
 {
   uint16_t session_id;
 
   message_t *message = message_create(MESSAGE_CREATE_SESSION);
+  message->message.create_session.name = name;
   message_post(message);
 
   session_id = message->message.create_session.out.session_id;

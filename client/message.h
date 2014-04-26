@@ -75,7 +75,7 @@ typedef struct
       config_type_t type;
       union
       {
-        int int_value;
+        int   int_value;
         char *string_value;
       } value;
     } config;
@@ -90,6 +90,8 @@ typedef struct
 
     struct
     {
+      char *name;
+
       struct
       {
         uint16_t session_id;
@@ -161,7 +163,7 @@ void message_post_config_string(char *name, char *value);
 
 void message_post_start();
 void message_post_shutdown();
-uint16_t message_post_create_session();
+uint16_t message_post_create_session(char *name);
 void message_post_session_created(uint16_t session_id);
 void message_post_close_session(uint16_t session_id);
 void message_post_session_closed(uint16_t session_id);

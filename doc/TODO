@@ -1,10 +1,18 @@
 Immediate needs:
 - Proper synchronization (mutexes)
-- Ignore packets with repeated packet id values
 - TEST on Linux :: Catch ctrl-c and send a FIN
 - Client should give up after a certain number of failed SYNs
 - Implement other DNS types (A, AAAA, CNAME, etc)
 - Handle DNS errors properly
+- Get names working properly again
+- Get tab completion on Ruby working properly
+- Display how long a session has been idle for on the server
+- Client should automatically terminate if it can't find a server
+- Figure out a sub-protocol for transferring files
+- Implement 'control mode' on the client
+- Choose better default names for each driver
+- Add a 'kill' command
+- Automatically map incoming sessions to easier (incremental) numbers on the server
 
 Future stuff:
 - Other protocols (ping/http/etc)

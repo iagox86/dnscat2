@@ -204,7 +204,7 @@ static void handle_shutdown()
     message_post_close_session(entry->session->id);
 }
 
-static uint16_t handle_create_session()
+static uint16_t handle_create_session(char *name)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
   session_entry_t *entry;
@@ -219,6 +219,8 @@ static uint16_t handle_create_session()
   session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
 
   session->last_transmit = 0;
+
+  session->name = name;
 
   /* Add it to the linked list. */
   entry = safe_malloc(sizeof(session_entry_t));
@@ -415,7 +417,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_CREATE_SESSION:
-      message->message.create_session.out.session_id = handle_create_session();
+      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.name);
       break;
 
     case MESSAGE_CLOSE_SESSION:

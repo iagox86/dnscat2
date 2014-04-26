@@ -12,6 +12,7 @@ typedef struct
   uint16_t        session_id;
   char           *process;
   select_group_t *group;
+  char           *name;
 
 #ifdef WIN32
 #else

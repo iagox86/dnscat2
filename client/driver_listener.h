@@ -10,6 +10,7 @@ typedef struct
   int             s;
   select_group_t *group;
   char           *host;
+  char           *name;
   uint16_t        port;
 } driver_listener_t;
 

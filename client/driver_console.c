@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -32,7 +33,10 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_console_t *driver)
 {
-  message_post_create_session();
+  if(driver->name)
+    message_post_create_session(driver->name);
+  else
+    message_post_create_session("[unnamed console]");
 }
 
 static void handle_session_created(driver_console_t *driver, uint16_t session_id)
@@ -46,6 +50,18 @@ static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t lengt
 
   for(i = 0; i < length; i++)
     fputc(data[i], stdout);
+}
+
+static void handle_config_int(driver_console_t *driver, char *name, int value)
+{
+}
+
+static void handle_config_string(driver_console_t *driver, char *name, char *value)
+{
+  if(!strcmp(name, "name"))
+  {
+    driver->name = value;
+  }
 }
 
 static void handle_message(message_t *message, void *d)
@@ -66,8 +82,20 @@ static void handle_message(message_t *message, void *d)
       handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
       break;
 
+    case MESSAGE_CONFIG:
+      if(message->message.config.type == CONFIG_INT)
+        handle_config_int(driver, message->message.config.name, message->message.config.value.int_value);
+      else if(message->message.config.type == CONFIG_STRING)
+        handle_config_string(driver, message->message.config.name, message->message.config.value.string_value);
+      else
+      {
+        LOG_FATAL("Unknown");
+        abort();
+      }
+      break;
+
     default:
-      LOG_FATAL("driver_console received an invalid message!");
+      LOG_FATAL("driver_console received an invalid message: %d", message->type);
       abort();
   }
 }
@@ -94,6 +122,7 @@ driver_console_t *driver_console_create(select_group_t *group)
   message_subscribe(MESSAGE_START,           handle_message, driver);
   message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
+  message_subscribe(MESSAGE_CONFIG,          handle_message, driver);
 
   return driver;
 }

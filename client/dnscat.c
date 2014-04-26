@@ -157,6 +157,8 @@ int main(int argc, char *argv[])
   NBBOOL            input_set = FALSE;
   NBBOOL            output_set = FALSE;
 
+  char             *name = NULL;
+
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
   /* Initialize the modules that need initialization. */
@@ -191,8 +193,7 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "name") || !strcmp(option_name, "n"))
         {
-          /* TODO: Handle 'name' again */
-          /*options->name = optarg;*/
+          name = optarg;
         }
 
         /* Console-specific options. */
@@ -323,6 +324,10 @@ int main(int argc, char *argv[])
 
   /* Be sure we clean up at exit. */
   atexit(cleanup);
+
+  /* Set the name for the session */
+  if(name)
+    message_post_config_string("name", name);
 
   /* Kick things off */
   message_post_start();
