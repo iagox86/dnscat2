@@ -6,17 +6,19 @@ require 'timeout'
 
 class UiSession
   attr_accessor :local_id
+  attr_accessor :session
 
-  def initialize(local_id)
+  def initialize(local_id, session)
     @local_id = local_id
+    @session  = session
+
     @is_active = true
     @is_attached = false
-    @orig_suspend = nil
+    @orig_suspend = nil # Used for trapping ctrl-z
     @data = ""
 
     if(!Ui.get_option("auto_command").nil? && Ui.get_option("auto_command").length > 0)
-      # TODO: FIXME
-      #Ui.get_session(local_id).queue_outgoing(Ui.get_option("auto_command") + "\n")
+      @session.queue_outgoing(Ui.get_option("auto_command") + "\n")
     end
   end
 
@@ -60,15 +62,12 @@ class UiSession
     # Add the newline that Readline strips
     line = line + "\n"
 
-    # Find the session we're a part of
-    session = Ui.get_real_session(@local_id)
-
     # Queue our outgoing data
-    session.queue_outgoing(line)
+    @session.queue_outgoing(line)
 
     # Read incoming data, if it exists
-    if(session.incoming?)
-      Ui.display(session.read_incoming)
+    if(@session.incoming?)
+      Ui.display(@session.read_incoming)
     end
   end
 

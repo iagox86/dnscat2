@@ -49,8 +49,7 @@ class Ui
   @@session = nil
 
   # The sessions are indexed using the local_id, not the actual session_id!!
-  @@real_sessions = {}
-  @@ui_sessions = {}
+  @@sessions = {}
 
   @@local_ids = {}
 
@@ -143,11 +142,11 @@ class Ui
   end
 
   def Ui.attach_session(local_id)
-    if(@@ui_sessions[local_id].nil?)
+    if(@@sessions[local_id].nil?)
       Ui.error("Unknown session: #{local_id}")
     else
       Ui.switch_history((@@session.nil? ? nil : local_id), local_id)
-      @@session = @@ui_sessions[local_id]
+      @@session = @@sessions[local_id]
       @@session.attach
     end
   end
@@ -166,23 +165,13 @@ class Ui
   end
 
   def Ui.get_ui_session(local_id)
-    session = @@ui_sessions[local_id]
+    session = @@sessions[local_id]
     if(session.nil?)
       Ui.error("Unknown session: #{local_id}")
       return nil
     end
     if(!session.active?)
       Ui.error("Inactive session: #{local_id}")
-      return nil
-    end
-
-    return session
-  end
-
-  def Ui.get_real_session(local_id)
-    session = @@real_sessions[local_id]
-    if(session.nil?)
-      Ui.error("Unknown session: #{local_id}")
       return nil
     end
 
@@ -225,9 +214,9 @@ class Ui
     end
   end
 
-  def Ui.each_real_session()
-    @@real_sessions.each_pair do |k, v|
-      yield(k, v)
+  def Ui.each_session()
+    @@sessions.each do |s|
+      yield(s)
     end
   end
 
@@ -243,8 +232,7 @@ class Ui
     local_id = Ui.create_local_id(real_id)
 
     puts("New session established: #{local_id}")
-    @@ui_sessions[local_id] = UiSession.new(local_id)
-    @@real_sessions[local_id] = SessionManager.find(real_id)
+    @@sessions[local_id] = UiSession.new(local_id, SessionManager.find(real_id))
     @@session_history[local_id] = []
 
     # If no session is currently attached and we're auto-attaching sessions,
@@ -288,9 +276,9 @@ class Ui
     end
 
     # If the session exists, kill it
-    if(!@@ui_sessions[local_id].nil?)
-      @@ui_sessions[local_id].destroy
-      @@ui_sessions.delete(local_id)
+    if(!@@sessions[local_id].nil?)
+      @@sessions[local_id].destroy
+      @@sessions.delete(local_id)
       @@session_history.delete(local_id)
     end
 
