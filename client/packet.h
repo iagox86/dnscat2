@@ -24,11 +24,15 @@ typedef struct
   uint16_t seq;
   uint16_t options;
   char    *name;
+  char    *filename;
 } syn_packet_t;
 
 typedef enum
 {
-  OPT_NAME = 1,
+  OPT_NAME     = 0x01,
+  /* OPT_TUNNEL = 2,   // Deprecated */
+  /* OPT_DATAGRAM = 4, // Deprecated */
+  OPT_DOWNLOAD = 0x08,
 } syn_option_t;
 
 typedef struct
@@ -67,6 +71,9 @@ packet_t *packet_create_fin(uint16_t session_id);
 
 /* Set the OPT_NAME field and add a name value. */
 void packet_syn_set_name(packet_t *packet, char *name);
+
+/* Set the OPT_DOWNLOAD field and add a filename value */
+void packet_syn_set_download(packet_t *packet, char *filename);
 
 /* Get minimum packet sizes so we can avoid magic numbers. */
 size_t packet_get_syn_size();

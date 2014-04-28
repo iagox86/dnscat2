@@ -104,6 +104,22 @@ void packet_syn_set_name(packet_t *packet, char *name)
   packet->body.syn.name = safe_strdup(name);
 }
 
+void packet_syn_set_download(packet_t *packet, char *filename)
+{
+  if(packet->packet_type != PACKET_TYPE_SYN)
+  {
+    LOG_FATAL("Attempted to set the 'download' field of a non-SYN message\n");
+    exit(1);
+  }
+
+  /* Free the name if it's already set */
+  if(packet->body.syn.filename)
+    safe_free(packet->body.syn.filename);
+
+  packet->body.syn.options |= OPT_DOWNLOAD;
+  packet->body.syn.filename = safe_strdup(filename);
+}
+
 size_t packet_get_syn_size()
 {
   static size_t size = 0;
@@ -169,6 +185,10 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
       {
         buffer_add_ntstring(buffer, packet->body.syn.name);
       }
+      if(packet->body.syn.options & OPT_DOWNLOAD)
+      {
+        buffer_add_ntstring(buffer, packet->body.syn.filename);
+      }
 
       break;
 
@@ -228,6 +248,8 @@ void packet_destroy(packet_t *packet)
   {
     if(packet->body.syn.name)
       safe_free(packet->body.syn.name);
+    if(packet->body.syn.filename)
+      safe_free(packet->body.syn.filename);
   }
 
   if(packet->packet_type == PACKET_TYPE_MSG)

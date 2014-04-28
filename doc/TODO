@@ -14,6 +14,7 @@ Immediate needs:
 - Allow reading arbitrary chunks of data rather than MSG, which is sequential (designed for files)
 - Move methods in SessionManager.rb that basically operate on exactly a session into Session.rb
 - Add more debugging messages throughout, especially newer functionality
+- Make safe_free() null out variables to prevent double-free situations
 
 Future stuff:
 - Other protocols (ping/http/etc)

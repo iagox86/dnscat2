@@ -33,10 +33,9 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_console_t *driver)
 {
-  if(driver->name)
-    message_post_create_session(driver->name);
-  else
-    message_post_create_session("[unnamed console]");
+  char *name = (driver->name) ? (driver->name) : "[unnamed console]";
+
+  message_post_create_session_download(name, driver->download);
 }
 
 static void handle_session_created(driver_console_t *driver, uint16_t session_id)
@@ -59,9 +58,9 @@ static void handle_config_int(driver_console_t *driver, char *name, int value)
 static void handle_config_string(driver_console_t *driver, char *name, char *value)
 {
   if(!strcmp(name, "name"))
-  {
-    driver->name = value;
-  }
+    driver->name = safe_strdup(value);
+  else if(!strcmp(name, "download"))
+    driver->download = safe_strdup(value);
 }
 
 static void handle_message(message_t *message, void *d)
@@ -104,6 +103,9 @@ driver_console_t *driver_console_create(select_group_t *group)
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
 
+  driver->name = NULL;
+  driver->download = NULL;
+
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
   HANDLE stdin_handle = get_stdin_handle();
@@ -129,5 +131,9 @@ driver_console_t *driver_console_create(select_group_t *group)
 
 void driver_console_destroy(driver_console_t *driver)
 {
+  if(driver->name)
+    safe_free(driver->name);
+  if(driver->download)
+    safe_free(driver->download);
   safe_free(driver);
 }

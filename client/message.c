@@ -123,12 +123,13 @@ void message_post_shutdown()
   message_destroy(message);
 }
 
-uint16_t message_post_create_session(char *name)
+uint16_t message_post_create_session_download(char *name, char *download)
 {
   uint16_t session_id;
 
   message_t *message = message_create(MESSAGE_CREATE_SESSION);
   message->message.create_session.name = name;
+  message->message.create_session.download = download;
   message_post(message);
 
   session_id = message->message.create_session.out.session_id;
@@ -136,6 +137,11 @@ uint16_t message_post_create_session(char *name)
   message_destroy(message);
 
   return session_id;
+}
+
+uint16_t message_post_create_session(char *name)
+{
+  return message_post_create_session_download(name, NULL);
 }
 
 void message_post_session_created(uint16_t session_id)

@@ -83,6 +83,7 @@ void usage(char *name, char *message)
 " --help -h               This page\n"
 " --name -n <name>        Give this connection a name, which will show up in\n"
 "                         the server list\n"
+" --download <filename>   Request the given file off the server\n"
 "\n"
 "Input options:\n"
 " --console --stdin       Send/receive output to the console [default]\n"
@@ -117,6 +118,8 @@ int main(int argc, char *argv[])
     {"help",    no_argument,       0, 0}, /* Help */
     {"h",       no_argument,       0, 0},
     {"name",    required_argument, 0, 0}, /* Name */
+    {"n",       required_argument, 0, 0},
+    {"download",required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
 
     /* Console options. */
@@ -157,7 +160,8 @@ int main(int argc, char *argv[])
   NBBOOL            input_set = FALSE;
   NBBOOL            output_set = FALSE;
 
-  char             *name = NULL;
+  char             *name     = NULL;
+  char             *download = NULL;
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
@@ -194,6 +198,10 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "name") || !strcmp(option_name, "n"))
         {
           name = optarg;
+        }
+        else if(!strcmp(option_name, "download"))
+        {
+          download = optarg;
         }
 
         /* Console-specific options. */
@@ -328,6 +336,8 @@ int main(int argc, char *argv[])
   /* Set the name for the session */
   if(name)
     message_post_config_string("name", name);
+  if(download)
+    message_post_config_string("download", download);
 
   /* Kick things off */
   message_post_start();

@@ -32,6 +32,7 @@ typedef struct
   uint16_t        my_seq;
   NBBOOL          is_closed;
   char           *name;
+  char           *download;
 
   buffer_t       *outgoing_data;
 
@@ -97,6 +98,8 @@ static void do_send_stuff(session_t *session)
       packet = packet_create_syn(session->id, session->my_seq, 0);
       if(session->name)
         packet_syn_set_name(packet, session->name);
+      if(session->download)
+        packet_syn_set_download(packet, session->download);
 
       update_counter(session);
       message_post_packet_out(packet);
@@ -136,6 +139,8 @@ static void session_destroy(session_t *session)
 {
   if(session->name)
     safe_free(session->name);
+  if(session->download)
+    safe_free(session->download);
 
   buffer_destroy(session->outgoing_data);
   safe_free(session);
@@ -204,7 +209,7 @@ static void handle_shutdown()
     message_post_close_session(entry->session->id);
 }
 
-static uint16_t handle_create_session(char *name)
+static uint16_t handle_create_session(char *name, char *download)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
   session_entry_t *entry;
@@ -220,7 +225,13 @@ static uint16_t handle_create_session(char *name)
 
   session->last_transmit = 0;
 
-  session->name = name;
+  session->name = NULL;
+  if(name)
+    session->name = safe_strdup(name);
+
+  session->download = NULL;
+  if(download)
+    session->download = safe_strdup(download);
 
   /* Add it to the linked list. */
   entry = safe_malloc(sizeof(session_entry_t));
@@ -417,7 +428,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_CREATE_SESSION:
-      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.name);
+      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.name, message->message.create_session.download);
       break;
 
     case MESSAGE_CLOSE_SESSION:

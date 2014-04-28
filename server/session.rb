@@ -75,6 +75,7 @@ class Session
     File.open(filename) do |f|
       queue_outgoing(f.read())
     end
+
   end
 
   def increment_their_seq(n)

@@ -91,6 +91,7 @@ typedef struct
     struct
     {
       char *name;
+      char *download;
 
       struct
       {
@@ -164,6 +165,7 @@ void message_post_config_string(char *name, char *value);
 void message_post_start();
 void message_post_shutdown();
 uint16_t message_post_create_session(char *name);
+uint16_t message_post_create_session_download(char *name, char *download);
 void message_post_session_created(uint16_t session_id);
 void message_post_close_session(uint16_t session_id);
 void message_post_session_closed(uint16_t session_id);
