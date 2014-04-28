@@ -18,7 +18,7 @@ class UiCommand
 
   def UiCommand.do_show_sessions()
     Ui.each_session do |local_id, session|
-      puts("%5d :: %s" % [local_id, session.session.name])
+      puts(session.get_summary())
     end
   end
 

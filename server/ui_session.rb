@@ -10,11 +10,11 @@ class UiSession
 
   MAX_HISTORY_LENGTH = 10000
 
-
   def initialize(local_id, session)
     @local_id = local_id
     @session  = session
     @history = []
+    @state = nil
 
     @is_active = true
     @is_attached = false
@@ -65,11 +65,26 @@ class UiSession
 
     # Print the queued data
     puts(get_history())
+
+    if(!@state.nil?)
+      Log.WARNING("This session is #{@state}! Closing...")
+      return false
+    end
+
+    return true
   end
 
   def detach()
     restore_suspend()
     @is_attached = false
+  end
+
+  def set_state(state)
+    @state = state
+  end
+
+  def get_summary()
+    return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state.nil? ? "active" : @state]
   end
 
   def go
@@ -88,13 +103,6 @@ class UiSession
 
     # Queue our outgoing data
     @session.queue_outgoing(line)
-
-    # Read incoming data, if it exists
-    # TODO: Does this actually work?
-#    if(@session.incoming?)
-#      throw("wtf?")
-#      Ui.display(@session.read_incoming)
-#    end
   end
 
   def data_received(data)

@@ -4,17 +4,16 @@ Immediate needs:
 - Implement other DNS types (A, AAAA, CNAME, etc)
 - Handle DNS errors properly
 - Get tab completion on Ruby working properly
-- Display how long a session has been idle for on the server
 - Client should automatically terminate if it can't find a server
 - Implement 'control mode' on the client
 - Choose better default names for each driver
 - Add a 'kill' command
 - Windows support
-- Figure out a (simple) sub-protocol for transferring files
 - Allow reading arbitrary chunks of data rather than MSG, which is sequential (designed for files)
 - Move methods in SessionManager.rb that basically operate on exactly a session into Session.rb
 - Add more debugging messages throughout, especially newer functionality
 - Make safe_free() null out variables to prevent double-free situations
+- Display how long a session has been idle for on the server
 
 Future stuff:
 - Other protocols (ping/http/etc)

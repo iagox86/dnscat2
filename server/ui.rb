@@ -145,9 +145,11 @@ class Ui
     if(@@sessions[local_id].nil?)
       Ui.error("Unknown session: #{local_id}")
     else
-      Ui.switch_history((@@session.nil? ? nil : local_id), local_id)
-      @@session = @@sessions[local_id]
-      @@session.attach
+      session = @@sessions[local_id]
+      if(session.attach)
+        Ui.switch_history((@@session.nil? ? nil : local_id), local_id)
+        @@session = session
+      end
     end
   end
 
@@ -277,9 +279,10 @@ class Ui
 
     # If the session exists, kill it
     if(!@@sessions[local_id].nil?)
-      @@sessions[local_id].destroy
-      @@sessions.delete(local_id)
-      @@session_history.delete(local_id)
+      @@sessions[local_id].set_state("closed")
+      #@@sessions[local_id].destroy
+      #@@sessions.delete(local_id)
+      #@@session_history.delete(local_id)
     end
 
     # Make sure the UI is updated
