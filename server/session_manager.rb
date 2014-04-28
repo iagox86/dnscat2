@@ -82,8 +82,14 @@ class SessionManager
 
     session.set_their_seq(packet.seq)
     session.set_name(packet.name)
+
+    # TODO: Allowing any arbitrary file is a security risk
+    if(!packet.download.nil?)
+      session.set_file(packet.download)
+    end
     session.set_established()
     session.notify_subscribers(:dnscat2_syn_received, [session.id, session.my_seq, packet.seq])
+
 
     return Packet.create_syn(session.id, session.my_seq, nil)
   end

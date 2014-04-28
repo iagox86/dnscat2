@@ -179,7 +179,7 @@ If an unexpected FIN is received, the server will ignore it:
 
 /* Options */
 #define OPT_NAME     (0x01)
-#define OPT_CONNECT  (0x02)
+#define OPT_DOWNLOAD (0x08)
 
 +----------+
 | Messages |
@@ -201,6 +201,8 @@ MESSAGE_TYPE_SYN [0x00]
 - (uint16_t) options
 If OPT_NAME is set:
   - (ntstring) name
+if OPT_DOWNLOAD is set:
+  - (ntstring) filename
 
 (Client to server)
 - Each connection is initiated by a client sending a SYN containing a
@@ -216,6 +218,12 @@ If OPT_NAME is set:
     - Packet contains an additional field called the session name, which
       is a free-form field containing user-readable data
     - (ntstring) session_name
+  - OPT_DOWNLOAD - 0x08
+    - Packet contains an additional field for the filename to download
+      from the server
+    - Server should serve that file in place of stdin
+    - Servers should *not* let users read arbitrary files, but rather
+      make it up to the user to choose which files/folders to allow
 
 (Server to client)
 - The server responds with its own SYN, containing its initial sequence

@@ -17,9 +17,13 @@ class Packet
   MESSAGE_TYPE_FIN        = 0x02
 
   OPT_NAME                = 0x01
+  # OPT_TUNNEL              = 0x02 # Deprecated
+  # OPT_DATAGRAM            = 0x04 # Deprecated
+  OPT_DOWNLOAD            = 0x08
 
   attr_reader :data, :type, :session_id, :options, :seq, :ack
   attr_reader :name
+  attr_reader :download
 
   def at_least?(data, needed)
     return (data.length >= needed)
@@ -52,6 +56,16 @@ class Packet
       data = data[(@name.length+1)..-1]
     else
       @name = "[unnamed]"
+    end
+
+    # Parse the download option, if it exists
+    @download = nil
+    if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
+      if(data.index("\0").nil?)
+        raise(DnscatException, "OPT_DOWNLOAD set, but no null-terminated name given")
+      end
+      @download = data.unpack("Z*").pop
+      data = data[(@download.length+1)..-1]
     end
 
     # Verify that that was the entire packet

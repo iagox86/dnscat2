@@ -70,6 +70,13 @@ class Session
     @name = name
   end
 
+  def set_file(filename)
+    @file = filename
+    File.open(filename) do |f|
+      queue_outgoing(f.read())
+    end
+  end
+
   def increment_their_seq(n)
     if(@state != STATE_ESTABLISHED)
       raise(DnscatException, "Trying to increment remote side's SEQ in the wrong state")
