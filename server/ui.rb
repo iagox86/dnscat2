@@ -17,6 +17,7 @@ require 'ui_session'
 # - session_data_acknowledged(id, data)
 # - session_data_queued(id, data)
 # - session_destroyed(id)
+# - session_heartbeat(id)
 #
 # Calls that aren't tied to a session:
 # - dnscat2_syn_received(my_seq, their_seq)
@@ -287,6 +288,15 @@ class Ui
 
     # Make sure the UI is updated
     Ui.wakeup()
+  end
+
+  def Ui.session_heartbeat(real_id)
+    local_id = @@local_ids[real_id]
+
+    session = Ui.get_ui_session(local_id)
+    if(!session.nil?)
+      session.heartbeat()
+    end
   end
 
   def Ui.dnscat2_state_error(real_id, message)

@@ -15,6 +15,7 @@ class UiSession
     @session  = session
     @history = []
     @state = nil
+    @last_seen = Time.now()
 
     @is_active = true
     @is_attached = false
@@ -84,7 +85,18 @@ class UiSession
   end
 
   def get_summary()
-    return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state.nil? ? "active" : @state]
+    if(@state.nil?)
+      idle = Time.now() - @last_seen
+      if(idle > 60)
+        return "session %5d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
+      elsif(idle > 5)
+        return "session %5d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
+      else
+        return "session %5d :: %s" % [@local_id, @session.name, idle]
+      end
+    else
+      return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state.nil? ? "active" : @state]
+    end
   end
 
   def go
@@ -106,11 +118,17 @@ class UiSession
   end
 
   def data_received(data)
+    @last_seen = Time.now()
     display(data, '[IN] ')
   end
 
   def data_acknowledged(data)
+    @last_seen = Time.now()
     display(data, '[OUT]')
+  end
+
+  def heartbeat()
+    @last_seen = Time.now()
   end
 
   def handle_suspend()

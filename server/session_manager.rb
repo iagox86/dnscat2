@@ -181,7 +181,10 @@ class SessionManager
         session_id = packet.session_id # This is helpful if an exception is thrown
         session = find(session_id)
 
-        #session.notify_subscribers(:dnscat2_recv, [packet])
+        # Poke everybody else to let the know we're still seeing packets
+        if(!session.nil?)
+          session.notify_subscribers(:session_heartbeat, [session_id])
+        end
 
         response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)

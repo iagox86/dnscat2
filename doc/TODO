@@ -13,7 +13,6 @@ Immediate needs:
 - Move methods in SessionManager.rb that basically operate on exactly a session into Session.rb
 - Add more debugging messages throughout, especially newer functionality
 - Make safe_free() null out variables to prevent double-free situations
-- Display how long a session has been idle for on the server
 
 Future stuff:
 - Other protocols (ping/http/etc)
