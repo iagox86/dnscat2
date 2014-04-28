@@ -50,11 +50,11 @@ class Session
   end
 
   def msg_valid?()
-    return @state != STATE_NEW
+    return @state == STATE_ESTABLISHED
   end
 
   def fin_valid?()
-    return @state != STATE_NEW
+    return @state == STATE_ESTABLISHED
   end
 
   def set_their_seq(seq)
@@ -71,11 +71,20 @@ class Session
   end
 
   def set_file(filename)
-    @file = filename
+    @filename = filename
     File.open(filename) do |f|
       queue_outgoing(f.read())
     end
+  end
 
+  def still_active?()
+    if(!@filename.nil?)
+      if(@outgoing_data.length == 0)
+        return false
+      end
+    end
+
+    return true
   end
 
   def increment_their_seq(n)
@@ -138,6 +147,10 @@ class Session
   def queue_outgoing(data)
     @outgoing_data = @outgoing_data + data
     notify_subscribers(:session_data_queued, [@id, data])
+  end
+
+  def is_data_queued?()
+    return @outgoing_data.length > 0
   end
 
 #  def destroy()

@@ -87,6 +87,7 @@ class SessionManager
     if(!packet.download.nil?)
       session.set_file(packet.download)
     end
+
     session.set_established()
     session.notify_subscribers(:dnscat2_syn_received, [session.id, session.my_seq, packet.seq])
 
@@ -119,12 +120,19 @@ class SessionManager
       return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
     end
 
+    # Validate the acknowledgement number
     if(!session.valid_ack?(packet.ack))
       session.notify_subscribers(:dnscat2_msg_bad_ack, [session.my_seq, packet.ack])
 
       # Re-send the last packet
       old_data = session.read_outgoing(max_length - Packet.msg_header_size)
       return Packet.create_msg(session.id, session.my_seq, session.their_seq, old_data)
+    end
+
+    # Check if the session wants to close
+    if(!session.still_active?())
+      Log.WARNING("Session is finished, sending a FIN out")
+      return Packet.create_fin(session.id)
     end
 
     # Acknowledge the data that has been received so far
