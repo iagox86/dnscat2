@@ -8,7 +8,7 @@ class UiSession
   attr_accessor :local_id
   attr_accessor :session
 
-  HISTORY_MAX_LENGTH = 10000
+  MAX_HISTORY_LENGTH = 10000
 
 
   def initialize(local_id, session)
@@ -25,21 +25,30 @@ class UiSession
     end
   end
 
-  # Implements a very, very simple ring buffer
-  def add_history(str)
-    str = str.chomp().gsub(/\r/, '')
-    @history += str.split(/\n/)
-    if(@history.length > HISTORY_MAX_LENGTH)
-      @history.shift()
-    end
-  end
-
   def get_history()
     return @history.join("\n")
   end
 
   def destroy()
     @is_active = false
+  end
+
+  def display(str, tag)
+    # Split the lines up
+    lines = str.chomp().gsub(/\r/, '').split(/\n/)
+
+    # Display them and add them to history
+    lines.each do |line|
+      if(attached?())
+        puts("%s %s" % [tag, line])
+      end
+      @history << ("%s %s" % [tag, line])
+    end
+
+    # Shorten history if needed
+    while(@history.length > MAX_HISTORY_LENGTH) do
+      @history.shift()
+    end
   end
 
   def active?()
@@ -80,38 +89,20 @@ class UiSession
     # Queue our outgoing data
     @session.queue_outgoing(line)
 
-    # Add it to our history
-    add_history("[OUT] %s" % line)
-
     # Read incoming data, if it exists
     # TODO: Does this actually work?
-    if(@session.incoming?)
-      Ui.display(@session.read_incoming)
-    end
+#    if(@session.incoming?)
+#      throw("wtf?")
+#      Ui.display(@session.read_incoming)
+#    end
   end
 
   def data_received(data)
-    if(attached?)
-      print(data)
-    end
-
-    add_history("[IN]  %s" % data)
+    display(data, '[IN] ')
   end
 
   def data_acknowledged(data)
-    if(attached?)
-      puts()
-    end
-
-    data = data.chomp().gsub(/\r/, '')
-    data = data.split(/\n/)
-
-    data.each do |d|
-      if(attached?)
-        puts("[ACK] #{d}")
-      end
-      add_history("[ACK] %s" % d)
-    end
+    display(data, '[OUT]')
   end
 
   def handle_suspend()
