@@ -160,4 +160,92 @@ class Session
   def to_s()
     return "id: 0x%04x, state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
+
+  def handle_syn(packet)
+    # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
+    if(!syn_valid?())
+      notify_subscribers(:dnscat2_state_error, [@id, "SYN received in invalid state"])
+      return nil
+    end
+
+    set_their_seq(packet.seq)
+    set_name(packet.name)
+
+    # TODO: Allowing any arbitrary file is a security risk
+    if(!packet.download.nil?)
+      set_file(packet.download)
+    end
+
+    set_established()
+    notify_subscribers(:dnscat2_syn_received, [@id, @my_seq, packet.seq])
+
+
+    return Packet.create_syn(@id, @my_seq, nil)
+  end
+
+  def handle_msg(packet, max_length)
+    if(!msg_valid?())
+      notify_subscribers(:dnscat2_state_error, [@id, "MSG received in invalid state; sending FIN"])
+
+      # Kill the session as well - in case it exists
+      SessionManager.kill_session(@id)
+
+      return Packet.create_fin(@id)
+    end
+
+    # Validate the sequence number
+    if(@their_seq != packet.seq)
+      notify_subscribers(:dnscat2_msg_bad_seq, [@their_seq, packet.seq])
+
+      # Re-send the last packet
+      old_data = read_outgoing(max_length - Packet.msg_header_size)
+      return Packet.create_msg(@id, @my_seq, @their_seq, old_data)
+    end
+
+    # Validate the acknowledgement number
+    if(!valid_ack?(packet.ack))
+      notify_subscribers(:dnscat2_msg_bad_ack, [@my_seq, packet.ack])
+
+      # Re-send the last packet
+      old_data = read_outgoing(max_length - Packet.msg_header_size)
+      return Packet.create_msg(@id, @my_seq, @their_seq, old_data)
+    end
+
+    # Check if the session wants to close
+    if(!still_active?())
+      Log.WARNING("Session is finished, sending a FIN out")
+      return Packet.create_fin(@id)
+    end
+
+    # Acknowledge the data that has been received so far
+    # Note: this is where @my_seq is updated
+    ack_outgoing(packet.ack)
+
+    # Write the incoming data to the session
+    queue_incoming(packet.data)
+
+    # Increment the expected sequence number
+    increment_their_seq(packet.data.length)
+
+    new_data = read_outgoing(max_length - Packet.msg_header_size)
+    notify_subscribers(:dnscat2_msg, [packet.data, new_data])
+
+    # Build the new packet
+    return Packet.create_msg(@id, @my_seq, @their_seq, new_data)
+  end
+
+  def handle_fin(packet)
+    # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
+    if(!fin_valid?())
+      notify_subscribers(:dnscat2_state_error, [@id, "FIN received in invalid state"])
+      return Packet.create_fin(@id)
+    end
+
+    notify_subscribers(:dnscat2_fin, [@id])
+    SessionManager.kill_session(@id)
+
+    return Packet.create_fin(@id)
+  end
 end
+
+
