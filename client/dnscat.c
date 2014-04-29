@@ -84,6 +84,7 @@ void usage(char *name, char *message)
 " --name -n <name>        Give this connection a name, which will show up in\n"
 "                         the server list\n"
 " --download <filename>   Request the given file off the server\n"
+" --chunk <n>             start at the given chunk of the --download file\n"
 "\n"
 "Input options:\n"
 " --console --stdin       Send/receive output to the console [default]\n"
@@ -119,8 +120,9 @@ int main(int argc, char *argv[])
     {"h",       no_argument,       0, 0},
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
-    {"download",required_argument, 0, 0}, /* Name */
+    {"download",required_argument, 0, 0}, /* Download */
     {"n",       required_argument, 0, 0},
+    {"chunk",   required_argument, 0, 0},
 
     /* Console options. */
     {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
@@ -162,6 +164,7 @@ int main(int argc, char *argv[])
 
   char             *name     = NULL;
   char             *download = NULL;
+  uint32_t          chunk    = -1;
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
@@ -202,6 +205,10 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "download"))
         {
           download = optarg;
+        }
+        else if(!strcmp(option_name, "chunk"))
+        {
+          chunk = atoi(optarg);
         }
 
         /* Console-specific options. */
@@ -296,6 +303,12 @@ int main(int argc, char *argv[])
     driver_dns = driver_dns_create(group, argv[optind]);
   }
 
+  if(chunk != -1 && !download)
+  {
+    LOG_FATAL("--chunk can only be used with --download");
+    exit(1);
+  }
+
   if(driver_console)
   {
     LOG_WARNING("INPUT: Console");
@@ -338,6 +351,8 @@ int main(int argc, char *argv[])
     message_post_config_string("name", name);
   if(download)
     message_post_config_string("download", download);
+  if(chunk != 0xFFFFFFFF)
+    message_post_config_int("chunk", chunk);
 
   /* Kick things off */
   message_post_start();
