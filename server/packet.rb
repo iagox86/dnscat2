@@ -132,17 +132,22 @@ class Packet
     return create_syn(0, 0, 0, nil).length
   end
 
-  def Packet.create_msg(session_id, seq, ack, msg, options, option_data = {})
+  def Packet.create_msg(session_id, msg, options, option_data = {})
+    result = create_header(MESSAGE_TYPE_MSG, session_id)
     if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-      chunk_size = option_data['chunk_size'] || 0
-      return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, chunk_size, msg].pack("nnNA*")
+      chunk = option_data['chunk'] || 0
+      result += [chunk, msg].pack("nnNA*")
     else
-      return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, msg].pack("nnA*")
+      seq = option_data['seq'] || 0
+      ack = option_data['ack'] || 0
+      result += [seq, ack, msg].pack("nnA*")
     end
+
+    return result
   end
 
   def Packet.msg_header_size(options)
-    return create_msg(0, 0, 0, "", options).length
+    return create_msg(0, '', options, {'seq'=>0, 'ack'=>0, 'chunk'=>0}).length
   end
 
   def Packet.create_fin(session_id, options)

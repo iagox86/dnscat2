@@ -257,16 +257,15 @@ MESSAGE_TYPE_MSG: [0x01]
 
 - (uint8_t)  message_type [0x01]
 - (uint16_t) session_id
-- (uint16_t) sequence number
-- (uint16_t) acknowledgement number
 - (variable) other fields, as defined by 'options'
 - (byte[]) data
 
 Variable fields
-  - (if OPT_CHUNKED_DOWNLOAD is enabled, client -> server)
-  - (uint32_t) chunk number
-  - (if OPT_CHUNKED_DOWNLOAD is enabled, server -> client)
-  - (uint32_t) chunk size
+- (if OPT_CHUNKED_DOWNLOAD is enabled, client -> server)
+  - (uint32_t) chunk
+- (otherwise)
+  - (uint16_t) sequence number
+  - (uint16_t) acknowledgement number
 
 (Client to server)
 - The client should poll the server with a MSG from time to time (how

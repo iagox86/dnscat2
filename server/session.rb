@@ -196,45 +196,56 @@ class Session
       return Packet.create_fin(@id, @options)
     end
 
-    # Validate the sequence number
-    if(@their_seq != packet.seq)
-      notify_subscribers(:dnscat2_msg_bad_seq, [@their_seq, packet.seq])
+    if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)
+    else
+      # Validate the sequence number
+      if(@their_seq != packet.seq)
+        notify_subscribers(:dnscat2_msg_bad_seq, [@their_seq, packet.seq])
 
-      # Re-send the last packet
-      old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
-      return Packet.create_msg(@id, @my_seq, @their_seq, old_data, @options)
+        # Re-send the last packet
+        old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
+        return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
+      end
+
+      # Validate the acknowledgement number
+      if(!valid_ack?(packet.ack))
+        notify_subscribers(:dnscat2_msg_bad_ack, [@my_seq, packet.ack])
+
+        # Re-send the last packet
+        old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
+        return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
+      end
+
+      # Check if the session wants to close
+      if(!still_active?())
+        Log.WARNING("Session is finished, sending a FIN out")
+        return Packet.create_fin(@id, @options)
+      end
+
+      # Acknowledge the data that has been received so far
+      # Note: this is where @my_seq is updated
+      ack_outgoing(packet.ack)
+
+      # Write the incoming data to the session
+      # Increment the expected sequence number
+      increment_their_seq(packet.data.length)
     end
-
-    # Validate the acknowledgement number
-    if(!valid_ack?(packet.ack))
-      notify_subscribers(:dnscat2_msg_bad_ack, [@my_seq, packet.ack])
-
-      # Re-send the last packet
-      old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
-      return Packet.create_msg(@id, @my_seq, @their_seq, old_data, @options)
-    end
-
-    # Check if the session wants to close
-    if(!still_active?())
-      Log.WARNING("Session is finished, sending a FIN out")
-      return Packet.create_fin(@id, @options)
-    end
-
-    # Acknowledge the data that has been received so far
-    # Note: this is where @my_seq is updated
-    ack_outgoing(packet.ack)
 
     # Write the incoming data to the session
     queue_incoming(packet.data)
 
-    # Increment the expected sequence number
-    increment_their_seq(packet.data.length)
+    packet = nil
+    if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)
+      # TODO
+    else
+      new_data = read_outgoing(max_length - Packet.msg_header_size(@options))
 
-    new_data = read_outgoing(max_length - Packet.msg_header_size(@options))
+      return Packet.create_msg(@id, new_data, @options, { 'seq' => @my_seq, 'ack' => @their_seq, })
+    end
+
     notify_subscribers(:dnscat2_msg, [packet.data, new_data])
-
     # Build the new packet
-    return Packet.create_msg(@id, @my_seq, @their_seq, new_data, @options)
+    return packet
   end
 
   def handle_fin(packet)
