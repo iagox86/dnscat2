@@ -20,6 +20,7 @@ class Packet
   # OPT_TUNNEL              = 0x02 # Deprecated
   # OPT_DATAGRAM            = 0x04 # Deprecated
   OPT_DOWNLOAD            = 0x08
+  OPT_CHUNKED_DOWNLOAD    = 0x10
 
   attr_reader :data, :type, :session_id, :options, :seq, :ack
   attr_reader :name
@@ -60,7 +61,7 @@ class Packet
 
     # Parse the download option, if it exists
     @download = nil
-    if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
+    if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD || (@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
       if(data.index("\0").nil?)
         raise(DnscatException, "OPT_DOWNLOAD set, but no null-terminated name given")
       end
@@ -74,14 +75,21 @@ class Packet
     end
   end
 
-  def parse_msg(data)
-    at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg)")
+  def parse_msg(data, options)
+    if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+      at_least?(data, 8) || raise(DnscatException, "Packet is too short (msg d/l)")
 
-    @seq, @ack = data.unpack("nn")
-    @data = data[4..-1] # Remove the first four bytes
+      @seq, @ack, @chunk = data.unpack("nnN")
+      @data = data[8..-1] # Remove the first eight bytes
+    else
+      at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg)")
+
+      @seq, @ack = data.unpack("nn")
+      @data = data[4..-1] # Remove the first four bytes
+    end
   end
 
-  def parse_fin(data)
+  def parse_fin(data, options)
     if(data.length > 0)
       raise(DnscatException, "Extra data on the end of a FIN packet")
     end
@@ -89,21 +97,26 @@ class Packet
 
   def initialize(data)
     # Parse the hader
+    parse_header(data)
+  end
+
+  def parse_body(data, options)
+    # Parse the hader
     data = parse_header(data)
 
     # Parse the message differently depending on what type it is
     if(@type == MESSAGE_TYPE_SYN)
       parse_syn(data)
     elsif(@type == MESSAGE_TYPE_MSG)
-      parse_msg(data)
+      parse_msg(data, options)
     elsif(@type == MESSAGE_TYPE_FIN)
-      parse_fin(data)
+      parse_fin(data, options)
     else
       raise(DnscatException, "Unknown message type: #{@type}")
     end
   end
 
-  def Packet.parse(data)
+  def Packet.parse_header(data)
     return Packet.new(data)
   end
 
@@ -111,8 +124,7 @@ class Packet
     return [type, session_id].pack("Cn")
   end
 
-  def Packet.create_syn(session_id, seq, options = nil)
-    options = options.nil? ? 0 : options
+  def Packet.create_syn(session_id, seq, options = 0)
     return create_header(MESSAGE_TYPE_SYN, session_id) + [seq, options].pack("nn")
   end
 
@@ -120,15 +132,20 @@ class Packet
     return create_syn(0, 0, 0, nil).length
   end
 
-  def Packet.create_msg(session_id, seq, ack, msg)
-    return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, msg].pack("nnA*")
+  def Packet.create_msg(session_id, seq, ack, msg, options, option_data = {})
+    if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+      chunk_size = option_data['chunk_size'] || 0
+      return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, chunk_size, msg].pack("nnNA*")
+    else
+      return create_header(MESSAGE_TYPE_MSG, session_id) + [seq, ack, msg].pack("nnA*")
+    end
   end
 
-  def Packet.msg_header_size()
-    return create_msg(0, 0, 0, "").length
+  def Packet.msg_header_size(options)
+    return create_msg(0, 0, 0, "", options).length
   end
 
-  def Packet.create_fin(session_id)
+  def Packet.create_fin(session_id, options)
     return create_header(MESSAGE_TYPE_FIN, session_id)
   end
 
@@ -137,13 +154,23 @@ class Packet
   end
 
   def to_s()
+    result = nil
     if(@type == MESSAGE_TYPE_SYN)
-      return "[[SYN]] :: session = %04x, seq = %04x, options = %04x" % [@session_id, @seq, @options]
+      result = "[[SYN]] :: session = %04x, seq = %04x, options = %04x" % [@session_id, @seq, @options]
+
+      if((options & OPT_DOWNLOAD) == OPT_DOWNLOAD || (options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        result += ", download = %s" % @download
+      end
     elsif(@type == MESSAGE_TYPE_MSG)
       data = @data.gsub(/\n/, '\n')
-      return "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, data]
+      result = "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, data]
+      if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        result += ", chunk number/size: %d" % @chunk
+      end
     elsif(@type == MESSAGE_TYPE_FIN)
-      return "[[FIN]] :: session = %04x" % [@session_id]
+      result = "[[FIN]] :: session = %04x" % [@session_id]
     end
+
+    return result
   end
 end

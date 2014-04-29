@@ -9,10 +9,10 @@ Immediate needs:
 - Choose better default names for each driver
 - Add a 'kill' command
 - Windows support
-- Allow reading arbitrary chunks of data rather than MSG, which is sequential (designed for files)
-- Move methods in SessionManager.rb that basically operate on exactly a session into Session.rb
 - Add more debugging messages throughout, especially newer functionality
 - Make safe_free() null out variables to prevent double-free situations
+- Make a server-size state for 'exception' (in addition to closed/idle/etc)
+- in session.rb, get rid of accessor setters that we don't need anymore
 
 Future stuff:
 - Other protocols (ping/http/etc)

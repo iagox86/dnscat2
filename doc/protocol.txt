@@ -178,8 +178,9 @@ If an unexpected FIN is received, the server will ignore it:
 #define MESSAGE_TYPE_FIN        (0x02)
 
 /* Options */
-#define OPT_NAME     (0x01)
-#define OPT_DOWNLOAD (0x08)
+#define OPT_NAME             (0x01)
+#define OPT_DOWNLOAD         (0x08)
+#define OPT_CHUNKED_DOWNLOAD (0x10)
 
 +----------+
 | Messages |
@@ -201,7 +202,7 @@ MESSAGE_TYPE_SYN [0x00]
 - (uint16_t) options
 If OPT_NAME is set:
   - (ntstring) name
-if OPT_DOWNLOAD is set:
+if OPT_DOWNLOAD or OPT_CHUNKED_DOWNLOAD is set:
   - (ntstring) filename
 
 (Client to server)
@@ -224,6 +225,10 @@ if OPT_DOWNLOAD is set:
     - Server should serve that file in place of stdin
     - Servers should *not* let users read arbitrary files, but rather
       make it up to the user to choose which files/folders to allow
+  - CHUNKED_DOWNLOAD - 0x10
+    - Packet contains the filename field, as specified in OPT_DOWNLOAD
+    - Each MSG also contains an offset field
+    - Each data chunk is exactly XXX bytes long
 
 (Server to client)
 - The server responds with its own SYN, containing its initial sequence
@@ -256,6 +261,12 @@ MESSAGE_TYPE_MSG: [0x01]
 - (uint16_t) acknowledgement number
 - (variable) other fields, as defined by 'options'
 - (byte[]) data
+
+Variable fields
+  - (if OPT_CHUNKED_DOWNLOAD is enabled, client -> server)
+  - (uint32_t) chunk number
+  - (if OPT_CHUNKED_DOWNLOAD is enabled, server -> client)
+  - (uint32_t) chunk size
 
 (Client to server)
 - The client should poll the server with a MSG from time to time (how

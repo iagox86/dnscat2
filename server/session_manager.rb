@@ -81,7 +81,7 @@ class SessionManager
     session = find(packet.session_id)
     if(session.nil?)
       Log.WARNING("MSG received in non-existent session: %d" % packet.session_id)
-      return Packet.create_fin(packet.session_id)
+      return Packet.create_fin(packet.session_id, 0)
     end
 
     return session.handle_msg(packet, max_length)
@@ -92,7 +92,7 @@ class SessionManager
 
     if(session.nil?)
       Log.WARNING("FIN received in non-existent session: %d" % packet.session_id)
-      return Packet.create_fin(packet.session_id)
+      return Packet.create_fin(packet.session_id, 0)
     end
 
     return session.handle_fin(packet)
@@ -103,9 +103,12 @@ class SessionManager
       session_id = nil
 
       begin
-        packet = Packet.parse(data)
+        packet = Packet.parse_header(data)
         session_id = packet.session_id # This is helpful if an exception is thrown
         session = find(session_id)
+
+        # Parse the packet's body
+        packet.parse_body(data, session.nil?() ? 0 : session.options)
 
         # Poke everybody else to let the know we're still seeing packets
         if(!session.nil?)
@@ -124,7 +127,6 @@ class SessionManager
         end
 
         if(!response.nil?)
-          # notify_subscribers(:dnscat2_send, [Packet.parse(response)])
           if(response.length > max_length)
             raise(RuntimeError, "Tried to send packet of #{response.length} bytes, but max_length is #{max_length} bytes")
           end

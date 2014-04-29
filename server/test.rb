@@ -42,20 +42,20 @@ class Test
     their_seq  = THEIR_ISN
 
     @data << {
-      :send => Packet.create_msg(KILLED_SESSION_ID, my_seq, their_seq, MY_DATA),
-      :recv => Packet.create_fin(KILLED_SESSION_ID),
+      :send => Packet.create_msg(KILLED_SESSION_ID, my_seq, their_seq, MY_DATA, 0),
+      :recv => Packet.create_fin(KILLED_SESSION_ID, 0),
       :name => "Sending an unexpected MSG (should respond with a FIN)",
     }
 
     @data << {
-      :send => Packet.create_fin(SESSION_ID),
-      :recv => Packet.create_fin(SESSION_ID),
+      :send => Packet.create_fin(SESSION_ID, 0),
+      :recv => Packet.create_fin(SESSION_ID, 0),
       :name => "Sending an unexpected FIN (should respond with a FIN)",
     }
 
     @data << {
-      :send => Packet.create_syn(SESSION_ID, my_seq),
-      :recv => Packet.create_syn(SESSION_ID, their_seq),
+      :send => Packet.create_syn(SESSION_ID, my_seq, 0),
+      :recv => Packet.create_syn(SESSION_ID, their_seq, 0),
       :name => "Initial SYN (SEQ 0x%04x => 0x%04x)" % [my_seq, their_seq],
     }
 
@@ -66,102 +66,102 @@ class Test
     }
 
     @data << {
-      :send => Packet.create_syn(0x4321, MY_ISN),
-      :recv => Packet.create_syn(0x4321, THEIR_ISN),
+      :send => Packet.create_syn(0x4321, MY_ISN, 0),
+      :recv => Packet.create_syn(0x4321, THEIR_ISN, 0),
       :name => "Initial SYN, session 0x4321 (SEQ 0x5555 => 0x4444) (should create new session)",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq,               MY_DATA),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq + MY_DATA.length, THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq,               MY_DATA, 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq + MY_DATA.length, THEIR_DATA, 0),
       :name => "Sending some initial data",
     }
     my_seq += MY_DATA.length # Update my seq
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq+1,   0,     "This is more data with a bad SEQ"),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq, THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq+1,   0,     "This is more data with a bad SEQ", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq, THEIR_DATA, 0),
       :name => "Sending data with a bad SEQ (too low), this should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq - 100,   0,   "This is more data with a bad SEQ"),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq, THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq - 100,   0,   "This is more data with a bad SEQ", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq, THEIR_DATA, 0),
       :name => "Sending data with a bad SEQ (way too low), this should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq+100, 0,   "This is more data with a bad SEQ"),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq, THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq+100, 0,   "This is more data with a bad SEQ", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq, THEIR_DATA, 0),
       :name => "Sending data with a bad SEQ (too high), this should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq,                 MY_DATA2),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq + MY_DATA2.length,  THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq,                 MY_DATA2, 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq + MY_DATA2.length,  THEIR_DATA, 0),
       :name => "Sending another valid packet, but with a bad ACK, causing the server to repeat the last message",
     }
     my_seq += MY_DATA2.length
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq ^ 0xFFFF, ""),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,             THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq ^ 0xFFFF, "", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,             THEIR_DATA, 0),
       :name => "Sending a packet with a very bad ACK, which should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq - 1,      ""),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,             THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq - 1,      "", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,             THEIR_DATA, 0),
       :name => "Sending a packet with a slightly bad ACK (one too low), which should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq + THEIR_DATA.length + 1, ""),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,                            THEIR_DATA),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq + THEIR_DATA.length + 1, "", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,                            THEIR_DATA, 0),
       :name => "Sending a packet with a slightly bad ACK (one too high), which should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,        their_seq + 1, ""),
-      :recv => Packet.create_msg(SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1]),
+      :send => Packet.create_msg(SESSION_ID, my_seq,        their_seq + 1, "", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1], 0),
       :name => "ACKing the first byte of their data, which should cause them to send the second byte and onwards",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,        their_seq + 1, ""),
-      :recv => Packet.create_msg(SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1]),
+      :send => Packet.create_msg(SESSION_ID, my_seq,        their_seq + 1, "", 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1], 0),
       :name => "ACKing just the first byte again",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,        their_seq + 1,             MY_DATA3),
-      :recv => Packet.create_msg(SESSION_ID, their_seq + 1, my_seq + MY_DATA3.length,  THEIR_DATA[1..-1]),
+      :send => Packet.create_msg(SESSION_ID, my_seq,        their_seq + 1,             MY_DATA3, 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq + 1, my_seq + MY_DATA3.length,  THEIR_DATA[1..-1], 0),
       :name => "Still ACKing the first byte, but sending some more of our own data",
     }
     my_seq += MY_DATA3.length
 
     their_seq += THEIR_DATA.length
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq, ''),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,    ''),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq, '', 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,    '', 0),
       :name => "ACKing their data properly, they should respond with nothing",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq, ''),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,    ''),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq, '', 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq,    '', 0),
       :name => "Sending a blank MSG packet, expecting to receive a black MSG packet",
     }
 
     @data << {
-      :send => Packet.create_syn(SESSION_ID, my_seq),
+      :send => Packet.create_syn(SESSION_ID, my_seq, 0),
       :recv => nil,
       :name => "Attempting to send a SYN before the FIN - should be ignored",
     }
 
     @data << {
-      :send => Packet.create_fin(SESSION_ID),
-      :recv => Packet.create_fin(SESSION_ID),
+      :send => Packet.create_fin(SESSION_ID, 0),
+      :recv => Packet.create_fin(SESSION_ID, 0),
       :name => "Sending a FIN, should receive a FIN",
     }
 
@@ -169,14 +169,14 @@ class Test
     my_seq     = MY_ISN - 1000
     their_seq  = THEIR_ISN
     @data << {
-      :send => Packet.create_syn(SESSION_ID, my_seq),
-      :recv => Packet.create_syn(SESSION_ID, their_seq),
+      :send => Packet.create_syn(SESSION_ID, my_seq, 0),
+      :recv => Packet.create_syn(SESSION_ID, their_seq, 0),
       :name => "Attempting re-use the old session id - this should work flawlessly",
     }
 
     @data << {
-      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq,               MY_DATA),
-      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq + MY_DATA.length, ""),
+      :send => Packet.create_msg(SESSION_ID, my_seq,    their_seq,               MY_DATA, 0),
+      :recv => Packet.create_msg(SESSION_ID, their_seq, my_seq + MY_DATA.length, "", 0),
       :name => "Sending initial data in the new session",
     }
     my_seq += MY_DATA.length # Update my seq
@@ -185,124 +185,124 @@ class Test
     my_seq     = MY_ISN - 1000
     their_seq  = THEIR_ISN
     @data << {
-      :send => Packet.create_syn(0x4411, my_seq),
-      :recv => Packet.create_syn(0x4411, their_seq),
+      :send => Packet.create_syn(0x4411, my_seq, 0),
+      :recv => Packet.create_syn(0x4411, their_seq, 0),
       :name => "Attempting re-use the old session id - this should work flawlessly",
     }
 
     @data << {
-      :send => Packet.create_msg(0x4411, my_seq,    their_seq,               MY_DATA),
-      :recv => Packet.create_msg(0x4411, their_seq, my_seq + MY_DATA.length, ""),
+      :send => Packet.create_msg(0x4411, my_seq,    their_seq,               MY_DATA, 0),
+      :recv => Packet.create_msg(0x4411, their_seq, my_seq + MY_DATA.length, "", 0),
       :name => "Sending initial data in the new session",
     }
 
     # Close both sessions
     @data << {
-      :send => Packet.create_fin(SESSION_ID),
-      :recv => Packet.create_fin(SESSION_ID),
+      :send => Packet.create_fin(SESSION_ID, 0),
+      :recv => Packet.create_fin(SESSION_ID, 0),
       :name => "Sending a FIN, should receive a FIN",
     }
 
     @data << {
-      :send => Packet.create_fin(0x4411),
-      :recv => Packet.create_fin(0x4411),
+      :send => Packet.create_fin(0x4411, 0),
+      :recv => Packet.create_fin(0x4411, 0),
       :name => "Sending a FIN, should receive a FIN",
     }
 
     @data << {
-      :send => Packet.create_fin(SESSION_ID),
-      :recv => Packet.create_fin(SESSION_ID),
+      :send => Packet.create_fin(SESSION_ID, 0),
+      :recv => Packet.create_fin(SESSION_ID, 0),
       :name => "Sending a FIN for a session that's already closed, it should ignore it",
     }
 
     my_seq = OVERFLOW_MY_ISN
     their_seq = OVERFLOW_THEIR_ISN
     @data << {
-      :send => Packet.create_syn(OVERFLOW_SESSION_ID, my_seq),
-      :recv => Packet.create_syn(OVERFLOW_SESSION_ID, their_seq),
+      :send => Packet.create_syn(OVERFLOW_SESSION_ID, my_seq, 0),
+      :recv => Packet.create_syn(OVERFLOW_SESSION_ID, their_seq, 0),
       :name => "Sending a SYN for a session that will quickly overflow",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq,               MY_DATA),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq + MY_DATA.length, THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq,               MY_DATA, 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq + MY_DATA.length, THEIR_DATA, 0),
       :name => "Sending data that will cause an overflow of the sequence number",
     }
 
     my_seq += MY_DATA.length # Update my seq
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq+1,   0,     "This is more data with a bad SEQ"),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq, THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq+1,   0,     "This is more data with a bad SEQ", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq, THEIR_DATA, 0),
       :name => "Sending data with a bad SEQ (too low), this should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq - 1,   0,   "This is more data with a bad SEQ"),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq, THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq - 1,   0,   "This is more data with a bad SEQ", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq, THEIR_DATA, 0),
       :name => "Sending data with a bad SEQ (way too low), this should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq+100, 0,   "This is more data with a bad SEQ"),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq, THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq+100, 0,   "This is more data with a bad SEQ", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq, THEIR_DATA, 0),
       :name => "Sending data with a bad SEQ (too high), this should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq,                 MY_DATA2),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq + MY_DATA2.length,  THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq,                 MY_DATA2, 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq + MY_DATA2.length,  THEIR_DATA, 0),
       :name => "Sending another valid packet, with data, but with a bad ACK, causing the server to repeat the last message",
     }
     my_seq += MY_DATA2.length
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq ^ 0x1234, ""),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,             THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq ^ 0x1234, "", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,             THEIR_DATA, 0),
       :name => "Sending a packet with a very bad ACK, which should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq - 1,      ""),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,             THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq - 1,      "", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,             THEIR_DATA, 0),
       :name => "Sending a packet with a slightly bad ACK (one too low), which should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq + THEIR_DATA.length + 1, ""),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,                            THEIR_DATA),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq + THEIR_DATA.length + 1, "", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,                            THEIR_DATA, 0),
       :name => "Sending a packet with a slightly bad ACK (one too high), which should trigger a re-send",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,        their_seq + 1, ""),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1]),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,        their_seq + 1, "", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1], 0),
       :name => "ACKing the first byte of their data, which should cause them to send the second byte and onwards",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,        their_seq + 1, ""),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1]),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,        their_seq + 1, "", 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq + 1, my_seq,        THEIR_DATA[1..-1], 0),
       :name => "ACKing just the first byte again",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,        their_seq + 1,             MY_DATA3),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq + 1, my_seq + MY_DATA3.length,  THEIR_DATA[1..-1]),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,        their_seq + 1,             MY_DATA3, 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq + 1, my_seq + MY_DATA3.length,  THEIR_DATA[1..-1], 0),
       :name => "Still ACKing the first byte, but sending some more of our own data",
     }
     my_seq += MY_DATA3.length
 
     their_seq += THEIR_DATA.length
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq, ''),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,    ''),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq, '', 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,    '', 0),
       :name => "ACKing their data properly, they should respond with nothing",
     }
 
     @data << {
-      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq, ''),
-      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,    ''),
+      :send => Packet.create_msg(OVERFLOW_SESSION_ID, my_seq,    their_seq, '', 0),
+      :recv => Packet.create_msg(OVERFLOW_SESSION_ID, their_seq, my_seq,    '', 0),
       :name => "Sending a blank MSG packet, expecting to receive a black MSG packet",
     }
 
@@ -319,15 +319,27 @@ class Test
       out = @data.shift
       response = yield(out[:send], MAX_LENGTH)
 
+      if(out[:recv].nil?)
+        out_str = "<no response>"
+      else
+        packet = Packet.parse_header(out[:recv])
+        packet.parse_body(out[:recv], 0)
+        out_str = packet.to_s
+      end
+
+      if(response.nil?)
+        in_str = "<no response>"
+      else
+        packet = Packet.parse_header(response)
+        packet.parse_body(response, 0)
+        in_str = packet.to_s
+      end
+
       if(response != out[:recv])
         @@failure += 1
         puts(out[:name])
-        puts(" >> Expected: #{out[:recv].nil? ? "<no response> " : Packet.parse(out[:recv])}")
-        if(response.nil?)
-          puts(" >> Received: [nil]")
-        else
-          puts(" >> Received: #{Packet.parse(response)}")
-        end
+        puts(" >> Expected: #{out_str} ")
+        puts(" >> Received: #{in_str} ")
       else
         @@success += 1
         puts("SUCCESS: #{out[:name]}")
