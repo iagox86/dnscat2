@@ -81,7 +81,7 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options);
 /* Create a packet with the given characteristics. */
 packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options);
 packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
-packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk, uint8_t *data, size_t data_length);
+packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk);
 packet_t *packet_create_fin(uint16_t session_id);
 
 /* Set the OPT_NAME field and add a name value. */
@@ -89,6 +89,9 @@ void packet_syn_set_name(packet_t *packet, char *name);
 
 /* Set the OPT_DOWNLOAD field and add a filename value */
 void packet_syn_set_download(packet_t *packet, char *filename);
+
+/* Set the OPT_CHUNKED_DOWNLOAD field */
+void packet_syn_set_chunked_download(packet_t *packet);
 
 /* Get minimum packet sizes so we can avoid magic numbers. */
 size_t packet_get_syn_size();

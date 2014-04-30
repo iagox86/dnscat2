@@ -32,7 +32,10 @@ typedef struct
   uint16_t        my_seq;
   NBBOOL          is_closed;
   char           *name;
+
   char           *download;
+  uint32_t        download_first_chunk;
+  uint32_t        download_current_chunk;
 
   buffer_t       *outgoing_data;
 
@@ -112,6 +115,8 @@ static void do_send_stuff(session_t *session)
         packet_syn_set_name(packet, session->name);
       if(session->download)
         packet_syn_set_download(packet, session->download);
+      if(session->download_first_chunk)
+        packet_syn_set_chunked_download(packet);
 
       update_counter(session);
       do_send_packet(session, packet);
@@ -120,12 +125,18 @@ static void do_send_stuff(session_t *session)
       break;
 
     case SESSION_STATE_ESTABLISHED:
-      /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
-      data = buffer_read_remaining_bytes(session->outgoing_data, &length, max_packet_length - packet_get_msg_size(session->options), FALSE);
-      LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
+      if(session->download_current_chunk)
+      {
+        packet = packet_create_msg_chunked(session->id, session->download_current_chunk);
+      }
+      else
+      {
+        /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
+        data = buffer_read_remaining_bytes(session->outgoing_data, &length, max_packet_length - packet_get_msg_size(session->options), FALSE);
+        LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
 
-      /* Create a packet with that data */
-      packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, length);
+        packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, length);
+      }
 
       /* Send the packet */
       update_counter(session);
@@ -221,7 +232,7 @@ static void handle_shutdown()
     message_post_close_session(entry->session->id);
 }
 
-static uint16_t handle_create_session(char *name, char *download)
+static uint16_t handle_create_session(char *name, char *download, uint32_t first_chunk)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
   session_entry_t *entry;
@@ -244,6 +255,9 @@ static uint16_t handle_create_session(char *name, char *download)
   session->download = NULL;
   if(download)
     session->download = safe_strdup(download);
+
+  session->download_first_chunk   = first_chunk;
+  session->download_current_chunk = first_chunk;
 
   /* Add it to the linked list. */
   entry = safe_malloc(sizeof(session_entry_t));
@@ -348,49 +362,66 @@ static void handle_packet_in(uint8_t *data, size_t length)
       {
         LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
 
-        /* Validate the SEQ */
-        if(packet->body.msg.options.normal.seq == session->their_seq)
+        if(session->download_first_chunk)
         {
-          /* Verify the ACK is sane */
-          uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
-
-          if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_data))
+          if(packet->body.msg.options.chunked.chunk == session->download_current_chunk)
           {
-            /* Reset the retransmit counter since we got some valid data. */
-            reset_counter(session);
-
-            /* Increment their sequence number */
-            session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
-
-            /* Remove the acknowledged data from the buffer */
-            buffer_consume(session->outgoing_data, bytes_acked);
-
-            /* Increment my sequence number */
-            if(bytes_acked != 0)
-            {
-              session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
-              poll_right_away = TRUE;
-            }
-
-            /* Print the data, if we received any, and then immediately receive more. */
-            if(packet->body.msg.data_length > 0)
-            {
-              message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
-              poll_right_away = TRUE;
-            }
+            message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
+            session->download_current_chunk++;
           }
           else
           {
-            LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_data));
+            LOG_WARNING("Bad chunk received (%d instead of %d)", packet->body.msg.options.chunked.chunk, session->download_current_chunk);
             packet_destroy(packet);
             return;
           }
         }
         else
         {
-          LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
-          packet_destroy(packet);
-          return;
+          /* Validate the SEQ */
+          if(packet->body.msg.options.normal.seq == session->their_seq)
+          {
+            /* Verify the ACK is sane */
+            uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
+
+            if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_data))
+            {
+              /* Reset the retransmit counter since we got some valid data. */
+              reset_counter(session);
+
+              /* Increment their sequence number */
+              session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
+
+              /* Remove the acknowledged data from the buffer */
+              buffer_consume(session->outgoing_data, bytes_acked);
+
+              /* Increment my sequence number */
+              if(bytes_acked != 0)
+              {
+                session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
+                poll_right_away = TRUE;
+              }
+
+              /* Print the data, if we received any, and then immediately receive more. */
+              if(packet->body.msg.data_length > 0)
+              {
+                message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
+                poll_right_away = TRUE;
+              }
+            }
+            else
+            {
+              LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_data));
+              packet_destroy(packet);
+              return;
+            }
+          }
+          else
+          {
+            LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
+            packet_destroy(packet);
+            return;
+          }
         }
       }
       else if(packet->packet_type == PACKET_TYPE_FIN)
@@ -454,7 +485,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_CREATE_SESSION:
-      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.name, message->message.create_session.download);
+      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.name, message->message.create_session.download, message->message.create_session.first_chunk);
       break;
 
     case MESSAGE_CLOSE_SESSION:

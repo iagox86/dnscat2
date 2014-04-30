@@ -85,15 +85,15 @@ packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t a
   return packet;
 }
 
-packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk, uint8_t *data, size_t data_length)
+packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type                    = PACKET_TYPE_MSG;
   packet->session_id                     = session_id;
   packet->body.msg.options.chunked.chunk = chunk;
-  packet->body.msg.data                  = safe_memcpy(data, data_length);
-  packet->body.msg.data_length           = data_length;
+  packet->body.msg.data                  = safe_memcpy("", 0);
+  packet->body.msg.data_length           = 0;
 
   return packet;
 }
@@ -140,6 +140,22 @@ void packet_syn_set_download(packet_t *packet, char *filename)
   packet->body.syn.filename = safe_strdup(filename);
 }
 
+void packet_syn_set_chunked_download(packet_t *packet)
+{
+  if(packet->packet_type != PACKET_TYPE_SYN)
+  {
+    LOG_FATAL("Attempted to set the 'download chunk' field of a non-SYN message\n");
+    exit(1);
+  }
+
+  /* Free the name if it's already set */
+  if(packet->body.syn.filename)
+    safe_free(packet->body.syn.filename);
+
+  packet->body.syn.options |= OPT_DOWNLOAD;
+  packet->body.syn.options |= OPT_CHUNKED_DOWNLOAD;
+}
+
 size_t packet_get_syn_size()
 {
   static size_t size = 0;
@@ -166,7 +182,7 @@ size_t packet_get_msg_size(options_t options)
     packet_t *p;
 
     if(options & OPT_CHUNKED_DOWNLOAD)
-      p = packet_create_msg_chunked(0, 0, (uint8_t *)"", 0);
+      p = packet_create_msg_chunked(0, 0);
     else
       p = packet_create_msg_normal(0, 0, 0, (uint8_t *)"", 0);
     uint8_t *data = packet_to_bytes(p, &size, options);

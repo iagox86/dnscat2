@@ -261,8 +261,8 @@ MESSAGE_TYPE_MSG: [0x01]
 - (byte[]) data
 
 Variable fields
-- (if OPT_CHUNKED_DOWNLOAD is enabled, client -> server)
-  - (uint32_t) chunk
+- (if OPT_CHUNKED_DOWNLOAD is enabled)
+  - (uint32_t) chunk number
 - (otherwise)
   - (uint16_t) sequence number
   - (uint16_t) acknowledgement number

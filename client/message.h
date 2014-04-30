@@ -92,6 +92,7 @@ typedef struct
     {
       char *name;
       char *download;
+      uint32_t first_chunk;
 
       struct
       {
@@ -168,6 +169,7 @@ void message_post_start();
 void message_post_shutdown();
 uint16_t message_post_create_session(char *name);
 uint16_t message_post_create_session_download(char *name, char *download);
+uint16_t message_post_create_session_chunked_download(char *name, char *download, uint32_t starting_chunk);
 void message_post_session_created(uint16_t session_id);
 void message_post_close_session(uint16_t session_id);
 void message_post_session_closed(uint16_t session_id);
