@@ -29,16 +29,30 @@ typedef struct
 
 typedef enum
 {
-  OPT_NAME     = 0x01,
+  OPT_NAME             = 0x01,
   /* OPT_TUNNEL = 2,   // Deprecated */
   /* OPT_DATAGRAM = 4, // Deprecated */
-  OPT_DOWNLOAD = 0x08,
-} syn_option_t;
+  OPT_DOWNLOAD         = 0x08,
+  OPT_CHUNKED_DOWNLOAD = 0x10,
+} options_t;
 
 typedef struct
 {
   uint16_t seq;
   uint16_t ack;
+} normal_msg_t;
+
+typedef struct
+{
+  uint32_t chunk;
+} chunked_msg_t;
+
+typedef struct
+{
+  union {
+    normal_msg_t normal;
+    chunked_msg_t chunked;
+  } options;
   uint8_t *data;
   size_t   data_length;
 } msg_packet_t;
@@ -62,11 +76,12 @@ typedef struct
 } packet_t;
 
 /* Parse a packet from a byte stream. */
-packet_t *packet_parse(uint8_t *data, size_t length);
+packet_t *packet_parse(uint8_t *data, size_t length, options_t options);
 
 /* Create a packet with the given characteristics. */
-packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options);
-packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
+packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options);
+packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
+packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk, uint8_t *data, size_t data_length);
 packet_t *packet_create_fin(uint16_t session_id);
 
 /* Set the OPT_NAME field and add a name value. */
@@ -77,20 +92,19 @@ void packet_syn_set_download(packet_t *packet, char *filename);
 
 /* Get minimum packet sizes so we can avoid magic numbers. */
 size_t packet_get_syn_size();
-size_t packet_get_msg_size();
-size_t packet_get_fin_size();
+size_t packet_get_msg_size(options_t options);
+size_t packet_get_fin_size(options_t options);
 
 /* Free the packet data structures. */
 void packet_destroy(packet_t *packet);
 
 /* Get a user-readable display of the packet (don't forget to safe_free() the memory!) */
-char *packet_to_s(packet_t *packet);
+char *packet_to_s(packet_t *packet, options_t options);
 
 /* Print the packet (debugging, mostly) */
-void packet_print(packet_t *packet);
+void packet_print(packet_t *packet, options_t options);
 
 /* Needs to be freed with safe_free() */
-uint8_t *packet_to_bytes(packet_t *packet, size_t *length);
-
+uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options);
 
 #endif

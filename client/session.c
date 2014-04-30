@@ -37,6 +37,8 @@ typedef struct
   buffer_t       *outgoing_data;
 
   time_t          last_transmit;
+
+  options_t       options;
 } session_t;
 typedef struct _session_entry_t
 {
@@ -78,10 +80,10 @@ static session_t *sessions_get_by_id(uint16_t session_id)
   return NULL;
 }
 
-static void do_send_packet(packet_t *packet)
+static void do_send_packet(session_t *session, packet_t *packet)
 {
   size_t length;
-  uint8_t *data = packet_to_bytes(packet, &length);
+  uint8_t *data = packet_to_bytes(packet, &length, session->options);
 
   message_post_packet_out(data, length);
 
@@ -112,22 +114,22 @@ static void do_send_stuff(session_t *session)
         packet_syn_set_download(packet, session->download);
 
       update_counter(session);
-      do_send_packet(packet);
+      do_send_packet(session, packet);
 
       packet_destroy(packet);
       break;
 
     case SESSION_STATE_ESTABLISHED:
       /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
-      data = buffer_read_remaining_bytes(session->outgoing_data, &length, max_packet_length - packet_get_msg_size(), FALSE);
+      data = buffer_read_remaining_bytes(session->outgoing_data, &length, max_packet_length - packet_get_msg_size(session->options), FALSE);
       LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
 
       /* Create a packet with that data */
-      packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, length);
+      packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, length);
 
       /* Send the packet */
       update_counter(session);
-      do_send_packet(packet);
+      do_send_packet(session, packet);
 
       /* Free everything */
       packet_destroy(packet);
@@ -172,7 +174,7 @@ static void remove_completed_sessions()
       /* Send a final FIN */
       packet_t *packet = packet_create_fin(session->id);
       LOG_WARNING("Session %d is out of data and closed, killing it!", session->id);
-      do_send_packet(packet);
+      do_send_packet(session, packet);
       packet_destroy(packet);
 
       /* Let listeners know that the session is closed before we unlink the session. */
@@ -294,8 +296,11 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
 static void handle_packet_in(uint8_t *data, size_t length)
 {
   NBBOOL poll_right_away = FALSE;
-  packet_t *packet = packet_parse(data, length);
+
+  /* Parse the packet to get the session id */
+  packet_t *packet = packet_parse(data, length, 0);
   session_t *session = sessions_get_by_id(packet->session_id);
+  packet_destroy(packet);
 
   if(!session)
   {
@@ -304,6 +309,9 @@ static void handle_packet_in(uint8_t *data, size_t length)
     return;
   }
 
+  /* Now that we know the session, parse it properly */
+  packet = packet_parse(data, length, session->options);
+
   switch(session->state)
   {
     case SESSION_STATE_NEW:
@@ -311,6 +319,7 @@ static void handle_packet_in(uint8_t *data, size_t length)
       {
         LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
         session->their_seq = packet->body.syn.seq;
+        session->options   = packet->body.syn.options;
         session->state = SESSION_STATE_ESTABLISHED;
       }
       else if(packet->packet_type == PACKET_TYPE_MSG)
@@ -340,10 +349,10 @@ static void handle_packet_in(uint8_t *data, size_t length)
         LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
 
         /* Validate the SEQ */
-        if(packet->body.msg.seq == session->their_seq)
+        if(packet->body.msg.options.normal.seq == session->their_seq)
         {
           /* Verify the ACK is sane */
-          uint16_t bytes_acked = packet->body.msg.ack - session->my_seq;
+          uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
 
           if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_data))
           {
@@ -379,7 +388,7 @@ static void handle_packet_in(uint8_t *data, size_t length)
         }
         else
         {
-          LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.seq);
+          LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
           packet_destroy(packet);
           return;
         }

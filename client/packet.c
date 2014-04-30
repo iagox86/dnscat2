@@ -11,7 +11,7 @@
  * programs. */
 int snprintf(char *STR, size_t SIZE, const char *FORMAT, ...);
 
-packet_t *packet_parse(uint8_t *data, size_t length)
+packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
   buffer_t *buffer = buffer_create_with_data(BO_BIG_ENDIAN, data, length);
@@ -34,8 +34,15 @@ packet_t *packet_parse(uint8_t *data, size_t length)
       break;
 
     case PACKET_TYPE_MSG:
-      packet->body.msg.seq     = buffer_read_next_int16(buffer);
-      packet->body.msg.ack     = buffer_read_next_int16(buffer);
+      if(options & OPT_CHUNKED_DOWNLOAD)
+      {
+        packet->body.msg.options.chunked.chunk = buffer_read_next_int32(buffer);
+      }
+      else
+      {
+        packet->body.msg.options.normal.seq     = buffer_read_next_int16(buffer);
+        packet->body.msg.options.normal.ack     = buffer_read_next_int16(buffer);
+      }
       packet->body.msg.data    = buffer_read_remaining_bytes(buffer, &packet->body.msg.data_length, -1, FALSE);
       break;
 
@@ -53,7 +60,7 @@ packet_t *packet_parse(uint8_t *data, size_t length)
   return packet;
 }
 
-packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options)
+packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
   packet->packet_type     = PACKET_TYPE_SYN;
@@ -64,16 +71,29 @@ packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, uint16_t options)
   return packet;
 }
 
-packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length)
+packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
-  packet->packet_type         = PACKET_TYPE_MSG;
-  packet->session_id           = session_id;
-  packet->body.msg.seq         = seq;
-  packet->body.msg.ack         = ack;
-  packet->body.msg.data        = safe_memcpy(data, data_length);
-  packet->body.msg.data_length = data_length;
+  packet->packet_type                 = PACKET_TYPE_MSG;
+  packet->session_id                  = session_id;
+  packet->body.msg.options.normal.seq = seq;
+  packet->body.msg.options.normal.ack = ack;
+  packet->body.msg.data               = safe_memcpy(data, data_length);
+  packet->body.msg.data_length        = data_length;
+
+  return packet;
+}
+
+packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk, uint8_t *data, size_t data_length)
+{
+  packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
+
+  packet->packet_type                    = PACKET_TYPE_MSG;
+  packet->session_id                     = session_id;
+  packet->body.msg.options.chunked.chunk = chunk;
+  packet->body.msg.data                  = safe_memcpy(data, data_length);
+  packet->body.msg.data_length           = data_length;
 
   return packet;
 }
@@ -128,7 +148,7 @@ size_t packet_get_syn_size()
   if(size == 0)
   {
     packet_t *p = packet_create_syn(0, 0, 0);
-    uint8_t *data = packet_to_bytes(p, &size);
+    uint8_t *data = packet_to_bytes(p, &size, 0);
     safe_free(data);
     packet_destroy(p);
   }
@@ -136,15 +156,20 @@ size_t packet_get_syn_size()
   return size;
 }
 
-size_t packet_get_msg_size()
+size_t packet_get_msg_size(options_t options)
 {
   static size_t size = 0;
 
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_msg(0, 0, 0, (uint8_t *)"", 0);
-    uint8_t *data = packet_to_bytes(p, &size);
+    packet_t *p;
+
+    if(options & OPT_CHUNKED_DOWNLOAD)
+      p = packet_create_msg_chunked(0, 0, (uint8_t *)"", 0);
+    else
+      p = packet_create_msg_normal(0, 0, 0, (uint8_t *)"", 0);
+    uint8_t *data = packet_to_bytes(p, &size, options);
     safe_free(data);
     packet_destroy(p);
   }
@@ -152,7 +177,7 @@ size_t packet_get_msg_size()
   return size;
 }
 
-size_t packet_get_fin_size()
+size_t packet_get_fin_size(options_t options)
 {
   static size_t size = 0;
 
@@ -160,7 +185,7 @@ size_t packet_get_fin_size()
   if(size == 0)
   {
     packet_t *p = packet_create_fin(0);
-    uint8_t *data = packet_to_bytes(p, &size);
+    uint8_t *data = packet_to_bytes(p, &size, options);
     safe_free(data);
     packet_destroy(p);
   }
@@ -168,7 +193,7 @@ size_t packet_get_fin_size()
   return size;
 }
 
-uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
+uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
 
@@ -193,8 +218,15 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
       break;
 
     case PACKET_TYPE_MSG:
-      buffer_add_int16(buffer, packet->body.msg.seq);
-      buffer_add_int16(buffer, packet->body.msg.ack);
+      if(options & OPT_CHUNKED_DOWNLOAD)
+      {
+        buffer_add_int16(buffer, packet->body.msg.options.chunked.chunk);
+      }
+      else
+      {
+        buffer_add_int16(buffer, packet->body.msg.options.normal.seq);
+        buffer_add_int16(buffer, packet->body.msg.options.normal.ack);
+      }
       buffer_add_bytes(buffer, packet->body.msg.data, packet->body.msg.data_length);
       break;
 
@@ -210,7 +242,7 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length)
   return buffer_create_string_and_destroy(buffer, length);
 }
 
-char *packet_to_s(packet_t *packet)
+char *packet_to_s(packet_t *packet, options_t options)
 {
   /* This is ugly, but I don't have a good automatic "printf" allocator. */
   char *ret = safe_malloc(1024);
@@ -221,7 +253,10 @@ char *packet_to_s(packet_t *packet)
   }
   else if(packet->packet_type == PACKET_TYPE_MSG)
   {
-    snprintf(ret, 1024, "Type = MSG :: session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->session_id, packet->body.msg.seq, packet->body.msg.ack);
+    if(options & OPT_CHUNKED_DOWNLOAD)
+      snprintf(ret, 1024, "Type = MSG :: session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
+    else
+      snprintf(ret, 1024, "Type = MSG :: session = 0x%04x, chunk = 0x%04x", packet->session_id, packet->body.msg.options.chunked.chunk);
   }
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
@@ -235,9 +270,9 @@ char *packet_to_s(packet_t *packet)
   return ret;
 }
 
-void packet_print(packet_t *packet)
+void packet_print(packet_t *packet, options_t options)
 {
-  char *str = packet_to_s(packet);
+  char *str = packet_to_s(packet, options);
   printf("%s\n", str);
   safe_free(str);
 }
