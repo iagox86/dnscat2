@@ -78,6 +78,16 @@ static session_t *sessions_get_by_id(uint16_t session_id)
   return NULL;
 }
 
+static void do_send_packet(packet_t *packet)
+{
+  size_t length;
+  uint8_t *data = packet_to_bytes(packet, &length);
+
+  message_post_packet_out(data, length);
+
+  safe_free(data);
+}
+
 static void do_send_stuff(session_t *session)
 {
   packet_t *packet;
@@ -102,7 +112,7 @@ static void do_send_stuff(session_t *session)
         packet_syn_set_download(packet, session->download);
 
       update_counter(session);
-      message_post_packet_out(packet);
+      do_send_packet(packet);
 
       packet_destroy(packet);
       break;
@@ -117,7 +127,7 @@ static void do_send_stuff(session_t *session)
 
       /* Send the packet */
       update_counter(session);
-      message_post_packet_out(packet);
+      do_send_packet(packet);
 
       /* Free everything */
       packet_destroy(packet);
@@ -162,7 +172,7 @@ static void remove_completed_sessions()
       /* Send a final FIN */
       packet_t *packet = packet_create_fin(session->id);
       LOG_WARNING("Session %d is out of data and closed, killing it!", session->id);
-      message_post_packet_out(packet);
+      do_send_packet(packet);
       packet_destroy(packet);
 
       /* Let listeners know that the session is closed before we unlink the session. */
@@ -281,13 +291,16 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
 
 }
 
-static void handle_packet_in(packet_t *packet)
+static void handle_packet_in(uint8_t *data, size_t length)
 {
   NBBOOL poll_right_away = FALSE;
+  packet_t *packet = packet_parse(data, length);
   session_t *session = sessions_get_by_id(packet->session_id);
+
   if(!session)
   {
     LOG_ERROR("Tried to access a non-existent session: %d", packet->session_id);
+    packet_destroy(packet);
     return;
   }
 
@@ -360,12 +373,14 @@ static void handle_packet_in(packet_t *packet)
           else
           {
             LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_data));
+            packet_destroy(packet);
             return;
           }
         }
         else
         {
           LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.seq);
+          packet_destroy(packet);
           return;
         }
       }
@@ -392,6 +407,8 @@ static void handle_packet_in(packet_t *packet)
    * (ie, this isn't a retransmission), send it. */
   if(poll_right_away)
     do_send_stuff(session);
+
+  packet_destroy(packet);
 }
 
 static void handle_heartbeat()
@@ -440,7 +457,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_PACKET_IN:
-      handle_packet_in(message->message.packet_in.packet);
+      handle_packet_in(message->message.packet_in.data, message->message.packet_in.length);
       break;
 
     case MESSAGE_HEARTBEAT:

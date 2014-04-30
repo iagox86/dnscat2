@@ -88,7 +88,7 @@ void log_fatal(char *format, ...)
 
 static void handle_message(message_t *message, void *d)
 {
-  char *tmp;
+  /*char *tmp;*/
 
   switch(message->type)
   {
@@ -129,7 +129,7 @@ static void handle_message(message_t *message, void *d)
       LOG_INFO("Data queued: %d bytes to session %d", message->message.data_out.length, message->message.data_out.session_id);
       break;
 
-    case MESSAGE_PACKET_OUT:
+/*    case MESSAGE_PACKET_OUT:
       tmp = packet_to_s(message->message.packet_out.packet);
       LOG_INFO("[OUT]: %s", tmp);
       safe_free(tmp);
@@ -139,7 +139,7 @@ static void handle_message(message_t *message, void *d)
       tmp = packet_to_s(message->message.packet_in.packet);
       LOG_INFO("[IN]: %s", tmp);
       safe_free(tmp);
-      break;
+      break;*/
 
     case MESSAGE_DATA_IN:
       LOG_INFO("Data being returned to the client; %d bytes to session %d", message->message.data_in.length, message->message.data_in.session_id);
@@ -166,8 +166,8 @@ void log_init()
   message_subscribe(MESSAGE_CLOSE_SESSION,    handle_message, NULL);
   message_subscribe(MESSAGE_SESSION_CLOSED,   handle_message, NULL);
   message_subscribe(MESSAGE_DATA_OUT,         handle_message, NULL);
-  message_subscribe(MESSAGE_PACKET_OUT,       handle_message, NULL);
-  message_subscribe(MESSAGE_PACKET_IN,        handle_message, NULL);
+/*  message_subscribe(MESSAGE_PACKET_OUT,       handle_message, NULL);
+  message_subscribe(MESSAGE_PACKET_IN,        handle_message, NULL); */
   message_subscribe(MESSAGE_DATA_IN,          handle_message, NULL);
   message_subscribe(MESSAGE_HEARTBEAT,        handle_message, NULL);
 }

@@ -12,7 +12,6 @@
 #include "log.h"
 #include "memory.h"
 #include "message.h"
-#include "packet.h"
 #include "types.h"
 #include "udp.h"
 
@@ -132,13 +131,9 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
         size_t length;
         uint8_t *data = buffer_create_string(incoming_data, &length);
 
-        /* Parse the dnscat packet. */
-        packet_t *packet = packet_parse(data, length);
-
         /* Pass the data elsewhere. */
-        message_post_packet_in(packet);
+        message_post_packet_in(data, length);
 
-        packet_destroy(packet);
         safe_free(data);
       }
       buffer_destroy(incoming_data);
@@ -160,7 +155,7 @@ static void handle_start(driver_dns_t *driver)
 }
 
 /* This function expects to receive the proper length of data. */
-static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
+static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length)
 {
   size_t        i;
   dns_t        *dns;
@@ -170,9 +165,6 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   uint8_t      *dns_bytes;
   size_t        dns_length;
   size_t        section_length;
-
-  size_t        length;
-  uint8_t      *data = packet_to_bytes(packet, &length);
 
   assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
@@ -211,7 +203,6 @@ static void handle_packet_out(driver_dns_t *driver, packet_t *packet)
   LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_host, driver->dns_port);
   udp_send(driver->s, driver->dns_host, driver->dns_port, dns_bytes, dns_length);
 
-  safe_free(data);
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
   dns_destroy(dns);
@@ -228,7 +219,7 @@ static void handle_message(message_t *message, void *d)
       break;
 
     case MESSAGE_PACKET_OUT:
-      handle_packet_out(driver_dns, message->message.packet_out.packet);
+      handle_packet_out(driver_dns, message->message.packet_out.data, message->message.packet_out.length);
       break;
 
     default:

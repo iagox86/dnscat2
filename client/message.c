@@ -178,18 +178,20 @@ void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length)
   message_destroy(message);
 }
 
-void message_post_packet_out(packet_t *packet)
+void message_post_packet_out(uint8_t *data, size_t length)
 {
   message_t *message = message_create(MESSAGE_PACKET_OUT);
-  message->message.packet_out.packet = packet;
+  message->message.packet_out.data = data;
+  message->message.packet_out.length = length;
   message_post(message);
   message_destroy(message);
 }
 
-void message_post_packet_in(packet_t *packet)
+void message_post_packet_in(uint8_t *data, size_t length)
 {
   message_t *message = message_create(MESSAGE_PACKET_IN);
-  message->message.packet_in.packet = packet;
+  message->message.packet_out.data = data;
+  message->message.packet_out.length = length;
   message_post(message);
   message_destroy(message);
 }

@@ -123,12 +123,14 @@ typedef struct
 
     struct
     {
-      packet_t  *packet;
+      uint8_t *data;
+      size_t   length;
     } packet_out;
 
     struct
     {
-      packet_t  *packet;
+      uint8_t *data;
+      size_t   length;
     } packet_in;
 
     struct
@@ -171,8 +173,8 @@ void message_post_close_session(uint16_t session_id);
 void message_post_session_closed(uint16_t session_id);
 
 void message_post_data_out(uint16_t session_id, uint8_t *data, size_t length);
-void message_post_packet_out(packet_t *packet);
-void message_post_packet_in(packet_t *packet);
+void message_post_packet_out(uint8_t *data, size_t length);
+void message_post_packet_in(uint8_t *data, size_t length);
 void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length);
 
 void message_post_heartbeat();
