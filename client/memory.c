@@ -32,7 +32,7 @@ static entry_t *first           = NULL;
 
 static void die(char *msg, char *file, int line)
 {
-  printf("Unrecoverable error at %s:%d: %s\n", file, line, msg);
+  printf("\n\nUnrecoverable error at %s:%d: %s\n\n", file, line, msg);
   exit(1);
 }
 
