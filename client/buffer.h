@@ -137,6 +137,9 @@ char     *buffer_read_next_unicode(buffer_t *buffer, char *data_ret, size_t max_
 char     *buffer_read_next_unicode_data(buffer_t *buffer, char *data_ret, size_t length);
 void     *buffer_read_next_bytes(buffer_t *buffer, void *data, size_t length);
 
+/* Allocate memory to hold the result. */
+char     *buffer_alloc_next_ntstring(buffer_t *buffer);
+
 /* Read the next data, without incrementing the current pointer. */
 uint8_t   buffer_peek_next_int8(buffer_t *buffer);
 uint16_t  buffer_peek_next_int16(buffer_t *buffer);
@@ -153,6 +156,9 @@ char     *buffer_read_ntstring_at(buffer_t *buffer, size_t offset, char *data_re
 char     *buffer_read_unicode_at(buffer_t *buffer, size_t offset, char *data_ret, size_t max_length);
 char     *buffer_read_unicode_data_at(buffer_t *buffer, size_t offset, char *data_ret, size_t length);
 void     *buffer_read_bytes_at(buffer_t *buffer, size_t offset, void *data, size_t length);
+
+/* Allocate memory to hold the result. */
+char *buffer_alloc_ntstring_at(buffer_t *buffer, size_t offset);
 
 /* These NBBOOL functions check if there are enough bytes left in the buffer to remove
  * specified data.  These should always be used on the server side to verify valid

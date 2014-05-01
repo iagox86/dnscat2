@@ -90,6 +90,8 @@ class Packet
   end
 
   def parse_fin(data, options)
+    at_least?(data, 1) || raise(DnscatException, "Packet is too short (fin)")
+
     @reason = data.unpack("Z*").pop
     data = data[(@reason.length+1)..-1]
 

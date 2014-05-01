@@ -533,6 +533,11 @@ void *buffer_read_next_bytes(buffer_t *buffer, void *data, size_t length)
   return data;
 }
 
+char *buffer_alloc_next_ntstring(buffer_t *buffer)
+{
+  return buffer_alloc_ntstring_at(buffer, buffer->position);
+}
+
 uint8_t buffer_peek_next_int8(buffer_t *buffer)
 {
   return buffer_read_int8_at(buffer, buffer->position);
@@ -557,8 +562,6 @@ void *buffer_peek_next_bytes(buffer_t *buffer, void *data, size_t length)
 {
   return buffer_read_bytes_at(buffer, buffer->position, data, length);
 }
-
-
 
 uint8_t buffer_read_int8_at(buffer_t *buffer, size_t offset)
 {
@@ -687,6 +690,18 @@ void *buffer_read_bytes_at(buffer_t *buffer, size_t offset, void *data, size_t l
   memcpy(data, buffer->data + offset, length);
 
   return data;
+}
+
+char *buffer_alloc_ntstring_at(buffer_t *buffer, size_t offset)
+{
+  size_t length = strlen((char*)buffer->data + offset) + 1;
+  char *data_ret = safe_malloc(length);
+
+  /* Catch overflows. */
+  if(length == 0)
+    DIE("Overflow?");
+
+  return buffer_read_ntstring_at(buffer, offset, data_ret, length);
 }
 
 /* These NBBOOL functions check if there's enough bytes left in the buffer to remove

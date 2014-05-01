@@ -186,7 +186,7 @@ static void remove_completed_sessions()
     if(session->is_closed && buffer_get_remaining_bytes(session->outgoing_data) == 0)
     {
       /* Send a final FIN */
-      packet_t *packet = packet_create_fin(session->id);
+      packet_t *packet = packet_create_fin(session->id, "Session closed");
       LOG_WARNING("Session %d is out of data and closed, killing it!", session->id);
       do_send_packet(session, packet);
       packet_destroy(packet);
@@ -344,7 +344,7 @@ static void handle_packet_in(uint8_t *data, size_t length)
       }
       else if(packet->packet_type == PACKET_TYPE_FIN)
       {
-        LOG_FATAL("In SESSION_STATE_NEW, received FIN - connection closed");
+        LOG_FATAL("In SESSION_STATE_NEW, received FIN: %s", packet->body.fin.reason);
 
         exit(0);
       }
@@ -435,7 +435,7 @@ static void handle_packet_in(uint8_t *data, size_t length)
       }
       else if(packet->packet_type == PACKET_TYPE_FIN)
       {
-        LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN - connection closed");
+        LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s", packet->body.fin.reason);
         message_post_close_session(session->id);
       }
       else

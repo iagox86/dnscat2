@@ -246,7 +246,7 @@ class Session
       return Packet.create_fin(@id, "FIN not expected", @options)
     end
 
-    notify_subscribers(:dnscat2_fin, [@id])
+    notify_subscribers(:dnscat2_fin, [@id, packet.reason])
     SessionManager.kill_session(@id)
 
     return Packet.create_fin(@id, "Bye!", @options)

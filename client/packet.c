@@ -48,7 +48,8 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
       break;
 
     case PACKET_TYPE_FIN:
-      /* Do nothing */
+      packet->body.fin.reason = buffer_alloc_next_ntstring(buffer);
+
       break;
 
     default:
@@ -99,12 +100,13 @@ packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk)
   return packet;
 }
 
-packet_t *packet_create_fin(uint16_t session_id)
+packet_t *packet_create_fin(uint16_t session_id, char *reason)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type     = PACKET_TYPE_FIN;
-  packet->session_id       = session_id;
+  packet->session_id      = session_id;
+  packet->body.fin.reason = safe_strdup(reason);
 
   return packet;
 }
@@ -197,7 +199,7 @@ size_t packet_get_fin_size(options_t options)
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_fin(0);
+    packet_t *p = packet_create_fin(0, "");
     uint8_t *data = packet_to_bytes(p, &size, options);
     safe_free(data);
     packet_destroy(p);
@@ -244,7 +246,8 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
       break;
 
     case PACKET_TYPE_FIN:
-      /* Do nothing */
+      buffer_add_ntstring(buffer, packet->body.fin.reason);
+
       break;
 
     default:
@@ -273,7 +276,7 @@ char *packet_to_s(packet_t *packet, options_t options)
   }
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
-    snprintf(ret, 1024, "Type = FIN :: session = 0x%04x", packet->session_id);
+    snprintf(ret, 1024, "Type = FIN :: session = 0x%04x :: %s", packet->session_id, packet->body.fin.reason);
   }
   else
   {
@@ -302,7 +305,14 @@ void packet_destroy(packet_t *packet)
 
   if(packet->packet_type == PACKET_TYPE_MSG)
   {
-    safe_free(packet->body.msg.data);
+    if(packet->body.msg.data)
+      safe_free(packet->body.msg.data);
+  }
+
+  if(packet->packet_type == PACKET_TYPE_FIN)
+  {
+    if(packet->body.fin.reason)
+      safe_free(packet->body.fin.reason);
   }
 
   safe_free(packet);

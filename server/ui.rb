@@ -317,8 +317,13 @@ class Ui
   def Ui.dnscat2_msg(incoming, outgoing)
   end
 
-  def Ui.dnscat2_fin(real_id)
+  def Ui.dnscat2_fin(real_id, reason)
     # Ui.session_destroyed() will take care of this
+    local_id = @@local_ids[real_id]
+
+    session = Ui.get_ui_session(local_id)
+    session.display("Session terminated: %s" % reason, '[ERROR]')
+    SessionManager.kill_session(real_id)
   end
 
   # TODO: This doesn't work because I got rid of the send/recv messages

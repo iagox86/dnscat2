@@ -11,7 +11,6 @@ Immediate needs:
 - Windows support
 - Add more debugging messages throughout, especially newer functionality
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
-- Add an optional 'reason' field to FIN packets
 
 Future stuff:
 - Other protocols (ping/http/etc)
