@@ -60,7 +60,7 @@ class Packet
 
     # Parse the download option, if it exists
     @download = nil
-    if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD || (@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+    if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
       if(data.index("\0").nil?)
         raise(DnscatException, "OPT_DOWNLOAD set, but no null-terminated name given")
       end

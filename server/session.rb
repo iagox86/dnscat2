@@ -73,10 +73,6 @@ class Session
   end
 
   def set_file(filename)
-    @filename = filename
-    File.open(filename) do |f|
-      queue_outgoing(f.read())
-    end
   end
 
   def still_active?()
@@ -164,6 +160,7 @@ class Session
   end
 
   def handle_syn(packet)
+    puts(packet.to_s)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!syn_valid?())
       notify_subscribers(:dnscat2_state_error, [@id, "SYN received in invalid state"])
@@ -184,7 +181,17 @@ class Session
 
     # TODO: Allowing any arbitrary file is a security risk
     if(!packet.download.nil?)
-      set_file(packet.download)
+      begin
+        @filename = packet.download
+        File.open(@filename, 'rb') do |f|
+          queue_outgoing(f.read())
+        end
+      rescue Exception => e
+        Log.ERROR("Client requested a bad file: #{packet.download}")
+        Log.ERROR(e.inspect)
+
+        return Packet.create_fin(@id, @options)
+      end
     end
 
     set_established()
