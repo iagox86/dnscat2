@@ -25,6 +25,7 @@ class Packet
   attr_reader :data, :type, :session_id, :options, :seq, :ack
   attr_reader :name
   attr_reader :download
+  attr_reader :chunk
 
   def at_least?(data, needed)
     return (data.length >= needed)
@@ -41,8 +42,6 @@ class Packet
   end
 
   def parse_syn(data)
-    puts("Data: #{data.unpack("H*")} (#{data.length})")
-
     at_least?(data, 4) || raise(DnscatException, "Packet is too short (syn)")
     @seq, @options = data.unpack("nn")
     data = data[4..-1]
@@ -77,10 +76,10 @@ class Packet
 
   def parse_msg(data, options)
     if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-      at_least?(data, 8) || raise(DnscatException, "Packet is too short (msg d/l)")
+      at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg d/l)")
 
-      @seq, @ack, @chunk = data.unpack("nnN")
-      @data = data[8..-1] # Remove the first eight bytes
+      @chunk = data.unpack("N")
+      @data = data[4..-1] # Remove the first eight bytes
     else
       at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg)")
 
@@ -136,7 +135,7 @@ class Packet
     result = create_header(MESSAGE_TYPE_MSG, session_id)
     if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
       chunk = option_data['chunk'] || 0
-      result += [chunk, msg].pack("nnNA*")
+      result += [chunk, msg].pack("NA*")
     else
       seq = option_data['seq'] || 0
       ack = option_data['ack'] || 0
@@ -168,9 +167,10 @@ class Packet
       end
     elsif(@type == MESSAGE_TYPE_MSG)
       data = @data.gsub(/\n/, '\n')
-      result = "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, data]
-      if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        result += ", chunk number/size: %d" % @chunk
+      if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        result = "[[MSG]] :: session = %04x, chunk = %d, data = \"%s\"" % [@session_id, @chunk, data]
+      else
+        result = "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, data]
       end
     elsif(@type == MESSAGE_TYPE_FIN)
       result = "[[FIN]] :: session = %04x" % [@session_id]

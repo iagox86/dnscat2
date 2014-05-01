@@ -157,8 +157,9 @@ class SessionManager
         Log.FATAL("Exception: #{e}")
         Log.FATAL(e.inspect)
         Log.FATAL(e.backtrace)
+
+        raise(e)
       end
-      # Let other exceptions propagate, they will be displayed by the parent
     end
   end
 end

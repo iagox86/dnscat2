@@ -174,6 +174,14 @@ class Session
     set_name(packet.name)
     @options = packet.options
 
+    # Make sure options are sane
+    if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD &&
+       (@options & Packet::OPT_DOWNLOAD) == 0)
+      notify_subscribers(:dnscat2_bad_options, ["OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD"])
+      Log.ERROR("OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD")
+      return Packet.create_fin(@id, @options)
+    end
+
     # TODO: Allowing any arbitrary file is a security risk
     if(!packet.download.nil?)
       set_file(packet.download)
@@ -182,8 +190,61 @@ class Session
     set_established()
     notify_subscribers(:dnscat2_syn_received, [@id, @my_seq, packet.seq])
 
-
     return Packet.create_syn(@id, @my_seq, @options)
+  end
+
+  def handle_msg_normal(packet, max_length)
+    # Validate the sequence number
+    if(@their_seq != packet.seq)
+      notify_subscribers(:dnscat2_msg_bad_seq, [@their_seq, packet.seq])
+
+      # Re-send the last packet
+      old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
+      return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
+    end
+
+    # Validate the acknowledgement number
+    if(!valid_ack?(packet.ack))
+      notify_subscribers(:dnscat2_msg_bad_ack, [@my_seq, packet.ack])
+
+      # Re-send the last packet
+      old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
+      return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
+    end
+
+    # Check if the session wants to close
+    if(!still_active?())
+      Log.WARNING("Session is finished, sending a FIN out")
+      return Packet.create_fin(@id, @options)
+    end
+
+    # Acknowledge the data that has been received so far
+    # Note: this is where @my_seq is updated
+    ack_outgoing(packet.ack)
+
+    # Write the incoming data to the session
+    # Increment the expected sequence number
+    increment_their_seq(packet.data.length)
+
+    # Write the incoming data to the session
+    queue_incoming(packet.data)
+
+    # Read the next piece of data
+    new_data = read_outgoing(max_length - Packet.msg_header_size(@options))
+
+    # Create a packet out of it
+    packet = Packet.create_msg(@id, new_data, @options, { 'seq' => @my_seq, 'ack' => @their_seq, })
+
+
+    return packet
+
+  end
+
+  def handle_msg_chunked(packet, max_length)
+    chunks = @outgoing_data.scan(/.{16}/m)
+    chunk = chunks[packet.chunk].nil? ? "" : chunks[packet.chunk]
+
+    return Packet.create_msg(@id, chunk, @options, { 'chunk' => packet.chunk })
   end
 
   def handle_msg(packet, max_length)
@@ -197,55 +258,13 @@ class Session
     end
 
     if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)
+      return handle_msg_chunked(packet, max_length)
     else
-      # Validate the sequence number
-      if(@their_seq != packet.seq)
-        notify_subscribers(:dnscat2_msg_bad_seq, [@their_seq, packet.seq])
-
-        # Re-send the last packet
-        old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
-        return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
-      end
-
-      # Validate the acknowledgement number
-      if(!valid_ack?(packet.ack))
-        notify_subscribers(:dnscat2_msg_bad_ack, [@my_seq, packet.ack])
-
-        # Re-send the last packet
-        old_data = read_outgoing(max_length - Packet.msg_header_size(@options))
-        return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
-      end
-
-      # Check if the session wants to close
-      if(!still_active?())
-        Log.WARNING("Session is finished, sending a FIN out")
-        return Packet.create_fin(@id, @options)
-      end
-
-      # Acknowledge the data that has been received so far
-      # Note: this is where @my_seq is updated
-      ack_outgoing(packet.ack)
-
-      # Write the incoming data to the session
-      # Increment the expected sequence number
-      increment_their_seq(packet.data.length)
+      return handle_msg_normal(packet, max_length)
     end
 
-    # Write the incoming data to the session
-    queue_incoming(packet.data)
-
-    packet = nil
-    if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)
-      # TODO
-    else
-      new_data = read_outgoing(max_length - Packet.msg_header_size(@options))
-
-      return Packet.create_msg(@id, new_data, @options, { 'seq' => @my_seq, 'ack' => @their_seq, })
-    end
-
-    notify_subscribers(:dnscat2_msg, [packet.data, new_data])
-    # Build the new packet
-    return packet
+    # TODO: Was this necessary?
+    #notify_subscribers(:dnscat2_msg, [packet.data, new_data])
   end
 
   def handle_fin(packet)
