@@ -127,6 +127,7 @@ static void do_send_stuff(session_t *session)
     case SESSION_STATE_ESTABLISHED:
       if(session->download_first_chunk)
       {
+        /* We don't allow outgoing data in chunked mode */
         packet = packet_create_msg_chunked(session->id, session->download_current_chunk);
       }
       else
@@ -136,6 +137,8 @@ static void do_send_stuff(session_t *session)
         LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
 
         packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, length);
+
+        safe_free(data);
       }
 
       /* Send the packet */
@@ -145,7 +148,6 @@ static void do_send_stuff(session_t *session)
       /* Free everything */
       packet_destroy(packet);
 
-      safe_free(data);
       break;
 
     default:
@@ -366,8 +368,15 @@ static void handle_packet_in(uint8_t *data, size_t length)
         {
           if(packet->body.msg.options.chunked.chunk == session->download_current_chunk)
           {
+            /* Let listeners know that data has arrived. */
             message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
+
+            /* Go to the next chunk. */
             session->download_current_chunk++;
+
+            /* Don't wait to poll again. */
+            reset_counter(session);
+            poll_right_away = TRUE;
           }
           else
           {

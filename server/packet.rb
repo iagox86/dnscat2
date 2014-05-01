@@ -75,13 +75,13 @@ class Packet
   end
 
   def parse_msg(data, options)
-    if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+    if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
       at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg d/l)")
 
-      @chunk = data.unpack("N")
+      @chunk = data.unpack("N").pop
       @data = data[4..-1] # Remove the first eight bytes
     else
-      at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg)")
+      at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg norm)")
 
       @seq, @ack = data.unpack("nn")
       @data = data[4..-1] # Remove the first four bytes

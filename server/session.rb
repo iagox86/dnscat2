@@ -249,8 +249,12 @@ class Session
 
   def handle_msg_chunked(packet, max_length)
     chunks = @outgoing_data.scan(/.{16}/m)
-    chunk = chunks[packet.chunk].nil? ? "" : chunks[packet.chunk]
 
+    if(chunks[packet.chunk].nil?)
+      return Packet.create_fin(@id, @options)
+    end
+
+    chunk = chunks[packet.chunk]
     return Packet.create_msg(@id, chunk, @options, { 'chunk' => packet.chunk })
   end
 

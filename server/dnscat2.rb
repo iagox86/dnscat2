@@ -61,7 +61,7 @@ opts = Trollop::options do
     :type => :boolean,  :default => true
 end
 
-opts[:debug].upcase!()
+opts[:debug] = opts[:debug].upcase()
 if(Log.get_by_name(opts[:debug]).nil?)
   Trollop::die :debug, "level values are: #{Log::LEVELS}"
   return

@@ -148,11 +148,7 @@ void packet_syn_set_chunked_download(packet_t *packet)
     exit(1);
   }
 
-  /* Free the name if it's already set */
-  if(packet->body.syn.filename)
-    safe_free(packet->body.syn.filename);
-
-  packet->body.syn.options |= OPT_DOWNLOAD;
+  /* Just set the field, we don't need anything else. */
   packet->body.syn.options |= OPT_CHUNKED_DOWNLOAD;
 }
 
@@ -236,7 +232,7 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
     case PACKET_TYPE_MSG:
       if(options & OPT_CHUNKED_DOWNLOAD)
       {
-        buffer_add_int16(buffer, packet->body.msg.options.chunked.chunk);
+        buffer_add_int32(buffer, packet->body.msg.options.chunked.chunk);
       }
       else
       {
