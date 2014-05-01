@@ -10,7 +10,6 @@ Immediate needs:
 - Add a 'kill' command
 - Windows support
 - Add more debugging messages throughout, especially newer functionality
-- Make safe_free() null out variables to prevent double-free situations
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
 - Add an optional 'reason' field to FIN packets
 

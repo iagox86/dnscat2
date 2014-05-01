@@ -81,7 +81,7 @@ class SessionManager
     session = find(packet.session_id)
     if(session.nil?)
       Log.WARNING("MSG received in non-existent session: %d" % packet.session_id)
-      return Packet.create_fin(packet.session_id, 0)
+      return Packet.create_fin(packet.session_id, "Bad session", 0)
     end
 
     return session.handle_msg(packet, max_length)
@@ -92,7 +92,7 @@ class SessionManager
 
     if(session.nil?)
       Log.WARNING("FIN received in non-existent session: %d" % packet.session_id)
-      return Packet.create_fin(packet.session_id, 0)
+      return Packet.create_fin(packet.session_id, "Bad session", 0)
     end
 
     return session.handle_fin(packet)

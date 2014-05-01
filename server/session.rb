@@ -131,7 +131,7 @@ class Session
        (@options & Packet::OPT_DOWNLOAD) == 0)
       notify_subscribers(:dnscat2_bad_options, ["OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD"])
       Log.ERROR("OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD")
-      return Packet.create_fin(@id, @options)
+      return Packet.create_fin(@id, "ERROR: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD", @options)
     end
 
     # TODO: Allowing any arbitrary file is a security risk
@@ -145,7 +145,7 @@ class Session
         Log.ERROR("Client requested a bad file: #{packet.download}")
         Log.ERROR(e.inspect)
 
-        return Packet.create_fin(@id, @options)
+        return Packet.create_fin(@id, "ERROR: File couldn't be read: #{e.inspect}", @options)
       end
     end
 
@@ -181,7 +181,7 @@ class Session
     # Check if the session wants to close
     if(!still_active?())
       Log.WARNING("Session is finished, sending a FIN out")
-      return Packet.create_fin(@id, @options)
+      return Packet.create_fin(@id, "Session is gone", @options)
     end
 
     # Acknowledge the data that has been received so far
@@ -212,7 +212,7 @@ class Session
     chunks = @outgoing_data.scan(/.{16}/m)
 
     if(chunks[packet.chunk].nil?)
-      return Packet.create_fin(@id, @options)
+      return Packet.create_fin(@id, "Chunk doesn't exist", @options)
     end
 
     chunk = chunks[packet.chunk]
@@ -226,7 +226,7 @@ class Session
       # Kill the session as well - in case it exists
       SessionManager.kill_session(@id)
 
-      return Packet.create_fin(@id, @options)
+      return Packet.create_fin(@id, "MSG received in invalid state", @options)
     end
 
     if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)
@@ -243,13 +243,13 @@ class Session
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!fin_valid?())
       notify_subscribers(:dnscat2_state_error, [@id, "FIN received in invalid state"])
-      return Packet.create_fin(@id, @options)
+      return Packet.create_fin(@id, "FIN not expected", @options)
     end
 
     notify_subscribers(:dnscat2_fin, [@id])
     SessionManager.kill_session(@id)
 
-    return Packet.create_fin(@id, @options)
+    return Packet.create_fin(@id, "Bye!", @options)
   end
 end
 

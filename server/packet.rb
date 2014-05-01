@@ -26,6 +26,7 @@ class Packet
   attr_reader :name
   attr_reader :download
   attr_reader :chunk
+  attr_reader :reason
 
   def at_least?(data, needed)
     return (data.length >= needed)
@@ -89,6 +90,9 @@ class Packet
   end
 
   def parse_fin(data, options)
+    @reason = data.unpack("Z*").pop
+    data = data[(@reason.length+1)..-1]
+
     if(data.length > 0)
       raise(DnscatException, "Extra data on the end of a FIN packet")
     end
@@ -149,8 +153,8 @@ class Packet
     return create_msg(0, '', options, {'seq'=>0, 'ack'=>0, 'chunk'=>0}).length
   end
 
-  def Packet.create_fin(session_id, options)
-    return create_header(MESSAGE_TYPE_FIN, session_id)
+  def Packet.create_fin(session_id, reason, options)
+    return create_header(MESSAGE_TYPE_FIN, session_id) + [reason].pack("Z*")
   end
 
   def Packet.fin_header_size()
@@ -173,7 +177,7 @@ class Packet
         result = "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, data]
       end
     elsif(@type == MESSAGE_TYPE_FIN)
-      result = "[[FIN]] :: session = %04x" % [@session_id]
+      result = "[[FIN]] :: session = %04x :: %s" % [@session_id, @reason]
     end
 
     return result

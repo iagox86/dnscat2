@@ -43,13 +43,13 @@ class Test
 
     @data << {
       :send => Packet.create_msg(KILLED_SESSION_ID, MY_DATA, 0, {'seq'=>my_seq, 'ack'=>their_seq}),
-      :recv => Packet.create_fin(KILLED_SESSION_ID, 0),
+      :recv => Packet.create_fin(KILLED_SESSION_ID, "MSG received in invalid state", 0),
       :name => "Sending an unexpected MSG (should respond with a FIN)",
     }
 
     @data << {
-      :send => Packet.create_fin(SESSION_ID, 0),
-      :recv => Packet.create_fin(SESSION_ID, 0),
+      :send => Packet.create_fin(SESSION_ID, "", 0),
+      :recv => Packet.create_fin(SESSION_ID, "FIN not expected", 0),
       :name => "Sending an unexpected FIN (should respond with a FIN)",
     }
 
@@ -161,8 +161,8 @@ class Test
     }
 
     @data << {
-      :send => Packet.create_fin(SESSION_ID, 0),
-      :recv => Packet.create_fin(SESSION_ID, 0),
+      :send => Packet.create_fin(SESSION_ID, "", 0),
+      :recv => Packet.create_fin(SESSION_ID, "Bye!", 0),
       :name => "Sending a FIN, should receive a FIN",
     }
 
@@ -199,20 +199,20 @@ class Test
 
     # Close both sessions
     @data << {
-      :send => Packet.create_fin(SESSION_ID, 0),
-      :recv => Packet.create_fin(SESSION_ID, 0),
+      :send => Packet.create_fin(SESSION_ID, "", 0),
+      :recv => Packet.create_fin(SESSION_ID, "Bye!", 0),
       :name => "Sending a FIN, should receive a FIN",
     }
 
     @data << {
-      :send => Packet.create_fin(0x4411, 0),
-      :recv => Packet.create_fin(0x4411, 0),
+      :send => Packet.create_fin(0x4411, "", 0),
+      :recv => Packet.create_fin(0x4411, "Bye!", 0),
       :name => "Sending a FIN, should receive a FIN",
     }
 
     @data << {
-      :send => Packet.create_fin(SESSION_ID, 0),
-      :recv => Packet.create_fin(SESSION_ID, 0),
+      :send => Packet.create_fin(SESSION_ID, "", 0),
+      :recv => Packet.create_fin(SESSION_ID, "Bad session", 0),
       :name => "Sending a FIN for a session that's already closed, it should ignore it",
     }
 
