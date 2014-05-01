@@ -125,7 +125,7 @@ static void do_send_stuff(session_t *session)
       break;
 
     case SESSION_STATE_ESTABLISHED:
-      if(session->download_current_chunk)
+      if(session->download_first_chunk)
       {
         packet = packet_create_msg_chunked(session->id, session->download_current_chunk);
       }

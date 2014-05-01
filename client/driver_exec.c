@@ -35,11 +35,17 @@ static SELECT_RESPONSE_t exec_closed_callback(void *group, int socket, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_exec_t *driver)
 {
-  if(driver->name)
-    message_post_create_session(driver->name);
-  else
-    message_post_create_session(driver->process);
+  message_options_t options[2];
 
+  options[0].name = "name";
+  if(driver->name)
+    options[0].value.s = driver->name;
+  else
+    options[0].value.s = driver->process;
+
+  options[1].name    = NULL;
+
+  message_post_create_session(options);
   /* Create the exec socket */
 #ifdef WIN32
   /* TODO */

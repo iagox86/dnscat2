@@ -56,6 +56,14 @@ typedef enum
   MESSAGE_MAX_MESSAGE_TYPE,
 } message_type_t;
 
+typedef struct {
+  char *name;
+  union {
+    char *s;
+    uint32_t i;
+  } value;
+} message_options_t;
+
 typedef enum
 {
   CONFIG_INT,
@@ -167,9 +175,8 @@ void message_post_config_string(char *name, char *value);
 
 void message_post_start();
 void message_post_shutdown();
-uint16_t message_post_create_session(char *name);
-uint16_t message_post_create_session_download(char *name, char *download);
-uint16_t message_post_create_session_chunked_download(char *name, char *download, uint32_t starting_chunk);
+/* options must either be NULL, or terminated with a NULL entry */
+uint16_t message_post_create_session(message_options_t options[]);
 void message_post_session_created(uint16_t session_id);
 void message_post_close_session(uint16_t session_id);
 void message_post_session_closed(uint16_t session_id);

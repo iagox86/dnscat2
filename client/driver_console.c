@@ -34,8 +34,20 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 static void handle_start(driver_console_t *driver)
 {
   char *name = (driver->name) ? (driver->name) : "[unnamed console]";
+  message_options_t options[4];
 
-  message_post_create_session_download(name, driver->download);
+  options[0].name    = "name";
+  options[0].value.s = name;
+
+  options[1].name    = "download";
+  options[1].value.s = driver->download;
+
+  options[2].name    = "first_chunk";
+  options[2].value.i = driver->first_chunk;
+
+  options[3].name    = NULL;
+
+  message_post_create_session(options);
 }
 
 static void handle_session_created(driver_console_t *driver, uint16_t session_id)
@@ -53,6 +65,8 @@ static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t lengt
 
 static void handle_config_int(driver_console_t *driver, char *name, int value)
 {
+  if(!strcmp(name, "chunk"))
+    driver->first_chunk = value;
 }
 
 static void handle_config_string(driver_console_t *driver, char *name, char *value)

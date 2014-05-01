@@ -57,14 +57,20 @@ static SELECT_RESPONSE_t listener_closed(void *group, int socket, void *c)
 static SELECT_RESPONSE_t listener_accept(void *group, int s, void *d)
 {
   driver_listener_t *driver = (driver_listener_t*) d;
+  message_options_t options[2];
   client_entry_t *client = safe_malloc(sizeof(client_entry_t));
 
   client->s          = tcp_accept(s, &client->address, &client->port);
 
+
+  options[0].name = "name";
   if(driver->name)
-    client->session_id = message_post_create_session(driver->name);
+    options[0].value.s = driver->name;
   else
-    client->session_id = message_post_create_session("[unnamed listener]");
+    options[0].value.s = "[unnamed listener]";
+  options[1].name    = NULL;
+
+  client->session_id = message_post_create_session(options);
 
   client->driver     = driver;
   client->next       = first_client;

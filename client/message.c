@@ -1,3 +1,6 @@
+#include <string.h>
+#include <stdio.h>
+
 #include "memory.h"
 #include "types.h"
 
@@ -123,13 +126,29 @@ void message_post_shutdown()
   message_destroy(message);
 }
 
-uint16_t message_post_create_session_download(char *name, char *download)
+uint16_t message_post_create_session(message_options_t options[])
 {
   uint16_t session_id;
 
+  /* Create the message structure */
   message_t *message = message_create(MESSAGE_CREATE_SESSION);
-  message->message.create_session.name = name;
-  message->message.create_session.download = download;
+
+  /* Loop through the options */
+  if(options)
+  {
+    size_t i = 0;
+    while(options[i].name)
+    {
+      if(!strcmp(options[i].name, "name"))
+        message->message.create_session.name = options[i].value.s;
+      if(!strcmp(options[i].name, "download"))
+        message->message.create_session.download = options[i].value.s;
+      if(!strcmp(options[i].name, "first_chunk"))
+        message->message.create_session.first_chunk = options[i].value.i;
+      i++;
+    }
+  }
+
   message_post(message);
 
   session_id = message->message.create_session.out.session_id;
@@ -137,28 +156,6 @@ uint16_t message_post_create_session_download(char *name, char *download)
   message_destroy(message);
 
   return session_id;
-}
-
-uint16_t message_post_create_session_chunked_download(char *name, char *download, uint32_t starting_chunk)
-{
-  uint16_t session_id;
-
-  message_t *message = message_create(MESSAGE_CREATE_SESSION);
-  message->message.create_session.name = name;
-  message->message.create_session.download = download;
-  message->message.create_session.first_chunk = starting_chunk;
-  message_post(message);
-
-  session_id = message->message.create_session.out.session_id;
-
-  message_destroy(message);
-
-  return session_id;
-}
-
-uint16_t message_post_create_session(char *name)
-{
-  return message_post_create_session_download(name, NULL);
 }
 
 void message_post_session_created(uint16_t session_id)
