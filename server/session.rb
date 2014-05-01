@@ -23,6 +23,7 @@ class Session
   # Session states
   STATE_NEW         = 0x00
   STATE_ESTABLISHED = 0x01
+  STATE_KILLED      = 0xFF
 
   # These two methods are required for test.rb to work
   def Session.debug_set_isn(n)
@@ -45,9 +46,15 @@ class Session
     @outgoing_data = ''
     @name = ''
 
-    @killed = false
-
     notify_subscribers(:session_created, [@id])
+  end
+
+  def kill()
+    if(@state != STATE_KILLED)
+      Log.WARNING("Session killed: #{@id}")
+
+      @state = STATE_KILLED
+    end
   end
 
   def syn_valid?()
@@ -55,25 +62,11 @@ class Session
   end
 
   def msg_valid?()
-    return @state == STATE_ESTABLISHED
+    return @state == STATE_ESTABLISHED || @state == STATE_KILLED
   end
 
   def fin_valid?()
-    return @state == STATE_ESTABLISHED
-  end
-
-  def still_active?()
-    if(@killed)
-      return false
-    end
-
-    if(!@filename.nil?)
-      if(@outgoing_data.length == 0)
-        return false
-      end
-    end
-
-    return true
+    return @state == STATE_ESTABLISHED || @state == STATE_KILLED
   end
 
   def next_outgoing(n)
@@ -119,6 +112,10 @@ class Session
     if(!syn_valid?())
       notify_subscribers(:dnscat2_state_error, [@id, "SYN received in invalid state"])
       return nil
+    end
+
+    if(@state == STATE_KILLED)
+      return Packet.create_fin(@id, "Session killed", @options)
     end
 
     # Save some of their options
@@ -178,12 +175,6 @@ class Session
       return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
     end
 
-    # Check if the session wants to close
-    if(!still_active?())
-      Log.WARNING("Session is finished, sending a FIN out")
-      return Packet.create_fin(@id, "Session is gone", @options)
-    end
-
     # Acknowledge the data that has been received so far
     # Note: this is where @my_seq is updated
     ack_outgoing(packet.ack)
@@ -227,6 +218,10 @@ class Session
       SessionManager.kill_session(@id)
 
       return Packet.create_fin(@id, "MSG received in invalid state", @options)
+    end
+
+    if(@state == STATE_KILLED)
+      return Packet.create_fin(@id, "Killed", @options)
     end
 
     if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)

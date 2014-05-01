@@ -46,10 +46,10 @@ class SessionManager
     # Notify subscribers before deleting it, in case they want to do something with
     # it first
     session = find(id)
+
     if(!session.nil?)
       session.notify_subscribers(:session_destroyed, [id])
-
-      @@sessions.delete(id)
+      session.kill()
     end
   end
 

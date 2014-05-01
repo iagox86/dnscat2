@@ -290,6 +290,17 @@ class Ui
     Ui.wakeup()
   end
 
+  def Ui.kill_session(local_id)
+    session = @@sessions[local_id]
+    if(session.nil?())
+      return false
+    end
+
+    session.session.kill()
+
+    return true
+  end
+
   def Ui.session_heartbeat(real_id)
     local_id = @@local_ids[real_id]
 

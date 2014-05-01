@@ -148,6 +148,24 @@ class UiCommand
         end
       end
     },
+
+    "kill" => {
+      :parser => Trollop::Parser.new do
+        banner("Terminate a session")
+      end,
+
+      :proc => Proc.new do |opts, optarg|
+        if(optarg.count != 1)
+          puts("Usage: kill <session_id>")
+        else
+          if(Ui.kill_session(optarg[0].to_i()))
+            puts("Session killed")
+          else
+            puts("Couldn't kill session!")
+          end
+        end
+      end
+    }
   }
 
   def initialize()
