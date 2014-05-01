@@ -12,7 +12,6 @@ Immediate needs:
 - Add more debugging messages throughout, especially newer functionality
 - Make safe_free() null out variables to prevent double-free situations
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
-- in session.rb, get rid of accessor setters that we don't need anymore
 - Add an optional 'reason' field to FIN packets
 
 Future stuff:
