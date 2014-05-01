@@ -30,12 +30,23 @@ typedef struct entry
 static entry_t *first           = NULL;
 #endif
 
+static void die(char *msg, char *file, int line)
+{
+  printf("Unrecoverable error at %s:%d: %s\n", file, line, msg);
+  exit(1);
+}
+
+static void die_mem(char *file, int line)
+{
+  die("Out of memory", file, line);
+}
+
 void add_entry(char *file, int line, void *memory, size_t size)
 {
 #ifdef TESTMEMORY
   entry_t *current = (entry_t*) malloc(sizeof(entry_t));
   if(!current)
-    DIE_MEM();
+    die_mem(file, line);
 
   /* Put the new entry at the front of the list. */
   current->next = first;
@@ -48,7 +59,7 @@ void add_entry(char *file, int line, void *memory, size_t size)
 #endif
 }
 
-void update_entry(void *old_memory, void *new_memory, int new_size)
+void update_entry(void *old_memory, void *new_memory, int new_size, char *file, int line)
 {
 #ifdef TESTMEMORY
   entry_t *current = first;
@@ -64,11 +75,11 @@ void update_entry(void *old_memory, void *new_memory, int new_size)
     current = current->next;
   }
 
-  DIE("Tried to re-allocate memory that doesn't exist.");
+  die("Tried to re-allocate memory that doesn't exist.", file, line);
 #endif
 }
 
-void remove_entry(void *memory)
+void remove_entry(void *memory, char *file, int line)
 {
 #ifdef TESTMEMORY
   entry_t *last    = NULL;
@@ -97,7 +108,7 @@ void remove_entry(void *memory)
     current = current->next;
   }
 
-  DIE("Tried to free memory that we didn't allocate (or that's already been freed)");
+  die("Tried to free memory that we didn't allocate (or that's already been freed)", file, line);
 #endif
 }
 
@@ -126,7 +137,7 @@ void *safe_malloc_internal(size_t size, char *file, int line)
 {
   void *ret = malloc(size);
   if(!ret)
-    DIE_MEM();
+    die_mem(file, line);
   memset(ret, 0, size);
 
   add_entry(file, line, ret, size);
@@ -137,9 +148,9 @@ void *safe_realloc_internal(void *ptr, size_t size, char *file, int line)
 {
   void *ret = realloc(ptr, size);
   if(!ret)
-    DIE_MEM();
+    die_mem(file, line);
 
-  update_entry(ptr, ret, size);
+  update_entry(ptr, ret, size, file, line);
   return ret;
 }
 
@@ -148,7 +159,7 @@ char *safe_strdup_internal(const char *str, char *file, int line)
   char *ret;
 
   if(strlen(str) + 1 < strlen(str))
-    DIE("Overflow.");
+    die("Overflow.", file, line);
 
   ret = safe_malloc_internal(strlen(str) + 1, file, line);
   memcpy(ret, str, strlen(str) + 1);
@@ -168,48 +179,6 @@ void *safe_memcpy_internal(const void *data, size_t length, char *file, int line
 
 void safe_free_internal(void *ptr, char *file, int line)
 {
-  remove_entry(ptr);
+  remove_entry(ptr, file, line);
   free(ptr);
 }
-
-char *unicode_alloc(const char *string)
-{
-  size_t i;
-  char *unicode;
-  size_t unicode_length = (strlen(string) + 1) * 2;
-
-  if(unicode_length < strlen(string))
-    DIE("Overflow.");
-
-  unicode = safe_malloc(unicode_length);
-
-  memset(unicode, 0, unicode_length);
-  for(i = 0; i < strlen(string); i++)
-  {
-    unicode[(i * 2)] = string[i];
-  }
-
-  return unicode;
-}
-
-char *unicode_alloc_upper(const char *string)
-{
-  size_t i;
-  char *unicode;
-  size_t unicode_length = (strlen(string) + 1) * 2;
-
-  if(unicode_length < strlen(string))
-    DIE("Overflow.");
-
-  unicode = safe_malloc(unicode_length);
-
-  memset(unicode, 0, unicode_length);
-  for(i = 0; i < strlen(string); i++)
-  {
-    /* Note: int typecase fixes compile warning on cygwin. */
-    unicode[(i * 2)] = toupper((int)string[i]);
-  }
-
-  return unicode;
-}
-

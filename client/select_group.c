@@ -5,6 +5,7 @@
  * (See LICENSE.txt)
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 

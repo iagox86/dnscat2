@@ -30,7 +30,7 @@ char *safe_strdup_internal(const char *str, char *file, int line);
 void *safe_memcpy_internal(const void *data, size_t length, char *file, int line);
 
 /* Free memory and remove it from our list of allocated memory. */
-#define safe_free(ptr) safe_free_internal(ptr, __FILE__, __LINE__)
+#define safe_free(ptr) assert(ptr);safe_free_internal(ptr, __FILE__, __LINE__);ptr=NULL
 void safe_free_internal(void *ptr, char *file, int line);
 
 /* Create a UNICODE string based on an ASCII one. Be sure to free the memory! */
