@@ -322,7 +322,6 @@ static void handle_packet_in(uint8_t *data, size_t length)
   if(!session)
   {
     LOG_ERROR("Tried to access a non-existent session: %d", packet->session_id);
-    packet_destroy(packet);
     return;
   }
 

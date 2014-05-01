@@ -33,6 +33,7 @@ static entry_t *first           = NULL;
 static void die(char *msg, char *file, int line)
 {
   printf("\n\nUnrecoverable error at %s:%d: %s\n\n", file, line, msg);
+  abort();
   exit(1);
 }
 
