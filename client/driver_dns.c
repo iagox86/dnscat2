@@ -179,7 +179,7 @@ static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length
     char hex_buf[3];
 
 #ifdef WIN32
-	sprintf_s(hex_buf, 3, "%02x", data[i]);
+    sprintf_s(hex_buf, 3, "%02x", data[i]);
 #else
     sprintf(hex_buf, "%02x", data[i]);
 #endif
