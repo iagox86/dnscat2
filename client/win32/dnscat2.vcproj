@@ -63,7 +63,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib"
+				AdditionalDependencies="ws2_32.lib dnsapi.lib"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -215,6 +215,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\my_getopt.c"
+				>
+			</File>
+			<File
 				RelativePath="..\packet.c"
 				>
 			</File>
@@ -228,10 +232,6 @@
 			</File>
 			<File
 				RelativePath="..\tcp.c"
-				>
-			</File>
-			<File
-				RelativePath="..\test.c"
 				>
 			</File>
 			<File
@@ -282,6 +282,10 @@
 			</File>
 			<File
 				RelativePath="..\message.h"
+				>
+			</File>
+			<File
+				RelativePath="..\my_getopt.h"
 				>
 			</File>
 			<File

@@ -5,12 +5,17 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#ifdef WIN32
+#include "my_getopt.h"
+#else
+#include <getopt.h>
 #include <sys/socket.h>
+#endif
 
 #include "buffer.h"
 #include "dns.h"
@@ -51,7 +56,7 @@ static SELECT_RESPONSE_t timeout(void *group, void *param)
   return SELECT_OK;
 }
 
-static void cleanup()
+static void cleanup(void)
 {
   LOG_WARNING("Terminating");
 
@@ -179,7 +184,11 @@ int main(int argc, char *argv[])
   driver_dns     = driver_dns_create(group);
 #endif
 
-  srand(time(NULL));
+  /* Seed with the current time; not great, but it'll suit our purposes. */
+  srand((unsigned int)time(NULL));
+
+  /* This is required for win32 support. */
+  winsock_initialize();
 
   /* Set the default log level */
   log_set_min_console_level(min_log_level);

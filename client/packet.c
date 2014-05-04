@@ -267,8 +267,30 @@ char *packet_to_s(packet_t *packet, options_t options)
   /* This is ugly, but I don't have a good automatic "printf" allocator. */
   char *ret = safe_malloc(1024);
 
+#ifdef WIN32
   if(packet->packet_type == PACKET_TYPE_SYN)
   {
+    _snprintf_s(ret, 1024, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+  }
+  else if(packet->packet_type == PACKET_TYPE_MSG)
+  {
+    if(options & OPT_CHUNKED_DOWNLOAD)
+      _snprintf_s(ret, 1024, 1024, "Type = MSG :: session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
+    else
+      _snprintf_s(ret, 1024, 1024, "Type = MSG :: session = 0x%04x, chunk = 0x%04x", packet->session_id, packet->body.msg.options.chunked.chunk);
+  }
+  else if(packet->packet_type == PACKET_TYPE_FIN)
+  {
+    _snprintf_s(ret, 1024, 1024, "Type = FIN :: session = 0x%04x :: %s", packet->session_id, packet->body.fin.reason);
+  }
+  else
+  {
+    _snprintf_s(ret, 1024, 1024, "Unknown packet type!");
+  }
+#else
+  if(packet->packet_type == PACKET_TYPE_SYN)
+  {
+    _snprintf_s(ret, 1024, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
     snprintf(ret, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
   }
   else if(packet->packet_type == PACKET_TYPE_MSG)
@@ -286,6 +308,7 @@ char *packet_to_s(packet_t *packet, options_t options)
   {
     snprintf(ret, 1024, "Unknown packet type!");
   }
+#endif
 
   return ret;
 }
