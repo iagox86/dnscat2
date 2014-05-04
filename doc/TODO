@@ -11,6 +11,7 @@ Immediate needs:
 - Windows support
 - Add more debugging messages throughout, especially newer functionality
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
+- Fix tabs
 
 Future stuff:
 - Other protocols (ping/http/etc)

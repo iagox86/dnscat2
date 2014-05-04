@@ -103,7 +103,13 @@ int tcp_connect(char *host, uint16_t port)
 
 void tcp_set_nonblocking(int s)
 {
+#ifdef WIN32
+  /* TODO: This */
+  fprintf(stderr, "Don't know how to do nonblocking on Windows\n");
+  exit(1);
+#else
   fcntl(s, F_SETFL, O_NONBLOCK);
+#endif
 }
 
 int tcp_listen(char *address, uint16_t port)

@@ -408,6 +408,10 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
   size_t i;
   struct timeval select_timeout;
 
+#ifdef WIN32
+  size_t count = 0;
+#endif
+
   /* Always time out after an interval (like Ncat does) -- this lets us poll for non-Internet sockets on Windows. */
 #ifdef WIN32
   select_timeout.tv_sec = 0;
@@ -504,7 +508,6 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
         /* Timeout elapsed with no events, inform the callbacks. */
         if(group->timeout_callback)
           group->timeout_callback(group, group->timeout_param);
-        }
       }
 
       /* Increment the elapsed time. We don't really care if this overflows. */

@@ -90,10 +90,12 @@ typedef struct
 
     struct
     {
+		int dummy; /* WIN32 doesn't allow empty structs/unions */
     } start;
 
     struct
     {
+		int dummy; /* WIN32 doesn't allow empty structs/unions */
     } shutdown;
 
     struct
@@ -151,6 +153,7 @@ typedef struct
 
     struct
     {
+		int dummy; /* WIN32 doesn't allow empty structs/unions */
     } heartbeat;
   } message;
 } message_t;

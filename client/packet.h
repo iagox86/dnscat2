@@ -7,8 +7,13 @@
 #ifndef __PACKET_H__
 #define __PACKET_H__
 
-#include <stdint.h>
 #include <stdlib.h>
+
+#ifdef WIN32
+#include "pstdint.h"
+#else
+#include <stdint.h>
+#endif
 
 #define MAX_PACKET_SIZE 1024
 

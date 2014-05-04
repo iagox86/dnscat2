@@ -1,7 +1,12 @@
 #include <assert.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
+
+#ifdef WIN32
+#include "pstdint.h"
+#else
+#include <stdint.h>
+#endif
 
 #include "buffer.h"
 #include "log.h"
@@ -184,8 +189,7 @@ size_t packet_get_msg_size(options_t options)
       p = packet_create_msg_chunked(0, 0);
     else
       p = packet_create_msg_normal(0, 0, 0, (uint8_t *)"", 0);
-    uint8_t *data = packet_to_bytes(p, &size, options);
-    safe_free(data);
+    safe_free(packet_to_bytes(p, &size, options));
     packet_destroy(p);
   }
 

@@ -3,7 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #include "buffer.h"
 #include "log.h"
