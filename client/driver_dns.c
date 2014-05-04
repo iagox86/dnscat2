@@ -45,24 +45,24 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   LOG_INFO("DNS response received (%d bytes)", length);
 
   /* TODO */
-  if(dns->rcode != DNS_RCODE_SUCCESS)
+  if(dns->rcode != _DNS_RCODE_SUCCESS)
   {
     /* TODO: Handle errors more gracefully */
     switch(dns->rcode)
     {
-      case DNS_RCODE_FORMAT_ERROR:
+      case _DNS_RCODE_FORMAT_ERROR:
         LOG_ERROR("DNS: RCODE_FORMAT_ERROR");
         break;
-      case DNS_RCODE_SERVER_FAILURE:
+      case _DNS_RCODE_SERVER_FAILURE:
         LOG_ERROR("DNS: RCODE_SERVER_FAILURE");
         break;
-      case DNS_RCODE_NAME_ERROR:
+      case _DNS_RCODE_NAME_ERROR:
         LOG_ERROR("DNS: RCODE_NAME_ERROR");
         break;
-      case DNS_RCODE_NOT_IMPLEMENTED:
+      case _DNS_RCODE_NOT_IMPLEMENTED:
         LOG_ERROR("DNS: RCODE_NOT_IMPLEMENTED");
         break;
-      case DNS_RCODE_REFUSED:
+      case _DNS_RCODE_REFUSED:
         LOG_ERROR("DNS: RCODE_REFUSED");
         break;
       default:
@@ -78,7 +78,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   {
     LOG_ERROR("DNS returned the wrong number of response fields (answer_count should be 1, was instead %d).", dns->answer_count);
   }
-  else if(dns->answers[0].type == DNS_TYPE_TEXT)
+  else if(dns->answers[0].type == _DNS_TYPE_TEXT)
   {
     char *answer;
     char buf[3];
@@ -196,8 +196,8 @@ static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length
   /* Double-check we didn't mess up the length. */
   assert(encoded_length <= MAX_DNS_LENGTH);
 
-  dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_RD, DNS_RCODE_SUCCESS);
-  dns_add_question(dns, (char*)encoded_bytes, DNS_TYPE_TEXT, DNS_CLASS_IN);
+  dns = dns_create(_DNS_OPCODE_QUERY, _DNS_FLAG_RD, _DNS_RCODE_SUCCESS);
+  dns_add_question(dns, (char*)encoded_bytes, _DNS_TYPE_TEXT, _DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
   LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_host, driver->dns_port);

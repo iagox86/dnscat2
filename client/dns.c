@@ -295,30 +295,30 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
       dns->answers[i].ttl      = buffer_read_next_int32(buffer); /* Time to live. */
       dns->answers[i].answer   = (answer_types_t *) safe_malloc(sizeof(answer_types_t));
 
-      if(dns->answers[i].type == DNS_TYPE_A) /* 0x0001 */
+      if(dns->answers[i].type == _DNS_TYPE_A) /* 0x0001 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care) */
 
         dns->answers[i].answer->A.address = safe_malloc(16);
         buffer_read_next_ipv4_address(buffer, dns->answers[i].answer->A.address);
       }
-      else if(dns->answers[i].type == DNS_TYPE_NS) /* 0x0002 */
+      else if(dns->answers[i].type == _DNS_TYPE_NS) /* 0x0002 */
       {
         buffer_read_next_int16(buffer); /* String size. */
         dns->answers[i].answer->NS.name = buffer_read_next_dns_name(buffer); /* The answer. */
       }
-      else if(dns->answers[i].type == DNS_TYPE_CNAME) /* 0x0005 */
+      else if(dns->answers[i].type == _DNS_TYPE_CNAME) /* 0x0005 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
         dns->answers[i].answer->CNAME.name = buffer_read_next_dns_name(buffer); /* The answer. */
       }
-      else if(dns->answers[i].type == DNS_TYPE_MX) /* 0x000F */
+      else if(dns->answers[i].type == _DNS_TYPE_MX) /* 0x000F */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
         dns->answers[i].answer->MX.preference = buffer_read_next_int16(buffer); /* Preference. */
         dns->answers[i].answer->MX.name       = buffer_read_next_dns_name(buffer); /* The answer. */
       }
-      else if(dns->answers[i].type == DNS_TYPE_TEXT) /* 0x0010 */
+      else if(dns->answers[i].type == _DNS_TYPE_TEXT) /* 0x0010 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
         dns->answers[i].answer->TEXT.length = buffer_read_next_int8(buffer); /* The actual length. */
@@ -326,7 +326,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         buffer_read_next_bytes(buffer, dns->answers[i].answer->TEXT.text, dns->answers[i].answer->TEXT.length); /* Read the answer. */
       }
 #ifndef WIN32
-      else if(dns->answers[i].type == DNS_TYPE_AAAA) /* 0x001C */
+      else if(dns->answers[i].type == _DNS_TYPE_AAAA) /* 0x001C */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
 
@@ -334,7 +334,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         buffer_read_next_ipv6_address(buffer, dns->answers[i].answer->AAAA.address);
       }
 #endif
-      else if(dns->answers[i].type == DNS_TYPE_NB) /* 0x0020 */
+      else if(dns->answers[i].type == _DNS_TYPE_NB) /* 0x0020 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
 
@@ -342,7 +342,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         dns->answers[i].answer->NB.address = safe_malloc(16);
         buffer_read_next_ipv4_address(buffer, dns->answers[i].answer->NB.address);
       }
-      else if(dns->answers[i].type == DNS_TYPE_NBSTAT) /* 0x0021 */
+      else if(dns->answers[i].type == _DNS_TYPE_NBSTAT) /* 0x0021 */
       {
         uint8_t j;
 
@@ -406,30 +406,30 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
       dns->additionals[i].ttl        = buffer_read_next_int32(buffer); /* Time to live. */
       dns->additionals[i].additional = (additional_types_t *) safe_malloc(sizeof(additional_types_t));
 
-      if(dns->additionals[i].type == DNS_TYPE_A) /* 0x0001 */
+      if(dns->additionals[i].type == _DNS_TYPE_A) /* 0x0001 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care) */
 
         dns->additionals[i].additional->A.address = safe_malloc(16);
         buffer_read_next_ipv4_address(buffer, dns->additionals[i].additional->A.address);
       }
-      else if(dns->additionals[i].type == DNS_TYPE_NS) /* 0x0002 */
+      else if(dns->additionals[i].type == _DNS_TYPE_NS) /* 0x0002 */
       {
         buffer_read_next_int16(buffer); /* String size. */
         dns->additionals[i].additional->NS.name = buffer_read_next_dns_name(buffer); /* The additional. */
       }
-      else if(dns->additionals[i].type == DNS_TYPE_CNAME) /* 0x0005 */
+      else if(dns->additionals[i].type == _DNS_TYPE_CNAME) /* 0x0005 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
         dns->additionals[i].additional->CNAME.name = buffer_read_next_dns_name(buffer); /* The additional. */
       }
-      else if(dns->additionals[i].type == DNS_TYPE_MX) /* 0x000F */
+      else if(dns->additionals[i].type == _DNS_TYPE_MX) /* 0x000F */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
         dns->additionals[i].additional->MX.preference = buffer_read_next_int16(buffer); /* Preference. */
         dns->additionals[i].additional->MX.name       = buffer_read_next_dns_name(buffer); /* The additional. */
       }
-      else if(dns->additionals[i].type == DNS_TYPE_TEXT) /* 0x0010 */
+      else if(dns->additionals[i].type == _DNS_TYPE_TEXT) /* 0x0010 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
         dns->additionals[i].additional->TEXT.length = buffer_read_next_int8(buffer); /* The actual length. */
@@ -437,7 +437,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         buffer_read_next_bytes(buffer, dns->additionals[i].additional->TEXT.text, dns->additionals[i].additional->TEXT.length); /* Read the additional. */
       }
 #ifndef WIN32
-      else if(dns->additionals[i].type == DNS_TYPE_AAAA) /* 0x001C */
+      else if(dns->additionals[i].type == _DNS_TYPE_AAAA) /* 0x001C */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
 
@@ -445,7 +445,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         buffer_read_next_ipv6_address(buffer, dns->additionals[i].additional->AAAA.address);
       }
 #endif
-      else if(dns->additionals[i].type == DNS_TYPE_NB) /* 0x0020 */
+      else if(dns->additionals[i].type == _DNS_TYPE_NB) /* 0x0020 */
       {
         buffer_read_next_int16(buffer); /* String size (don't care). */
 
@@ -453,7 +453,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         dns->additionals[i].additional->NB.address = safe_malloc(16);
         buffer_read_next_ipv4_address(buffer, dns->additionals[i].additional->NB.address);
       }
-      else if(dns->additionals[i].type == DNS_TYPE_NBSTAT) /* 0x0021 */
+      else if(dns->additionals[i].type == _DNS_TYPE_NBSTAT) /* 0x0021 */
       {
         uint8_t j;
 
@@ -526,37 +526,37 @@ void dns_destroy(dns_t *dns)
     {
       safe_free(dns->answers[i].question);
 
-      if(dns->answers[i].type == DNS_TYPE_A)
+      if(dns->answers[i].type == _DNS_TYPE_A)
       {
         safe_free(dns->answers[i].answer->A.address);
       }
-      else if(dns->answers[i].type == DNS_TYPE_NS)
+      else if(dns->answers[i].type == _DNS_TYPE_NS)
       {
         safe_free(dns->answers[i].answer->NS.name);
       }
-      else if(dns->answers[i].type == DNS_TYPE_CNAME)
+      else if(dns->answers[i].type == _DNS_TYPE_CNAME)
       {
         safe_free(dns->answers[i].answer->CNAME.name);
       }
-      else if(dns->answers[i].type == DNS_TYPE_MX)
+      else if(dns->answers[i].type == _DNS_TYPE_MX)
       {
         safe_free(dns->answers[i].answer->MX.name);
       }
-      else if(dns->answers[i].type == DNS_TYPE_TEXT)
+      else if(dns->answers[i].type == _DNS_TYPE_TEXT)
       {
         safe_free(dns->answers[i].answer->TEXT.text);
       }
 #ifndef WIN32
-      else if(dns->answers[i].type == DNS_TYPE_AAAA)
+      else if(dns->answers[i].type == _DNS_TYPE_AAAA)
       {
         safe_free(dns->answers[i].answer->AAAA.address);
       }
 #endif
-      else if(dns->answers[i].type == DNS_TYPE_NB)
+      else if(dns->answers[i].type == _DNS_TYPE_NB)
       {
         safe_free(dns->answers[i].answer->NB.address);
       }
-      else if(dns->answers[i].type == DNS_TYPE_NBSTAT)
+      else if(dns->answers[i].type == _DNS_TYPE_NBSTAT)
       {
         uint8_t j;
         for(j = 0; j < dns->answers[i].answer->NBSTAT.name_count; j++)
@@ -580,37 +580,37 @@ void dns_destroy(dns_t *dns)
     {
       safe_free(dns->additionals[i].question);
 
-      if(dns->additionals[i].type == DNS_TYPE_A)
+      if(dns->additionals[i].type == _DNS_TYPE_A)
       {
         safe_free(dns->additionals[i].additional->A.address);
       }
-      else if(dns->additionals[i].type == DNS_TYPE_NS)
+      else if(dns->additionals[i].type == _DNS_TYPE_NS)
       {
         safe_free(dns->additionals[i].additional->NS.name);
       }
-      else if(dns->additionals[i].type == DNS_TYPE_CNAME)
+      else if(dns->additionals[i].type == _DNS_TYPE_CNAME)
       {
         safe_free(dns->additionals[i].additional->CNAME.name);
       }
-      else if(dns->additionals[i].type == DNS_TYPE_MX)
+      else if(dns->additionals[i].type == _DNS_TYPE_MX)
       {
         safe_free(dns->additionals[i].additional->MX.name);
       }
-      else if(dns->additionals[i].type == DNS_TYPE_TEXT)
+      else if(dns->additionals[i].type == _DNS_TYPE_TEXT)
       {
         safe_free(dns->additionals[i].additional->TEXT.text);
       }
 #ifndef WIN32
-      else if(dns->additionals[i].type == DNS_TYPE_AAAA)
+      else if(dns->additionals[i].type == _DNS_TYPE_AAAA)
       {
         safe_free(dns->additionals[i].additional->AAAA.address);
       }
 #endif
-      else if(dns->additionals[i].type == DNS_TYPE_NB)
+      else if(dns->additionals[i].type == _DNS_TYPE_NB)
       {
         safe_free(dns->additionals[i].additional->NB.address);
       }
-      else if(dns->additionals[i].type == DNS_TYPE_NBSTAT)
+      else if(dns->additionals[i].type == _DNS_TYPE_NBSTAT)
       {
         uint8_t j;
         for(j = 0; j < dns->additionals[i].additional->NBSTAT.name_count; j++)
@@ -728,21 +728,21 @@ void dns_add_answer_A(dns_t *dns, char *question, dns_class_t class, uint32_t tt
 {
   answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
   answer->A.address      = safe_strdup(address);
-  dns_add_answer(dns, question, DNS_TYPE_A, class, ttl, answer);
+  dns_add_answer(dns, question, _DNS_TYPE_A, class, ttl, answer);
 }
 
 void dns_add_answer_NS(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, char *name)
 {
   answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
   answer->NS.name        = safe_strdup(name);
-  dns_add_answer(dns, question, DNS_TYPE_NS, class, ttl, answer);
+  dns_add_answer(dns, question, _DNS_TYPE_NS, class, ttl, answer);
 }
 
 void dns_add_answer_CNAME(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *name)
 {
   answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
   answer->CNAME.name     = safe_strdup(name);
-  dns_add_answer(dns, question, DNS_TYPE_CNAME, class, ttl, answer);
+  dns_add_answer(dns, question, _DNS_TYPE_CNAME, class, ttl, answer);
 }
 
 void dns_add_answer_MX(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, uint16_t preference, char *name)
@@ -750,7 +750,7 @@ void dns_add_answer_MX(dns_t *dns,    char *question, dns_class_t class, uint32_
   answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
   answer->MX.preference  = preference;
   answer->MX.name        = safe_strdup(name);
-  dns_add_answer(dns, question, DNS_TYPE_MX, class, ttl, answer);
+  dns_add_answer(dns, question, _DNS_TYPE_MX, class, ttl, answer);
 }
 
 void dns_add_answer_TEXT(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, uint8_t *text, uint8_t length)
@@ -760,7 +760,7 @@ void dns_add_answer_TEXT(dns_t *dns,  char *question, dns_class_t class, uint32_
   memcpy(text_copy, text, length);
   answer->TEXT.text      = text_copy;
   answer->TEXT.length    = length;
-  dns_add_answer(dns, question, DNS_TYPE_TEXT, class, ttl, answer);
+  dns_add_answer(dns, question, _DNS_TYPE_TEXT, class, ttl, answer);
 }
 
 #ifndef WIN32
@@ -768,7 +768,7 @@ void dns_add_answer_AAAA(dns_t *dns,  char *question, dns_class_t class, uint32_
 {
   answer_types_t *answer = safe_malloc(sizeof(answer_types_t));
   answer->AAAA.address   = safe_strdup(address);
-  dns_add_answer(dns, question, DNS_TYPE_AAAA, class, ttl, answer);
+  dns_add_answer(dns, question, _DNS_TYPE_AAAA, class, ttl, answer);
 }
 #endif
 
@@ -813,7 +813,7 @@ void dns_add_answer_NB(dns_t *dns,  char *question, uint8_t question_type, char 
   answer = safe_malloc(sizeof(answer_types_t));
   answer->NB.flags     = flags;
   answer->NB.address   = safe_strdup(address);
-  dns_add_answer(dns, encoded, DNS_TYPE_NB, class, ttl, answer);
+  dns_add_answer(dns, encoded, _DNS_TYPE_NB, class, ttl, answer);
 
   safe_free(encoded);
 }
@@ -843,21 +843,21 @@ void dns_add_additional_A(dns_t *dns, char *question, dns_class_t class, uint32_
 {
   additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
   additional->A.address      = safe_strdup(address);
-  dns_add_additional(dns, question, DNS_TYPE_A, class, ttl, additional);
+  dns_add_additional(dns, question, _DNS_TYPE_A, class, ttl, additional);
 }
 
 void dns_add_additional_NS(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, char *name)
 {
   additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
   additional->NS.name        = safe_strdup(name);
-  dns_add_additional(dns, question, DNS_TYPE_NS, class, ttl, additional);
+  dns_add_additional(dns, question, _DNS_TYPE_NS, class, ttl, additional);
 }
 
 void dns_add_additional_CNAME(dns_t *dns, char *question, dns_class_t class, uint32_t ttl, char *name)
 {
   additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
   additional->CNAME.name     = safe_strdup(name);
-  dns_add_additional(dns, question, DNS_TYPE_CNAME, class, ttl, additional);
+  dns_add_additional(dns, question, _DNS_TYPE_CNAME, class, ttl, additional);
 }
 
 void dns_add_additional_MX(dns_t *dns,    char *question, dns_class_t class, uint32_t ttl, uint16_t preference, char *name)
@@ -865,7 +865,7 @@ void dns_add_additional_MX(dns_t *dns,    char *question, dns_class_t class, uin
   additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
   additional->MX.preference  = preference;
   additional->MX.name        = safe_strdup(name);
-  dns_add_additional(dns, question, DNS_TYPE_MX, class, ttl, additional);
+  dns_add_additional(dns, question, _DNS_TYPE_MX, class, ttl, additional);
 }
 
 void dns_add_additional_TEXT(dns_t *dns,  char *question, dns_class_t class, uint32_t ttl, uint8_t *text, uint8_t length)
@@ -875,7 +875,7 @@ void dns_add_additional_TEXT(dns_t *dns,  char *question, dns_class_t class, uin
   memcpy(text_copy, text, length);
   additional->TEXT.text      = text_copy;
   additional->TEXT.length    = length;
-  dns_add_additional(dns, question, DNS_TYPE_TEXT, class, ttl, additional);
+  dns_add_additional(dns, question, _DNS_TYPE_TEXT, class, ttl, additional);
 }
 
 #ifndef WIN32
@@ -883,7 +883,7 @@ void dns_add_additional_AAAA(dns_t *dns,  char *question, dns_class_t class, uin
 {
   additional_types_t *additional = safe_malloc(sizeof(additional_types_t));
   additional->AAAA.address   = safe_strdup(address);
-  dns_add_additional(dns, question, DNS_TYPE_AAAA, class, ttl, additional);
+  dns_add_additional(dns, question, _DNS_TYPE_AAAA, class, ttl, additional);
 }
 #endif
 
@@ -928,7 +928,7 @@ void dns_add_additional_NB(dns_t *dns,  char *question, uint8_t question_type, c
   additional = safe_malloc(sizeof(additional_types_t));
   additional->NB.flags     = flags;
   additional->NB.address   = safe_strdup(address);
-  dns_add_additional(dns, encoded, DNS_TYPE_NB, class, ttl, additional);
+  dns_add_additional(dns, encoded, _DNS_TYPE_NB, class, ttl, additional);
 
   safe_free(encoded);
 }
@@ -979,41 +979,41 @@ uint8_t *dns_to_packet(dns_t *dns, size_t *length)
     buffer_add_int16(buffer, dns->answers[i].class); /* Class. */
     buffer_add_int32(buffer, dns->answers[i].ttl); /* Time to live. */
 
-    if(dns->answers[i].type == DNS_TYPE_A)
+    if(dns->answers[i].type == _DNS_TYPE_A)
     {
       buffer_add_int16(buffer, 4); /* Length. */
       buffer_add_ipv4_address(buffer, dns->answers[i].answer->A.address);
     }
-    else if(dns->answers[i].type == DNS_TYPE_NS)
+    else if(dns->answers[i].type == _DNS_TYPE_NS)
     {
       buffer_add_int16(buffer, strlen(dns->answers[i].answer->NS.name) + 2);
       buffer_add_dns_name(buffer, dns->answers[i].answer->NS.name);
     }
-    else if(dns->answers[i].type == DNS_TYPE_CNAME)
+    else if(dns->answers[i].type == _DNS_TYPE_CNAME)
     {
       buffer_add_int16(buffer, strlen(dns->answers[i].answer->CNAME.name) + 2);
       buffer_add_dns_name(buffer, dns->answers[i].answer->CNAME.name);
     }
-    else if(dns->answers[i].type == DNS_TYPE_MX)
+    else if(dns->answers[i].type == _DNS_TYPE_MX)
     {
       buffer_add_int16(buffer, strlen(dns->answers[i].answer->MX.name) + 2 + 2);
       buffer_add_int16(buffer, dns->answers[i].answer->MX.preference);
       buffer_add_dns_name(buffer, dns->answers[i].answer->MX.name);
     }
-    else if(dns->answers[i].type == DNS_TYPE_TEXT)
+    else if(dns->answers[i].type == _DNS_TYPE_TEXT)
     {
       buffer_add_int16(buffer, dns->answers[i].answer->TEXT.length + 1);
       buffer_add_int8(buffer, dns->answers[i].answer->TEXT.length);
       buffer_add_bytes(buffer, dns->answers[i].answer->TEXT.text, dns->answers[i].answer->TEXT.length);
     }
 #ifndef WIN32
-    else if(dns->answers[i].type == DNS_TYPE_AAAA)
+    else if(dns->answers[i].type == _DNS_TYPE_AAAA)
     {
       buffer_add_int16(buffer, 16);
       buffer_add_ipv6_address(buffer, dns->answers[i].answer->AAAA.address);
     }
 #endif
-    else if(dns->answers[i].type == DNS_TYPE_NB)
+    else if(dns->answers[i].type == _DNS_TYPE_NB)
     {
       buffer_add_int16(buffer, 6);
       buffer_add_int16(buffer, dns->answers[i].answer->NB.flags);
@@ -1038,41 +1038,41 @@ uint8_t *dns_to_packet(dns_t *dns, size_t *length)
     buffer_add_int16(buffer, dns->additionals[i].class); /* Class. */
     buffer_add_int32(buffer, dns->additionals[i].ttl); /* Time to live. */
 
-    if(dns->additionals[i].type == DNS_TYPE_A)
+    if(dns->additionals[i].type == _DNS_TYPE_A)
     {
       buffer_add_int16(buffer, 4); /* Length. */
       buffer_add_ipv4_address(buffer, dns->additionals[i].additional->A.address);
     }
-    else if(dns->additionals[i].type == DNS_TYPE_NS)
+    else if(dns->additionals[i].type == _DNS_TYPE_NS)
     {
       buffer_add_int16(buffer, strlen(dns->additionals[i].additional->NS.name) + 2);
       buffer_add_dns_name(buffer, dns->additionals[i].additional->NS.name);
     }
-    else if(dns->additionals[i].type == DNS_TYPE_CNAME)
+    else if(dns->additionals[i].type == _DNS_TYPE_CNAME)
     {
       buffer_add_int16(buffer, strlen(dns->additionals[i].additional->CNAME.name) + 2);
       buffer_add_dns_name(buffer, dns->additionals[i].additional->CNAME.name);
     }
-    else if(dns->additionals[i].type == DNS_TYPE_MX)
+    else if(dns->additionals[i].type == _DNS_TYPE_MX)
     {
       buffer_add_int16(buffer, strlen(dns->additionals[i].additional->MX.name) + 2 + 2);
       buffer_add_int16(buffer, dns->additionals[i].additional->MX.preference);
       buffer_add_dns_name(buffer, dns->additionals[i].additional->MX.name);
     }
-    else if(dns->additionals[i].type == DNS_TYPE_TEXT)
+    else if(dns->additionals[i].type == _DNS_TYPE_TEXT)
     {
       buffer_add_int16(buffer, dns->additionals[i].additional->TEXT.length + 1);
       buffer_add_int8(buffer, dns->additionals[i].additional->TEXT.length);
       buffer_add_bytes(buffer, dns->additionals[i].additional->TEXT.text, dns->additionals[i].additional->TEXT.length);
     }
 #ifndef WIN32
-    else if(dns->additionals[i].type == DNS_TYPE_AAAA)
+    else if(dns->additionals[i].type == _DNS_TYPE_AAAA)
     {
       buffer_add_int16(buffer, 16);
       buffer_add_ipv6_address(buffer, dns->additionals[i].additional->AAAA.address);
     }
 #endif
-    else if(dns->additionals[i].type == DNS_TYPE_NB)
+    else if(dns->additionals[i].type == _DNS_TYPE_NB)
     {
       buffer_add_int16(buffer, 6);
       buffer_add_int16(buffer, dns->additionals[i].additional->NB.flags);
@@ -1097,23 +1097,23 @@ void dns_print(dns_t *dns)
 
   for(i = 0; i < dns->answer_count; i++)
   {
-    if(dns->answers[i].type == DNS_TYPE_A)
+    if(dns->answers[i].type == _DNS_TYPE_A)
       fprintf(stderr, "answer: %s => %s A      0x%04x %08x\n", dns->answers[i].question, dns->answers[i].answer->A.address, dns->answers[i].class, dns->answers[i].ttl);
-    else if(dns->answers[i].type == DNS_TYPE_NS)
+    else if(dns->answers[i].type == _DNS_TYPE_NS)
       fprintf(stderr, "answer: %s => %s NS     0x%04x %08x\n", dns->answers[i].question, dns->answers[i].answer->NS.name, dns->answers[i].class, dns->answers[i].ttl);
-    else if(dns->answers[i].type == DNS_TYPE_CNAME)
+    else if(dns->answers[i].type == _DNS_TYPE_CNAME)
       fprintf(stderr, "answer: %s => %s CNAME  0x%04x %08x\n", dns->answers[i].question, dns->answers[i].answer->CNAME.name, dns->answers[i].class, dns->answers[i].ttl);
-    else if(dns->answers[i].type == DNS_TYPE_MX)
+    else if(dns->answers[i].type == _DNS_TYPE_MX)
       fprintf(stderr, "answer: %s => %s (%d) MX     0x%04x 0x%08x\n", dns->answers[i].question, dns->answers[i].answer->MX.name, dns->answers[i].answer->MX.preference, dns->answers[i].class, dns->answers[i].ttl);
-    else if(dns->answers[i].type == DNS_TYPE_TEXT)
+    else if(dns->answers[i].type == _DNS_TYPE_TEXT)
       fprintf(stderr, "answer: %s => %s TEXT   0x%04x %08x\n", dns->answers[i].question, dns->answers[i].answer->TEXT.text, dns->answers[i].class, dns->answers[i].ttl);
 #ifndef WIN32
-    else if(dns->answers[i].type == DNS_TYPE_AAAA)
+    else if(dns->answers[i].type == _DNS_TYPE_AAAA)
       fprintf(stderr, "answer: %s => %s AAAA   0x%04x %08x\n", dns->answers[i].question, dns->answers[i].answer->AAAA.address, dns->answers[i].class, dns->answers[i].ttl);
 #endif
-    else if(dns->answers[i].type == DNS_TYPE_NB)
+    else if(dns->answers[i].type == _DNS_TYPE_NB)
       fprintf(stderr, "answer: %s => %s (0x%04x) NB 0x%04x %08x\n", dns->answers[i].question, dns->answers[i].answer->NB.address, dns->answers[i].answer->NB.flags, dns->answers[i].class, dns->answers[i].ttl);
-    else if(dns->answers[i].type == DNS_TYPE_NBSTAT)
+    else if(dns->answers[i].type == _DNS_TYPE_NBSTAT)
     {
       uint8_t j;
       NBSTAT_answer_t answer = dns->answers[i].answer->NBSTAT;
@@ -1129,23 +1129,23 @@ void dns_print(dns_t *dns)
 
   for(i = 0; i < dns->additional_count; i++)
   {
-    if(dns->additionals[i].type == DNS_TYPE_A)
+    if(dns->additionals[i].type == _DNS_TYPE_A)
       fprintf(stderr, "additional: %s => %s A      0x%04x %08x\n", dns->additionals[i].question, dns->additionals[i].additional->A.address, dns->additionals[i].class, dns->additionals[i].ttl);
-    else if(dns->additionals[i].type == DNS_TYPE_NS)
+    else if(dns->additionals[i].type == _DNS_TYPE_NS)
       fprintf(stderr, "additional: %s => %s NS     0x%04x %08x\n", dns->additionals[i].question, dns->additionals[i].additional->NS.name, dns->additionals[i].class, dns->additionals[i].ttl);
-    else if(dns->additionals[i].type == DNS_TYPE_CNAME)
+    else if(dns->additionals[i].type == _DNS_TYPE_CNAME)
       fprintf(stderr, "additional: %s => %s CNAME  0x%04x %08x\n", dns->additionals[i].question, dns->additionals[i].additional->CNAME.name, dns->additionals[i].class, dns->additionals[i].ttl);
-    else if(dns->additionals[i].type == DNS_TYPE_MX)
+    else if(dns->additionals[i].type == _DNS_TYPE_MX)
       fprintf(stderr, "additional: %s => %s (%d) MX     0x%04x 0x%08x\n", dns->additionals[i].question, dns->additionals[i].additional->MX.name, dns->additionals[i].additional->MX.preference, dns->additionals[i].class, dns->additionals[i].ttl);
-    else if(dns->additionals[i].type == DNS_TYPE_TEXT)
+    else if(dns->additionals[i].type == _DNS_TYPE_TEXT)
       fprintf(stderr, "additional: %s => %s TEXT   0x%04x %08x\n", dns->additionals[i].question, dns->additionals[i].additional->TEXT.text, dns->additionals[i].class, dns->additionals[i].ttl);
 #ifndef WIN32
-    else if(dns->additionals[i].type == DNS_TYPE_AAAA)
+    else if(dns->additionals[i].type == _DNS_TYPE_AAAA)
       fprintf(stderr, "additional: %s => %s AAAA   0x%04x %08x\n", dns->additionals[i].question, dns->additionals[i].additional->AAAA.address, dns->additionals[i].class, dns->additionals[i].ttl);
 #endif
-    else if(dns->additionals[i].type == DNS_TYPE_NB)
+    else if(dns->additionals[i].type == _DNS_TYPE_NB)
       fprintf(stderr, "additional: %s => %s (0x%04x) NB 0x%04x %08x\n", dns->additionals[i].question, dns->additionals[i].additional->NB.address, dns->additionals[i].additional->NB.flags, dns->additionals[i].class, dns->additionals[i].ttl);
-    else if(dns->additionals[i].type == DNS_TYPE_NBSTAT)
+    else if(dns->additionals[i].type == _DNS_TYPE_NBSTAT)
     {
       uint8_t j;
       NBSTAT_additional_t additional = dns->additionals[i].additional->NBSTAT;
@@ -1161,7 +1161,7 @@ void dns_print(dns_t *dns)
 dns_t *dns_create_error(uint16_t trn_id, question_t question)
 {
   /* Create the DNS packet. */
-  dns_t *dns = dns_create(DNS_OPCODE_QUERY, DNS_FLAG_QR, DNS_RCODE_NAME_ERROR);
+  dns_t *dns = dns_create(_DNS_OPCODE_QUERY, _DNS_FLAG_QR, _DNS_RCODE_NAME_ERROR);
   dns->trn_id = trn_id;
 
   /* Echo back the question. */

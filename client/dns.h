@@ -21,134 +21,121 @@
 
 #include "types.h"
 
-/* Define a list of dns types. Windows defines these automatically,
- * so we need to wrap this in an #ifdef block. */
-#ifndef DNS_TYPE_A
+/* Define a list of dns types. The initial '_' in all the names here is because Windows
+ * defines some of these, and differently than how we want them on occasion. */
 typedef enum
 {
   /* RFC 1034/1035 */
-  DNS_TYPE_A          = 0x0001,
-  DNS_TYPE_NS         = 0x0002,
-  DNS_TYPE_MD         = 0x0003,
-  DNS_TYPE_MF         = 0x0004,
-  DNS_TYPE_CNAME      = 0x0005,
-  DNS_TYPE_SOA        = 0x0006,
-  DNS_TYPE_MB         = 0x0007,
-  DNS_TYPE_MG         = 0x0008,
-  DNS_TYPE_MR         = 0x0009,
-  DNS_TYPE_NULL       = 0x000a,
-  DNS_TYPE_WKS        = 0x000b,
-  DNS_TYPE_PTR        = 0x000c,
-  DNS_TYPE_HINFO      = 0x000d,
-  DNS_TYPE_MINFO      = 0x000e,
-  DNS_TYPE_MX         = 0x000f,
-  DNS_TYPE_TEXT       = 0x0010,
+  _DNS_TYPE_A          = 0x0001,
+  _DNS_TYPE_NS         = 0x0002,
+  _DNS_TYPE_MD         = 0x0003,
+  _DNS_TYPE_MF         = 0x0004,
+  _DNS_TYPE_CNAME      = 0x0005,
+  _DNS_TYPE_SOA        = 0x0006,
+  _DNS_TYPE_MB         = 0x0007,
+  _DNS_TYPE_MG         = 0x0008,
+  _DNS_TYPE_MR         = 0x0009,
+  _DNS_TYPE_NULL       = 0x000a,
+  _DNS_TYPE_WKS        = 0x000b,
+  _DNS_TYPE_PTR        = 0x000c,
+  _DNS_TYPE_HINFO      = 0x000d,
+  _DNS_TYPE_MINFO      = 0x000e,
+  _DNS_TYPE_MX         = 0x000f,
+  _DNS_TYPE_TEXT       = 0x0010,
 
   /*  RFC 1183 */
-  DNS_TYPE_RP         = 0x0011,
-  DNS_TYPE_AFSDB      = 0x0012,
-  DNS_TYPE_X25        = 0x0013,
-  DNS_TYPE_ISDN       = 0x0014,
-  DNS_TYPE_RT         = 0x0015,
+  _DNS_TYPE_RP         = 0x0011,
+  _DNS_TYPE_AFSDB      = 0x0012,
+  _DNS_TYPE_X25        = 0x0013,
+  _DNS_TYPE_ISDN       = 0x0014,
+  _DNS_TYPE_RT         = 0x0015,
 
   /*  RFC 1348 */
-  DNS_TYPE_NSAP       = 0x0016,
-  DNS_TYPE_NSAPPTR    = 0x0017,
+  _DNS_TYPE_NSAP       = 0x0016,
+  _DNS_TYPE_NSAPPTR    = 0x0017,
 
   /*  RFC 2065 (DNS security) */
-  DNS_TYPE_SIG        = 0x0018,
-  DNS_TYPE_KEY        = 0x0019,
+  _DNS_TYPE_SIG        = 0x0018,
+  _DNS_TYPE_KEY        = 0x0019,
 
   /*  RFC 1664 (X.400 mail) */
-  DNS_TYPE_PX         = 0x001a,
+  _DNS_TYPE_PX         = 0x001a,
 
   /*  RFC 1712 (Geographic position) */
-  DNS_TYPE_GPOS       = 0x001b,
+  _DNS_TYPE_GPOS       = 0x001b,
 
   /*  RFC 1886 (IPv6 Address) */
-  DNS_TYPE_AAAA       = 0x001c,
+  _DNS_TYPE_AAAA       = 0x001c,
 
   /*  RFC 1876 (Geographic location) */
-  DNS_TYPE_LOC        = 0x001d,
+  _DNS_TYPE_LOC        = 0x001d,
 
   /*  RFC 2065 (Secure negative response) */
-  DNS_TYPE_NXT        = 0x001e,
+  _DNS_TYPE_NXT        = 0x001e,
 
   /*  Patton (Endpoint Identifier) */
-  DNS_TYPE_EID        = 0x001f,
+  _DNS_TYPE_EID        = 0x001f,
 
   /*  Patton (Nimrod Locator) */
-/*  DNS_TYPE_NIMLOC     = 0x0020,*/
+/*  _DNS_TYPE_NIMLOC     = 0x0020,*/
   /*  RFC 2052 (Service location) */
-/*  DNS_TYPE_SRV        = 0x0021,*/
+/*  _DNS_TYPE_SRV        = 0x0021,*/
 
   /* NetBIOS. */
-  DNS_TYPE_NB         = 0x0020,
+  _DNS_TYPE_NB         = 0x0020,
 
   /* Adapter status. */
-  DNS_TYPE_NBSTAT     = 0x0021,
+  _DNS_TYPE_NBSTAT     = 0x0021,
 
   /*  ATM Address */
-  DNS_TYPE_ATMA       = 0x0022,
+  _DNS_TYPE_ATMA       = 0x0022,
 
   /*  RFC 2168 (Naming Authority Pointer) */
-  DNS_TYPE_NAPTR      = 0x0023,
+  _DNS_TYPE_NAPTR      = 0x0023,
 
   /*  RFC 2230 (Key Exchanger) */
-  DNS_TYPE_KX         = 0x0024,
+  _DNS_TYPE_KX         = 0x0024,
 
   /*  RFC 2538 (CERT) */
-  DNS_TYPE_CERT       = 0x0025,
+  _DNS_TYPE_CERT       = 0x0025,
 
   /*  A6 Draft (A6) */
-  DNS_TYPE_A6         = 0x0026,
+  _DNS_TYPE_A6         = 0x0026,
 
   /*  DNAME Draft (DNAME) */
-  DNS_TYPE_DNAME      = 0x0027,
+  _DNS_TYPE_DNAME      = 0x0027,
 
   /*  Eastlake (Kitchen Sink) */
-  DNS_TYPE_SINK       = 0x0028,
+  _DNS_TYPE_SINK       = 0x0028,
 
   /*  RFC 2671 (EDNS OPT) */
-  DNS_TYPE_OPT        = 0x0029,
+  _DNS_TYPE_OPT        = 0x0029,
 
   /*  IANA Reserved */
 
-  DNS_TYPE_UINFO      = 0x0064,
-  DNS_TYPE_UID        = 0x0065,
-  DNS_TYPE_GID        = 0x0066,
-  DNS_TYPE_UNSPEC     = 0x0067,
+  _DNS_TYPE_UINFO      = 0x0064,
+  _DNS_TYPE_UID        = 0x0065,
+  _DNS_TYPE_GID        = 0x0066,
+  _DNS_TYPE_UNSPEC     = 0x0067,
 
   /*  Query only types (1035, 1995) */
-  DNS_TYPE_ADDRS      = 0x00f8,
-  DNS_TYPE_TKEY       = 0x00f9,
-  DNS_TYPE_TSIG       = 0x00fa,
-  DNS_TYPE_IXFR       = 0x00fb,
-  DNS_TYPE_AXFR       = 0x00fc,
-  DNS_TYPE_MAILB      = 0x00fd,
-  DNS_TYPE_MAILA      = 0x00fe,
-  DNS_TYPE_ALL        = 0x00ff,
-  DNS_TYPE_ANY        = 0x00ff,
+  _DNS_TYPE_ADDRS      = 0x00f8,
+  _DNS_TYPE_TKEY       = 0x00f9,
+  _DNS_TYPE_TSIG       = 0x00fa,
+  _DNS_TYPE_IXFR       = 0x00fb,
+  _DNS_TYPE_AXFR       = 0x00fc,
+  _DNS_TYPE_MAILB      = 0x00fd,
+  _DNS_TYPE_MAILA      = 0x00fe,
+  _DNS_TYPE_ALL        = 0x00ff,
+  _DNS_TYPE_ANY        = 0x00ff,
 } dns_type_t;
-#else
-/* Do a typedif so we can still use the name. */
-typedef int dns_type_t;
-
-/* Declare our two custom types. */
-#ifndef DNS_TYPE_NB
-#define DNS_TYPE_NB         0x0020
-#endif
-#ifndef DNS_TYPE_NBSTAT
-#define DNS_TYPE_NBSTAT     0x0021
-#endif
-#endif
 
 typedef enum
 {
-  DNS_CLASS_IN = 1, /* The Internet */
-  DNS_CLASS_CS = 2, /* The CSNET class (Obsolete - used only for examples in some obsolete RFCs) */
-  DNS_CLASS_CH = 3, /* The CHAOS class */
-  DNS_CLASS_HS = 4, /* Hesiod [Dyer 87] */
+  _DNS_CLASS_IN = 1, /* The Internet */
+  _DNS_CLASS_CS = 2, /* The CSNET class (Obsolete - used only for examples in some obsolete RFCs) */
+  _DNS_CLASS_CH = 3, /* The CHAOS class */
+  _DNS_CLASS_HS = 4, /* Hesiod [Dyer 87] */
 } dns_class_t;
 
 /* Here are how the opcodes, flags, and rcodes are laid out:
@@ -161,28 +148,28 @@ typedef enum
  */
 typedef enum
 {
-  DNS_OPCODE_QUERY  = 0x0000,
-  DNS_OPCODE_IQUERY = 0x0800,
-  DNS_OPCODE_STATUS = 0x1000,
+  _DNS_OPCODE_QUERY  = 0x0000,
+  _DNS_OPCODE_IQUERY = 0x0800,
+  _DNS_OPCODE_STATUS = 0x1000,
 } dns_opcode_t;
 
 typedef enum
 {
-  DNS_FLAG_QR = 0x8000, /* Query response */
-  DNS_FLAG_AA = 0x0400, /* Authoritative answer */
-  DNS_FLAG_TC = 0x0200, /* Truncation */
-  DNS_FLAG_RD = 0x0100, /* Recursion desired */
-  DNS_FLAG_RA = 0x0080, /* Recursion available */
+  _DNS_FLAG_QR = 0x8000, /* Query response */
+  _DNS_FLAG_AA = 0x0400, /* Authoritative answer */
+  _DNS_FLAG_TC = 0x0200, /* Truncation */
+  _DNS_FLAG_RD = 0x0100, /* Recursion desired */
+  _DNS_FLAG_RA = 0x0080, /* Recursion available */
 } dns_flag_t;
 
 typedef enum
 {
-  DNS_RCODE_SUCCESS         = 0x0000,
-  DNS_RCODE_FORMAT_ERROR    = 0x0001,
-  DNS_RCODE_SERVER_FAILURE  = 0x0002,
-  DNS_RCODE_NAME_ERROR      = 0x0003,
-  DNS_RCODE_NOT_IMPLEMENTED = 0x0004,
-  DNS_RCODE_REFUSED         = 0x0005,
+  _DNS_RCODE_SUCCESS         = 0x0000,
+  _DNS_RCODE_FORMAT_ERROR    = 0x0001,
+  _DNS_RCODE_SERVER_FAILURE  = 0x0002,
+  _DNS_RCODE_NAME_ERROR      = 0x0003,
+  _DNS_RCODE_NOT_IMPLEMENTED = 0x0004,
+  _DNS_RCODE_REFUSED         = 0x0005,
 } dns_rcode_t;
 
 
