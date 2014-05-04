@@ -2,7 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #include "errno.h"
 #include "log.h"
@@ -38,6 +41,14 @@ static void handle_start(driver_exec_t *driver)
 {
   message_options_t options[2];
 
+  /* Declare some WIN32 variables needed for starting the sub-process. */
+#ifdef WIN32
+  STARTUPINFOA         startupInfo;
+  PROCESS_INFORMATION  processInformation;
+  SECURITY_ATTRIBUTES  sa;
+#endif
+
+  /* Set up the session options and create the session. */
   options[0].name = "name";
   if(driver->name)
     options[0].value.s = driver->name;
@@ -47,9 +58,58 @@ static void handle_start(driver_exec_t *driver)
   options[1].name    = NULL;
 
   message_post_create_session(options);
-  /* Create the exec socket */
+
 #ifdef WIN32
-  /* TODO */
+  /* Create a security attributes structure. This is required to inherit handles. */
+  ZeroMemory(&sa, sizeof(SECURITY_ATTRIBUTES));
+  sa.nLength              = sizeof(SECURITY_ATTRIBUTES);
+  sa.lpSecurityDescriptor = NULL;
+  sa.bInheritHandle       = TRUE;
+
+  /* Create the anonymous pipes. */
+  if(!CreatePipe(&driver->exec_stdin[PIPE_READ], &driver->exec_stdin[PIPE_WRITE], &sa, 0))
+    DIE("exec: Couldn't create pipe for stdin");
+  if(!CreatePipe(&driver->exec_stdout[PIPE_READ], &driver->exec_stdout[PIPE_WRITE], &sa, 0))
+    DIE("exec: Couldn't create pipe for stdout");
+
+  fprintf(stderr, "Attempting to load the program: %s\n", driver->process);
+
+  /* Initialize the STARTUPINFO structure. */
+  ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
+  startupInfo.cb         = sizeof(STARTUPINFO);
+  startupInfo.dwFlags    = STARTF_USESTDHANDLES;
+  startupInfo.hStdInput  = driver->exec_stdin[PIPE_READ];
+  startupInfo.hStdOutput = driver->exec_stdout[PIPE_WRITE];
+  startupInfo.hStdError = driver->exec_stdout[PIPE_WRITE];
+
+  /* Initialize the PROCESS_INFORMATION structure. */
+  ZeroMemory(&processInformation, sizeof(PROCESS_INFORMATION));
+
+  /* Create the actual process with an overly-complicated CreateProcess function. */
+  if(!CreateProcessA(NULL, driver->process, 0, &sa, TRUE, CREATE_NO_WINDOW, 0, NULL, &startupInfo, &processInformation))
+  {
+    fprintf(stderr, "Failed to create the process");
+    exit(1);
+  }
+
+  /* Save the process id and the handle. */
+  driver->pid = processInformation.dwProcessId;
+  driver->exec_handle = processInformation.hProcess;
+
+  /* Close the duplicate pipes we created -- this lets us detect the proicess termination. */
+  CloseHandle(driver->exec_stdin[PIPE_READ]);
+  CloseHandle(driver->exec_stdout[PIPE_WRITE]);
+  CloseHandle(driver->exec_stdout[PIPE_WRITE]);
+
+  fprintf(stderr, "Successfully created the process!\n\n");
+
+  /* Create a socket_id value - this is a totally arbitrary value that's only used so we can find this entry later. */
+  driver->socket_id = --driver->socket_id;
+
+  /* On Windows, add the sub-process's stdout as a pipe. */
+  select_group_add_pipe(driver->group, driver->socket_id, driver->exec_stdout[PIPE_READ], driver);
+  select_set_recv(driver->group, driver->socket_id, exec_callback);
+  select_set_closed(driver->group, driver->socket_id, exec_closed_callback);
 #else
   LOG_INFO("Attempting to start process '%s'...", driver->process);
 
@@ -101,8 +161,8 @@ static void handle_start(driver_exec_t *driver)
 
   /* Add the sub-process's stdout as a socket. */
   select_group_add_socket(driver->group, driver->pipe_stdout[PIPE_READ], SOCKET_TYPE_STREAM, driver);
-  select_set_recv(driver->group,   driver->pipe_stdout[PIPE_READ], exec_callback);
-  select_set_closed(driver->group, driver->pipe_stdout[PIPE_READ], exec_closed_callback);
+  select_set_recv(driver->group,         driver->pipe_stdout[PIPE_READ], exec_callback);
+  select_set_closed(driver->group,       driver->pipe_stdout[PIPE_READ], exec_closed_callback);
 #endif
 }
 
@@ -113,7 +173,12 @@ void handle_session_created(driver_exec_t *driver, uint16_t session_id)
 
 static void handle_data_in(driver_exec_t *driver, uint8_t *data, size_t length)
 {
+#ifdef WIN32
+  DWORD written;
+  WriteFile(driver->exec_stdin[PIPE_WRITE], data, (DWORD)length, &written, NULL);
+#else
   write(driver->pipe_stdin[PIPE_WRITE], data, length);
+#endif
 }
 
 static void handle_config_int(driver_exec_t *driver, char *name, int value)

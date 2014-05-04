@@ -18,7 +18,11 @@ void log_to_file(char *filename, log_level_t min_level)
 {
   assert(min_level >= LOG_LEVEL_INFO || min_level <= LOG_LEVEL_FATAL);
 
+#ifdef WIN32
+  fopen_s(&log_file, filename, "w");
+#else
   log_file = fopen(filename, "w");
+#endif
   if(log_file)
     log_file_min = min_level;
   else

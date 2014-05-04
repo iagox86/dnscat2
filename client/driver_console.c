@@ -2,7 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #include "log.h"
 #include "memory.h"
@@ -118,21 +121,18 @@ driver_console_t *driver_console_create(select_group_t *group)
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
 
-  driver->name = NULL;
-  driver->download = NULL;
-
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
   HANDLE stdin_handle = get_stdin_handle();
-  select_group_add_pipe(ui_stdin->group, -1, stdin_handle, driver);
-  select_set_recv(ui_stdin->group, -1, console_stdin_recv);
-  select_set_closed(ui_stdin->group, -1, console_closed);
+  select_group_add_pipe(group, -1, stdin_handle, driver);
+  select_set_recv(group,       -1, console_stdin_recv);
+  select_set_closed(group,     -1, console_stdin_closed);
 #else
   /* On Linux, the stdin_handle is easy. */
   int stdin_handle = STDIN_FILENO;
   select_group_add_socket(group, stdin_handle, SOCKET_TYPE_STREAM, driver);
-  select_set_recv(group, stdin_handle, console_stdin_recv);
-  select_set_closed(group, stdin_handle, console_stdin_closed);
+  select_set_recv(group,         stdin_handle, console_stdin_recv);
+  select_set_closed(group,       stdin_handle, console_stdin_closed);
 #endif
 
   /* Subscribe to the messages we care about. */

@@ -121,7 +121,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
           buf[1] = answer[i + 1];
           buf[2] = '\0';
 
-          buffer_add_int8(incoming_data, strtol(buf, NULL, 16));
+          buffer_add_int8(incoming_data, (uint8_t)strtol(buf, NULL, 16));
         }
       }
 
@@ -177,7 +177,12 @@ static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length
   for(i = 0; i < length; i++)
   {
     char hex_buf[3];
+
+#ifdef WIN32
+	sprintf_s(hex_buf, 3, "%02x", data[i]);
+#else
     sprintf(hex_buf, "%02x", data[i]);
+#endif
     buffer_add_bytes(buffer, hex_buf, 2);
 
     /* Add periods when we need them. */

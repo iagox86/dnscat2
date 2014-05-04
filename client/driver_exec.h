@@ -15,6 +15,11 @@ typedef struct
   char           *name;
 
 #ifdef WIN32
+  HANDLE exec_stdin[2];  /* The stdin handle. */
+  HANDLE exec_stdout[2]; /* The stdout handle. */
+  DWORD  pid;            /* Process id. */
+  HANDLE exec_handle;    /* Handle to the executing process. */
+  int    socket_id;      /* An arbitrary number that identifies the socket. */
 #else
   int pipe_stdin[2];
   int pipe_stdout[2];
