@@ -251,7 +251,7 @@ uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t ma
   /* The number of bytes remaining */
   *length = buffer->current_length - buffer->position;
 
-  if(max_bytes != -1 && *length > max_bytes)
+  if(max_bytes != (size_t)-1 && *length > max_bytes)
     *length = max_bytes;
 
   /* Allocate room for that many bytes */
