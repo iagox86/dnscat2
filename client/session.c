@@ -281,7 +281,7 @@ static void handle_close_session(uint16_t session_id)
   session_t *session = sessions_get_by_id(session_id);
   if(!session)
   {
-    LOG_ERROR("Tried to access a non-existent session: %d", session_id);
+    LOG_ERROR("Tried to access a non-existent session (handle_close_session): %d", session_id);
     return;
   }
 
@@ -301,7 +301,7 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
   session_t *session = sessions_get_by_id(session_id);
   if(!session)
   {
-    LOG_ERROR("Tried to access a non-existent session: %d", session_id);
+    LOG_ERROR("Tried to access a non-existent session (handle_data_out): %d", session_id);
     return;
   }
 
@@ -310,7 +310,17 @@ static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
 
   /* Trigger a send. */
   do_send_stuff(session);
+}
 
+static void handle_ping_request(char *ping_data)
+{
+  packet_t *packet = packet_create_ping(ping_data);
+  size_t length;
+  uint8_t *data = packet_to_bytes(packet, &length, 0);
+
+  message_post_packet_out(data, length);
+
+  safe_free(data);
 }
 
 static void handle_packet_in(uint8_t *data, size_t length)
@@ -319,17 +329,31 @@ static void handle_packet_in(uint8_t *data, size_t length)
 
   /* Parse the packet to get the session id */
   packet_t *packet = packet_parse(data, length, 0);
-  session_t *session = sessions_get_by_id(packet->session_id);
+  session_t *session;
+
+  /* Check if it's a ping packet, since those don't need a session. */
+  if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    /* Let listeners know that a ping happened */
+    message_post_ping_response(packet->body.ping.data);
+
+    packet_destroy(packet);
+    return;
+  }
+
+  /* If it's not a ping packet, find the session and handle accordingly. */
+  session = sessions_get_by_id(packet->session_id);
   packet_destroy(packet);
 
   if(!session)
   {
-    LOG_ERROR("Tried to access a non-existent session: %d", packet->session_id);
+    LOG_ERROR("Tried to access a non-existent session (handle_packet_in): %d", packet->session_id);
     return;
   }
 
   /* Now that we know the session, parse it properly */
   packet = packet_parse(data, length, session->options);
+
 
   switch(session->state)
   {
@@ -508,6 +532,10 @@ static void handle_message(message_t *message, void *param)
       handle_data_out(message->message.data_out.session_id, message->message.data_out.data, message->message.data_out.length);
       break;
 
+    case MESSAGE_PING_REQUEST:
+      handle_ping_request(message->message.ping_request.data);
+      break;
+
     case MESSAGE_PACKET_IN:
       handle_packet_in(message->message.packet_in.data, message->message.packet_in.length);
       break;
@@ -528,6 +556,7 @@ void sessions_init()
   message_subscribe(MESSAGE_CREATE_SESSION, handle_message, NULL);
   message_subscribe(MESSAGE_CLOSE_SESSION,  handle_message, NULL);
   message_subscribe(MESSAGE_DATA_OUT,       handle_message, NULL);
+  message_subscribe(MESSAGE_PING_REQUEST,   handle_message, NULL);
   message_subscribe(MESSAGE_PACKET_IN,      handle_message, NULL);
   message_subscribe(MESSAGE_HEARTBEAT,      handle_message, NULL);
 }

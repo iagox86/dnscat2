@@ -57,6 +57,11 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
 
       break;
 
+    case PACKET_TYPE_PING:
+      packet->body.ping.data = buffer_alloc_next_ntstring(buffer);
+
+      break;
+
     default:
       LOG_FATAL("Error: unknown message type (0x%02x)\n", packet->packet_type);
       exit(0);
@@ -112,6 +117,17 @@ packet_t *packet_create_fin(uint16_t session_id, char *reason)
   packet->packet_type     = PACKET_TYPE_FIN;
   packet->session_id      = session_id;
   packet->body.fin.reason = safe_strdup(reason);
+
+  return packet;
+}
+
+packet_t *packet_create_ping(char *data)
+{
+  packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
+
+  packet->packet_type     = PACKET_TYPE_PING;
+  packet->session_id      = 0;
+  packet->body.ping.data  = safe_strdup(data);
 
   return packet;
 }
@@ -212,6 +228,22 @@ size_t packet_get_fin_size(options_t options)
   return size;
 }
 
+size_t packet_get_ping_size()
+{
+  static size_t size = 0;
+
+  /* If the size isn't known yet, calculate it. */
+  if(size == 0)
+  {
+    packet_t *p = packet_create_ping("");
+    uint8_t *data = packet_to_bytes(p, &size, 0);
+    safe_free(data);
+    packet_destroy(p);
+  }
+
+  return size;
+}
+
 uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
@@ -254,6 +286,11 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
 
       break;
 
+    case PACKET_TYPE_PING:
+      buffer_add_ntstring(buffer, packet->body.ping.data);
+
+      break;
+
     default:
       LOG_FATAL("Error: Unknown message type: %u\n", packet->packet_type);
       exit(1);
@@ -283,6 +320,10 @@ char *packet_to_s(packet_t *packet, options_t options)
   {
     _snprintf_s(ret, 1024, 1024, "Type = FIN :: session = 0x%04x :: %s", packet->session_id, packet->body.fin.reason);
   }
+  else if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    _snprintf_s(ret, 1024, 1024, "Type = PING :: data = %s", packet->body.ping.data);
+  }
   else
   {
     _snprintf_s(ret, 1024, 1024, "Unknown packet type!");
@@ -302,6 +343,10 @@ char *packet_to_s(packet_t *packet, options_t options)
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
     snprintf(ret, 1024, "Type = FIN :: session = 0x%04x :: %s", packet->session_id, packet->body.fin.reason);
+  }
+  else if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    snprintf(ret, 1024, "Type = PING :: data = %s", packet->body.ping.data);
   }
   else
   {
@@ -339,6 +384,12 @@ void packet_destroy(packet_t *packet)
   {
     if(packet->body.fin.reason)
       safe_free(packet->body.fin.reason);
+  }
+
+  if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    if(packet->body.ping.data)
+      safe_free(packet->body.ping.data);
   }
 
   safe_free(packet);

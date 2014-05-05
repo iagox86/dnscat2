@@ -54,6 +54,12 @@ typedef enum
 
   /* Used to create arrays and such. */
   MESSAGE_MAX_MESSAGE_TYPE,
+
+  /* Used when requesting a ping. */
+  MESSAGE_PING_REQUEST,
+
+  /* Used when a PING response comes back. */
+  MESSAGE_PING_RESPONSE,
 } message_type_t;
 
 typedef struct {
@@ -153,6 +159,16 @@ typedef struct
 
     struct
     {
+      char *data;
+    } ping_request;
+
+    struct
+    {
+      char *data;
+    } ping_response;
+
+    struct
+    {
       int dummy; /* WIN32 doesn't allow empty structs/unions */
     } heartbeat;
   } message;
@@ -190,5 +206,8 @@ void message_post_packet_in(uint8_t *data, size_t length);
 void message_post_data_in(uint16_t session_id, uint8_t *data, size_t length);
 
 void message_post_heartbeat();
+
+void message_post_ping_request(char *data);
+void message_post_ping_response(char *data);
 
 #endif

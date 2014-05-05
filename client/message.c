@@ -227,3 +227,18 @@ void message_post_heartbeat()
   message_post(message);
   message_destroy(message);
 }
+
+void message_post_ping_request(char *data)
+{
+  message_t *message = message_create(MESSAGE_PING_REQUEST);
+  message->message.ping_request.data = data;
+  message_post(message);
+  message_destroy(message);
+}
+void message_post_ping_response(char *data)
+{
+  message_t *message = message_create(MESSAGE_PING_RESPONSE);
+  message->message.ping_response.data = data;
+  message_post(message);
+  message_destroy(message);
+}

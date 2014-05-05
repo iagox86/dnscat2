@@ -22,6 +22,7 @@ typedef enum
   PACKET_TYPE_SYN = 0x00,
   PACKET_TYPE_MSG = 0x01,
   PACKET_TYPE_FIN = 0x02,
+  PACKET_TYPE_PING = 0xFF,
 } packet_type_t;
 
 typedef struct
@@ -55,8 +56,8 @@ typedef struct
 typedef struct
 {
   union {
-    normal_msg_t normal;
-    chunked_msg_t chunked;
+    struct { uint16_t seq; uint16_t ack; } normal;
+    struct { uint32_t chunk; }             chunked;
   } options;
   uint8_t *data;
   size_t   data_length;
@@ -69,14 +70,20 @@ typedef struct
 
 typedef struct
 {
+  char *data;
+} ping_packet_t;
+
+typedef struct
+{
   packet_type_t packet_type;
   uint16_t session_id;
 
   union
   {
-    syn_packet_t syn;
-    msg_packet_t msg;
-    fin_packet_t fin;
+    syn_packet_t  syn;
+    msg_packet_t  msg;
+    fin_packet_t  fin;
+    ping_packet_t ping;
   } body;
 } packet_t;
 
@@ -88,6 +95,7 @@ packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options
 packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
 packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk);
 packet_t *packet_create_fin(uint16_t session_id, char *reason);
+packet_t *packet_create_ping(char *data);
 
 /* Set the OPT_NAME field and add a name value. */
 void packet_syn_set_name(packet_t *packet, char *name);
@@ -102,6 +110,7 @@ void packet_syn_set_chunked_download(packet_t *packet);
 size_t packet_get_syn_size();
 size_t packet_get_msg_size(options_t options);
 size_t packet_get_fin_size(options_t options);
+size_t packet_get_ping_size();
 
 /* Free the packet data structures. */
 void packet_destroy(packet_t *packet);

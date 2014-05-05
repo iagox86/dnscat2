@@ -30,6 +30,7 @@
 #include "driver_dns.h"
 #include "driver_exec.h"
 #include "driver_listener.h"
+#include "driver_ping.h"
 
 /* Default options */
 #define VERSION "0.00"
@@ -45,6 +46,7 @@ select_group_t   *group          = NULL;
 driver_console_t  *driver_console  = NULL;
 driver_exec_t     *driver_exec     = NULL;
 driver_listener_t *driver_listener = NULL;
+driver_ping_t     *driver_ping     = NULL;
 
 /* Output drivers. */
 driver_dns_t     *driver_dns     = NULL;
@@ -90,6 +92,7 @@ void usage(char *name, char *message)
 "                         the server list\n"
 " --download <filename>   Request the given file off the server\n"
 " --chunk <n>             start at the given chunk of the --download file\n"
+" --ping                  Attempt to ping a dnscat2 server\n"
 "\n"
 "Input options:\n"
 " --console --stdin       Send/receive output to the console [default]\n"
@@ -97,7 +100,6 @@ void usage(char *name, char *message)
 " --listen -l <port>      Listen on the given port and link each connection to\n"
 "                         a new stream\n"
 "\n"
-
 "DNS-specific options:\n"
 " --dns <domain>          Enable DNS mode with the given domain\n"
 " --host <host>           The DNS server [default: %s]\n"
@@ -127,7 +129,8 @@ int main(int argc, char *argv[])
     {"n",       required_argument, 0, 0},
     {"download",required_argument, 0, 0}, /* Download */
     {"n",       required_argument, 0, 0},
-    {"chunk",   required_argument, 0, 0},
+    {"chunk",   required_argument, 0, 0}, /* Download chunk */
+    {"ping",    no_argument,       0, 0}, /* Ping */
 
     /* Console options. */
     {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
@@ -178,11 +181,6 @@ int main(int argc, char *argv[])
   sessions_init();
 
   group = select_group_create();
-#if 0
-  driver_console = driver_console_create(group);
-  /*driver_exec    = driver_exec_create(group, "cmd.exe");*/
-  driver_dns     = driver_dns_create(group);
-#endif
 
   /* Seed with the current time; not great, but it'll suit our purposes. */
   srand((unsigned int)time(NULL));
@@ -219,12 +217,20 @@ int main(int argc, char *argv[])
         {
           chunk = atoi(optarg);
         }
+        else if(!strcmp(option_name, "ping"))
+        {
+          if(input_set)
+            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
+
+          input_set = TRUE;
+          driver_ping = driver_ping_create(group);
+        }
 
         /* Console-specific options. */
         else if(!strcmp(option_name, "stdin"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
 
           input_set = TRUE;
           driver_console = driver_console_create(group);
@@ -234,7 +240,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
 
           input_set = TRUE;
           driver_exec = driver_exec_create(group, optarg);
@@ -244,7 +250,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
 
           input_set = TRUE;
           driver_listener = driver_listener_create(group, "0.0.0.0", atoi(optarg));
@@ -254,7 +260,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "dns"))
         {
           if(output_set)
-            usage(argv[0], "More than one of --dns and --tcp can't be set!");
+            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
 
           output_set = TRUE;
           driver_dns = driver_dns_create(group, optarg);
@@ -329,6 +335,10 @@ int main(int argc, char *argv[])
   else if(driver_exec)
   {
     LOG_WARNING("INPUT: Executing %s", driver_exec->process);
+  }
+  else if(driver_ping)
+  {
+    LOG_WARNING("INPUT: ping");
   }
   else
   {
