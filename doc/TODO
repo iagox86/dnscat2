@@ -3,15 +3,12 @@ Immediate needs:
 - Client should give up after a certain number of failed SYNs or MSGs
 - Implement other DNS types (A, AAAA, CNAME, etc)
 - Handle DNS errors properly
-- Get tab completion on Ruby working properly
+- Get tab completion on server working properly
 - Client should automatically terminate if it can't find a server
-- Implement 'control mode' on the client
 - Choose better default names for each driver
-- Add a 'kill' command
-- Windows support
 - Add more debugging messages throughout, especially newer functionality
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
-- Fix tabs
+- Implement 'control mode' on the client
 
 Future stuff:
 - Other protocols (ping/http/etc)
