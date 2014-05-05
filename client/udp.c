@@ -49,9 +49,9 @@ int udp_create_socket(uint16_t port, char *local_address)
   return s;
 }
 
-size_t udp_read(int s, void *buffer, size_t buffer_length, struct sockaddr_in *from)
+ssize_t udp_read(int s, void *buffer, size_t buffer_length, struct sockaddr_in *from)
 {
-  size_t received;
+  ssize_t received;
   socklen_t fromlen = sizeof(struct sockaddr_in);
 
   memset(from, 0, sizeof(struct sockaddr));
@@ -64,7 +64,7 @@ size_t udp_read(int s, void *buffer, size_t buffer_length, struct sockaddr_in *f
   return received;
 }
 
-void udp_send(int sock, char *address, uint16_t port, void *data, size_t length)
+ssize_t udp_send(int sock, char *address, uint16_t port, void *data, size_t length)
 {
   int    result;
   struct sockaddr_in serv_addr;
@@ -89,6 +89,8 @@ void udp_send(int sock, char *address, uint16_t port, void *data, size_t length)
     if( result < 0 )
       nbdie("udp: couldn't send data");
   }
+
+  return result;
 }
 
 int udp_close(int s)

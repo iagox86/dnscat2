@@ -163,12 +163,12 @@ int tcp_accept(int listen, char **address, uint16_t *port)
   return s;
 }
 
-size_t tcp_send(int s, void *data, size_t length)
+ssize_t tcp_send(int s, void *data, size_t length)
 {
   return send(s, data, length, 0);
 }
 
-size_t tcp_recv(int s, void *buffer, size_t buffer_length)
+ssize_t tcp_recv(int s, void *buffer, size_t buffer_length)
 {
   return recv(s, buffer, buffer_length, 0);
 }

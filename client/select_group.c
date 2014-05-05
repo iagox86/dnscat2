@@ -316,7 +316,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
     if(SG_TYPE(group, i) == SOCKET_TYPE_STREAM)
 #endif
     {
-      size_t size;
+      ssize_t size;
       NBBOOL success = TRUE;
 
 #ifdef WIN32
@@ -363,7 +363,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       /* It's a datagram socket, so use recvfrom. */
       struct sockaddr_in addr;
       socklen_t addr_size = sizeof(struct sockaddr_in);
-      size_t size;
+      ssize_t size;
 
       memset(&addr, 0, sizeof(struct sockaddr_in));
       size = recvfrom(s, buffer, MAX_RECV, 0, (struct sockaddr *)&addr, &addr_size);

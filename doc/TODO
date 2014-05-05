@@ -9,6 +9,7 @@ Immediate needs:
 - Add more debugging messages throughout, especially newer functionality
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
 - Implement 'control mode' on the client
+- Take a look at the tcp/udp send/recv functions that return ssize_t to make sure the signedness is handled correctly
 
 Future stuff:
 - Other protocols (ping/http/etc)

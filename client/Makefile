@@ -6,7 +6,7 @@
 #
 # Should work for Linux and BSD make.
 
-CC=gcc
+CC?=gcc
 COMMON_CFLAGS=-ansi -std=c89
 DEBUG_CFLAGS=-g -DTESTMEMORY -Werror
 CFLAGS?=-Wall -D_BSD_SOURCE ${DEBUG_CFLAGS}

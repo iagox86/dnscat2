@@ -32,10 +32,10 @@ int    tcp_listen(char *address, uint16_t port);
 int    tcp_accept(int listen, char **address, uint16_t *port);
 
 /* Send data over the socket. Can use built-in IO functions, too. */
-size_t tcp_send(int s, void *data, size_t length);
+ssize_t tcp_send(int s, void *data, size_t length);
 
 /* Receive data from the socket. Can use built-in IO functions, too. */
-size_t tcp_recv(int s, void *buffer, size_t buffer_length);
+ssize_t tcp_recv(int s, void *buffer, size_t buffer_length);
 
 /* Close the socket. */
 int    tcp_close(int s);
