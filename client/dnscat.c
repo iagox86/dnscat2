@@ -76,6 +76,8 @@ static void cleanup(void)
     driver_exec_destroy(driver_exec);
   if(driver_listener)
     driver_listener_destroy(driver_listener);
+  if(driver_ping)
+    driver_ping_destroy(driver_ping);
 
   print_memory();
 }
@@ -224,6 +226,10 @@ int main(int argc, char *argv[])
 
           input_set = TRUE;
           driver_ping = driver_ping_create(group);
+
+          /* Turn off logging, since this is a simple ping. */
+          min_log_level++;
+          log_set_min_console_level(min_log_level);
         }
 
         /* Console-specific options. */

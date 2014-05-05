@@ -320,6 +320,7 @@ static void handle_ping_request(char *ping_data)
 
   message_post_packet_out(data, length);
 
+  packet_destroy(packet);
   safe_free(data);
 }
 
