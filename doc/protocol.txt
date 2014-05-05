@@ -176,6 +176,7 @@ If an unexpected FIN is received, the server will ignore it:
 #define MESSAGE_TYPE_SYN        (0x00)
 #define MESSAGE_TYPE_MSG        (0x01)
 #define MESSAGE_TYPE_FIN        (0x02)
+#define MESSAGE_TYPE_PING       (0xFF)
 
 /* Options */
 #define OPT_NAME             (0x01)
@@ -291,3 +292,23 @@ MESSAGE_TYPE_FIN: [0x02]
 - Once a FIN has been sent, the client or server should no longer
   attempt to respond to anything from that connection.
 
+------------------------
+MESSAGE_TYPE_PING: [0xFF]
+------------------------
+
+- (uint8_t)  message_type [0xFF]
+- (uint16_t) reserved
+- (ntstring) data
+
+(Notes)
+
+The reserved field should be ignored. It's simply there to make it
+easier to parse (since every other packet has a 24-bit header).
+
+(Client to server)
+- A client can send a MESSAGE_TYPE_PING packet any time - before,
+  during, or after a session.
+
+(Server to client)
+- The server can only respond to client ping, it can't send pings of its
+  own out.

@@ -15,6 +15,7 @@ class Packet
   MESSAGE_TYPE_SYN        = 0x00
   MESSAGE_TYPE_MSG        = 0x01
   MESSAGE_TYPE_FIN        = 0x02
+  MESSAGE_TYPE_PING       = 0xFF
 
   OPT_NAME                = 0x01
   # OPT_TUNNEL              = 0x02 # Deprecated
@@ -23,10 +24,11 @@ class Packet
   OPT_CHUNKED_DOWNLOAD    = 0x10
 
   attr_reader :data, :type, :session_id, :options, :seq, :ack
-  attr_reader :name
-  attr_reader :download
-  attr_reader :chunk
-  attr_reader :reason
+  attr_reader :name     # For SYN
+  attr_reader :download # For downloads (in SYN)
+  attr_reader :chunk    # For chunked downloads (in MSG)
+  attr_reader :reason   # For FIN
+  attr_reader :data     # For PING
 
   def at_least?(data, needed)
     return (data.length >= needed)
@@ -43,7 +45,7 @@ class Packet
   end
 
   def parse_syn(data)
-    at_least?(data, 4) || raise(DnscatException, "Packet is too short (syn)")
+    at_least?(data, 4) || raise(DnscatException, "Packet is too short (SYN)")
     @seq, @options = data.unpack("nn")
     data = data[4..-1]
 
@@ -77,12 +79,12 @@ class Packet
 
   def parse_msg(data, options)
     if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-      at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg d/l)")
+      at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG d/l)")
 
       @chunk = data.unpack("N").pop
       @data = data[4..-1] # Remove the first eight bytes
     else
-      at_least?(data, 4) || raise(DnscatException, "Packet is too short (msg norm)")
+      at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG norm)")
 
       @seq, @ack = data.unpack("nn")
       @data = data[4..-1] # Remove the first four bytes
@@ -90,13 +92,24 @@ class Packet
   end
 
   def parse_fin(data, options)
-    at_least?(data, 1) || raise(DnscatException, "Packet is too short (fin)")
+    at_least?(data, 1) || raise(DnscatException, "Packet is too short (FIN)")
 
     @reason = data.unpack("Z*").pop
     data = data[(@reason.length+1)..-1]
 
     if(data.length > 0)
       raise(DnscatException, "Extra data on the end of a FIN packet")
+    end
+  end
+
+  def parse_ping(data)
+    at_least?(data, 1) || raise(DnscatException, "Packet is too short (PING)")
+
+    @data = data.unpack("Z*").pop
+    data = data[(@data.length+1)..-1]
+
+    if(data.length > 0)
+      raise(DnscatException, "Extra data on the end of a PING packet")
     end
   end
 
@@ -116,6 +129,8 @@ class Packet
       parse_msg(data, options)
     elsif(@type == MESSAGE_TYPE_FIN)
       parse_fin(data, options)
+    elsif(@type == MESSAGE_TYPE_PING)
+      parse_ping(data)
     else
       raise(DnscatException, "Unknown message type: #{@type}")
     end
@@ -160,7 +175,11 @@ class Packet
   end
 
   def Packet.fin_header_size()
-    return create_fin(0, 0).length
+    return create_fin(0, "").length
+  end
+
+  def Packet.create_ping(data)
+    return create_header(MESSAGE_TYPE_PING, 0) + [data].pack("Z*")
   end
 
   def to_s()
@@ -180,6 +199,10 @@ class Packet
       end
     elsif(@type == MESSAGE_TYPE_FIN)
       result = "[[FIN]] :: session = %04x :: %s" % [@session_id, @reason]
+    elsif(@type == MESSAGE_TYPE_PING)
+      result = "[[PING]] :: data = %s" % [@data]
+    else
+      raise DnscatException("Unknown packet type")
     end
 
     return result
