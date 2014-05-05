@@ -290,7 +290,6 @@ char *packet_to_s(packet_t *packet, options_t options)
 #else
   if(packet->packet_type == PACKET_TYPE_SYN)
   {
-    _snprintf_s(ret, 1024, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
     snprintf(ret, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
   }
   else if(packet->packet_type == PACKET_TYPE_MSG)
