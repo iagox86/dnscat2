@@ -22,6 +22,12 @@ See LICENSE.TXT.
 | High-level |
 +------------+
 
+When a client connects to a server, it can choose to use the comand
+protocol by setting OPT_COMMAND in the SYN packet. After that, all
+messages exchanged should use the command protocol. At some point, I
+might make that option default for dnscat2 clients, but for now it can
+be activated using --command. (Or will be, once I implement it).
+
 Dnscat2 command packets are used behind-the-scenes for dnscat2 servers
 and clients. It's not necessary to understand this protocol to use
 dnscat2, this is a reference for myself (and other hackers who might get

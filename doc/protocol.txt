@@ -182,6 +182,7 @@ If an unexpected FIN is received, the server will ignore it:
 #define OPT_NAME             (0x01)
 #define OPT_DOWNLOAD         (0x08)
 #define OPT_CHUNKED_DOWNLOAD (0x10)
+#define OPT_COMMAND          (0x20)
 
 +----------+
 | Messages |
@@ -268,6 +269,10 @@ Variable fields
 - The client and server shouldn't increment their sequence numbers or
   their saved acknowledgement numbers until the other side has
   acknowledged the value in a response.
+
+(Command)
+- If the SYN contained OPT_COMMAND, the 'data' field uses the command
+  protocol. See command_protocol.txt.
 
 ------------------------
 MESSAGE_TYPE_FIN: [0x02]

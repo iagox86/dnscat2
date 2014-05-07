@@ -17,11 +17,12 @@ class Packet
   MESSAGE_TYPE_FIN        = 0x02
   MESSAGE_TYPE_PING       = 0xFF
 
-  OPT_NAME                = 0x01
-  # OPT_TUNNEL              = 0x02 # Deprecated
-  # OPT_DATAGRAM            = 0x04 # Deprecated
-  OPT_DOWNLOAD            = 0x08
-  OPT_CHUNKED_DOWNLOAD    = 0x10
+  OPT_NAME                = 0x0001
+  # OPT_TUNNEL              = 0x0002 # Deprecated
+  # OPT_DATAGRAM            = 0x0004 # Deprecated
+  OPT_DOWNLOAD            = 0x0008
+  OPT_CHUNKED_DOWNLOAD    = 0x0010
+  OPT_COMMAND             = 0x0020
 
   attr_reader :data, :type, :session_id, :options, :seq, :ack
   attr_reader :name     # For SYN
