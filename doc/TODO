@@ -11,6 +11,7 @@ Immediate needs:
 - Implement 'control mode' on the client
 - Automatically determining the DNS servers to use for requests is broken on cygwin
 - Take a look at the tcp/udp send/recv functions that return ssize_t to make sure the signedness is handled correctly
+- Something is broken while using real DNS servers
 
 UI stuff:
 - ctrl-c signal on all OSes

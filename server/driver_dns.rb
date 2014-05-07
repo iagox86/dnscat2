@@ -86,7 +86,7 @@ class DriverDNS
         transaction # Return this, effectively
       end
 
-      match(/\.#{domain}$/, IN::ANY) do |transaction|
+      match(/\.#{domain}$/) do |transaction|
         raise(DnscatException, "Received a request for an unhandled DNS type: #{transaction.name}")
       end
 
