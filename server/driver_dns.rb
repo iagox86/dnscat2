@@ -86,6 +86,10 @@ class DriverDNS
         transaction # Return this, effectively
       end
 
+      match(/\.#{domain}$/, IN::ANY) do |transaction|
+        raise(DnscatException, "Received a request for an unhandled DNS type: #{transaction.name}")
+      end
+
       # Default DNS handler
       otherwise do |transaction|
         Log.ERROR("Unable to handle request, passing upstream: #{transaction}")
