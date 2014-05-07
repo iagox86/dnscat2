@@ -25,6 +25,12 @@ static void handle_ping(driver_ping_t *driver, char *data)
     printf("Ping response received! This seems like a valid dnscat2 server.\n");
     message_post_shutdown();
   }
+  else
+  {
+    printf("Ping response received, but it didn't contain the right data!\n");
+    printf("Expected: %s\n", driver->data);
+    printf("Received: %s\n", data);
+  }
 }
 
 static void handle_heartbeat(driver_ping_t *driver)
@@ -75,7 +81,7 @@ driver_ping_t *driver_ping_create(select_group_t *group)
   driver->data = safe_malloc(PING_LENGTH + 1);
 
   for(i = 0; i < PING_LENGTH; i++)
-    driver->data[i] = (rand() % 26) + 'A';
+    driver->data[i] = (rand() % 26) + 'a';
 
   /* Note: The actual ping will be sent on a heartbeat */
 

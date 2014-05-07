@@ -9,6 +9,13 @@ Immediate needs:
 - Add more debugging messages throughout, especially newer functionality
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
 - Implement 'control mode' on the client
+- Automatically determining the DNS servers is broken on cygwin
+
+UI stuff:
+- ctrl-c signal on all OSes
+- ctrl-z on rvmsudo
+- Error message if port 53 fails
+- Error message if no dns server can be found
 
 Future stuff:
 - Other protocols (ping/http/etc)
