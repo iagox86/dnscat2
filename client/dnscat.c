@@ -361,6 +361,7 @@ int main(int argc, char *argv[])
     if(!driver_dns->dns_host)
     {
       LOG_FATAL("Couldn't determine the system DNS server! Please use --host to set one.");
+      LOG_FATAL("You can also create a proper /etc/resolv.conf file to fix this");
       exit(1);
     }
 
