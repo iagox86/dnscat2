@@ -291,7 +291,6 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "q"))
         {
-          min_log_level++;
           log_set_min_console_level(min_log_level);
         }
         else

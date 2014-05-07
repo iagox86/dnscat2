@@ -7,59 +7,64 @@
 typedef enum
 {
   /* This is used to set a configuration value in another listener. */
-  MESSAGE_CONFIG,
+  MESSAGE_CONFIG           = 0x00,
 
   /* This is posted once, when the dnscat process starts, and is when any
    * initial connections should be made. */
-  MESSAGE_START,
+  MESSAGE_START            = 0x01,
 
   /* This begins the "shutdown" process - closing all sessions and eventually
    * terminating the process. */
-  MESSAGE_SHUTDOWN,
+  MESSAGE_SHUTDOWN         = 0x02,
 
   /* Requests the session library create a new session. This will cause a
    * SESSION_CREATED message to be posted out that contains the new session
    * id value. */
-  MESSAGE_CREATE_SESSION,
+  MESSAGE_CREATE_SESSION   = 0x03,
 
   /* This is posted by the session library when a new session has been
    * created. */
-  MESSAGE_SESSION_CREATED,
+  MESSAGE_SESSION_CREATED  = 0x04,
 
   /* Requests the session library close the session. The actual closing will
    * potentially happen later, at which point a SESSION_CLOSED message will
    * be posted. */
-  MESSAGE_CLOSE_SESSION,
+  MESSAGE_CLOSE_SESSION    = 0x05,
 
   /* Posted by the session library to let listeners know that the session has
    * been closed. */
-  MESSAGE_SESSION_CLOSED,
+  MESSAGE_SESSION_CLOSED   = 0x06,
 
   /* This is posted by the input driver, and injects data into the session to
    * be sent out when the session sees fit. */
-  MESSAGE_DATA_OUT,
+  MESSAGE_DATA_OUT         = 0x07,
 
   /* Posted by the session library when data is ready to be sent directly to the
    * wire */
-  MESSAGE_PACKET_OUT,
+  MESSAGE_PACKET_OUT       = 0x08,
 
   /* Raw dnscat packet data posted by the output driver, directly from the wire. */
-  MESSAGE_PACKET_IN,
+  MESSAGE_PACKET_IN        = 0x09,
 
   /* This is the plaintext data after it's been handled by the input driver. */
-  MESSAGE_DATA_IN,
+  MESSAGE_DATA_IN          = 0x0a,
 
   /* Sent once every second or so. */
-  MESSAGE_HEARTBEAT,
-
-  /* Used to create arrays and such. */
-  MESSAGE_MAX_MESSAGE_TYPE,
+  MESSAGE_HEARTBEAT        = 0x0b,
 
   /* Used when requesting a ping. */
-  MESSAGE_PING_REQUEST,
+  MESSAGE_PING_REQUEST     = 0x0c,
 
   /* Used when a PING response comes back. */
-  MESSAGE_PING_RESPONSE,
+  MESSAGE_PING_RESPONSE    = 0x0d,
+
+  /***********************************/
+  /* Used to create arrays and such. */
+  /***********************************/
+  MESSAGE_MAX_MESSAGE_TYPE = 0x0e,
+  /***********************************/
+  /* Used to create arrays and such. */
+  /***********************************/
 } message_type_t;
 
 typedef struct {

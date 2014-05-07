@@ -20,6 +20,7 @@ static NBBOOL is_initialized = FALSE;
 static message_handler_t *message_handler_create(message_callback_t *callback, void *param)
 {
   message_handler_t *handler = (message_handler_t *)safe_malloc(sizeof(message_handler_t));
+
   handler->callback = callback;
   handler->param    = param;
 
@@ -31,6 +32,9 @@ void message_subscribe(message_type_t message_type, message_callback_t *callback
 {
   message_handler_t *handler = message_handler_create(callback, param);
   message_handler_entry_t *entry;
+
+  /* So I don't mess up this array again. */
+  assert(message_type < MESSAGE_MAX_MESSAGE_TYPE);
 
   if(!is_initialized)
   {
