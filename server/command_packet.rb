@@ -23,22 +23,88 @@ class CommandPacket
     return (data.length >= needed)
   end
 
-  def parse_header(data)
-    at_least?(data, 6) || raise(DnscatException, "Command packet is too short (header)")
+  def parse_header(data, is_request)
+    # The length is already handled by command_packet_stream
+    at_least?(data, 4) || raise(DnscatException, "Command packet is too short (header)")
 
-    # (uint8_t) message_type
-    # (uint16_t) session_id
-    @type, @session_id = data.unpack("Cn")
+    # (uint16_t) request_id
+    @request_id, data = data.unpack("na*")
 
-    return data[3..-1]
+    if(is_request)
+      # (uint16_t) command_id (request only)
+      @command_id, data = data.unpack("na*")
+    else
+      # (uint16_t) status (response only)
+      @status, data = data.unpack("na*")
+    end
+
+    return data
   end
 
-  def initialize(data)
-    @data = data
+  def parse_ping(data, is_request)
+    if(data.index("\0").nil?)
+      raise(DnscatException, "Ping packet doesn't end in a NUL byte")
+    end
+
+    @data, data = data.unpack("Z*a*")
+    if(data.length > 0)
+      raise(DnscatException, "Ping packet has extra data on the end")
+    end
   end
 
-  def to_s()
-    return @data
+  def parse_shell(data, is_request)
+    if(is_request)
+      if(data.index("\0").nil?)
+        raise(DnscatException, "Shell packet request doesn't have a NUL byte")
+      end
+      @name, data = data.unpack("Z*a*")
+    else
+      if(data.length < 2)
+        raise(DnscatException, "Shell packet response doesn't have a SessionID")
+      end
+      @session_id, data = data.unpack("na*")
+    end
+
+    if(data.length > 0)
+      raise(DnscatException, "Shell packet has extra data on the end")
+    end
   end
 
+  def parse_exec(data, is_request)
+    if(is_request)
+      if(data.index("\0").nil?)
+        raise(DnscatException, "Exec packet request doesn't have a NUL byte after name")
+      end
+      @command, data = data.unpack("Z*a*")
+      if(data.index("\0").nil?)
+        raise(DnscatException, "Exec packet request doesn't have a NUL byte after command")
+      end
+      @command, data = data.unpack("Z*a*")
+    else
+      if(data.length < 2)
+        raise(DnscatException, "Exec packet response doesn't have a SessionID")
+      end
+      @session_id, data = data.unpack("na*")
+    end
+
+    if(data.length > 0)
+      raise(DnscatException, "Exec packet has extra data on the end")
+    end
+  end
+
+  def parse_body(data, is_request)
+    if(@request_id.nil?)
+      raise(Exception, "parse_header() has to be called before parse_body()")
+    end
+
+    if(@request_id == COMMAND_PING)
+      return parse_ping(data, is_request)
+    elsif(@request_id == COMMAND_SHELL)
+      return parse_(data, is_request)
+    elsif(@request_id == COMMAND_EXEC)
+      return parse_ping(data, is_request)
+    else
+      raise(DnscatException, "Unknown command!")
+    end
+  end
 end

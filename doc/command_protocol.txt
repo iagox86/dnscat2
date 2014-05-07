@@ -132,6 +132,7 @@ COMMAND_EXEC
 server->client only
 
 Structure:
+(ntstring) name (request only)
 (ntstring) command (request only)
 (uint16_t) session_id (response only)
 
