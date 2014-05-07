@@ -28,10 +28,10 @@ void winsock_initialize();
 int udp_create_socket(uint16_t port, char *local_address);
 
 /* Read from the new socket, filling in the 'from' field if given. Not currently being used. */
-/*size_t udp_read(int s, void *buffer, size_t buffer_length, struct sockaddr_in *from);*/
+/*ssize_t udp_read(int s, void *buffer, size_t buffer_length, struct sockaddr_in *from);*/
 
 /* Send data to the given address on the given port. */
-void   udp_send(int sock, char *address, uint16_t port, void *data, size_t length);
+ssize_t udp_send(int sock, char *address, uint16_t port, void *data, size_t length);
 
 /* Close the UDP socket. */
 int    udp_close(int s);
