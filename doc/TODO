@@ -1,5 +1,4 @@
 Immediate needs:
-- TEST on Linux :: Catch ctrl-c and send a FIN
 - Client should give up after a certain number of failed SYNs or MSGs
 - Implement other DNS types (A, AAAA, CNAME, etc)
 - Handle DNS errors properly
@@ -9,9 +8,7 @@ Immediate needs:
 - Add more debugging messages throughout, especially newer functionality
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
 - Implement 'control mode' on the client
-- Automatically determining the DNS servers to use for requests is broken on cygwin
 - Take a look at the tcp/udp send/recv functions that return ssize_t to make sure the signedness is handled correctly
-- Something is broken while using real DNS servers
 
 UI stuff:
 - ctrl-c signal on all OSes

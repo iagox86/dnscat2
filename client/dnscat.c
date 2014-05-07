@@ -358,6 +358,12 @@ int main(int argc, char *argv[])
     else
       driver_dns->dns_host = safe_strdup(dns_options.host);
 
+    if(!driver_dns->dns_host)
+    {
+      LOG_FATAL("Couldn't determine the system DNS server! Please use --host to set one.");
+      exit(1);
+    }
+
     driver_dns->dns_port = dns_options.port;
     LOG_WARNING("OUTPUT: DNS tunnel to %s", driver_dns->domain);
   }
