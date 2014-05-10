@@ -66,9 +66,9 @@ a requirement to order responses in any particular way.
 This is the structure of a dnscat2 command packet (note: all fields are
 network byte order / big endian / msb first):
 
-(uint16_t) length (not counting the length field)
+(uint16_t) length (of the rest of the message)
 (uint16_t) request_id
-(uint16_t) command_id (request only)
+(uint16_t) command_id
 (uint16_t) status (response only)
 (variable...) command fields
 
@@ -86,7 +86,7 @@ incremental leaks a tiny amount of information to clients, that's a very
 minor consideration).
 
 The command_id chooses which command to run. See the 'commands' section
-below.
+below. The response should be the same as the request.
 
 The remaining fields are determined by the message type (see 'commands'
 below).
@@ -143,8 +143,11 @@ new session.
 | Errors |
 +--------+
 
-Valid error_code values:
+If the status code is non-zero, y'all got problems. Here are possible
+codes:
 
 #define STATUS_BAD_REQUEST     (0x8001)
 #define STATUS_NOT_IMPLEMENTED (0xFFFF)
 
+If one of those codes is present, the entire body is replaced by a
+null-terminated string: reason.

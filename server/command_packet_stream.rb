@@ -8,7 +8,6 @@
 ##
 
 require 'dnscat_exception'
-require 'command_packet'
 
 class CommandPacketStream
   def initialize()
@@ -16,7 +15,7 @@ class CommandPacketStream
     @length = nil
   end
 
-  def feed(data)
+  def feed(data, is_request)
     # Add the new data to our current stream
     @data = @data || ""
     @data += data
@@ -40,7 +39,7 @@ class CommandPacketStream
       length, data, @data = @data.unpack("na#{length}a*")
 
       # And that's it!
-      yield(CommandPacket.new(data))
+      yield(CommandPacket.new(data, is_request))
     end
   end
 end
