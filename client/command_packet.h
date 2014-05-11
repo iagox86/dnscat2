@@ -34,22 +34,44 @@ typedef struct
 {
   uint16_t request_id;
   command_packet_type_t command_id;
-  command_packet_status_t status;
+  NBBOOL is_request;
 
-  union {
-    struct { char *data; } ping;
-    struct { char *name; } shell;
-    struct { char *name; char *command; } exec;
-  } body;
+  union
+  {
+    struct
+    {
+      union {
+        struct { char *data; } ping;
+        struct { char *name; } shell;
+        struct { char *name; char *command; } exec;
+      } body;
+    } request;
+
+    struct
+    {
+      command_packet_status_t status;
+
+      union {
+        struct { char *data; } ping;
+        struct { uint16_t session_id; } shell;
+        struct { uint16_t session_id; } exec;
+      } body;
+    } response;
+  } r;
 } command_packet_t;
 
 /* Parse a packet from a byte stream. */
 command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_request);
 
 /* Create a packet with the given characteristics. */
-command_packet_t *packet_create_ping(char *data);
-command_packet_t *packet_create_shell(char *data);
-command_packet_t *packet_create_exec(char *data);
+command_packet_t *command_packet_create_ping_request(uint16_t request_id, char *data);
+command_packet_t *command_packet_create_ping_response(uint16_t request_id, char *data);
+
+command_packet_t *command_packet_create_shell_request(uint16_t request_id, char *name);
+command_packet_t *command_packet_create_shell_response(uint16_t request_id, uint16_t session_id);
+
+command_packet_t *command_packet_create_exec_request(uint16_t request_id, char *name, char *command);
+command_packet_t *command_packet_create_exec_response(uint16_t request_id, uint16_t session_id);
 
 /* Free the packet data structures. */
 void command_packet_destroy(command_packet_t *packet);
