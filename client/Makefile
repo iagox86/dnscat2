@@ -14,6 +14,8 @@ LIBS=
 CFLAGS+=$(COMMON_CFLAGS)
 
 OBJS=buffer.o \
+		 command_packet.o \
+		 command_packet_stream.o \
 		 driver_console.o \
 		 driver_dns.o \
 		 driver_exec.o \
