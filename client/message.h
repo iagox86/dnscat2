@@ -114,6 +114,7 @@ typedef struct
       char *name;
       char *download;
       uint32_t first_chunk;
+      NBBOOL is_command;
 
       struct
       {

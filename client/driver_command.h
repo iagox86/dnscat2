@@ -1,16 +1,17 @@
 #ifndef __DRIVER_command_H__
 #define __DRIVER_command_H__
 
+#include "command_packet.h"
+#include "command_packet_stream.h"
 #include "message.h"
 #include "select_group.h"
 #include "session.h"
 
 typedef struct
 {
-  uint16_t   session_id;
-  char      *name;
-  char      *download;
-  uint32_t   first_chunk;
+  char     *name;
+  uint16_t  session_id;
+  command_packet_stream_t *stream;
 } driver_command_t;
 
 driver_command_t  *driver_command_create(select_group_t *group);

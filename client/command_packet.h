@@ -9,6 +9,8 @@
 
 #include <stdlib.h>
 
+#include "types.h"
+
 #ifdef WIN32
 #include "pstdint.h"
 #else
@@ -55,6 +57,8 @@ typedef struct
         struct { char *data; } ping;
         struct { uint16_t session_id; } shell;
         struct { uint16_t session_id; } exec;
+
+        struct { char *reason; } error;
       } body;
     } response;
   } r;

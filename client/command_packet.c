@@ -138,6 +138,10 @@ command_packet_t *command_packet_create_exec_response(uint16_t request_id, uint1
   return packet;
 }
 
+/*command_packet_t *command_packet_create_error_response(uint16_t request_id, command_packet_status_t status, char *reason)
+{
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_ERROR, status);
+}*/
 
 /* Free the packet data structures. */
 void command_packet_destroy(command_packet_t *packet)

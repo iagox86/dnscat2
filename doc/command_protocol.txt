@@ -151,3 +151,6 @@ codes:
 
 If one of those codes is present, the entire body is replaced by a
 null-terminated string: reason.
+
+The command_id in the error packet should be the command_id that is
+being responded to.

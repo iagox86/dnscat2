@@ -107,6 +107,9 @@ void packet_syn_set_download(packet_t *packet, char *filename);
 /* Set the OPT_CHUNKED_DOWNLOAD field */
 void packet_syn_set_chunked_download(packet_t *packet);
 
+/* Set the OPT_COMMAND flag */
+void packet_syn_set_is_command(packet_t *packet);
+
 /* Get minimum packet sizes so we can avoid magic numbers. */
 size_t packet_get_syn_size();
 size_t packet_get_msg_size(options_t options);

@@ -150,6 +150,8 @@ uint16_t message_post_create_session(message_options_t options[])
         message->message.create_session.download = options[i].value.s;
       if(!strcmp(options[i].name, "first_chunk"))
         message->message.create_session.first_chunk = options[i].value.i;
+      if(!strcmp(options[i].name, "is_command"))
+        message->message.create_session.is_command = options[i].value.i;
       i++;
     }
   }

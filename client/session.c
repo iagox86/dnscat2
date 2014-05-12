@@ -41,6 +41,8 @@ typedef struct
   uint32_t        download_first_chunk;
   uint32_t        download_current_chunk;
 
+  NBBOOL          is_command;
+
   buffer_t       *outgoing_data;
 
   time_t          last_transmit;
@@ -121,6 +123,8 @@ static void do_send_stuff(session_t *session)
         packet_syn_set_download(packet, session->download);
       if(session->download_first_chunk)
         packet_syn_set_chunked_download(packet);
+      if(session->is_command)
+        packet_syn_set_is_command(packet);
 
       update_counter(session);
       do_send_packet(session, packet);
@@ -238,7 +242,7 @@ static void handle_shutdown()
     message_post_close_session(entry->session->id);
 }
 
-static uint16_t handle_create_session(char *name, char *download, uint32_t first_chunk)
+static uint16_t handle_create_session(char *name, char *download, uint32_t first_chunk, NBBOOL is_command)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
   session_entry_t *entry;
@@ -264,6 +268,7 @@ static uint16_t handle_create_session(char *name, char *download, uint32_t first
 
   session->download_first_chunk   = first_chunk;
   session->download_current_chunk = first_chunk;
+  session->is_command = is_command;
 
   /* Add it to the linked list. */
   entry = safe_malloc(sizeof(session_entry_t));
@@ -522,7 +527,7 @@ static void handle_message(message_t *message, void *param)
       break;
 
     case MESSAGE_CREATE_SESSION:
-      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.name, message->message.create_session.download, message->message.create_session.first_chunk);
+      message->message.create_session.out.session_id = handle_create_session(message->message.create_session.name, message->message.create_session.download, message->message.create_session.first_chunk, message->message.create_session.is_command);
       break;
 
     case MESSAGE_CLOSE_SESSION:

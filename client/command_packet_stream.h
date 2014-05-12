@@ -9,7 +9,9 @@
 
 #include <stdlib.h>
 
+#include "buffer.h"
 #include "command_packet.h"
+#include "types.h"
 
 #ifdef WIN32
 #include "pstdint.h"
