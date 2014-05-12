@@ -35,11 +35,12 @@ typedef struct
 
 typedef enum
 {
-  OPT_NAME             = 0x01,
+  OPT_NAME             = 0x0001,
   /* OPT_TUNNEL = 2,   // Deprecated */
   /* OPT_DATAGRAM = 4, // Deprecated */
-  OPT_DOWNLOAD         = 0x08,
-  OPT_CHUNKED_DOWNLOAD = 0x10,
+  OPT_DOWNLOAD         = 0x0008,
+  OPT_CHUNKED_DOWNLOAD = 0x0010,
+  OPT_COMMAND          = 0x0020,
 } options_t;
 
 typedef struct

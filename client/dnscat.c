@@ -27,6 +27,7 @@
 #include "udp.h"
 
 #include "driver_console.h"
+#include "driver_command.h"
 #include "driver_dns.h"
 #include "driver_exec.h"
 #include "driver_listener.h"
@@ -44,6 +45,7 @@ select_group_t   *group          = NULL;
 
 /* Input drivers. */
 driver_console_t  *driver_console  = NULL;
+driver_command_t  *driver_command  = NULL;
 driver_exec_t     *driver_exec     = NULL;
 driver_listener_t *driver_listener = NULL;
 driver_ping_t     *driver_ping     = NULL;
@@ -70,6 +72,8 @@ static void cleanup(void)
 
   if(driver_console)
     driver_console_destroy(driver_console);
+  if(driver_command)
+    driver_command_destroy(driver_command);
   if(driver_dns)
     driver_dns_destroy(driver_dns);
   if(driver_exec)
@@ -101,6 +105,8 @@ void usage(char *name, char *message)
 " --exec -e <process>     Execute the given process and link it to the stream\n"
 " --listen -l <port>      Listen on the given port and link each connection to\n"
 "                         a new stream\n"
+" --command               Use the experimental \"command\" protocol (will\n"
+"                         likely become the default eventually).\n"
 "\n"
 "DNS-specific options:\n"
 " --dns <domain>          Enable DNS mode with the given domain\n"
@@ -137,6 +143,9 @@ int main(int argc, char *argv[])
     /* Console options. */
     {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
     {"console", no_argument,       0, 0}, /* (alias) */
+
+    /* Command options. */
+    {"command", no_argument,       0, 0}, /* Enable Command */
 
     /* Execute-specific options. */
     {"exec",    required_argument, 0, 0}, /* Enable execute */
@@ -222,7 +231,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "ping"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
+            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
           input_set = TRUE;
           driver_ping = driver_ping_create(group);
@@ -236,17 +245,27 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "stdin"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
+            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
           input_set = TRUE;
           driver_console = driver_console_create(group);
+        }
+
+        /* Command options. */
+        else if(!strcmp(option_name, "command"))
+        {
+          if(input_set)
+            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
+
+          input_set = TRUE;
+          driver_command = driver_command_create(group);
         }
 
         /* Execute options. */
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
+            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
           input_set = TRUE;
           driver_exec = driver_exec_create(group, optarg);
@@ -256,7 +275,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
           if(input_set)
-            usage(argv[0], "More than one of --exec, --stdin, --listen, and --ping can't be set!");
+            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
           input_set = TRUE;
           driver_listener = driver_listener_create(group, "0.0.0.0", atoi(optarg));
@@ -266,7 +285,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "dns"))
         {
           if(output_set)
-            usage(argv[0], "More than one of --exec, --stdin, and --listen can't be set!");
+            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
           output_set = TRUE;
           driver_dns = driver_dns_create(group, optarg);
@@ -332,6 +351,10 @@ int main(int argc, char *argv[])
   if(driver_console)
   {
     LOG_WARNING("INPUT: Console");
+  }
+  else if(driver_command)
+  {
+    LOG_WARNING("INPUT: Command");
   }
   else if(driver_listener)
   {
