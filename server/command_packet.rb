@@ -7,9 +7,6 @@
 #
 ##
 
-# TODO: Remove this
-$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
-
 require 'dnscat_exception'
 
 require 'command_packet_stream'
@@ -95,14 +92,17 @@ class CommandPacket
     end
   end
 
-  def parse_error(data)
+  def parse_error(data, is_request)
+    @status, data = data.unpack("na*")
+
     if(data.index("\0").nil?)
-      raise(DnscatException, "Exec packet request doesn't have a NUL byte after name")
+      raise(DnscatException, "Error packet doesn't have a NUL byte after name")
     end
+
     @reason, data = data.unpack("Z*a*")
 
     if(data.length > 0)
-      raise(DnscatException, "Exec packet has extra data on the end")
+      raise(DnscatException, "Error packet has extra data on the end")
     end
   end
 
@@ -165,11 +165,6 @@ class CommandPacket
   end
 
   def to_s()
-    if(is_error?())
-      puts("ERROR :: #{@reason}")
-      return
-    end
-
     if(is_request?())
       if(@command_id == COMMAND_PING)
         return "COMMAND_PING  :: request_id = 0x%04x, data = %s" % [@request_id, @data]
@@ -177,6 +172,8 @@ class CommandPacket
         return "COMMAND_SHELL :: request_id = 0x%04x, name = %s" % [@request_id, @name]
       elsif(@command_id == COMMAND_EXEC)
         return "COMMAND_EXEC  :: request_id = 0x%04x, name = %s, command = %s" % [@request_id, @name, @command]
+      elsif(@command_id == COMMAND_ERROR)
+        return "COMMAND_ERROR :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
       else
         raise(DnscatException, "Unknown command_id: 0x%04x" % @command_id)
       end
@@ -185,8 +182,8 @@ class CommandPacket
         return "COMMAND_PING  :: request_id = 0x%04x, data = %s" % [@request_id, @data]
       elsif(@command_id == COMMAND_SHELL)
         return "COMMAND_SHELL :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
-      elsif(@command_id == COMMAND_EXEC)
-        return "COMMAND_EXEC  :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
+      elsif(@command_id == COMMAND_ERROR)
+        return "COMMAND_ERROR :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
       else
         raise(DnscatException, "Unknown command_id: 0x%04x" % @command_id)
       end

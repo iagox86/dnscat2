@@ -13,6 +13,8 @@ Immediate needs:
 - Check max length values for packet sizes and such
 - Go through all the structs to figure out which members are no longer used
 - Go through and try to initialize all pointers to NULL
+- Refactor UiSession.rb so it can be re-used for other session types
+- Handle command sessions receiving bad data more gracefully on the client side
 
 UI stuff:
 - ctrl-c signal on all OSes

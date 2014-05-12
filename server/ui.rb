@@ -8,6 +8,7 @@ require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
 require 'ui_command'
 require 'ui_session'
+require 'ui_session_command'
 
 # Notification functions that are tied to a particular session:
 # - session_created(id)
@@ -235,7 +236,13 @@ class Ui
     local_id = Ui.create_local_id(real_id)
 
     puts("New session established: #{local_id}")
-    @@sessions[local_id] = UiSession.new(local_id, SessionManager.find(real_id))
+    session = SessionManager.find(real_id)
+
+    if(session.is_command)
+      @@sessions[local_id] = UiSessionCommand.new(local_id, session)
+    else
+      @@sessions[local_id] = UiSession.new(local_id, session)
+    end
     @@session_history[local_id] = []
 
     # If no session is currently attached and we're auto-attaching sessions,

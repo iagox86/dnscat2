@@ -19,6 +19,7 @@ class Session
   attr_reader :id, :state, :their_seq, :my_seq
   attr_reader :name
   attr_reader :options
+  attr_reader :is_command
 
   # Session states
   STATE_NEW         = 0x00
@@ -41,6 +42,7 @@ class Session
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
     @options = 0
+    @is_command = false
 
     @incoming_data = ''
     @outgoing_data = ''
@@ -129,6 +131,10 @@ class Session
       notify_subscribers(:dnscat2_bad_options, ["OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD"])
       Log.ERROR("OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD")
       return Packet.create_fin(@id, "ERROR: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD", @options)
+    end
+
+    if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
+      @is_command = true
     end
 
     # TODO: Allowing any arbitrary file is a security risk

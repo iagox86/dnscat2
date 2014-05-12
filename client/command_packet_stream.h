@@ -26,6 +26,7 @@ typedef struct
 } command_packet_stream_t;
 
 command_packet_stream_t *command_packet_stream_create();
+void                     command_packet_stream_destroy(command_packet_stream_t *stream);
 
 void              command_packet_stream_feed(command_packet_stream_t *stream, uint8_t *data, uint16_t length);
 NBBOOL            command_packet_stream_ready(command_packet_stream_t *stream);

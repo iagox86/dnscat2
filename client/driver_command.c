@@ -42,7 +42,13 @@ static void handle_session_created(driver_command_t *driver, uint16_t session_id
 
 static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t length)
 {
+printf("hi hi\n");
+printf("%p\n", driver->stream);
+printf("%p\n", data);
+printf("0x%x\n", (unsigned int)length);
   command_packet_stream_feed(driver->stream, data, length);
+
+buffer_print(driver->stream->buffer);
 
   while(command_packet_stream_ready(driver->stream))
   {
@@ -51,6 +57,8 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
 
     printf("Got a command packet that we don't know how to handle:\n");
     command_packet_print(in);
+
+    out = command_packet_create_error_response(in->request_id, 0xFFFF, "Not implemented yet!");
 
     if(out)
     {
@@ -112,6 +120,8 @@ driver_command_t *driver_command_create(select_group_t *group)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
+  driver->stream = command_packet_stream_create();
+
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver);
   message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver);
@@ -125,5 +135,7 @@ void driver_command_destroy(driver_command_t *driver)
 {
   if(driver->name)
     safe_free(driver->name);
+  if(driver->stream)
+    command_packet_stream_destroy(driver->stream);
   safe_free(driver);
 }
