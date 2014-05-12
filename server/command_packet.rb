@@ -19,19 +19,21 @@ class CommandPacket
   COMMAND_SHELL = 0x0001
   COMMAND_EXEC  = 0x0002
 
-  attr_reader :request_id, :command_id, :status # header
+  COMMAND_ERROR = 0xFFFF
+
+  attr_reader :request_id, :command_id # header
   attr_reader :data # ping
   attr_reader :name, :session_id # shell
   attr_reader :command # command
 
-  attr_reader :reason # errors
+  attr_reader :status, :reason # errors
 
   def at_least?(data, needed)
     return (data.length >= needed)
   end
 
   def is_error?()
-    return is_response?() && @status != 0
+    return @command_id == COMMAND_ERROR
   end
 
   def is_request?()
@@ -118,33 +120,21 @@ class CommandPacket
     # (uint16_t) command_id
     @command_id, data = data.unpack("na*")
 
-    if(!is_request)
-      # (uint16_t) status (response only)
-      @status, data = data.unpack("na*")
-
-      # If the status was non-zero, parse the message as an error
-      if(@status != 0)
-        return false, parse_error(data)
-      end
-    end
-
     if(@command_id == COMMAND_PING)
       parse_ping(data, is_request)
     elsif(@command_id == COMMAND_SHELL)
       parse_shell(data, is_request)
     elsif(@command_id == COMMAND_EXEC)
       parse_exec(data, is_request)
+    elsif(@command_id == COMMAND_ERROR)
+      parse_error(data, is_request)
     else
       raise(DnscatException, "Unknown command: 0x%04x" % @command_id)
     end
   end
 
-  def CommandPacket.add_header(packet, request_id, command_id, status = nil)
-    if(status.nil?)
-      packet = [request_id, command_id, packet].pack("nna*")
-    else
-      packet = [request_id, command_id, status, packet].pack("nnna*")
-    end
+  def CommandPacket.add_header(packet, request_id, command_id)
+    packet = [request_id, command_id, packet].pack("nna*")
 
     return [packet.length, packet].pack('na*')
   end
@@ -153,29 +143,25 @@ class CommandPacket
     return CommandPacket.add_header([data].pack('Z*'), request_id, COMMAND_PING)
   end
   def CommandPacket.create_ping_response(request_id, data)
-    return CommandPacket.add_header([data].pack('Z*'), request_id, COMMAND_PING, 0)
+    return CommandPacket.add_header([data].pack('Z*'), request_id, COMMAND_PING)
   end
 
   def CommandPacket.create_shell_request(request_id, name)
     return CommandPacket.add_header([name].pack('Z*'), request_id, COMMAND_SHELL)
   end
   def CommandPacket.create_shell_response(request_id, session_id)
-    return CommandPacket.add_header([session_id].pack('n'), request_id, COMMAND_SHELL, 0)
+    return CommandPacket.add_header([session_id].pack('n'), request_id, COMMAND_SHELL)
   end
 
   def CommandPacket.create_exec_request(request_id, name, command)
     return CommandPacket.add_header([name, command].pack('Z*Z*'), request_id, COMMAND_EXEC)
   end
   def CommandPacket.create_exec_response(request_id, session_id)
-    return CommandPacket.add_header([session_id].pack('n'), request_id, COMMAND_EXEC, 0)
+    return CommandPacket.add_header([session_id].pack('n'), request_id, COMMAND_EXEC)
   end
 
-  def CommandPacket.create_error(request_id, reason, status)
-    if(status == 0)
-      raise(DnscatException, "Tried to create an error packet with a status of 0")
-    end
-
-    return CommandPacket.add_header([reason].pack("Z*"), request_id, status)
+  def CommandPacket.create_error(request_id, status, reason)
+    return CommandPacket.add_header([status, reason].pack("nZ*"), request_id)
   end
 
   def to_s()

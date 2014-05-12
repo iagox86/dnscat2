@@ -69,7 +69,6 @@ network byte order / big endian / msb first):
 (uint16_t) length (of the rest of the message)
 (uint16_t) request_id
 (uint16_t) command_id
-(uint16_t) status (response only)
 (variable...) command fields
 
 The length field is the number of bytes coming in the rest of the
@@ -139,18 +138,13 @@ Structure:
 Ask a dnscat2 client to run the given command, and bind the input to a
 new session.
 
-+--------+
-| Errors |
-+--------+
+-------------
+COMMAND_ERROR
+-------------
 
-If the status code is non-zero, y'all got problems. Here are possible
-codes:
+Structure:
+(uint16_t) status
+(ntstring) reason
 
-#define STATUS_BAD_REQUEST     (0x8001)
-#define STATUS_NOT_IMPLEMENTED (0xFFFF)
-
-If one of those codes is present, the entire body is replaced by a
-null-terminated string: reason.
-
-The command_id in the error packet should be the command_id that is
-being responded to.
+Errors are mostly free-form, and can be sent either on their own, as a
+request, or in response to any other request.

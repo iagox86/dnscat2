@@ -23,9 +23,6 @@ command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_r
   p->command_id = buffer_read_next_int16(buffer);
   p->is_request = is_request;
 
-  if(!is_request)
-    p->r.response.status = buffer_read_next_int16(buffer);
-
   switch(p->command_id)
   {
     case COMMAND_PING:
@@ -54,6 +51,19 @@ command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_r
       }
       break;
 
+    case COMMAND_ERROR:
+      if(is_request)
+      {
+        p->r.request.body.error.status = buffer_read_next_int16(buffer);
+        p->r.request.body.error.reason = buffer_alloc_next_ntstring(buffer);
+      }
+      else
+      {
+        p->r.request.body.error.status = buffer_read_next_int16(buffer);
+        p->r.request.body.error.reason = buffer_alloc_next_ntstring(buffer);
+      }
+      break;
+
     default:
       LOG_FATAL("Unknown command_id: 0x%04x", p->command_id);
       exit(1);
@@ -73,11 +83,10 @@ static command_packet_t *command_packet_create_request(uint16_t request_id, comm
   return p;
 }
 
-static command_packet_t *command_packet_create_response(uint16_t request_id, command_packet_type_t command_id, command_packet_status_t status)
+static command_packet_t *command_packet_create_response(uint16_t request_id, command_packet_type_t command_id)
 {
   command_packet_t *p = command_packet_create_request(request_id, command_id);
 
-  p->r.response.status = status;
   p->is_request = FALSE;
 
   return p;
@@ -94,7 +103,7 @@ command_packet_t *command_packet_create_ping_request(uint16_t request_id, char *
 
 command_packet_t *command_packet_create_ping_response(uint16_t request_id, char *data)
 {
-  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_PING, 0);
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_PING);
 
   packet->r.response.body.ping.data = safe_strdup(data);
 
@@ -112,7 +121,7 @@ command_packet_t *command_packet_create_shell_request(uint16_t request_id, char 
 
 command_packet_t *command_packet_create_shell_response(uint16_t request_id, uint16_t session_id)
 {
-  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_SHELL, 0);
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_SHELL);
 
   packet->r.response.body.shell.session_id = session_id;
 
@@ -131,17 +140,32 @@ command_packet_t *command_packet_create_exec_request(uint16_t request_id, char *
 
 command_packet_t *command_packet_create_exec_response(uint16_t request_id, uint16_t session_id)
 {
-  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_EXEC, 0);
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_EXEC);
 
   packet->r.response.body.exec.session_id = session_id;
 
   return packet;
 }
 
-/*command_packet_t *command_packet_create_error_response(uint16_t request_id, command_packet_status_t status, char *reason)
+command_packet_t *command_packet_create_error_request(uint16_t request_id, uint16_t status, char *reason)
 {
-  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_ERROR, status);
-}*/
+  command_packet_t *packet = command_packet_create_request(request_id, COMMAND_ERROR);
+
+  packet->r.request.body.error.status = status;
+  packet->r.request.body.error.reason = safe_strdup(reason);
+
+  return packet;
+}
+
+command_packet_t *command_packet_create_error_response(uint16_t request_id, uint16_t status, char *reason)
+{
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_ERROR);
+
+  packet->r.response.body.error.status = status;
+  packet->r.response.body.error.reason = safe_strdup(reason);
+
+  return packet;
+}
 
 /* Free the packet data structures. */
 void command_packet_destroy(command_packet_t *packet)
@@ -179,6 +203,15 @@ void command_packet_destroy(command_packet_t *packet)
       }
       break;
 
+    case COMMAND_ERROR:
+      if(packet->is_request)
+      {
+        if(packet->r.request.body.error.reason)
+          safe_free(packet->r.request.body.error.reason);
+      }
+      break;
+
+
     default:
       LOG_FATAL("Unknown command_id: 0x%04x", packet->command_id);
       exit(1);
@@ -212,6 +245,13 @@ void command_packet_print(command_packet_t *packet)
       else
         printf("COMMAND_EXEC [response] :: request_id: 0x%04x :: session_id: 0x%04x\n", packet->request_id, packet->r.response.body.exec.session_id);
       break;
+
+    case COMMAND_ERROR:
+      if(packet->is_request)
+        printf("COMMAND_ERROR [request] :: request_id: 0x%04x :: status: 0x%04x :: reason: %s\n", packet->request_id, packet->r.request.body.error.status, packet->r.request.body.error.reason);
+      else
+        printf("COMMAND_ERROR [response] :: request_id: 0x%04x :: status: 0x%04x :: reason: %s\n", packet->request_id, packet->r.response.body.error.status, packet->r.response.body.error.reason);
+      break;
   }
 }
 
@@ -223,9 +263,6 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
 
   buffer_add_int16(buffer, packet->request_id);
   buffer_add_int16(buffer, packet->command_id);
-
-  if(!packet->is_request)
-    buffer_add_int16(buffer, packet->r.response.status);
 
   switch(packet->command_id)
   {
@@ -255,6 +292,27 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
         buffer_add_int16(buffer, packet->r.response.body.exec.session_id);
       }
       break;
+
+    case COMMAND_ERROR:
+      printf("P: %p\n", packet);
+      if(packet->is_request)
+      {
+        printf("AA");
+        buffer_add_int16(buffer, packet->r.request.body.error.status);
+        printf("bb");
+        buffer_add_ntstring(buffer, packet->r.request.body.error.reason);
+        printf("cc");
+      }
+      else
+      {
+        printf("dd");
+        buffer_add_int16(buffer, packet->r.response.body.error.status);
+        printf("ee");
+        buffer_add_ntstring(buffer, packet->r.response.body.error.reason);
+        printf("ff");
+      }
+      break;
+
 
     default:
       LOG_FATAL("Unknown command_id: 0x%04x", packet->command_id);

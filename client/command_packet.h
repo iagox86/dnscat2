@@ -24,13 +24,9 @@ typedef enum
   COMMAND_PING  = 0x0000,
   COMMAND_SHELL = 0x0001,
   COMMAND_EXEC  = 0x0002,
-} command_packet_type_t;
 
-typedef enum
-{
-  STATUS_BAD_REQUEST = 0x8001,
-  STATUS_NOT_IMPLEMENTED = 0xFFFF,
-} command_packet_status_t;
+  COMMAND_ERROR = 0xFFFF,
+} command_packet_type_t;
 
 typedef struct
 {
@@ -46,19 +42,18 @@ typedef struct
         struct { char *data; } ping;
         struct { char *name; } shell;
         struct { char *name; char *command; } exec;
+        struct { uint16_t status; char *reason; } error;
       } body;
     } request;
 
     struct
     {
-      command_packet_status_t status;
-
       union {
         struct { char *data; } ping;
         struct { uint16_t session_id; } shell;
         struct { uint16_t session_id; } exec;
 
-        struct { char *reason; } error;
+        struct { uint16_t status; char *reason; } error;
       } body;
     } response;
   } r;
@@ -76,6 +71,9 @@ command_packet_t *command_packet_create_shell_response(uint16_t request_id, uint
 
 command_packet_t *command_packet_create_exec_request(uint16_t request_id, char *name, char *command);
 command_packet_t *command_packet_create_exec_response(uint16_t request_id, uint16_t session_id);
+
+command_packet_t *command_packet_create_error_request(uint16_t request_id, uint16_t status, char *reason);
+command_packet_t *command_packet_create_error_response(uint16_t request_id, uint16_t status, char *reason);
 
 /* Free the packet data structures. */
 void command_packet_destroy(command_packet_t *packet);

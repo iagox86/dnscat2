@@ -95,6 +95,9 @@ int main(int argc, const char *argv[])
   command_packet_t *c5 = command_packet_create_shell_response(0x5555, 0x1234);
   command_packet_t *c6 = command_packet_create_exec_response(0x6666, 0x4321);
 
+  command_packet_t *c7 = command_packet_create_error_request(0x7777, 0xaaaa, "this is error reason (request)");
+  command_packet_t *c8 = command_packet_create_error_response(0x8888, 0xbbbb, "this is error reason (response)");
+
   uint8_t *bytes;
   size_t   length;
 
@@ -114,6 +117,12 @@ int main(int argc, const char *argv[])
   command_packet_stream_feed(response, bytes, length);
 
   bytes = command_packet_to_bytes(c6, &length);
+  command_packet_stream_feed(response, bytes, length);
+
+  bytes = command_packet_to_bytes(c7, &length);
+  command_packet_stream_feed(request, bytes, length);
+
+  bytes = command_packet_to_bytes(c8, &length);
   command_packet_stream_feed(response, bytes, length);
 
   while(command_packet_stream_ready(request))
