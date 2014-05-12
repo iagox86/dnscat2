@@ -21,6 +21,8 @@ command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_r
 
   p->request_id = buffer_read_next_int16(buffer);
   p->command_id = buffer_read_next_int16(buffer);
+  p->is_request = is_request;
+
   if(!is_request)
     p->r.response.status = buffer_read_next_int16(buffer);
 
@@ -188,36 +190,37 @@ void command_packet_print(command_packet_t *packet)
   {
     case COMMAND_PING:
       if(packet->is_request)
-        printf("COMMAND_PING [request] :: request_id: 0x%04x :: data: %s", packet->request_id, packet->r.request.body.ping.data);
+        printf("COMMAND_PING [request] :: request_id: 0x%04x :: data: %s\n", packet->request_id, packet->r.request.body.ping.data);
       else
-        printf("COMMAND_PING [response] :: request_id: 0x%04x :: data: %s", packet->request_id, packet->r.response.body.ping.data);
+        printf("COMMAND_PING [response] :: request_id: 0x%04x :: data: %s\n", packet->request_id, packet->r.response.body.ping.data);
       break;
 
     case COMMAND_SHELL:
       if(packet->is_request)
-        printf("COMMAND_SHELL [request] :: request_id: 0x%04x :: name: %s", packet->request_id, packet->r.request.body.shell.name);
+        printf("COMMAND_SHELL [request] :: request_id: 0x%04x :: name: %s\n", packet->request_id, packet->r.request.body.shell.name);
       else
-        printf("COMMAND_SHELL [response] :: request_id: 0x%04x :: session_id: 0x%04x", packet->request_id, packet->r.response.body.shell.session_id);
+        printf("COMMAND_SHELL [response] :: request_id: 0x%04x :: session_id: 0x%04x\n", packet->request_id, packet->r.response.body.shell.session_id);
       break;
 
     case COMMAND_EXEC:
       if(packet->is_request)
-        printf("COMMAND_EXEC [request] :: request_id: 0x%04x :: name: %s :: command: %s", packet->request_id, packet->r.request.body.exec.name, packet->r.request.body.exec.command);
+        printf("COMMAND_EXEC [request] :: request_id: 0x%04x :: name: %s :: command: %s\n", packet->request_id, packet->r.request.body.exec.name, packet->r.request.body.exec.command);
       else
-        printf("COMMAND_EXEC [response] :: request_id: 0x%04x :: session_id: 0x%04x", packet->request_id, packet->r.response.body.exec.session_id);
+        printf("COMMAND_EXEC [response] :: request_id: 0x%04x :: session_id: 0x%04x\n", packet->request_id, packet->r.response.body.exec.session_id);
       break;
   }
 }
 
 /* Needs to be freed with safe_free() */
-uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length, NBBOOL is_request)
+uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
+  buffer_t *buffer_with_size = buffer_create(BO_BIG_ENDIAN);
 
   buffer_add_int16(buffer, packet->request_id);
   buffer_add_int16(buffer, packet->command_id);
 
-  if(!is_request)
+  if(!packet->is_request)
     buffer_add_int16(buffer, packet->r.response.status);
 
   switch(packet->command_id)
@@ -254,5 +257,9 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length, NBBOO
       exit(1);
   }
 
-  return buffer_create_string_and_destroy(buffer, length);
+  buffer_add_int16(buffer_with_size, buffer_get_length(buffer));
+  buffer_add_buffer(buffer_with_size, buffer);
+  buffer_destroy(buffer);
+
+  return buffer_create_string_and_destroy(buffer_with_size, length);
 }
