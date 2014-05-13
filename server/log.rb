@@ -10,7 +10,6 @@
 ##
 
 require 'subscribable'
-require 'ui'
 
 class Log
   include Subscribable

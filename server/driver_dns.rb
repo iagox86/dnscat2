@@ -26,6 +26,7 @@ class DriverDNS
     @host   = host
     @port   = port
     @domain = domain
+
   end
 
   def DriverDNS.parse_name(name, domain)

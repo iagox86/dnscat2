@@ -3,10 +3,8 @@
 # Created July 4, 2013
 
 require 'timeout'
-require 'command_packet'
-require 'command_packet_stream'
 
-class UiSessionCommand
+class UiSessionNew
   attr_accessor :local_id
   attr_accessor :session
 
@@ -19,14 +17,12 @@ class UiSessionCommand
     @state = nil
     @last_seen = Time.now()
 
-    @stream = CommandPacketStream.new()
-
     @is_active = true
     @is_attached = false
     @orig_suspend = nil # Used for trapping ctrl-z
 
-    if(!Ui.get_option("auto_command").nil? && Ui.get_option("auto_command").length > 0)
-      @session.queue_outgoing(Ui.get_option("auto_command") + "\n")
+    if(!UiNew.get_option("auto_command").nil? && UiNew.get_option("auto_command").length > 0)
+      @session.queue_outgoing(UiNew.get_option("auto_command") + "\n")
     end
   end
 
@@ -38,24 +34,16 @@ class UiSessionCommand
     @is_active = false
   end
 
-  def display(str, tag = nil)
+  def display(str, tag)
     # Split the lines up
     lines = str.chomp().gsub(/\r/, '').split(/\n/)
 
     # Display them and add them to history
     lines.each do |line|
       if(attached?())
-        if(tag.nil?)
-          puts("%s" % [line])
-        else
-          puts("%s %s" % [tag, line])
-        end
+        puts("%s %s" % [tag, line])
       end
-      if(tag.nil?)
-        @history << ("%s" % [tag, line])
-      else
-        @history << ("%s %s" % [tag, line])
-      end
+      @history << ("%s %s" % [tag, line])
     end
 
     # Shorten history if needed
@@ -73,6 +61,7 @@ class UiSessionCommand
   end
 
   def attach()
+    restore_history()
     @is_attached = true
     handle_suspend()
 
@@ -88,6 +77,7 @@ class UiSessionCommand
   end
 
   def detach()
+    save_history()
     restore_suspend()
     @is_attached = false
   end
@@ -111,84 +101,40 @@ class UiSessionCommand
     end
   end
 
-  def do_send_ping()
-    request_id = rand(0xFFFF)
-    data = "this is ping data"
-
-    ping = CommandPacket.create_ping_request(request_id, data)
-
-    @session.queue_outgoing(ping)
-  end
-
-  def do_send_shell()
-    request_id = rand(0xFFFF)
-    name = "shell name"
-
-    shell = CommandPacket.create_shell_request(request_id, name)
-    @session.queue_outgoing(shell)
-  end
-
-  def do_send_exec()
-    request_id = rand(0xFFFF)
-    name = "exec name"
-    command = "exec command"
-
-    exec = CommandPacket.create_exec_request(request_id, name, command)
-    @session.queue_outgoing(exec)
-  end
-
   def go
-    begin
-      display("1) send ping")
-      display("2) send shell")
-      display("3) send exec")
-      display('')
-      display("9) quit")
-
-      loop do
-        line = Readline::readline("Your command? [#{@local_id}]> ", true)
-
-        if(line.nil?)
-          return
-        end
-
-        line = line.to_i()
-
-        if(line == 1)
-          do_send_ping()
-          break
-        elsif(line == 2)
-          do_send_shell()
-          break
-        elsif(line == 3)
-          do_send_exec()
-          break
-        elsif(line == 9)
-          exit(1)
-        end
-
-        display("Unknown selection!")
-      end
-
-    rescue Exception => e
-      Log.ERROR(e.inspect)
-      Log.ERROR(e.backtrace)
-
-      raise(e)
+    if(UiNew.get_option("prompt"))
+      line = Readline::readline("dnscat [#{@local_id}]> ", true)
+    else
+      line = Readline::readline("", true)
     end
 
-  end
-
-  def data_received(data)
-    @last_seen = Time.now()
-
-    @stream.feed(data, false) do |packet|
-      display(packet.to_s, '[IN] ')
+    if(line.nil?)
+      return
     end
+
+    # Add the newline that Readline strips
+    line = line + "\n"
+
+    # Queue our outgoing data
+    @session.queue_outgoing(line)
   end
 
-  def data_acknowledged(data)
+  def feed(data)
     @last_seen = Time.now()
+    display(data, '[IN] ')
+  end
+
+  def output(str)
+    display(str)
+  end
+
+  def error(str)
+    display(str, "[ERROR]")
+  end
+
+  def ack(data)
+    @last_seen = Time.now()
+    display(data, '[OUT]')
   end
 
   def heartbeat()
@@ -198,8 +144,8 @@ class UiSessionCommand
   def handle_suspend()
     # Trap ctrl-z, just like Metasploit
     @orig_suspend = Signal.trap("TSTP") do
-      Ui.detach_session()
-      Ui.wakeup()
+      UiNew.detach_session()
+      UiNew.wakeup()
     end
   end
 

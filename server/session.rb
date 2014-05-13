@@ -109,7 +109,6 @@ class Session
   end
 
   def handle_syn(packet)
-    puts(packet.to_s)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!syn_valid?())
       notify_subscribers(:dnscat2_state_error, [@id, "SYN received in invalid state"])

@@ -17,7 +17,7 @@ require 'driver_tcp'
 require 'log'
 require 'packet'
 require 'session_manager'
-require 'ui'
+require 'ui_new'
 
 # Option parsing
 require 'trollop'
@@ -25,8 +25,8 @@ require 'trollop'
 Thread::abort_on_exception = true
 
 # Subscribe the Ui to the important notifications
-SessionManager.subscribe(Ui)
-Log.subscribe(Ui)
+SessionManager.subscribe(UiNew)
+Log.subscribe(UiNew)
 
 # Options
 opts = Trollop::options do
@@ -86,7 +86,8 @@ if(opts[:dns])
       Log.ERROR("Protocol exception caught in DNS module:")
       Log.ERROR(e.inspect)
     rescue Exception => e
-      puts(":)")
+      puts(e)
+      puts(e.backtrace)
     end
   end
 end
@@ -110,12 +111,12 @@ end
 # a small amount of time to initialize themselves
 sleep(0.01)
 
-Ui.set_option("auto_attach",  opts[:auto_attach])
-Ui.set_option("auto_command", opts[:auto_command])
-Ui.set_option("packet_trace", opts[:packet_trace])
-Ui.set_option("prompt",       opts[:prompt])
-Ui.set_option("log_level",    opts[:debug])
-Ui.set_option("signals",      opts[:signals])
+UiNew.set_option("auto_attach",  opts[:auto_attach])
+UiNew.set_option("auto_command", opts[:auto_command])
+UiNew.set_option("packet_trace", opts[:packet_trace])
+UiNew.set_option("prompt",       opts[:prompt])
+UiNew.set_option("log_level",    opts[:debug])
+UiNew.set_option("signals",      opts[:signals])
 
-Ui.go()
+UiNew.go()
 
