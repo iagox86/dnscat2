@@ -58,7 +58,7 @@ class UiInterface
   def catch_suspend()
     # Trap ctrl-z, just like Metasploit
     @orig_suspend = Signal.trap("TSTP") do
-      UiNew.attach_session(nil)
+      Ui.attach_session(nil)
     end
   end
 

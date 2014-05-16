@@ -3,22 +3,22 @@
 # Created July 4, 2013
 
 require 'readline'
-require 'ui_new'
+require 'ui'
 require 'ui_interface'
 
-class UiCommandNew < UiInterface
+class UiCommand < UiInterface
   ALIASES = {
     "q" => "quit"
   }
 
-  def UiCommandNew.do_show_options()
-    UiNew.each_option do |name, value|
+  def UiCommand.do_show_options()
+    Ui.each_option do |name, value|
       puts("#{name} => #{value}")
     end
   end
 
-  def UiCommandNew.do_show_sessions()
-    UiNew.each_ui do |local_id, session|
+  def UiCommand.do_show_sessions()
+    Ui.each_ui do |local_id, session|
       puts(session.to_s())
     end
   end
@@ -79,7 +79,7 @@ class UiCommandNew < UiInterface
 
       :proc => Proc.new do |opts|
         puts("Sessions:")
-        UiCommandNew.do_show_sessions()
+        UiCommand.do_show_sessions()
       end,
     },
 
@@ -93,17 +93,17 @@ class UiCommandNew < UiInterface
       :proc => Proc.new do |opts|
         if(opts[:l])
           puts("Known sessions:")
-          UiCommandNew.do_show_sessions()
+          UiCommand.do_show_sessions()
         elsif(opts[:i].nil?)
           puts("Known sessions:")
-          UiCommandNew.do_show_sessions()
+          UiCommand.do_show_sessions()
         else
-          ui = UiNew.get_by_local_id(opts[:i])
+          ui = Ui.get_by_local_id(opts[:i])
           if(ui.nil?)
             error("Session #{opts[:i]} not found!")
-            UiCommandNew.do_show_sessions()
+            UiCommand.do_show_sessions()
           else
-            UiNew.attach_session(ui)
+            Ui.attach_session(ui)
           end
         end
       end
@@ -118,7 +118,7 @@ class UiCommandNew < UiInterface
         if(optarg.length == 0)
           puts("Usage: set <name>=<value>")
           puts()
-          UiCommandNew.do_show_options()
+          UiCommand.do_show_options()
         else
           optarg = optarg.join(" ")
 
@@ -129,7 +129,7 @@ class UiCommandNew < UiInterface
           if(optarg.length != 2)
             puts("Usage: set <name>=<value>")
           else
-            UiNew.set_option(optarg[0], optarg[1])
+            Ui.set_option(optarg[0], optarg[1])
           end
         end
       end
@@ -145,7 +145,7 @@ class UiCommandNew < UiInterface
           puts("Usage: show options")
         else
           if(optarg[0] == "options")
-            UiCommandNew.do_show_options()
+            UiCommand.do_show_options()
           else
             puts("Usage: show options")
           end
@@ -162,7 +162,7 @@ class UiCommandNew < UiInterface
         if(optarg.count != 1)
           puts("Usage: kill <session_id>")
         else
-          if(UiNew.kill_session(optarg[0].to_i()))
+          if(Ui.kill_session(optarg[0].to_i()))
             puts("Session killed")
           else
             puts("Couldn't kill session!")
@@ -198,11 +198,11 @@ class UiCommandNew < UiInterface
         opts = command[:parser].parse(args)
         command[:proc].call(opts, args)
       rescue Trollop::CommandlineError => e
-        UiNew.error("ERROR: #{e}")
+        Ui.error("ERROR: #{e}")
       rescue Trollop::HelpNeeded => e
         command[:parser].educate
       rescue Trollop::VersionNeeded => e
-        UiNew.error("Version needed!")
+        Ui.error("Version needed!")
       end
     end
   end

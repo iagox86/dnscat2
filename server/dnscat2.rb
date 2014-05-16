@@ -17,7 +17,7 @@ require 'driver_tcp'
 require 'log'
 require 'packet'
 require 'session_manager'
-require 'ui_new'
+require 'ui'
 
 # Option parsing
 require 'trollop'
@@ -25,8 +25,8 @@ require 'trollop'
 Thread::abort_on_exception = true
 
 # Subscribe the Ui to the important notifications
-SessionManager.subscribe(UiNew)
-Log.subscribe(UiNew)
+SessionManager.subscribe(Ui)
+Log.subscribe(Ui)
 
 # Options
 opts = Trollop::options do
@@ -107,10 +107,10 @@ end
 # a small amount of time to initialize themselves
 sleep(0.01)
 
-UiNew.set_option("auto_command", opts[:auto_command])
-UiNew.set_option("packet_trace", opts[:packet_trace])
-UiNew.set_option("prompt",       opts[:prompt])
-UiNew.set_option("log_level",    opts[:debug])
+Ui.set_option("auto_command", opts[:auto_command])
+Ui.set_option("packet_trace", opts[:packet_trace])
+Ui.set_option("prompt",       opts[:prompt])
+Ui.set_option("log_level",    opts[:debug])
 
-UiNew.go()
+Ui.go()
 

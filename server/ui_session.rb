@@ -4,7 +4,7 @@
 
 require 'ui_interface'
 
-class UiSessionNew < UiInterface
+class UiSession < UiInterface
   attr_accessor :local_id
   attr_accessor :session
 
@@ -20,8 +20,8 @@ class UiSessionNew < UiInterface
     @is_active = true
     @is_attached = false
 
-    if(!UiNew.get_option("auto_command").nil? && UiNew.get_option("auto_command").length > 0)
-      @session.queue_outgoing(UiNew.get_option("auto_command") + "\n")
+    if(!Ui.get_option("auto_command").nil? && Ui.get_option("auto_command").length > 0)
+      @session.queue_outgoing(Ui.get_option("auto_command") + "\n")
     end
   end
 
@@ -101,7 +101,7 @@ class UiSessionNew < UiInterface
   end
 
   def go
-    if(UiNew.get_option("prompt"))
+    if(Ui.get_option("prompt"))
       line = Readline::readline("dnscat [#{@local_id}]> ", true)
     else
       line = Readline::readline("", true)

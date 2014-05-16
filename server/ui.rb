@@ -6,11 +6,11 @@
 
 require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
-require 'ui_command_new'
-require 'ui_session_new'
+require 'ui_command'
+require 'ui_session'
 #require 'ui_session_command'
 
-class UiNew
+class Ui
   @@options = {}
   @@thread = Thread.current()
 
@@ -34,15 +34,15 @@ class UiNew
     # Nothing required
   end
 
-  def UiNew.get_by_local_id(id)
+  def Ui.get_by_local_id(id)
     return @@uis_by_local_id[id]
   end
 
-  def UiNew.get_by_real_id(id)
+  def Ui.get_by_real_id(id)
     return @@uis_by_real_id[id]
   end
 
-  def UiNew.set_option(name, value)
+  def Ui.set_option(name, value)
     # Remove whitespace
     name  = name.to_s
     value = value.to_s
@@ -75,18 +75,18 @@ class UiNew
     end
   end
 
-  def UiNew.each_option()
+  def Ui.each_option()
     @@options.each_pair do |k, v|
       yield(k, v)
     end
   end
 
-  def UiNew.get_option(name)
+  def Ui.get_option(name)
     return @@options[name]
   end
 
   # TODO: Make this display the error to the proper session or the command window
-  def UiNew.error(msg, local_id = nil)
+  def Ui.error(msg, local_id = nil)
     # Try to use the provided id first
     if(!local_id.nil?)
       ui = @@uis_by_local_id[local_id]
@@ -106,7 +106,7 @@ class UiNew
   end
 
   # Detach the current session and attach a new one
-  def UiNew.attach_session(ui = nil)
+  def Ui.attach_session(ui = nil)
     # Detach the old ui
     if(!@@ui.nil?)
       @@ui.detach()
@@ -123,10 +123,10 @@ class UiNew
     # Attach the new ui
     @@ui.attach()
 
-    UiNew.wakeup()
+    Ui.wakeup()
   end
 
-  def UiNew.go()
+  def Ui.go()
     # Ensure that USR1 does nothing, see the 'hacks' section in the file
     # comment
 #    Signal.trap("USR1") do
@@ -135,11 +135,11 @@ class UiNew
 
     # There's always a single UiCommand in existance
     if(@@command.nil?)
-      @@command = UiCommandNew.new()
+      @@command = UiCommand.new()
     end
 
     begin
-      UiNew.attach_session(@@command)
+      Ui.attach_session(@@command)
     rescue UiWakeup
       # Ignore
     end
@@ -153,7 +153,7 @@ class UiNew
         # If the ui is no longer active, switch to the @@command window
         if(!@@ui.active?)
           @@ui.error("UI went away...")
-          UiNew.attach(@@command)
+          Ui.attach(@@command)
         end
 
         @@ui.go()
@@ -167,7 +167,7 @@ class UiNew
     end
   end
 
-  def UiNew.each_ui()
+  def Ui.each_ui()
     @@uis_by_local_id.each do |s|
       yield(s)
     end
@@ -177,7 +177,7 @@ class UiNew
   # The rest of this are callbacks
   #################
 
-  def UiNew.session_established(real_id)
+  def Ui.session_established(real_id)
     # Generate the local id
     local_id = @@current_local_id + 1
     @@current_local_id += 1
@@ -195,7 +195,7 @@ class UiNew
 
     # Create a new UI
     # TODO: This needs to be different depending on the session type... dunno how I'm gonna figure that out, though
-    ui = UiSessionNew.new(local_id, session)
+    ui = UiSession.new(local_id, session)
 
     # Save it in both important lists
     @@uis_by_local_id[local_id] = ui
@@ -205,7 +205,7 @@ class UiNew
     @@command.output("New session established: #{local_id}")
   end
 
-  def UiNew.session_data_received(real_id, data)
+  def Ui.session_data_received(real_id, data)
     ui = @@uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -213,7 +213,7 @@ class UiNew
     ui.feed(data)
   end
 
-  def UiNew.session_data_acknowledged(real_id, data)
+  def Ui.session_data_acknowledged(real_id, data)
     ui = @@uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -221,7 +221,7 @@ class UiNew
     ui.ack(data)
   end
 
-  def UiNew.session_destroyed(real_id)
+  def Ui.session_destroyed(real_id)
     ui = @@uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -233,15 +233,15 @@ class UiNew
     # Switch the session for @@command if it's attached
     if(@@ui == ui)
       # Switch to the command window
-      UiNew.attach_session(nil)
+      Ui.attach_session(nil)
     end
 
     # Make sure the UI is updated
-    UiNew.wakeup()
+    Ui.wakeup()
   end
 
   # TODO: Not sure that this is needed at this level?
-#  def UiNew.kill_session(local_id)
+#  def Ui.kill_session(local_id)
 #    session = @@sessions[local_id]
 #    if(session.nil?())
 #      return false
@@ -252,7 +252,7 @@ class UiNew
 #    return true
 #  end
 
-  def UiNew.session_heartbeat(real_id)
+  def Ui.session_heartbeat(real_id)
     ui = @@uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -260,7 +260,7 @@ class UiNew
     ui.heartbeat()
   end
 
-  def UiNew.dnscat2_state_error(real_id, message)
+  def Ui.dnscat2_state_error(real_id, message)
     ui = @@uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -268,10 +268,10 @@ class UiNew
     ui.error(message)
   end
 
-  def UiNew.dnscat2_syn_received(real_id, my_seq, their_seq)
+  def Ui.dnscat2_syn_received(real_id, my_seq, their_seq)
   end
 
-  def UiNew.dnscat2_msg_bad_seq(expected_seq, received_seq)
+  def Ui.dnscat2_msg_bad_seq(expected_seq, received_seq)
     ui = @@uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -279,7 +279,7 @@ class UiNew
     ui.error("Bad sequence number; expected 0x%04x, received 0x%04x" % received_seq, expected_seq)
   end
 
-  def UiNew.dnscat2_msg_bad_ack(expected_ack, received_ack)
+  def Ui.dnscat2_msg_bad_ack(expected_ack, received_ack)
     ui = @@uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -287,32 +287,32 @@ class UiNew
     ui.error("Bad acknowledgement number; expected 0x%04x, received 0x%04x" % received_ack, expected_ack)
   end
 
-  def UiNew.dnscat2_msg(incoming, outgoing)
+  def Ui.dnscat2_msg(incoming, outgoing)
   end
 
-  def UiNew.dnscat2_fin(real_id, reason)
-#    # UiNew.session_destroyed() will take care of this
+  def Ui.dnscat2_fin(real_id, reason)
+#    # Ui.session_destroyed() will take care of this
 #    local_id = @@local_ids[real_id]
 #
-#    session = UiNew.get_ui_session(local_id)
+#    session = Ui.get_ui_session(local_id)
 #    session.display("Session terminated: %s" % reason, '[ERROR]')
 #    SessionManager.kill_session(real_id)
   end
 
   # TODO: This doesn't work because I got rid of the send/recv messages
-#  def UiNew.dnscat2_recv(packet)
+#  def Ui.dnscat2_recv(packet)
 #    if(@@options["packet_trace"])
 #      puts("IN: #{packet}")
 #    end
 #  end
 #
-#  def UiNew.dnscat2_send(packet)
+#  def Ui.dnscat2_send(packet)
 #    if(@@options["packet_trace"])
 #      puts("OUT: #{packet}")
 #    end
 #  end
 
-  def UiNew.log(level, message)
+  def Ui.log(level, message)
     # Handle the special case, before a level is set
     if(@@options["log_level"].nil?)
       min = Log::INFO
@@ -330,7 +330,7 @@ class UiNew
     end
   end
 
-  def UiNew.wakeup()
+  def Ui.wakeup()
     @@thread.raise(UiWakeup)
   end
 end
