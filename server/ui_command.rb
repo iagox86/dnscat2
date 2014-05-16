@@ -7,7 +7,8 @@ require 'ui_interface'
 
 class UiCommand < UiInterface
   ALIASES = {
-    "q" => "quit"
+    "q"    => "quit",
+    "exit" => "quit",
   }
 
   def get_commands()
@@ -16,14 +17,6 @@ class UiCommand < UiInterface
       "" => {
         :parser => Trollop::Parser.new do end,
         :proc => Proc.new do |opts| end,
-      },
-
-      "exit" => {
-        :parser => Trollop::Parser.new do
-          banner("Exits dnscat2")
-        end,
-
-        :proc => Proc.new do |opts| exit end,
       },
 
       "quit" => {
