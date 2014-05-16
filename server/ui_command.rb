@@ -174,6 +174,7 @@ class UiCommand < UiInterface
   end
 
   def initialize(ui)
+    super()
     @ui = ui
     @commands = get_commands()
   end
@@ -258,7 +259,7 @@ class UiCommand < UiInterface
     if(attached?())
       puts()
       puts(str)
-      print("[...]#{Readline.line_buffer}")
+      print(">>#{Readline.line_buffer}")
     end
   end
 
@@ -266,7 +267,7 @@ class UiCommand < UiInterface
     if(attached?())
       $stderr.puts()
       $stderr.puts(str)
-      print("[...]#{Readline.line_buffer}")
+      print(">>#{Readline.line_buffer}")
     end
   end
 end

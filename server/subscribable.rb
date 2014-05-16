@@ -7,6 +7,8 @@
 ##
 
 module Subscribable
+  @subscribers = []
+
   # Begin subscriber stuff (this should be in a mixin, but static stuff doesn't
   # really seem to work
   def subscribe(cls)

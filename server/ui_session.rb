@@ -11,6 +11,8 @@ class UiSession < UiInterface
   MAX_HISTORY_LENGTH = 10000
 
   def initialize(local_id, session, ui)
+    super()
+
     @local_id = local_id
     @session  = session
     @ui = ui
@@ -95,10 +97,10 @@ class UiSession < UiInterface
       elsif(idle > 5)
         return "session %5d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
       else
-        return "session %5d :: %s" % [@local_id, @session.name, idle]
+        return "session %5d :: %s" % [@local_id, @session.name]
       end
     else
-      return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state.nil? ? "active" : @state]
+      return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state]
     end
   end
 

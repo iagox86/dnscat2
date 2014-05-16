@@ -7,6 +7,10 @@
 ##
 
 class UiInterface
+  def initialize()
+    @history = []
+  end
+
   def save_history()
     @history = []
     Readline::HISTORY.each do |i|
