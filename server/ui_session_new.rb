@@ -2,9 +2,9 @@
 # By Ron Bowes
 # Created July 4, 2013
 
-require 'timeout'
+require 'ui_interface'
 
-class UiSessionNew
+class UiSessionNew < UiInterface
   attr_accessor :local_id
   attr_accessor :session
 
@@ -19,7 +19,6 @@ class UiSessionNew
 
     @is_active = true
     @is_attached = false
-    @orig_suspend = nil # Used for trapping ctrl-z
 
     if(!UiNew.get_option("auto_command").nil? && UiNew.get_option("auto_command").length > 0)
       @session.queue_outgoing(UiNew.get_option("auto_command") + "\n")
@@ -61,24 +60,24 @@ class UiSessionNew
   end
 
   def attach()
-    restore_history()
+    super
+
     @is_attached = true
-    handle_suspend()
 
     # Print the queued data
     puts(get_history())
 
-    if(!@state.nil?)
-      Log.WARNING("This session is #{@state}! Closing...")
-      return false
-    end
+#    if(!@state.nil?)
+#      Log.WARNING("This session is #{@state}! Closing...")
+#      return false
+#    end
 
     return true
   end
 
   def detach()
-    save_history()
-    restore_suspend()
+    super
+
     @is_attached = false
   end
 
@@ -139,21 +138,5 @@ class UiSessionNew
 
   def heartbeat()
     @last_seen = Time.now()
-  end
-
-  def handle_suspend()
-    # Trap ctrl-z, just like Metasploit
-    @orig_suspend = Signal.trap("TSTP") do
-      UiNew.detach_session()
-      UiNew.wakeup()
-    end
-  end
-
-  def restore_suspend()
-    if(@orig_suspend.nil?)
-      Signal.trap("TSTP", "DEFAULT")
-    else
-      Signal.trap("TSTP", @orig_suspend)
-    end
   end
 end

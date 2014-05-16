@@ -52,10 +52,27 @@ class UiInterface
 
   def attach()
     restore_history()
+    catch_suspend()
+  end
+
+  def catch_suspend()
+    # Trap ctrl-z, just like Metasploit
+    @orig_suspend = Signal.trap("TSTP") do
+      UiNew.attach_session(nil)
+    end
   end
 
   def detach()
     save_history()
+    fix_suspend()
+  end
+
+  def fix_suspend()
+    if(@orig_suspend.nil?)
+      Signal.trap("TSTP", "DEFAULT")
+    else
+      Signal.trap("TSTP", @orig_suspend)
+    end
   end
 
   def active?()

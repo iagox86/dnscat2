@@ -97,11 +97,14 @@ class UiCommandNew < UiInterface
         elsif(opts[:i].nil?)
           puts("Known sessions:")
           UiCommandNew.do_show_sessions()
-        elsif(UiNew.get_ui_session(opts[:i]).nil?)
-          error("Session #{opts[:i]} not found!")
-          UiCommandNew.do_show_sessions()
         else
-          UiNew.attach_session(opts[:i])
+          ui = UiNew.get_by_local_id(opts[:i])
+          if(ui.nil?)
+            error("Session #{opts[:i]} not found!")
+            UiCommandNew.do_show_sessions()
+          else
+            UiNew.attach_session(ui)
+          end
         end
       end
     },
@@ -250,13 +253,17 @@ class UiCommandNew < UiInterface
 
   def output(str)
     if(attached?())
+      puts()
       puts(str)
+      print("[...]#{Readline.line_buffer}")
     end
   end
 
   def error(str)
     if(attached?())
+      $stderr.puts()
       $stderr.puts(str)
+      print("[...]#{Readline.line_buffer}")
     end
   end
 end

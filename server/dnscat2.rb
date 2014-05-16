@@ -49,16 +49,12 @@ opts = Trollop::options do
   opt :debug,     "Min debug level [info, warning, error, fatal]",
     :type => :string,  :default => "warning"
 
-  opt :auto_attach, "If set to 'false', don't auto-attach to clients when no client is specified",
-    :type => :boolean, :default => true
   opt :auto_command,   "Send this to each client that connects",
     :type => :string,  :default => nil
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
   opt :prompt,         "Display a prompt during sessions",
     :type => :boolean,  :default => false
-  opt :signals,        "Use to disable signals, which break rvmsudo",
-    :type => :boolean,  :default => true
 end
 
 opts[:debug] = opts[:debug].upcase()
@@ -111,12 +107,10 @@ end
 # a small amount of time to initialize themselves
 sleep(0.01)
 
-UiNew.set_option("auto_attach",  opts[:auto_attach])
 UiNew.set_option("auto_command", opts[:auto_command])
 UiNew.set_option("packet_trace", opts[:packet_trace])
 UiNew.set_option("prompt",       opts[:prompt])
 UiNew.set_option("log_level",    opts[:debug])
-UiNew.set_option("signals",      opts[:signals])
 
 UiNew.go()
 

@@ -12,7 +12,7 @@ require 'ui_session_new'
 
 class UiNew
   @@options = {}
-  #@@thread = Thread.current()
+  @@thread = Thread.current()
 
   # There's always a single UiCommand in existance
   @@command = nil
@@ -32,6 +32,14 @@ class UiNew
 
   class UiWakeup < Exception
     # Nothing required
+  end
+
+  def UiNew.get_by_local_id(id)
+    return @@uis_by_local_id[id]
+  end
+
+  def UiNew.get_by_real_id(id)
+    return @@uis_by_real_id[id]
   end
 
   def UiNew.set_option(name, value)
@@ -98,10 +106,15 @@ class UiNew
   end
 
   # Detach the current session and attach a new one
-  def UiNew.attach_session(ui)
+  def UiNew.attach_session(ui = nil)
     # Detach the old ui
     if(!@@ui.nil?)
       @@ui.detach()
+    end
+
+    # By default, attach to the command window
+    if(ui.nil?)
+      ui = @@command
     end
 
     # Go to the new ui
@@ -109,6 +122,8 @@ class UiNew
 
     # Attach the new ui
     @@ui.attach()
+
+    UiNew.wakeup()
   end
 
   def UiNew.go()
@@ -122,7 +137,12 @@ class UiNew
     if(@@command.nil?)
       @@command = UiCommandNew.new()
     end
-    attach_session(@@command)
+
+    begin
+      UiNew.attach_session(@@command)
+    rescue UiWakeup
+      # Ignore
+    end
 
     loop do
       begin
@@ -140,8 +160,8 @@ class UiNew
 
       rescue UiWakeup
         # Ignore the exception, it's just to break us out of the @@ui.go() function
-        #puts("Woken up!")
       rescue Exception => e
+        puts(e)
         raise(e)
       end
     end
@@ -158,8 +178,6 @@ class UiNew
   #################
 
   def UiNew.session_established(real_id)
-puts("SESSION ESTABLISHED!!")
-
     # Generate the local id
     local_id = @@current_local_id + 1
     @@current_local_id += 1
@@ -185,13 +203,6 @@ puts("SESSION ESTABLISHED!!")
 
     # Tell the command window
     @@command.output("New session established: #{local_id}")
-
-    # If no session is currently attached and we're auto-attaching sessions,
-    # attach it then trigger a wakeup
-    if(@@options['auto_attach'] == true && @@ui.nil?)
-      UiNew.attach_session(ui)
-      UiNew.wakeup()
-    end
   end
 
   def UiNew.session_data_received(real_id, data)
@@ -222,11 +233,11 @@ puts("SESSION ESTABLISHED!!")
     # Switch the session for @@command if it's attached
     if(@@ui == ui)
       # Switch to the command window
-      UiNew.attach_session(@@command)
+      UiNew.attach_session(nil)
     end
 
     # Make sure the UI is updated
-    #UiNew.wakeup()
+    UiNew.wakeup()
   end
 
   # TODO: Not sure that this is needed at this level?
@@ -319,14 +330,8 @@ puts("SESSION ESTABLISHED!!")
     end
   end
 
-#  def UiNew.wakeup()
-#    @@thread.raise(UiWakeup)
-#
-#    if(@@options["signals"])
-#      # A signal has to be sent to wake up the thread, otherwise it waits for
-#      # user input
-#      Process.kill("USR1", 0)
-#    end
-#  end
+  def UiNew.wakeup()
+    @@thread.raise(UiWakeup)
+  end
 end
 
