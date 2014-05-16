@@ -344,7 +344,6 @@ class Ui
   end
 
   def wakeup()
-    puts(Thread.current().backtrace())
     @thread.raise(UiWakeup)
   end
 end
