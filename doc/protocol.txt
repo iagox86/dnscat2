@@ -198,6 +198,7 @@ Note:
 MESSAGE_TYPE_SYN [0x00]
 -----------------------
 
+- (uint16_t) packet_id
 - (uint8_t)  message_type [0x00]
 - (uint16_t) session_id
 - (uint16_t) initial seq number
@@ -241,6 +242,9 @@ if OPT_DOWNLOAD or OPT_CHUNKED_DOWNLOAD is set:
   not incremental or static or anything, to make connection-hijacking
   attacks more difficult (the two sequence numbers and the session_id
   give us approximately 48-bits of entropy per connection).
+- packet_id should be different for each packet, and is entirely
+  designed to prevent caching. Incremental is fine. The peer should
+  ignore it.
 
 (Error states)
 - If a client doesn't receive a response to a SYN packet, it means
@@ -257,6 +261,7 @@ if OPT_DOWNLOAD or OPT_CHUNKED_DOWNLOAD is set:
 MESSAGE_TYPE_MSG: [0x01]
 ------------------------
 
+- (uint16_t) packet_id
 - (uint8_t)  message_type [0x01]
 - (uint16_t) session_id
 - (variable) other fields, as defined by 'options'
@@ -269,6 +274,9 @@ Variable fields
 - The client and server shouldn't increment their sequence numbers or
   their saved acknowledgement numbers until the other side has
   acknowledged the value in a response.
+- packet_id should be different for each packet, and is entirely
+  designed to prevent caching. Incremental is fine. The peer should
+  ignore it.
 
 (Command)
 - If the SYN contained OPT_COMMAND, the 'data' field uses the command
@@ -278,6 +286,7 @@ Variable fields
 MESSAGE_TYPE_FIN: [0x02]
 ------------------------
 
+- (uint16_t) packet_id
 - (uint8_t)  message_type [0x02]
 - (uint16_t) session_id
 - (ntstring) reason
@@ -297,10 +306,16 @@ MESSAGE_TYPE_FIN: [0x02]
 - Once a FIN has been sent, the client or server should no longer
   attempt to respond to anything from that connection.
 
+(Notes)
+- packet_id should be different for each packet, and is entirely
+  designed to prevent caching. Incremental is fine. The peer should
+  ignore it.
+
 ------------------------
 MESSAGE_TYPE_PING: [0xFF]
 ------------------------
 
+- (uint16_t) packet_id
 - (uint8_t)  message_type [0xFF]
 - (uint16_t) reserved
 - (ntstring) data
@@ -309,6 +324,10 @@ MESSAGE_TYPE_PING: [0xFF]
 
 The reserved field should be ignored. It's simply there to make it
 easier to parse (since every other packet has a 24-bit header).
+
+- packet_id should be different for each packet, and is entirely
+  designed to prevent caching. Incremental is fine. The peer should
+  ignore it.
 
 (Client to server)
 - A client can send a MESSAGE_TYPE_PING packet any time - before,

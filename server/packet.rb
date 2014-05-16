@@ -24,7 +24,7 @@ class Packet
   OPT_CHUNKED_DOWNLOAD    = 0x0010
   OPT_COMMAND             = 0x0020
 
-  attr_reader :data, :type, :session_id, :options, :seq, :ack
+  attr_reader :data, :packet_id, :type, :session_id, :options, :seq, :ack
   attr_reader :name     # For SYN
   attr_reader :download # For downloads (in SYN)
   attr_reader :chunk    # For chunked downloads (in MSG)
@@ -36,13 +36,14 @@ class Packet
   end
 
   def parse_header(data)
-    at_least?(data, 3) || raise(DnscatException, "Packet is too short (header)")
+    at_least?(data, 5) || raise(DnscatException, "Packet is too short (header)")
 
-    # (uint8_t) message_type
+    # (uint16_t) packet_id
+    # (uint8_t)  message_type
     # (uint16_t) session_id
-    @type, @session_id = data.unpack("Cn")
+    @packet_id, @type, @session_id = data.unpack("nCn")
 
-    return data[3..-1]
+    return data[5..-1]
   end
 
   def parse_syn(data)
@@ -141,20 +142,21 @@ class Packet
     return Packet.new(data)
   end
 
-  def Packet.create_header(type, session_id)
-    return [type, session_id].pack("Cn")
+  def Packet.create_header(type, session_id, packet_id = nil)
+    packet_id = packet_id || rand(0xFFFF)
+    return [packet_id, type, session_id].pack("nCn")
   end
 
-  def Packet.create_syn(session_id, seq, options = 0)
-    return create_header(MESSAGE_TYPE_SYN, session_id) + [seq, options].pack("nn")
+  def Packet.create_syn(session_id, seq, options = 0, packet_id = nil)
+    return create_header(MESSAGE_TYPE_SYN, session_id, packet_id) + [seq, options].pack("nn")
   end
 
   def Packet.syn_header_size()
-    return create_syn(0, 0, 0, nil).length
+    return create_syn(0, 0, 0, nil, 0).length
   end
 
-  def Packet.create_msg(session_id, msg, options, option_data = {})
-    result = create_header(MESSAGE_TYPE_MSG, session_id)
+  def Packet.create_msg(session_id, msg, options, option_data = {}, packet_id = nil)
+    result = create_header(MESSAGE_TYPE_MSG, session_id, packet_id)
     if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
       chunk = option_data['chunk'] || 0
       result += [chunk, msg].pack("NA*")
@@ -168,25 +170,25 @@ class Packet
   end
 
   def Packet.msg_header_size(options)
-    return create_msg(0, '', options, {'seq'=>0, 'ack'=>0, 'chunk'=>0}).length
+    return create_msg(0, '', options, {'seq'=>0, 'ack'=>0, 'chunk'=>0}, 0).length
   end
 
-  def Packet.create_fin(session_id, reason, options)
-    return create_header(MESSAGE_TYPE_FIN, session_id) + [reason].pack("Z*")
+  def Packet.create_fin(session_id, reason, options, packet_id = nil)
+    return create_header(MESSAGE_TYPE_FIN, session_id, packet_id) + [reason].pack("Z*")
   end
 
   def Packet.fin_header_size()
-    return create_fin(0, "").length
+    return create_fin(0, "", 0).length
   end
 
-  def Packet.create_ping(data)
-    return create_header(MESSAGE_TYPE_PING, 0) + [data].pack("Z*")
+  def Packet.create_ping(data, packet_id = nil)
+    return create_header(MESSAGE_TYPE_PING, 0, packet_id) + [data].pack("Z*")
   end
 
   def to_s()
     result = nil
     if(@type == MESSAGE_TYPE_SYN)
-      result = "[[SYN]] :: session = %04x, seq = %04x, options = %04x" % [@session_id, @seq, @options]
+      result = "[[SYN]] :: [0x%04x] session = %04x, seq = %04x, options = %04x" % [@packet_id, @session_id, @seq, @options]
 
       if((options & OPT_DOWNLOAD) == OPT_DOWNLOAD || (options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
         result += ", download = %s" % @download
@@ -194,14 +196,14 @@ class Packet
     elsif(@type == MESSAGE_TYPE_MSG)
       data = @data.gsub(/\n/, '\n')
       if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        result = "[[MSG]] :: session = %04x, chunk = %d, data = \"%s\"" % [@session_id, @chunk, data]
+        result = "[[MSG]] :: [0x%04x] session = %04x, chunk = %d, data = \"%s\"" % [@packet_id, @session_id, @chunk, data]
       else
-        result = "[[MSG]] :: session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@session_id, @seq, @ack, data]
+        result = "[[MSG]] :: [0x%04x] session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@packet_id, @session_id, @seq, @ack, data]
       end
     elsif(@type == MESSAGE_TYPE_FIN)
-      result = "[[FIN]] :: session = %04x :: %s" % [@session_id, @reason]
+      result = "[[FIN]] :: [0x%04x] session = %04x :: %s" % [@packet_id, @session_id, @reason]
     elsif(@type == MESSAGE_TYPE_PING)
-      result = "[[PING]] :: data = %s" % [@data]
+      result = "[[PING]] :: [0x%04x] data = %s" % [@packet_id, @data]
     else
       raise DnscatException("Unknown packet type")
     end

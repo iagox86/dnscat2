@@ -76,6 +76,7 @@ typedef struct
 
 typedef struct
 {
+  uint16_t packet_id;
   packet_type_t packet_type;
   uint16_t session_id;
 
