@@ -24,9 +24,6 @@ require 'trollop'
 
 Thread::abort_on_exception = true
 
-# Subscribe the Ui to the important notifications
-SessionManager.subscribe(Ui)
-Log.subscribe(Ui)
 
 # Options
 opts = Trollop::options do
@@ -107,10 +104,16 @@ end
 # a small amount of time to initialize themselves
 sleep(0.01)
 
-Ui.set_option("auto_command", opts[:auto_command])
-Ui.set_option("packet_trace", opts[:packet_trace])
-Ui.set_option("prompt",       opts[:prompt])
-Ui.set_option("log_level",    opts[:debug])
+ui = Ui.new()
 
-Ui.go()
+# Subscribe the Ui to the important notifications
+SessionManager.subscribe(ui)
+Log.subscribe(ui)
+
+ui.set_option("auto_command", opts[:auto_command])
+ui.set_option("packet_trace", opts[:packet_trace])
+ui.set_option("prompt",       opts[:prompt])
+ui.set_option("log_level",    opts[:debug])
+
+ui.go()
 

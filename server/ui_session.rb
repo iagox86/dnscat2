@@ -10,9 +10,11 @@ class UiSession < UiInterface
 
   MAX_HISTORY_LENGTH = 10000
 
-  def initialize(local_id, session)
+  def initialize(local_id, session, ui)
     @local_id = local_id
     @session  = session
+    @ui = ui
+
     @history = []
     @state = nil
     @last_seen = Time.now()
@@ -20,8 +22,8 @@ class UiSession < UiInterface
     @is_active = true
     @is_attached = false
 
-    if(!Ui.get_option("auto_command").nil? && Ui.get_option("auto_command").length > 0)
-      @session.queue_outgoing(Ui.get_option("auto_command") + "\n")
+    if(!@ui.get_option("auto_command").nil? && @ui.get_option("auto_command").length > 0)
+      @session.queue_outgoing(@ui.get_option("auto_command") + "\n")
     end
   end
 
@@ -101,7 +103,7 @@ class UiSession < UiInterface
   end
 
   def go
-    if(Ui.get_option("prompt"))
+    if(@ui.get_option("prompt"))
       line = Readline::readline("dnscat [#{@local_id}]> ", true)
     else
       line = Readline::readline("", true)
