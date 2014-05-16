@@ -156,7 +156,7 @@ class Ui
         # If the ui is no longer active, switch to the @command window
         if(!@ui.active?)
           @ui.error("UI went away...")
-          attach(@command)
+          attach_session(nil)
         end
 
         @ui.go()
@@ -243,17 +243,19 @@ class Ui
     wakeup()
   end
 
-  # TODO: Not sure that this is needed at this level?
-#  def kill_session(local_id)
-#    session = @sessions[local_id]
-#    if(session.nil?())
-#      return false
-#    end
-#
-#    session.session.kill()
-#
-#    return true
-#  end
+  # This is used by the 'kill' command the user can enter
+  def kill_session(local_id)
+    # Find the session
+    ui = @uis_by_local_id[local_id]
+    if(ui.nil?())
+      return false
+    end
+
+    # Kill it
+    ui.session.kill()
+
+    return true
+  end
 
   def session_heartbeat(real_id)
     ui = @uis_by_real_id[real_id]
