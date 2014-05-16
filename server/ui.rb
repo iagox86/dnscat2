@@ -110,6 +110,17 @@ class Ui
 
   # Detach the current session and attach a new one
   def attach_session(ui = nil)
+    # If the session isn't active, don't switch to it
+    if(!ui.nil?() && !ui.active?())
+      $stderr.puts("Sorry, that session is no longer alive :(")
+      return
+    end
+
+    # If the ui isn't changing, don't
+    if(ui == @ui)
+      return
+    end
+
     # Detach the old ui
     if(!@ui.nil?)
       @ui.detach()
@@ -238,9 +249,6 @@ class Ui
       # Switch to the command window
       attach_session(nil)
     end
-
-    # Make sure the UI is updated
-    wakeup()
   end
 
   # This is used by the 'kill' command the user can enter
@@ -336,6 +344,7 @@ class Ui
   end
 
   def wakeup()
+    puts(Thread.current().backtrace())
     @thread.raise(UiWakeup)
   end
 end
