@@ -10,6 +10,9 @@ class UiInterface
   def initialize()
     @history = []
     @state = nil
+
+    @is_active = true
+    @is_attached = false
   end
 
   def save_history()
@@ -41,7 +44,7 @@ class UiInterface
   end
 
   def destroy()
-    # Do nothing by default
+    @is_active = false
   end
 
   def heartbeat()
@@ -63,6 +66,8 @@ class UiInterface
   def attach()
     restore_history()
     catch_suspend()
+
+    @is_attached = true
   end
 
   def catch_suspend()
@@ -75,6 +80,8 @@ class UiInterface
   def detach()
     save_history()
     fix_suspend()
+
+    @is_attached = false
   end
 
   def fix_suspend()
@@ -86,11 +93,11 @@ class UiInterface
   end
 
   def active?()
-    raise("Not implemented")
+    return @is_active
   end
 
   def attached?()
-    raise("Not implemented")
+    return @is_attached
   end
 
   def go()

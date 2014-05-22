@@ -18,11 +18,7 @@ class UiSessionInteractive < UiInterface
     @ui = ui
 
     @history = []
-    @state = nil
     @last_seen = Time.now()
-
-    @is_active = true
-    @is_attached = false
 
     if(!@ui.get_option("auto_command").nil? && @ui.get_option("auto_command").length > 0)
       @session.queue_outgoing(@ui.get_option("auto_command") + "\n")
@@ -31,10 +27,6 @@ class UiSessionInteractive < UiInterface
 
   def get_history()
     return @history.join("\n")
-  end
-
-  def destroy()
-    @is_active = false
   end
 
   def display(str, tag)
@@ -70,18 +62,8 @@ class UiSessionInteractive < UiInterface
     end
   end
 
-  def active?()
-    return @is_active
-  end
-
-  def attached?()
-    return @is_attached
-  end
-
   def attach()
     super
-
-    @is_attached = true
 
     # Print the queued data
     puts(get_history())
@@ -92,12 +74,6 @@ class UiSessionInteractive < UiInterface
 #    end
 
     return true
-  end
-
-  def detach()
-    super
-
-    @is_attached = false
   end
 
   def go

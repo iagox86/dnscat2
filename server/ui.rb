@@ -7,8 +7,8 @@
 require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
 require 'ui_command'
+require 'ui_session_command'
 require 'ui_session_interactive'
-#require 'ui_session_command'
 
 class Ui
   def initialize()
@@ -32,7 +32,6 @@ class Ui
     @id_map = {}
   end
 
-  # TODO: Is this still necessary?
   class UiWakeup < Exception
     # Nothing required
   end
@@ -88,7 +87,6 @@ class Ui
     return @options[name]
   end
 
-  # TODO: Make this display the error to the proper session or the command window
   def error(msg, local_id = nil)
     # Try to use the provided id first
     if(!local_id.nil?)
@@ -209,7 +207,11 @@ class Ui
 
     # Create a new UI
     # TODO: This needs to be different depending on the session type... dunno how I'm gonna figure that out, though
-    ui = UiSessionInteractive.new(local_id, session, self)
+#    if(session.is_command)
+#      ui = UiSessionCommand.new(local_id, session, self)
+#    else
+      ui = UiSessionInteractive.new(local_id, session, self)
+#    end
 
     # Save it in both important lists
     @uis_by_local_id[local_id] = ui
