@@ -1,10 +1,10 @@
-# ui_session.rb
+# ui_session_interactive.rb
 # By Ron Bowes
 # Created July 4, 2013
 
 require 'ui_interface'
 
-class UiSession < UiInterface
+class UiSessionInteractive < UiInterface
   attr_accessor :local_id
   attr_accessor :session
 

@@ -11,6 +11,7 @@ Immediate needs:
 - Check max length values for packet sizes and such
 - Handle command sessions receiving bad data more gracefully on the client side
 - Implement 'control mode' on the client
+- Fix the "prompt" option, and display stuff better (like cmd.exe)
 
 Cleanups:
 - Go through all the structs to figure out which members are no longer used

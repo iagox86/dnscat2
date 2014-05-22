@@ -7,7 +7,7 @@
 require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
 require 'ui_command'
-require 'ui_session'
+require 'ui_session_interactive'
 #require 'ui_session_command'
 
 class Ui
@@ -209,7 +209,7 @@ class Ui
 
     # Create a new UI
     # TODO: This needs to be different depending on the session type... dunno how I'm gonna figure that out, though
-    ui = UiSession.new(local_id, session, self)
+    ui = UiSessionInteractive.new(local_id, session, self)
 
     # Save it in both important lists
     @uis_by_local_id[local_id] = ui
