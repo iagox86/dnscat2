@@ -53,10 +53,7 @@ NBBOOL command_packet_stream_ready(command_packet_stream_t *stream)
   /* I realize some people hate the "if(x) return TRUE else return FALSE"
    * paradigm, but I like it. */
   if(buffer_get_remaining_bytes(stream->buffer) >= (length + 2))
-  {
-    printf("We got them!\n");
     return TRUE;
-  }
 
   return FALSE;
 }
