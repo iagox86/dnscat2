@@ -244,7 +244,6 @@ class Ui
 
     # Tell the UI it's been destroyed
     ui.destroy()
-    ui.set_state("closed")
 
     # Switch the session for @command if it's attached
     if(@ui == ui)

@@ -9,7 +9,6 @@
 class UiInterface
   def initialize()
     @readline_history = []
-    @state = nil
 
     @is_active = true
     @is_attached = false
@@ -31,10 +30,6 @@ class UiInterface
     @readline_history.each do |i|
       Readline::HISTORY << i
     end
-  end
-
-  def set_state(state)
-    @state = state
   end
 
   def feed(data)

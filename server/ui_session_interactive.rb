@@ -29,7 +29,7 @@ class UiSessionInteractive < UiInterface
   end
 
   def to_s()
-    if(@state.nil?)
+    if(active?())
       idle = Time.now() - @last_seen
       if(idle > 60)
         return "session %5d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
@@ -39,7 +39,7 @@ class UiSessionInteractive < UiInterface
         return "session %5d :: %s" % [@local_id, @session.name]
       end
     else
-      return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state]
+      return "session %5d :: %s :: [closed]" % [@local_id, @session.name]
     end
   end
 
@@ -49,10 +49,10 @@ class UiSessionInteractive < UiInterface
     # Print the queued data
     print(get_history())
 
-#    if(!@state.nil?)
-#      Log.WARNING("This session is #{@state}! Closing...")
-#      return false
-#    end
+    if(!active?())
+      Log.WARNING("This session is closed!")
+      return false
+    end
 
     return true
   end
