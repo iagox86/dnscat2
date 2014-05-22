@@ -8,7 +8,7 @@
 
 class UiInterface
   def initialize()
-    @history = []
+    @readline_history = []
     @state = nil
 
     @is_active = true
@@ -18,17 +18,17 @@ class UiInterface
   end
 
   def save_history()
-    @history = []
+    @readline_history = []
     Readline::HISTORY.each do |i|
-      @history << i
+      @readline_history << i
     end
   end
 
   def restore_history()
-    @history = @history || []
+    @readline_history = @readline_history || []
 
     Readline::HISTORY.clear()
-    @history.each do |i|
+    @readline_history.each do |i|
       Readline::HISTORY << i
     end
   end

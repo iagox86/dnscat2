@@ -17,7 +17,7 @@ class UiSessionInteractive < UiInterface
     @session  = session
     @ui = ui
 
-    @history = []
+    @history = ""
 
     if(!@ui.get_option("auto_command").nil? && @ui.get_option("auto_command").length > 0)
       @session.queue_outgoing(@ui.get_option("auto_command") + "\n")
@@ -25,25 +25,7 @@ class UiSessionInteractive < UiInterface
   end
 
   def get_history()
-    return @history.join("\n")
-  end
-
-  def display(str, tag)
-    # Split the lines up
-    lines = str.chomp().gsub(/\r/, '').split(/\n/)
-
-    # Display them and add them to history
-    lines.each do |line|
-      if(attached?())
-        puts("%s %s" % [tag, line])
-      end
-      @history << ("%s %s" % [tag, line])
-    end
-
-    # Shorten history if needed
-    while(@history.length > MAX_HISTORY_LENGTH) do
-      @history.shift()
-    end
+    return @history
   end
 
   def to_s()
@@ -65,7 +47,7 @@ class UiSessionInteractive < UiInterface
     super
 
     # Print the queued data
-    puts(get_history())
+    print(get_history())
 
 #    if(!@state.nil?)
 #      Log.WARNING("This session is #{@state}! Closing...")
@@ -76,11 +58,7 @@ class UiSessionInteractive < UiInterface
   end
 
   def go
-    if(@ui.get_option("prompt"))
-      line = Readline::readline("dnscat [#{@local_id}]> ", true)
-    else
-      line = Readline::readline("", true)
-    end
+    line = Readline::readline("", true)
 
     if(line.nil?)
       return
@@ -95,19 +73,28 @@ class UiSessionInteractive < UiInterface
 
   def feed(data)
     seen()
-    display(data, '[IN] ')
+
+    # Display them and add them to history
+    if(attached?())
+      print(data)
+    end
+
+    # TODO: We should maybe prevent this from growing infinitely
+    @history += data
   end
 
   def output(str)
-    display(str)
+    # I don't think this is necessary
+    raise(DnscatException, "I don't think I use this")
   end
 
   def error(str)
-    display(str, "[ERROR]")
+    puts("")
+    puts("ERROR: #{str}")
   end
 
   def ack(data)
     seen()
-    display(data, '[OUT]')
+    #display(data, '[OUT]')
   end
 end

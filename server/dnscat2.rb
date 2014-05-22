@@ -50,8 +50,6 @@ opts = Trollop::options do
     :type => :string,  :default => nil
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
-  opt :prompt,         "Display a prompt during sessions",
-    :type => :boolean,  :default => false
 end
 
 opts[:debug] = opts[:debug].upcase()
@@ -112,7 +110,6 @@ Log.subscribe(ui)
 
 ui.set_option("auto_command", opts[:auto_command])
 ui.set_option("packet_trace", opts[:packet_trace])
-ui.set_option("prompt",       opts[:prompt])
 ui.set_option("log_level",    opts[:debug])
 
 ui.go()
