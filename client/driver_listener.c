@@ -121,6 +121,7 @@ static void handle_session_closed(driver_listener_t *driver, uint16_t session_id
   LOG_WARNING("Couldn't find listener to close: session %d", session_id);
 }
 
+#if 0
 static void handle_data_in(driver_listener_t *driver, uint16_t session_id, uint8_t *data, size_t length)
 {
   client_entry_t *client;
@@ -136,6 +137,7 @@ static void handle_data_in(driver_listener_t *driver, uint16_t session_id, uint8
 
   LOG_WARNING("Couldn't find listener to send data to: %d bytes to session %d", length, session_id);
 }
+#endif
 
 static void handle_shutdown()
 {
@@ -174,7 +176,8 @@ static void handle_message(message_t *message, void *d)
       break;
 
     case MESSAGE_DATA_IN:
-      handle_data_in(driver, message->message.data_in.session_id, message->message.data_in.data, message->message.data_in.length);
+      /* TODO: I'm gonna have to re-think this a bit (it's gonna need a session, we can't just broadcast data from all sessions) */
+      /*handle_data_in(driver, message->message.data_in.session_id, message->message.data_in.data, message->message.data_in.length);*/
       break;
 
     case MESSAGE_SHUTDOWN:

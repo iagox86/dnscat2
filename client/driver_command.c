@@ -97,7 +97,8 @@ static void handle_message(message_t *message, void *d)
       break;
 
     case MESSAGE_DATA_IN:
-      handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
+      if(message->message.data_in.session_id == driver->session_id)
+        handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
       break;
 
     case MESSAGE_CONFIG:
