@@ -29,7 +29,8 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
     exit(1);
   }
 
-  packet->packet_type = buffer_read_next_int8(buffer);
+  packet->packet_id    = buffer_read_next_int16(buffer);
+  packet->packet_type  = buffer_read_next_int8(buffer);
   packet->session_id   = buffer_read_next_int16(buffer);
 
   switch(packet->packet_type)
@@ -75,7 +76,8 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
 packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
-  packet->packet_type     = PACKET_TYPE_SYN;
+  packet->packet_type      = PACKET_TYPE_SYN;
+  packet->packet_id        = rand() % 0xFFFF;
   packet->session_id       = session_id;
   packet->body.syn.seq     = seq;
   packet->body.syn.options = options;
@@ -88,6 +90,7 @@ packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t a
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type                 = PACKET_TYPE_MSG;
+  packet->packet_id                   = rand() % 0xFFFF;
   packet->session_id                  = session_id;
   packet->body.msg.options.normal.seq = seq;
   packet->body.msg.options.normal.ack = ack;
@@ -102,6 +105,7 @@ packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk)
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type                    = PACKET_TYPE_MSG;
+  packet->packet_id                      = rand() % 0xFFFF;
   packet->session_id                     = session_id;
   packet->body.msg.options.chunked.chunk = chunk;
   packet->body.msg.data                  = safe_memcpy("", 0);
@@ -115,6 +119,7 @@ packet_t *packet_create_fin(uint16_t session_id, char *reason)
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type     = PACKET_TYPE_FIN;
+  packet->packet_id       = rand() % 0xFFFF;
   packet->session_id      = session_id;
   packet->body.fin.reason = safe_strdup(reason);
 
@@ -126,6 +131,7 @@ packet_t *packet_create_ping(char *data)
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type     = PACKET_TYPE_PING;
+  packet->packet_id       = rand() % 0xFFFF;
   packet->session_id      = 0;
   packet->body.ping.data  = safe_strdup(data);
 
@@ -260,6 +266,7 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
 
+  buffer_add_int16(buffer, packet->packet_id);
   buffer_add_int8(buffer, packet->packet_type);
   buffer_add_int16(buffer, packet->session_id);
 
@@ -319,22 +326,22 @@ char *packet_to_s(packet_t *packet, options_t options)
 #ifdef WIN32
   if(packet->packet_type == PACKET_TYPE_SYN)
   {
-    _snprintf_s(ret, 1024, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+    _snprintf_s(ret, 1024, 1024, "Type = SYN :: [0x%04x] session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
   }
   else if(packet->packet_type == PACKET_TYPE_MSG)
   {
     if(options & OPT_CHUNKED_DOWNLOAD)
-      _snprintf_s(ret, 1024, 1024, "Type = MSG :: session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
+      _snprintf_s(ret, 1024, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
     else
-      _snprintf_s(ret, 1024, 1024, "Type = MSG :: session = 0x%04x, chunk = 0x%04x", packet->session_id, packet->body.msg.options.chunked.chunk);
+      _snprintf_s(ret, 1024, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, chunk = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.chunked.chunk);
   }
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
-    _snprintf_s(ret, 1024, 1024, "Type = FIN :: session = 0x%04x :: %s", packet->session_id, packet->body.fin.reason);
+    _snprintf_s(ret, 1024, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
   }
   else if(packet->packet_type == PACKET_TYPE_PING)
   {
-    _snprintf_s(ret, 1024, 1024, "Type = PING :: data = %s", packet->body.ping.data);
+    _snprintf_s(ret, 1024, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
   }
   else
   {
@@ -343,22 +350,22 @@ char *packet_to_s(packet_t *packet, options_t options)
 #else
   if(packet->packet_type == PACKET_TYPE_SYN)
   {
-    snprintf(ret, 1024, "Type = SYN :: session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+    snprintf(ret, 1024, "Type = SYN :: [0x%04x] session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
   }
   else if(packet->packet_type == PACKET_TYPE_MSG)
   {
     if(options & OPT_CHUNKED_DOWNLOAD)
-      snprintf(ret, 1024, "Type = MSG :: session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
+      snprintf(ret, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
     else
-      snprintf(ret, 1024, "Type = MSG :: session = 0x%04x, chunk = 0x%04x", packet->session_id, packet->body.msg.options.chunked.chunk);
+      snprintf(ret, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, chunk = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.chunked.chunk);
   }
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
-    snprintf(ret, 1024, "Type = FIN :: session = 0x%04x :: %s", packet->session_id, packet->body.fin.reason);
+    snprintf(ret, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
   }
   else if(packet->packet_type == PACKET_TYPE_PING)
   {
-    snprintf(ret, 1024, "Type = PING :: data = %s", packet->body.ping.data);
+    snprintf(ret, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
   }
   else
   {
