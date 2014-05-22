@@ -13,6 +13,8 @@ class UiInterface
 
     @is_active = true
     @is_attached = false
+
+    @last_seen = Time.now()
   end
 
   def save_history()
@@ -48,7 +50,7 @@ class UiInterface
   end
 
   def heartbeat()
-    # Do nothing by default
+    seen()
   end
 
   def output(str)
@@ -56,10 +58,6 @@ class UiInterface
   end
 
   def error(str)
-    raise("Not implemented")
-  end
-
-  def to_s()
     raise("Not implemented")
   end
 
@@ -102,5 +100,9 @@ class UiInterface
 
   def go()
     raise("Not implemented")
+  end
+
+  def seen()
+    @last_seen = Time.now()
   end
 end

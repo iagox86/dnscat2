@@ -206,12 +206,11 @@ class Ui
     end
 
     # Create a new UI
-    # TODO: This needs to be different depending on the session type... dunno how I'm gonna figure that out, though
-#    if(session.is_command)
-#      ui = UiSessionCommand.new(local_id, session, self)
-#    else
+    if(session.is_command)
+      ui = UiSessionCommand.new(local_id, session, self)
+    else
       ui = UiSessionInteractive.new(local_id, session, self)
-#    end
+    end
 
     # Save it in both important lists
     @uis_by_local_id[local_id] = ui

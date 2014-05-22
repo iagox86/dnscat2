@@ -18,7 +18,6 @@ class UiSessionInteractive < UiInterface
     @ui = ui
 
     @history = []
-    @last_seen = Time.now()
 
     if(!@ui.get_option("auto_command").nil? && @ui.get_option("auto_command").length > 0)
       @session.queue_outgoing(@ui.get_option("auto_command") + "\n")
@@ -95,7 +94,7 @@ class UiSessionInteractive < UiInterface
   end
 
   def feed(data)
-    @last_seen = Time.now()
+    seen()
     display(data, '[IN] ')
   end
 
@@ -108,11 +107,7 @@ class UiSessionInteractive < UiInterface
   end
 
   def ack(data)
-    @last_seen = Time.now()
+    seen()
     display(data, '[OUT]')
-  end
-
-  def heartbeat()
-    @last_seen = Time.now()
   end
 end

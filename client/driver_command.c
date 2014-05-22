@@ -42,23 +42,27 @@ static void handle_session_created(driver_command_t *driver, uint16_t session_id
 
 static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t length)
 {
-printf("hi hi\n");
-printf("%p\n", driver->stream);
-printf("%p\n", data);
-printf("0x%x\n", (unsigned int)length);
   command_packet_stream_feed(driver->stream, data, length);
-
-buffer_print(driver->stream->buffer);
 
   while(command_packet_stream_ready(driver->stream))
   {
     command_packet_t *in = command_packet_stream_read(driver->stream);
     command_packet_t *out = NULL;
 
-    printf("Got a command packet that we don't know how to handle:\n");
-    command_packet_print(in);
+    if(in->command_id == COMMAND_PING && in->is_request == TRUE)
+    {
+      printf("Got a ping request! Responding!\n");
+      out = command_packet_create_ping_response(in->request_id, in->r.request.body.ping.data);
+    }
+    else
+    {
+      printf("command_id: %x\n", in->command_id);
+      printf("is_request: %d\n", in->is_request);
+      printf("Got a command packet that we don't know how to handle:\n");
+      command_packet_print(in);
 
-    out = command_packet_create_error_response(in->request_id, 0xFFFF, "Not implemented yet!");
+      out = command_packet_create_error_response(in->request_id, 0xFFFF, "Not implemented yet!");
+    }
 
     if(out)
     {
@@ -120,7 +124,7 @@ driver_command_t *driver_command_create(select_group_t *group)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
-  driver->stream = command_packet_stream_create();
+  driver->stream = command_packet_stream_create(TRUE);
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver);

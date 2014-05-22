@@ -25,7 +25,7 @@ typedef struct
   NBBOOL    is_request;
 } command_packet_stream_t;
 
-command_packet_stream_t *command_packet_stream_create();
+command_packet_stream_t *command_packet_stream_create(NBBOOL is_request);
 void                     command_packet_stream_destroy(command_packet_stream_t *stream);
 
 void              command_packet_stream_feed(command_packet_stream_t *stream, uint8_t *data, uint16_t length);

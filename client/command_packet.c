@@ -294,22 +294,15 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
       break;
 
     case COMMAND_ERROR:
-      printf("P: %p\n", packet);
       if(packet->is_request)
       {
-        printf("AA");
         buffer_add_int16(buffer, packet->r.request.body.error.status);
-        printf("bb");
         buffer_add_ntstring(buffer, packet->r.request.body.error.reason);
-        printf("cc");
       }
       else
       {
-        printf("dd");
         buffer_add_int16(buffer, packet->r.response.body.error.status);
-        printf("ee");
         buffer_add_ntstring(buffer, packet->r.response.body.error.reason);
-        printf("ff");
       }
       break;
 
