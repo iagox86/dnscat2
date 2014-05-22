@@ -57,8 +57,7 @@ static void handle_start(driver_exec_t *driver)
 
   options[1].name    = NULL;
 
-  message_post_create_session(options);
-
+  driver->session_id = message_post_create_session(options);
 #ifdef WIN32
   /* Create a security attributes structure. This is required to inherit handles. */
   ZeroMemory(&sa, sizeof(SECURITY_ATTRIBUTES));
@@ -166,10 +165,11 @@ static void handle_start(driver_exec_t *driver)
 #endif
 }
 
-void handle_session_created(driver_exec_t *driver, uint16_t session_id)
+void driver_exec_manual_start(driver_exec_t *driver)
 {
-  driver->session_id = session_id;
+  handle_start(driver);
 }
+
 
 static void handle_data_in(driver_exec_t *driver, uint8_t *data, size_t length)
 {
@@ -208,10 +208,6 @@ static void handle_message(message_t *message, void *d)
       handle_start(driver);
       break;
 
-    case MESSAGE_SESSION_CREATED:
-      handle_session_created(driver, message->message.session_created.session_id);
-      break;
-
     case MESSAGE_DATA_IN:
       handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
       break;
@@ -243,7 +239,6 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_exec);
-  message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver_exec);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver_exec);
   message_subscribe(MESSAGE_CONFIG,          handle_message, driver_exec);
 

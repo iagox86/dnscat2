@@ -9,6 +9,7 @@
 
 #include "command_packet.h"
 #include "command_packet_stream.h"
+#include "driver_exec.h"
 #include "log.h"
 #include "memory.h"
 #include "message.h"
@@ -49,17 +50,25 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     command_packet_t *in = command_packet_stream_read(driver->stream);
     command_packet_t *out = NULL;
 
+    printf("Got a command:\n");
+    command_packet_print(in);
+
     if(in->command_id == COMMAND_PING && in->is_request == TRUE)
     {
       printf("Got a ping request! Responding!\n");
       out = command_packet_create_ping_response(in->request_id, in->r.request.body.ping.data);
     }
+    else if(in->command_id == COMMAND_SHELL && in->is_request == TRUE)
+    {
+      /* TODO: Choose the appropriate shell for the OS */
+      printf("Creating a new driver_exec...\n");
+      driver_exec_t *new_driver = driver_exec_create(driver->group, "/bin/sh");
+      driver_exec_manual_start(new_driver);
+      printf("Driver created?\n");
+    }
     else
     {
-      printf("command_id: %x\n", in->command_id);
-      printf("is_request: %d\n", in->is_request);
-      printf("Got a command packet that we don't know how to handle:\n");
-      command_packet_print(in);
+      printf("Got a command packet that we don't know how to handle!\n");
 
       out = command_packet_create_error_response(in->request_id, 0xFFFF, "Not implemented yet!");
     }
@@ -125,6 +134,7 @@ driver_command_t *driver_command_create(select_group_t *group)
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
   driver->stream = command_packet_stream_create(TRUE);
+  driver->group = group;
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver);

@@ -51,12 +51,7 @@ static void handle_start(driver_console_t *driver)
 
   options[3].name    = NULL;
 
-  message_post_create_session(options);
-}
-
-static void handle_session_created(driver_console_t *driver, uint16_t session_id)
-{
-  driver->session_id = session_id;
+  driver->session_id = message_post_create_session(options);
 }
 
 static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)
@@ -89,10 +84,6 @@ static void handle_message(message_t *message, void *d)
   {
     case MESSAGE_START:
       handle_start(driver);
-      break;
-
-    case MESSAGE_SESSION_CREATED:
-      handle_session_created(driver, message->message.session_created.session_id);
       break;
 
     case MESSAGE_DATA_IN:
@@ -137,7 +128,6 @@ driver_console_t *driver_console_create(select_group_t *group)
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver);
-  message_subscribe(MESSAGE_SESSION_CREATED, handle_message, driver);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
   message_subscribe(MESSAGE_CONFIG,          handle_message, driver);
 

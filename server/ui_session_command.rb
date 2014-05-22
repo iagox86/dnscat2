@@ -70,15 +70,19 @@ class UiSessionCommand < UiInterface
       return
     end
 
+    packet = nil
     if(line =~ /ping/)
       puts("Attempting to send ping")
       packet = CommandPacket.create_ping_request(command_id(), "A"*200)
-      @session.queue_outgoing(packet)
+    elsif(line =~ /shell/)
+      puts("Attempting to send shell")
+      packet = CommandPacket.create_shell_request(command_id(), "name")
     else
       error("Nope")
     end
 
-    # Queue our outgoing data
-    #@session.queue_outgoing(line)
+    if(!packet.nil?)
+      @session.queue_outgoing(packet)
+    end
   end
 end

@@ -30,4 +30,7 @@ typedef struct
 driver_exec_t *driver_exec_create(select_group_t *group, char *process);
 void           driver_exec_destroy();
 
+/* This can be used to start the driver without sending MESSAGE_START */
+void driver_exec_manual_start(driver_exec_t *driver);
+
 #endif
