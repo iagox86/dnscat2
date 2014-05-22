@@ -9,6 +9,7 @@
 class UiInterface
   def initialize()
     @history = []
+    @state = nil
   end
 
   def save_history()
@@ -17,6 +18,7 @@ class UiInterface
       @history << i
     end
   end
+
   def restore_history()
     @history = @history || []
 
@@ -24,6 +26,10 @@ class UiInterface
     @history.each do |i|
       Readline::HISTORY << i
     end
+  end
+
+  def set_state(state)
+    @state = state
   end
 
   def feed(data)

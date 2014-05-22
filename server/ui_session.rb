@@ -55,6 +55,21 @@ class UiSession < UiInterface
     end
   end
 
+  def to_s()
+    if(@state.nil?)
+      idle = Time.now() - @last_seen
+      if(idle > 60)
+        return "session %5d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
+      elsif(idle > 5)
+        return "session %5d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
+      else
+        return "session %5d :: %s" % [@local_id, @session.name]
+      end
+    else
+      return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state]
+    end
+  end
+
   def active?()
     return @is_active
   end
@@ -83,25 +98,6 @@ class UiSession < UiInterface
     super
 
     @is_attached = false
-  end
-
-  def set_state(state)
-    @state = state
-  end
-
-  def to_s()
-    if(@state.nil?)
-      idle = Time.now() - @last_seen
-      if(idle > 60)
-        return "session %5d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
-      elsif(idle > 5)
-        return "session %5d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
-      else
-        return "session %5d :: %s" % [@local_id, @session.name]
-      end
-    else
-      return "session %5d :: %s :: [%s]" % [@local_id, @session.name, @state]
-    end
   end
 
   def go

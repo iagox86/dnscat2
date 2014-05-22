@@ -252,7 +252,7 @@ class UiCommand < UiInterface
     if(attached?())
       puts()
       puts(str)
-      print(">>#{Readline.line_buffer}")
+      print(">> ")
     end
   end
 
@@ -260,7 +260,7 @@ class UiCommand < UiInterface
     if(attached?())
       $stderr.puts()
       $stderr.puts(str)
-      print(">>#{Readline.line_buffer}")
+      print(">> ")
     end
   end
 end

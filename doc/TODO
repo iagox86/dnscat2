@@ -7,20 +7,19 @@ Immediate needs:
 - Choose better default names for each driver
 - Add more debugging messages throughout, especially newer functionality
 - Make a server-size state for 'exception' (in addition to closed/idle/etc)
-- Implement 'control mode' on the client
 - Take a look at the tcp/udp send/recv functions that return ssize_t to make sure the signedness is handled correctly
-- Look at places where long-term buffers can be cleaned up (ie, so they don't keep growing)
 - Check max length values for packet sizes and such
+- Handle command sessions receiving bad data more gracefully on the client side
+- Implement 'control mode' on the client
+
+Cleanups:
 - Go through all the structs to figure out which members are no longer used
 - Go through and try to initialize all pointers to NULL
-- Refactor UiSession.rb so it can be re-used for other session types
-- Handle command sessions receiving bad data more gracefully on the client side
+- Look at places where long-term buffers can be cleaned up (ie, so they don't keep growing)
 
 UI stuff:
 - ctrl-c signal on all OSes
-- ctrl-z on rvmsudo
 - Error message if port 53 fails
-- Error message if no dns server can be found
 
 Future stuff:
 - Other protocols (ping/http/etc)
