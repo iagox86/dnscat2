@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "buffer.h"
@@ -41,7 +42,8 @@ NBBOOL command_packet_stream_ready(command_packet_stream_t *stream)
   if(buffer_get_remaining_bytes(stream->buffer) < 2)
     return FALSE;
 
-  length = buffer_read_int16_at(stream->buffer, 0);
+  length = buffer_peek_next_int16(stream->buffer);
+
   if(length > MAX_COMMAND_PACKET_SIZE)
   {
     LOG_FATAL("Command size is too long! (length = %d, max = %d)", length, MAX_COMMAND_PACKET_SIZE);
@@ -51,7 +53,10 @@ NBBOOL command_packet_stream_ready(command_packet_stream_t *stream)
   /* I realize some people hate the "if(x) return TRUE else return FALSE"
    * paradigm, but I like it. */
   if(buffer_get_remaining_bytes(stream->buffer) >= (length + 2))
+  {
+    printf("We got them!\n");
     return TRUE;
+  }
 
   return FALSE;
 }
