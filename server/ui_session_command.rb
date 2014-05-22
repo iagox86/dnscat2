@@ -72,7 +72,7 @@ class UiSessionCommand < UiInterface
 
     if(line =~ /ping/)
       puts("Attempting to send ping")
-      packet = CommandPacket.create_ping_request(command_id(), "A"*20)
+      packet = CommandPacket.create_ping_request(command_id(), "A"*200)
       @session.queue_outgoing(packet)
     else
       error("Nope")
