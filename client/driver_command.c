@@ -61,10 +61,8 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     else if(in->command_id == COMMAND_SHELL && in->is_request == TRUE)
     {
       /* TODO: Choose the appropriate shell for the OS */
-      printf("Creating a new driver_exec...\n");
       driver_exec_t *new_driver = driver_exec_create(driver->group, "/bin/sh");
       driver_exec_manual_start(new_driver);
-      printf("Driver created?\n");
     }
     else
     {
