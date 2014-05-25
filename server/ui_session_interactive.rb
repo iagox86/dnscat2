@@ -17,15 +17,9 @@ class UiSessionInteractive < UiInterface
     @session  = session
     @ui = ui
 
-    @history = ""
-
     if(!@ui.get_option("auto_command").nil? && @ui.get_option("auto_command").length > 0)
       @session.queue_outgoing(@ui.get_option("auto_command") + "\n")
     end
-  end
-
-  def get_history()
-    return @history
   end
 
   def to_s()
@@ -45,9 +39,6 @@ class UiSessionInteractive < UiInterface
 
   def attach()
     super
-
-    # Print the queued data
-    print(get_history())
 
     if(!active?())
       Log.WARNING("This session is closed!")
@@ -74,13 +65,8 @@ class UiSessionInteractive < UiInterface
   def feed(data)
     seen()
 
-    # Display them and add them to history
-    if(attached?())
-      print(data)
-    end
+    print(data)
 
-    # TODO: We should maybe prevent this from growing infinitely
-    @history += data
   end
 
   def output(str)

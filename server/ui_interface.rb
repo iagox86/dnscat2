@@ -14,6 +14,8 @@ class UiInterface
     @is_attached = false
 
     @last_seen = Time.now()
+
+    @history = ""
   end
 
   def save_history()
@@ -30,6 +32,25 @@ class UiInterface
     @readline_history.each do |i|
       Readline::HISTORY << i
     end
+  end
+
+  def print(data)
+    if(@is_attached)
+      $stdout.print(data)
+    end
+    @history += data
+  end
+
+  def puts(data = nil)
+    if(@is_attached)
+      $stdout.puts(data)
+    end
+
+    if(data)
+      @history += data
+    end
+
+    @history += "\n"
   end
 
   def feed(data)
@@ -59,6 +80,8 @@ class UiInterface
   def attach()
     restore_history()
     catch_suspend()
+
+    $stdout.print(@history)
 
     @is_attached = true
   end

@@ -11,7 +11,7 @@ class UiCommand < UiInterface
     "exit" => "quit",
   }
 
-  def get_commands()
+  def get_commands(this)
     return {
 
       "" => {
@@ -33,22 +33,22 @@ class UiCommand < UiInterface
         end,
 
         :proc => Proc.new do |opts|
-          puts("Here are the available commands, listed alphabetically:")
+          this.puts("Here are the available commands, listed alphabetically:")
           @commands.keys.sort.each do |name|
             # Don't display the empty command
             if(name != "")
-              puts("- #{name}")
+              this.puts("- #{name}")
             end
           end
 
-          puts("For more information, --help can be passed to any command")
+          this.puts("For more information, --help can be passed to any command")
         end,
       },
 
       "clear" => {
         :parser => Trollop::Parser.new do end,
         :proc => Proc.new do |opts|
-          0.upto(1000) do puts() end
+          0.upto(1000) do this.puts() end
         end,
       },
 
@@ -59,7 +59,7 @@ class UiCommand < UiInterface
         end,
 
         :proc => Proc.new do |opts|
-          puts("Sessions:")
+          this.puts("Sessions:")
           do_show_sessions()
         end,
       },
@@ -73,10 +73,10 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts|
           if(opts[:l])
-            puts("Known sessions:")
+            this.puts("Known sessions:")
             do_show_sessions()
           elsif(opts[:i].nil?)
-            puts("Known sessions:")
+            this.puts("Known sessions:")
             do_show_sessions()
           else
             ui = @ui.get_by_local_id(opts[:i])
@@ -97,8 +97,8 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts, optarg|
           if(optarg.length == 0)
-            puts("Usage: set <name>=<value>")
-            puts()
+            this.puts("Usage: set <name>=<value>")
+            this.puts()
             do_show_options()
           else
             optarg = optarg.join(" ")
@@ -108,7 +108,7 @@ class UiCommand < UiInterface
 
             # If we don't have a name=value setup, show an error
             if(optarg.length != 2)
-              puts("Usage: set <name>=<value>")
+              this.puts("Usage: set <name>=<value>")
             else
               @ui.set_option(optarg[0], optarg[1])
             end
@@ -123,12 +123,12 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts, optarg|
           if(optarg.count != 1)
-            puts("Usage: show options")
+            this.puts("Usage: show options")
           else
             if(optarg[0] == "options")
               do_show_options()
             else
-              puts("Usage: show options")
+              this.puts("Usage: show options")
             end
           end
         end
@@ -141,12 +141,12 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts, optarg|
           if(optarg.count != 1)
-            puts("Usage: kill <session_id>")
+            this.puts("Usage: kill <session_id>")
           else
             if(@ui.kill_session(optarg[0].to_i()))
-              puts("Session killed")
+              this.puts("Session killed")
             else
-              puts("Couldn't kill session!")
+              this.puts("Couldn't kill session!")
             end
           end
         end
@@ -169,7 +169,7 @@ class UiCommand < UiInterface
   def initialize(ui)
     super()
     @ui = ui
-    @commands = get_commands()
+    @commands = get_commands(self)
   end
 
   def process_line(line)
@@ -217,29 +217,6 @@ class UiCommand < UiInterface
     process_line(line)
   end
 
-  def attach()
-    @is_attached = true
-    puts("Welcome to command mode!")
-    puts("Type 'help' for a list of commands!")
-    puts()
-
-    restore_history()
-  end
-
-  def detach()
-    @is_attached = false
-
-    save_history()
-  end
-
-  def attached?()
-    return @is_attached
-  end
-
-  def active?()
-    return true
-  end
-
   def to_s()
     return "Command window"
   end
@@ -249,17 +226,18 @@ class UiCommand < UiInterface
   end
 
   def output(str)
+    puts()
+    puts(str)
+
     if(attached?())
-      puts()
-      puts(str)
       print(">> ")
     end
   end
 
   def error(str)
+    puts()
+    puts("ERROR: %s" % str)
     if(attached?())
-      $stderr.puts()
-      $stderr.puts(str)
       print(">> ")
     end
   end

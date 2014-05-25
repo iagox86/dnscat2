@@ -27,17 +27,19 @@ class UiSessionCommand < UiInterface
   end
 
   def output(str)
+    puts()
+    puts(str)
+
     if(attached?())
-      puts()
-      puts(str)
       print(">> ")
     end
   end
 
   def error(str)
+    puts()
+    puts("ERROR: %s" % str)
+
     if(attached?())
-      $stderr.puts()
-      $stderr.puts(str)
       print(">> ")
     end
   end
