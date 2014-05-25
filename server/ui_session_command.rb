@@ -13,8 +13,10 @@ class UiSessionCommand < UiInterface
   attr_reader :session
 
   ALIASES = {
-    "q"    => "quit",
-    "exit" => "quit",
+    "q"       => "quit",
+    "exit"    => "quit",
+    "run"     => "exec",
+    "execute" => "exec",
   }
 
   def kill_me()
@@ -63,29 +65,54 @@ class UiSessionCommand < UiInterface
       },
 
       "clear" => {
-        :parser => Trollop::Parser.new do end,
+        :parser => Trollop::Parser.new do
+          banner("Clears the display")
+        end,
         :proc => Proc.new do |opts|
           0.upto(1000) do puts() end
         end,
       },
 
       "ping" => {
-        :parser => Trollop::Parser.new do end,
+        :parser => Trollop::Parser.new do
+          banner("Sends a 'ping' to the remote host to make sure it's still alive)")
+          opt :size, "Size", :type => :integer, :required => false, :default => 50
+        end,
         :proc => Proc.new do |opts|
-          packet = CommandPacket.create_ping_request(command_id(), "A"*200)
+          puts(opts.inspect)
+          packet = CommandPacket.create_ping_request(command_id(), "A"*opts[:s])
           @session.queue_outgoing(packet)
-          puts("Ping sent!")
+          puts("%s bytes sent!" % opts[:s])
         end,
       },
 
       "shell" => {
-        :parser => Trollop::Parser.new do end,
+        :parser => Trollop::Parser.new do
+          banner("Spawn a shell on the remote host")
+          opt :name, "Name", :type => :string, :required => false, :default => "unnamed"
+        end,
+
         :proc => Proc.new do |opts|
-          packet = CommandPacket.create_shell_request(command_id(), "name")
+          packet = CommandPacket.create_shell_request(command_id(), opts[:name])
           @session.queue_outgoing(packet)
-          puts("Shell request sent!")
+          puts("Shell request to execute a shell")
         end,
       },
+
+      "exec" => {
+        :parser => Trollop::Parser.new do
+          banner("Spawn a shell on the remote host, which will start a new session")
+          opt :command, "Command", :type => :string, :required => true
+          opt :name,    "Name",    :type => :string, :required => false, :default => "unnamed"
+        end,
+
+        :proc => Proc.new do |opts|
+          packet = CommandPacket.create_exec_request(command_id(), opts[:name], opts[:command])
+          @session.queue_outgoing(packet)
+          puts("Sent request to execute #{opts[:command]}")
+        end,
+      },
+
     }
   end
 
@@ -189,12 +216,4 @@ class UiSessionCommand < UiInterface
     # Otherwise, process the line
     process_line(line)
   end
-
-#      packet = CommandPacket.create_shell_request(command_id(), "name")
-#
-#      packet = CommandPacket.create_ping_request(command_id(), "A"*200)
-#    if(!packet.nil?)
-#      @session.queue_outgoing(packet)
-#    end
-
 end
