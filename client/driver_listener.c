@@ -92,6 +92,10 @@ static SELECT_RESPONSE_t listener_accept(void *group, int s, void *d)
 /* This is called after the drivers are created, to kick things off. */
 static void handle_start(driver_listener_t *driver)
 {
+  if(driver->started)
+    return;
+  driver->started = TRUE;
+
   driver->s = tcp_listen(driver->host, driver->port);
   if(!driver->s)
   {
@@ -209,6 +213,7 @@ driver_listener_t *driver_listener_create(select_group_t *group, char *host, int
   driver->group = group;
   driver->host  = host;
   driver->port  = port;
+  driver->started = FALSE;
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver);

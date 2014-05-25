@@ -25,6 +25,10 @@ static void handle_start(driver_command_t *driver)
   char *name = (driver->name) ? (driver->name) : "[unnamed command]";
   message_options_t options[3];
 
+  if(driver->started)
+    return;
+  driver->started = TRUE;
+
   options[0].name    = "name";
   options[0].value.s = name;
 
@@ -56,17 +60,19 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     else if(in->command_id == COMMAND_SHELL && in->is_request == TRUE)
     {
 #ifdef WIN32
-      driver_exec_t *new_driver = driver_exec_create(driver->group, "cmd.exe");
+      driver_exec_create(driver->group, "cmd.exe");
 #else
       /* TODO: Get the 'default' shell? */
-      driver_exec_t *new_driver = driver_exec_create(driver->group, "sh");
+      driver_exec_create(driver->group, "sh");
 #endif
-      driver_exec_manual_start(new_driver);
+      /*driver_exec_manual_start(new_driver);*/
+      message_post_start();
     }
     else if(in->command_id == COMMAND_EXEC && in->is_request == TRUE)
     {
-      driver_exec_t *new_driver = driver_exec_create(driver->group, in->r.request.body.exec.command);
-      driver_exec_manual_start(new_driver);
+      driver_exec_create(driver->group, in->r.request.body.exec.command);
+      /*driver_exec_manual_start(new_driver);*/
+      message_post_start();
     }
     else
     {
@@ -134,6 +140,7 @@ driver_command_t *driver_command_create(select_group_t *group)
 
   driver->stream = command_packet_stream_create(TRUE);
   driver->group = group;
+  driver->started = FALSE;
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver);

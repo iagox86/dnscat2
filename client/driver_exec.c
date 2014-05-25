@@ -48,6 +48,10 @@ static void handle_start(driver_exec_t *driver)
   SECURITY_ATTRIBUTES  sa;
 #endif
 
+  if(driver->started)
+    return;
+  driver->started = TRUE;
+
   /* Set up the session options and create the session. */
   options[0].name = "name";
   if(driver->name)
@@ -165,10 +169,10 @@ static void handle_start(driver_exec_t *driver)
 #endif
 }
 
-void driver_exec_manual_start(driver_exec_t *driver)
+/*void driver_exec_manual_start(driver_exec_t *driver)
 {
   handle_start(driver);
-}
+}*/
 
 
 static void handle_data_in(driver_exec_t *driver, uint8_t *data, size_t length)
@@ -237,6 +241,7 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
 
   driver_exec->process = process;
   driver_exec->group   = group;
+  driver_exec->started = FALSE;
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_START,           handle_message, driver_exec);

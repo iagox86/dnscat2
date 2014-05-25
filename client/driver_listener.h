@@ -12,6 +12,8 @@ typedef struct
   char           *host;
   char           *name;
   uint16_t        port;
+
+  NBBOOL started;
 } driver_listener_t;
 
 driver_listener_t *driver_listener_create(select_group_t *group, char *host, int port);

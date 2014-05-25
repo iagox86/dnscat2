@@ -6,6 +6,7 @@
 #include "message.h"
 #include "select_group.h"
 #include "session.h"
+#include "types.h"
 
 typedef struct
 {
@@ -13,6 +14,8 @@ typedef struct
   uint16_t  session_id;
   command_packet_stream_t *stream;
   select_group_t *group;
+
+  NBBOOL started;
 } driver_command_t;
 
 driver_command_t  *driver_command_create(select_group_t *group);

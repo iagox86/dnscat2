@@ -40,6 +40,10 @@ static void handle_start(driver_console_t *driver)
   char *name = (driver->name) ? (driver->name) : "[unnamed console]";
   message_options_t options[4];
 
+  if(driver->started)
+    return;
+  driver->started = TRUE;
+
   options[0].name    = "name";
   options[0].value.s = name;
 
@@ -112,6 +116,7 @@ static void handle_message(message_t *message, void *d)
 driver_console_t *driver_console_create(select_group_t *group)
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
+  driver->started = FALSE;
 
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
