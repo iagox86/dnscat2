@@ -10,6 +10,8 @@ require 'command_packet_stream'
 require 'command_packet'
 
 class UiSessionCommand < UiInterface
+  attr_reader :session
+
   def initialize(local_id, session, ui)
     super()
 

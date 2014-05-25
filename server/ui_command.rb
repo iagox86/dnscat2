@@ -11,7 +11,7 @@ class UiCommand < UiInterface
     "exit" => "quit",
   }
 
-  def get_commands(this)
+  def get_commands()
     return {
 
       "" => {
@@ -33,22 +33,22 @@ class UiCommand < UiInterface
         end,
 
         :proc => Proc.new do |opts|
-          this.puts("Here are the available commands, listed alphabetically:")
+          puts("Here are the available commands, listed alphabetically:")
           @commands.keys.sort.each do |name|
             # Don't display the empty command
             if(name != "")
-              this.puts("- #{name}")
+              puts("- #{name}")
             end
           end
 
-          this.puts("For more information, --help can be passed to any command")
+          puts("For more information, --help can be passed to any command")
         end,
       },
 
       "clear" => {
         :parser => Trollop::Parser.new do end,
         :proc => Proc.new do |opts|
-          0.upto(1000) do this.puts() end
+          0.upto(1000) do puts() end
         end,
       },
 
@@ -59,7 +59,7 @@ class UiCommand < UiInterface
         end,
 
         :proc => Proc.new do |opts|
-          this.puts("Sessions:")
+          puts("Sessions:")
           do_show_sessions()
         end,
       },
@@ -73,10 +73,10 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts|
           if(opts[:l])
-            this.puts("Known sessions:")
+            puts("Known sessions:")
             do_show_sessions()
           elsif(opts[:i].nil?)
-            this.puts("Known sessions:")
+            puts("Known sessions:")
             do_show_sessions()
           else
             ui = @ui.get_by_local_id(opts[:i])
@@ -97,8 +97,8 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts, optarg|
           if(optarg.length == 0)
-            this.puts("Usage: set <name>=<value>")
-            this.puts()
+            puts("Usage: set <name>=<value>")
+            puts()
             do_show_options()
           else
             optarg = optarg.join(" ")
@@ -108,7 +108,7 @@ class UiCommand < UiInterface
 
             # If we don't have a name=value setup, show an error
             if(optarg.length != 2)
-              this.puts("Usage: set <name>=<value>")
+              puts("Usage: set <name>=<value>")
             else
               @ui.set_option(optarg[0], optarg[1])
             end
@@ -123,12 +123,12 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts, optarg|
           if(optarg.count != 1)
-            this.puts("Usage: show options")
+            puts("Usage: show options")
           else
             if(optarg[0] == "options")
               do_show_options()
             else
-              this.puts("Usage: show options")
+              puts("Usage: show options")
             end
           end
         end
@@ -141,12 +141,12 @@ class UiCommand < UiInterface
 
         :proc => Proc.new do |opts, optarg|
           if(optarg.count != 1)
-            this.puts("Usage: kill <session_id>")
+            puts("Usage: kill <session_id>")
           else
             if(@ui.kill_session(optarg[0].to_i()))
-              this.puts("Session killed")
+              puts("Session killed")
             else
-              this.puts("Couldn't kill session!")
+              puts("Couldn't kill session!")
             end
           end
         end
@@ -169,7 +169,7 @@ class UiCommand < UiInterface
   def initialize(ui)
     super()
     @ui = ui
-    @commands = get_commands(self)
+    @commands = get_commands()
   end
 
   def process_line(line)
