@@ -55,8 +55,17 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     }
     else if(in->command_id == COMMAND_SHELL && in->is_request == TRUE)
     {
-      /* TODO: Choose the appropriate shell for the OS */
-      driver_exec_t *new_driver = driver_exec_create(driver->group, "/bin/sh");
+#ifdef WIN32
+      driver_exec_t *new_driver = driver_exec_create(driver->group, "cmd.exe");
+#else
+      /* TODO: Get the 'default' shell? */
+      driver_exec_t *new_driver = driver_exec_create(driver->group, "sh");
+#endif
+      driver_exec_manual_start(new_driver);
+    }
+    else if(in->command_id == COMMAND_EXEC && in->is_request == TRUE)
+    {
+      driver_exec_t *new_driver = driver_exec_create(driver->group, in->r.request.body.exec.command);
       driver_exec_manual_start(new_driver);
     }
     else

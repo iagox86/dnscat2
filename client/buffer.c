@@ -535,7 +535,9 @@ void *buffer_read_next_bytes(buffer_t *buffer, void *data, size_t length)
 
 char *buffer_alloc_next_ntstring(buffer_t *buffer)
 {
-  return buffer_alloc_ntstring_at(buffer, buffer->position);
+  char *result = buffer_alloc_ntstring_at(buffer, buffer->position);
+  buffer->position += strlen(result) + 1;
+  return result;
 }
 
 uint8_t buffer_peek_next_int8(buffer_t *buffer)

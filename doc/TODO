@@ -11,6 +11,7 @@ Immediate needs:
 - Check max length values for packet sizes and such
 - Handle command sessions receiving bad data more gracefully on the client side
 - Have the client print out info when it has multiple simultaneous connections (and more info on non-interactive sessions in general)
+- Handle the case where the server asks the client to exec a bad program
 
 Cleanups:
 - Go through all the structs to figure out which members are no longer used

@@ -42,8 +42,12 @@ command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_r
     case COMMAND_EXEC:
       if(is_request)
       {
+        buffer_print(buffer);
         p->r.request.body.exec.name    = buffer_alloc_next_ntstring(buffer);
         p->r.request.body.exec.command = buffer_alloc_next_ntstring(buffer);
+        printf("%s\n", p->r.request.body.exec.name);
+        printf("%s\n", p->r.request.body.exec.command);
+        buffer_print(buffer);
       }
       else
       {
