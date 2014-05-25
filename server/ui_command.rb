@@ -55,12 +55,12 @@ class UiCommand < UiInterface
       "sessions" => {
         :parser => Trollop::Parser.new do
           banner("Lists the current active sessions")
-          # No args
+          opt :a, "Show dead sessions", :type => :boolean, :required => false
         end,
 
         :proc => Proc.new do |opts|
           puts("Sessions:")
-          do_show_sessions()
+          do_show_sessions(opts[:a])
         end,
       },
 
@@ -160,9 +160,11 @@ class UiCommand < UiInterface
     end
   end
 
-  def do_show_sessions()
+  def do_show_sessions(all = false)
     @ui.each_ui do |local_id, session|
-      puts(session.to_s())
+      if(all || session.active?)
+        puts(session.to_s())
+      end
     end
   end
 
