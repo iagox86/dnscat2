@@ -119,7 +119,7 @@ class UiSessionCommand < UiInterface
   end
 
   def initialize(local_id, session, ui)
-    super("dnscat [command: #{@local_id}]> ")
+    super("dnscat [command: #{local_id}]> ")
 
     @local_id = local_id
     @session  = session
