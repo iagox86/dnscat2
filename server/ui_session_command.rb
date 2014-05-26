@@ -106,12 +106,15 @@ class UiSessionCommand < UiInterface
     register_command("exec",
       Trollop::Parser.new do
         banner("Spawn a shell on the remote host, which will start a new session")
-        opt :command, "Command", :type => :string, :required => true
+        opt :command, "Command", :type => :string, :required => false, :default => nil
         opt :name,    "Name",    :type => :string, :required => false, :default => "unnamed"
       end,
 
-      Proc.new do |opts|
-        packet = CommandPacket.create_exec_request(command_id(), opts[:name], opts[:command])
+      Proc.new do |opts, optarg|
+        command = opts[:command].nil?() ? optarg  : opts[:command]
+        name    = opts[:name].nil?()    ? command : opts[:name]
+
+        packet = CommandPacket.create_exec_request(command_id(), name, command)
         @session.queue_outgoing(packet)
         puts("Sent request to execute #{opts[:command]}")
       end,

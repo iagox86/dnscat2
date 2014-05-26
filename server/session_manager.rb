@@ -154,6 +154,7 @@ class SessionManager
             Log.FATAL("DnscatException caught; closing session #{session_id}...")
             kill_session(session.id)
             Log.FATAL("Propagating the exception...")
+            raise(e)
           end
         rescue
           # Do nothing
