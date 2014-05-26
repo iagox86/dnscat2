@@ -2,47 +2,49 @@
 # By Ron Bowes
 # Created July 4, 2013
 
+require 'parser'
 require 'readline'
 require 'ui_interface'
 require 'shellwords'
 
 class UiCommand < UiInterface
+  include Parser
+
   ALIASES = {
     "q"    => "quit",
     "exit" => "quit",
   }
 
-  def get_commands()
-    return {
+  def register_commands()
+    register_alias('q',    'quit')
+    register_alias('exit', 'quit')
 
-      "" => {
-        :parser => Trollop::Parser.new do end,
-        :proc => Proc.new do |opts, optval| end,
-      },
-
-      "echo" => {
-        :parser => Trollop::Parser.new do
+    register_command('echo',
+        Trollop::Parser.new do
           banner("Print stuff to the terminal")
         end,
-        :proc => Proc.new do |opts, optval|
+
+        Proc.new do |opts, optval|
           puts(optval)
         end,
-      },
+    )
 
-      "quit" => {
-        :parser => Trollop::Parser.new do
+    register_command('quit',
+        Trollop::Parser.new do
           banner("Exits dnscat2")
         end,
 
-        :proc => Proc.new do |opts, optval| exit end,
-      },
+        Proc.new do |opts, optval|
+          exit
+        end
+    )
 
-      "help" => {
-        :parser => Trollop::Parser.new do
+    register_command('help',
+        Trollop::Parser.new do
           banner("Shows a help menu")
         end,
 
-        :proc => Proc.new do |opts, optval|
+        Proc.new do |opts, optval|
           puts("Here are the available commands, listed alphabetically:")
           @commands.keys.sort.each do |name|
             # Don't display the empty command
@@ -53,115 +55,112 @@ class UiCommand < UiInterface
 
           puts("For more information, --help can be passed to any command")
         end,
-      },
+    )
 
-      "clear" => {
-        :parser => Trollop::Parser.new do end,
-        :proc => Proc.new do |opts, optval|
-          0.upto(1000) do puts() end
-        end,
-      },
+    register_command('clear',
+      Trollop::Parser.new do
+      end,
 
-      "sessions" => {
-        :parser => Trollop::Parser.new do
-          banner("Lists the current active sessions")
-          opt :a, "Show dead sessions", :type => :boolean, :required => false
-        end,
+      Proc.new do |opts, optval|
+        0.upto(1000) do puts() end
+      end,
+    )
 
-        :proc => Proc.new do |opts, optval|
-          puts("Sessions:")
-          do_show_sessions(opts[:a])
-        end,
-      },
+    register_command('sessions',
+      Trollop::Parser.new do
+        banner("Lists the current active sessions")
+        opt :a, "Show dead sessions", :type => :boolean, :required => false
+      end,
 
-      "session" => {
-        :parser => Trollop::Parser.new do
-          banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
-          opt :i, "Interact with the chosen session", :type => :integer, :required => false
-          opt :l, "List sessions"
-        end,
+      Proc.new do |opts, optval|
+        puts("Sessions:")
+        do_show_sessions(opts[:a])
+      end,
+    )
 
-        :proc => Proc.new do |opts, optval|
-          if(opts[:l])
-            puts("Known sessions:")
-            do_show_sessions()
-          elsif(opts[:i].nil?)
-            puts("Known sessions:")
+    register_command("session",
+      Trollop::Parser.new do
+        banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
+        opt :i, "Interact with the chosen session", :type => :integer, :required => false
+        opt :l, "List sessions"
+      end,
+
+      Proc.new do |opts, optval|
+        if(opts[:l])
+          puts("Known sessions:")
+          do_show_sessions()
+        elsif(opts[:i].nil?)
+          puts("Known sessions:")
+          do_show_sessions()
+        else
+          ui = @ui.get_by_local_id(opts[:i])
+          if(ui.nil?)
+            error("Session #{opts[:i]} not found!")
             do_show_sessions()
           else
-            ui = @ui.get_by_local_id(opts[:i])
-            if(ui.nil?)
-              error("Session #{opts[:i]} not found!")
-              do_show_sessions()
-            else
-              @ui.attach_session(ui)
-            end
+            @ui.attach_session(ui)
           end
         end
-      },
+      end
+    )
 
-      "set" => {
-        :parser => Trollop::Parser.new do
-          banner("Set <name>=<value> variables")
-        end,
+    register_command("set",
+      Trollop::Parser.new do
+        banner("Set <name>=<value> variables")
+      end,
 
-        :proc => Proc.new do |opts, optarg|
-          if(optarg.length == 0)
+      Proc.new do |opts, optarg|
+        if(optarg.length == 0)
+          puts("Usage: set <name>=<value>")
+          puts()
+          do_show_options()
+        else
+          optarg = optarg.join(" ")
+
+          # Split at the '=' sign
+          optarg = optarg.split("=", 2)
+
+          # If we don't have a name=value setup, show an error
+          if(optarg.length != 2)
             puts("Usage: set <name>=<value>")
-            puts()
-            do_show_options()
           else
-            optarg = optarg.join(" ")
-
-            # Split at the '=' sign
-            optarg = optarg.split("=", 2)
-
-            # If we don't have a name=value setup, show an error
-            if(optarg.length != 2)
-              puts("Usage: set <name>=<value>")
-            else
-              @ui.set_option(optarg[0], optarg[1])
-            end
+            @ui.set_option(optarg[0], optarg[1])
           end
         end
-      },
+      end
+    )
 
-      "show" => {
-        :parser => Trollop::Parser.new do
-          banner("Shows current variables if 'show options' is run. Currently no other functionality")
-        end,
+    register_command("show",
+      Trollop::Parser.new do
+        banner("Shows current variables if 'show options' is run. Currently no other functionality")
+      end,
 
-        :proc => Proc.new do |opts, optarg|
-          if(optarg.count != 1)
-            puts("Usage: show options")
+      Proc.new do |opts, optarg|
+        if(optarg != "options")
+          puts("Usage: show options")
+        else
+          do_show_options()
+        end
+      end
+    )
+
+    register_command("kill",
+      Trollop::Parser.new do
+        banner("Terminate a session")
+      end,
+
+      Proc.new do |opts, optarg|
+        if(optarg.count != 1)
+          puts("Usage: kill <session_id>")
+        else
+          if(@ui.kill_session(optarg[0].to_i()))
+            puts("Session killed")
           else
-            if(optarg[0] == "options")
-              do_show_options()
-            else
-              puts("Usage: show options")
-            end
+            puts("Couldn't kill session!")
           end
         end
-      },
-
-      "kill" => {
-        :parser => Trollop::Parser.new do
-          banner("Terminate a session")
-        end,
-
-        :proc => Proc.new do |opts, optarg|
-          if(optarg.count != 1)
-            puts("Usage: kill <session_id>")
-          else
-            if(@ui.kill_session(optarg[0].to_i()))
-              puts("Session killed")
-            else
-              puts("Couldn't kill session!")
-            end
-          end
-        end
-      }
-    }
+      end
+    )
   end
 
   def do_show_options()
@@ -179,61 +178,13 @@ class UiCommand < UiInterface
   end
 
   def initialize(ui)
-    super()
+    super("dnscat2> ")
     @ui = ui
-    @commands = get_commands()
+    register_commands()
   end
 
-  def process_line(line)
-    split = line.split(/ /, 2)
-
-    if(split.length > 0)
-      command = split.shift
-      args = Shellwords.shellwords(split.shift)
-    else
-      command = ""
-      args = ""
-    end
-
-    if(ALIASES[command])
-      command = ALIASES[command]
-    end
-
-    if(@commands[command].nil?)
-      puts("Unknown command: #{command}")
-    else
-      begin
-        command = @commands[command]
-        command[:parser].stop_on("--")
-        opts = command[:parser].parse(args)
-        optval = ""
-        optarr = command[:parser].leftovers
-        if(!optarr.nil?())
-          if(optarr[0] == "--")
-            optarr.shift()
-          end
-          optval = optarr.join(" ")
-        end
-        command[:proc].call(opts, optval)
-      rescue Trollop::CommandlineError => e
-        @ui.error("ERROR: #{e}")
-      rescue Trollop::HelpNeeded => e
-        command[:parser].educate
-      end
-    end
-  end
-
-  def go()
-    line = Readline.readline("dnscat> ", true)
-
-    # If we hit EOF, terminate
-    if(line.nil?)
-      puts()
-      exit
-    end
-
-    # Otherwise, process the line
-    process_line(line)
+  def active?()
+    return true
   end
 
   def to_s()

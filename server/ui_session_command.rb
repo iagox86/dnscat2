@@ -8,10 +8,13 @@
 
 require 'command_packet_stream'
 require 'command_packet'
+require 'parser'
 require 'shellwords'
 
 class UiSessionCommand < UiInterface
   attr_reader :session
+
+  include Parser
 
   ALIASES = {
     "q"       => "quit",
@@ -29,96 +32,92 @@ class UiSessionCommand < UiInterface
   end
 
 
-  def get_commands()
-    return {
+  def register_commands()
+    register_alias('q',       'quit')
+    register_alias('exit',    'quit')
+    register_alias('run',     'exec')
+    register_alias('execute', 'exec')
 
-      "" => {
-        :parser => Trollop::Parser.new do end,
-        :proc => Proc.new do |opts| end,
-      },
+    register_command("quit",
+      Trollop::Parser.new do
+        banner("Closes and kills this command session")
+      end,
 
-      "quit" => {
-        :parser => Trollop::Parser.new do
-          banner("Closes and kills this command session")
-        end,
+      Proc.new do |opts|
+        kill_me()
+      end,
+    )
 
-        :proc => Proc.new do |opts|
-          kill_me()
-        end,
-      },
+    register_command("help",
+      Trollop::Parser.new do
+        banner("Shows a help menu")
+      end,
 
-      "help" => {
-        :parser => Trollop::Parser.new do
-          banner("Shows a help menu")
-        end,
-
-        :proc => Proc.new do |opts|
-          puts("Available session commands:")
-          @commands.keys.sort.each do |name|
-            # Don't display the empty command
-            if(name != "")
-              puts("- #{name}")
-            end
+      Proc.new do |opts|
+        puts("Available session commands:")
+        @commands.keys.sort.each do |name|
+          # Don't display the empty command
+          if(name != "")
+            puts("- #{name}")
           end
+        end
 
-          puts("For more information, --help can be passed to any command")
-        end,
-      },
+        puts("For more information, --help can be passed to any command")
+      end,
+    )
 
-      "clear" => {
-        :parser => Trollop::Parser.new do
-          banner("Clears the display")
-        end,
-        :proc => Proc.new do |opts|
-          0.upto(1000) do puts() end
-        end,
-      },
+    register_command("clear",
+      Trollop::Parser.new do
+        banner("Clears the display")
+      end,
+      Proc.new do |opts|
+        0.upto(1000) do puts() end
+      end,
+    )
 
-      "ping" => {
-        :parser => Trollop::Parser.new do
-          banner("Sends a 'ping' to the remote host to make sure it's still alive)")
-          opt :size, "Size", :type => :integer, :required => false, :default => 50
-        end,
-        :proc => Proc.new do |opts|
-          puts(opts.inspect)
-          packet = CommandPacket.create_ping_request(command_id(), "A"*opts[:s])
-          @session.queue_outgoing(packet)
-          puts("%s bytes sent!" % opts[:s])
-        end,
-      },
+    register_command("ping",
+      Trollop::Parser.new do
+        banner("Sends a 'ping' to the remote host to make sure it's still alive)")
+        opt :size, "Size", :type => :integer, :required => false, :default => 50
+      end,
+      Proc.new do |opts|
+        puts(opts.inspect)
+        packet = CommandPacket.create_ping_request(command_id(), "A"*opts[:size])
+        @session.queue_outgoing(packet)
+        puts("%s bytes sent!" % opts[:s])
+      end,
+    )
 
-      "shell" => {
-        :parser => Trollop::Parser.new do
-          banner("Spawn a shell on the remote host")
-          opt :name, "Name", :type => :string, :required => false, :default => "unnamed"
-        end,
+    register_command("shell",
+      Trollop::Parser.new do
+        banner("Spawn a shell on the remote host")
+        opt :name, "Name", :type => :string, :required => false, :default => "unnamed"
+      end,
 
-        :proc => Proc.new do |opts|
-          packet = CommandPacket.create_shell_request(command_id(), opts[:name])
-          @session.queue_outgoing(packet)
-          puts("Shell request to execute a shell")
-        end,
-      },
+      Proc.new do |opts|
+        packet = CommandPacket.create_shell_request(command_id(), opts[:name])
+        @session.queue_outgoing(packet)
+        puts("Shell request to execute a shell")
+      end,
+    )
 
-      "exec" => {
-        :parser => Trollop::Parser.new do
-          banner("Spawn a shell on the remote host, which will start a new session")
-          opt :command, "Command", :type => :string, :required => true
-          opt :name,    "Name",    :type => :string, :required => false, :default => "unnamed"
-        end,
+    register_command("exec",
+      Trollop::Parser.new do
+        banner("Spawn a shell on the remote host, which will start a new session")
+        opt :command, "Command", :type => :string, :required => true
+        opt :name,    "Name",    :type => :string, :required => false, :default => "unnamed"
+      end,
 
-        :proc => Proc.new do |opts|
-          packet = CommandPacket.create_exec_request(command_id(), opts[:name], opts[:command])
-          @session.queue_outgoing(packet)
-          puts("Sent request to execute #{opts[:command]}")
-        end,
-      },
-
-    }
+      Proc.new do |opts|
+        packet = CommandPacket.create_exec_request(command_id(), opts[:name], opts[:command])
+        @session.queue_outgoing(packet)
+        puts("Sent request to execute #{opts[:command]}")
+      end,
+    )
   end
 
   def initialize(local_id, session, ui)
-    super()
+    super("dnscat [command: #{@local_id}]> ")
 
     @local_id = local_id
     @session  = session
@@ -126,7 +125,7 @@ class UiSessionCommand < UiInterface
     @stream = CommandPacketStream.new()
     @command_id = 0x0001
 
-    @commands = get_commands()
+    register_commands()
   end
 
   def feed(data)
@@ -172,49 +171,5 @@ class UiSessionCommand < UiInterface
     id = @command_id
     @command_id += 1
     return id
-  end
-
-  def process_line(line)
-    split = line.split(/ /, 2)
-
-    if(split.length > 0)
-      command = split.shift
-      args = Shellwords.shellwords(split.shift)
-    else
-      command = ""
-      args = ""
-    end
-
-    if(ALIASES[command])
-      command = ALIASES[command]
-    end
-
-    if(@commands[command].nil?)
-      puts("Unknown command: #{command}")
-    else
-      begin
-        command = @commands[command]
-        opts = command[:parser].parse(args)
-        command[:proc].call(opts, args)
-      rescue Trollop::CommandlineError => e
-        @ui.error("ERROR: #{e}")
-      rescue Trollop::HelpNeeded => e
-        command[:parser].educate
-      rescue Trollop::VersionNeeded => e
-        @ui.error("Version needed!")
-      end
-    end
-  end
-
-  def go
-    line = Readline::readline("dnscat [command: #{@local_id}]> ", true)
-
-    if(line.nil?)
-      kill_me()
-      return
-    end
-
-    # Otherwise, process the line
-    process_line(line)
   end
 end

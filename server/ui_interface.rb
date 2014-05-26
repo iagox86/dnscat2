@@ -46,8 +46,8 @@ class UiInterface
       $stdout.puts(data)
     end
 
-    if(data)
-      @history += data
+    if(!data.nil?)
+      @history += data.to_s
     end
 
     @history += "\n"
