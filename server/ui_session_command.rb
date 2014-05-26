@@ -27,7 +27,7 @@ class UiSessionCommand < UiInterface
     puts("Are you sure you want to kill this session? [Y/n]")
     if($stdin.gets[0].downcase != 'n')
       @ui.kill_session(@local_id)
-      @ui.attach_session(nil)
+      @ui.detach_session()
     end
   end
 

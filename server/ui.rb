@@ -30,6 +30,9 @@ class Ui
 
     # A mapping of real ids to session ids
     @id_map = {}
+
+    # Lets us have multiple 'attached' sessions
+    @ui_history = []
   end
 
   class UiWakeup < Exception
@@ -108,8 +111,11 @@ class Ui
 
   # Detach the current session and attach a new one
   def attach_session(ui = nil)
+    if(ui.nil?)
+      ui = @command
+    end
     # If the session isn't active, don't switch to it
-    if(!ui.nil?() && !ui.active?())
+    if(!ui.active?())
       $stderr.puts("Sorry, that session is no longer alive :(")
       return
     end
@@ -121,18 +127,31 @@ class Ui
 
     # Detach the old ui
     if(!@ui.nil?)
+      @ui_history << @ui
       @ui.detach()
-    end
-
-    # By default, attach to the command window
-    if(ui.nil?)
-      ui = @command
     end
 
     # Go to the new ui
     @ui = ui
 
     # Attach the new ui
+    @ui.attach()
+
+    wakeup()
+  end
+
+  def detach_session()
+    ui = @ui_history.pop()
+
+    if(ui.nil?)
+      ui = @command
+    end
+
+    if(!@ui.nil?)
+      @ui.detach()
+    end
+
+    @ui = ui
     @ui.attach()
 
     wakeup()
@@ -165,7 +184,7 @@ class Ui
         # If the ui is no longer active, switch to the @command window
         if(!@ui.active?)
           @ui.error("UI went away...")
-          attach_session(nil)
+          detach_session()
         end
 
         @ui.go()
@@ -247,8 +266,7 @@ class Ui
 
     # Switch the session for @command if it's attached
     if(@ui == ui)
-      # Switch to the command window
-      attach_session(nil)
+      detach_session()
     end
   end
 
