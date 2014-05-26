@@ -4,6 +4,7 @@
 
 require 'readline'
 require 'ui_interface'
+require 'shellwords'
 
 class UiCommand < UiInterface
   ALIASES = {
@@ -16,7 +17,16 @@ class UiCommand < UiInterface
 
       "" => {
         :parser => Trollop::Parser.new do end,
-        :proc => Proc.new do |opts| end,
+        :proc => Proc.new do |opts, optval| end,
+      },
+
+      "echo" => {
+        :parser => Trollop::Parser.new do
+          banner("Print stuff to the terminal")
+        end,
+        :proc => Proc.new do |opts, optval|
+          puts(optval)
+        end,
       },
 
       "quit" => {
@@ -24,7 +34,7 @@ class UiCommand < UiInterface
           banner("Exits dnscat2")
         end,
 
-        :proc => Proc.new do |opts| exit end,
+        :proc => Proc.new do |opts, optval| exit end,
       },
 
       "help" => {
@@ -32,7 +42,7 @@ class UiCommand < UiInterface
           banner("Shows a help menu")
         end,
 
-        :proc => Proc.new do |opts|
+        :proc => Proc.new do |opts, optval|
           puts("Here are the available commands, listed alphabetically:")
           @commands.keys.sort.each do |name|
             # Don't display the empty command
@@ -47,7 +57,7 @@ class UiCommand < UiInterface
 
       "clear" => {
         :parser => Trollop::Parser.new do end,
-        :proc => Proc.new do |opts|
+        :proc => Proc.new do |opts, optval|
           0.upto(1000) do puts() end
         end,
       },
@@ -58,7 +68,7 @@ class UiCommand < UiInterface
           opt :a, "Show dead sessions", :type => :boolean, :required => false
         end,
 
-        :proc => Proc.new do |opts|
+        :proc => Proc.new do |opts, optval|
           puts("Sessions:")
           do_show_sessions(opts[:a])
         end,
@@ -71,7 +81,7 @@ class UiCommand < UiInterface
           opt :l, "List sessions"
         end,
 
-        :proc => Proc.new do |opts|
+        :proc => Proc.new do |opts, optval|
           if(opts[:l])
             puts("Known sessions:")
             do_show_sessions()
@@ -175,11 +185,11 @@ class UiCommand < UiInterface
   end
 
   def process_line(line)
-    split = line.split(/ /)
+    split = line.split(/ /, 2)
 
     if(split.length > 0)
       command = split.shift
-      args = split
+      args = Shellwords.shellwords(split.shift)
     else
       command = ""
       args = ""
@@ -194,14 +204,21 @@ class UiCommand < UiInterface
     else
       begin
         command = @commands[command]
+        command[:parser].stop_on("--")
         opts = command[:parser].parse(args)
-        command[:proc].call(opts, args)
+        optval = ""
+        optarr = command[:parser].leftovers
+        if(!optarr.nil?())
+          if(optarr[0] == "--")
+            optarr.shift()
+          end
+          optval = optarr.join(" ")
+        end
+        command[:proc].call(opts, optval)
       rescue Trollop::CommandlineError => e
         @ui.error("ERROR: #{e}")
       rescue Trollop::HelpNeeded => e
         command[:parser].educate
-      rescue Trollop::VersionNeeded => e
-        @ui.error("Version needed!")
       end
     end
   end

@@ -8,6 +8,7 @@
 
 require 'command_packet_stream'
 require 'command_packet'
+require 'shellwords'
 
 class UiSessionCommand < UiInterface
   attr_reader :session
@@ -174,11 +175,11 @@ class UiSessionCommand < UiInterface
   end
 
   def process_line(line)
-    split = line.split(/ /)
+    split = line.split(/ /, 2)
 
     if(split.length > 0)
       command = split.shift
-      args = split
+      args = Shellwords.shellwords(split.shift)
     else
       command = ""
       args = ""
