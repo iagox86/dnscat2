@@ -160,12 +160,6 @@ class SessionManager
         end
 
         raise(e)
-      rescue Exception => e
-        Log.FATAL("Exception: #{e}")
-        Log.FATAL(e.inspect)
-        Log.FATAL(e.backtrace)
-
-        raise(e)
       end
     end
   end

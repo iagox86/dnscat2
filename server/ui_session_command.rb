@@ -78,13 +78,15 @@ class UiSessionCommand < UiInterface
     register_command("ping",
       Trollop::Parser.new do
         banner("Sends a 'ping' to the remote host to make sure it's still alive)")
-        opt :size, "Size", :type => :integer, :required => false, :default => 50
+        opt :size, "Size", :type => :integer, :required => false, :default => 256
       end,
       Proc.new do |opts|
-        puts(opts.inspect)
-        packet = CommandPacket.create_ping_request(command_id(), "A"*opts[:size])
+        data = "A" * opts[:size]
+        id = command_id()
+        @pings[id] = data
+        packet = CommandPacket.create_ping_request(id, data)
         @session.queue_outgoing(packet)
-        puts("%s bytes sent!" % opts[:s])
+        puts("Ping request 0x%x sent! (0x%x bytes)" % [id, opts[:size]])
       end,
     )
 
@@ -124,13 +126,26 @@ class UiSessionCommand < UiInterface
     @ui = ui
     @stream = CommandPacketStream.new()
     @command_id = 0x0001
+    @pings = {}
 
     register_commands()
   end
 
   def feed(data)
     @stream.feed(data, false) do |packet|
-      puts(packet.to_s)
+      if(packet.command_id == CommandPacket::COMMAND_PING && packet.is_response?())
+        data = packet.data
+        expected = @pings[packet.request_id]
+        if(expected.nil?)
+          puts("Unexpected ping response received")
+        elsif(data == expected)
+          puts("Ping response 0x%x received!" % packet.request_id)
+        else
+          puts("Ping response 0x%x was invalid!" % packet.request_id)
+        end
+      else
+        puts("Didn't know how to handle command packet: %s" % packet.to_s)
+      end
     end
   end
 
