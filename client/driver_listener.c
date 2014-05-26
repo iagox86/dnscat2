@@ -89,26 +89,6 @@ static SELECT_RESPONSE_t listener_accept(void *group, int s, void *d)
   return SELECT_OK;
 }
 
-/* This is called after the drivers are created, to kick things off. */
-static void handle_start(driver_listener_t *driver)
-{
-  if(driver->started)
-    return;
-  driver->started = TRUE;
-
-  driver->s = tcp_listen(driver->host, driver->port);
-  if(!driver->s)
-  {
-    LOG_FATAL("Failed to listen on %s:%d", driver->host, driver->port);
-    exit(1);
-  }
-
-  /* On Linux, the stdin_handle is easy. */
-  select_group_add_socket(driver->group, driver->s, SOCKET_TYPE_LISTEN, driver);
-  select_set_listen(driver->group, driver->s, listener_accept);
-  select_set_closed(driver->group, driver->s, listener_closed);
-}
-
 static void handle_session_closed(driver_listener_t *driver, uint16_t session_id)
 {
   client_entry_t *client;
@@ -148,33 +128,12 @@ static void handle_shutdown()
   /* TODO: Clean up. */
 }
 
-static void handle_config_int(driver_listener_t *driver, char *name, int value)
-{
-  LOG_WARNING("Unknown configuration option: %s", name);
-}
-
-static void handle_config_string(driver_listener_t *driver, char *name, char *value)
-{
-  if(!strcmp(name, "name"))
-  {
-    driver->name = value;
-  }
-  else
-  {
-    LOG_WARNING("Unknown configuration option: %s", name);
-  }
-}
-
 static void handle_message(message_t *message, void *d)
 {
   driver_listener_t *driver = (driver_listener_t*) d;
 
   switch(message->type)
   {
-    case MESSAGE_START:
-      handle_start(driver);
-      break;
-
     case MESSAGE_SESSION_CLOSED:
       handle_session_closed(driver, message->message.session_closed.session_id);
       break;
@@ -188,39 +147,36 @@ static void handle_message(message_t *message, void *d)
       handle_shutdown();
       break;
 
-    case MESSAGE_CONFIG:
-      if(message->message.config.type == CONFIG_INT)
-        handle_config_int(driver, message->message.config.name, message->message.config.value.int_value);
-      else if(message->message.config.type == CONFIG_STRING)
-        handle_config_string(driver, message->message.config.name, message->message.config.value.string_value);
-      else
-      {
-        LOG_FATAL("Unknown config type: %d", message->message.config.type);
-        abort();
-      }
-      break;
-
     default:
       LOG_FATAL("driver_listener received an invalid message!");
       abort();
   }
 }
 
-driver_listener_t *driver_listener_create(select_group_t *group, char *host, int port)
+driver_listener_t *driver_listener_create(select_group_t *group, char *host, int port, char *name)
 {
   driver_listener_t *driver = (driver_listener_t*) safe_malloc(sizeof(driver_listener_t));
 
   driver->group = group;
   driver->host  = host;
   driver->port  = port;
-  driver->started = FALSE;
 
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START,           handle_message, driver);
   message_subscribe(MESSAGE_SESSION_CLOSED,  handle_message, driver);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
   message_subscribe(MESSAGE_SHUTDOWN,        handle_message, driver);
-  message_subscribe(MESSAGE_CONFIG,          handle_message, driver);
+
+  driver->s = tcp_listen(driver->host, driver->port);
+  if(!driver->s)
+  {
+    LOG_FATAL("Failed to listen on %s:%d", driver->host, driver->port);
+    exit(1);
+  }
+
+  /* On Linux, the stdin_handle is easy. */
+  select_group_add_socket(driver->group, driver->s, SOCKET_TYPE_LISTEN, driver);
+  select_set_listen(driver->group, driver->s, listener_accept);
+  select_set_closed(driver->group, driver->s, listener_closed);
 
   return driver;
 }

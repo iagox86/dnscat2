@@ -11,7 +11,8 @@ typedef enum
 
   /* This is posted once, when the dnscat process starts, and is when any
    * initial connections should be made. */
-  MESSAGE_START            = 0x01,
+  /* DEPRECATED */
+  /*MESSAGE_START            = 0x01,*/
 
   /* This begins the "shutdown" process - closing all sessions and eventually
    * terminating the process. */
@@ -98,11 +99,6 @@ typedef struct
         char *string_value;
       } value;
     } config;
-
-    struct
-    {
-      int dummy; /* WIN32 doesn't allow empty structs/unions */
-    } start;
 
     struct
     {
@@ -198,7 +194,6 @@ void message_cleanup();
 void message_post_config_int(char *name, int value);
 void message_post_config_string(char *name, char *value);
 
-void message_post_start();
 void message_post_shutdown();
 /* options must either be NULL, or terminated with a NULL entry */
 uint16_t message_post_create_session(message_options_t options[]);

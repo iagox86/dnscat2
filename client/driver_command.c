@@ -19,27 +19,6 @@
 
 #include "driver_command.h"
 
-/* This is called after the drivers are created, to kick things off. */
-static void handle_start(driver_command_t *driver)
-{
-  char *name = (driver->name) ? (driver->name) : "[unnamed command]";
-  message_options_t options[3];
-
-  if(driver->started)
-    return;
-  driver->started = TRUE;
-
-  options[0].name    = "name";
-  options[0].value.s = name;
-
-  options[1].name    = "is_command";
-  options[1].value.i = TRUE;
-
-  options[2].name    = NULL;
-
-  driver->session_id = message_post_create_session(options);
-}
-
 static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t length)
 {
   command_packet_stream_feed(driver->stream, data, length);
@@ -60,19 +39,19 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     else if(in->command_id == COMMAND_SHELL && in->is_request == TRUE)
     {
 #ifdef WIN32
-      driver_exec_create(driver->group, "cmd.exe");
+      driver_exec_t *driver_exec = driver_exec_create(driver->group, "cmd.exe", in->r.request.body.shell.name);
 #else
       /* TODO: Get the 'default' shell? */
-      driver_exec_create(driver->group, "sh");
+      driver_exec_t *driver_exec = driver_exec_create(driver->group, "sh", in->r.request.body.shell.name);
 #endif
-      /*driver_exec_manual_start(new_driver);*/
-      message_post_start();
+
+      out = command_packet_create_shell_response(in->request_id, driver_exec->session_id);
     }
     else if(in->command_id == COMMAND_EXEC && in->is_request == TRUE)
     {
-      driver_exec_create(driver->group, in->r.request.body.exec.command);
-      /*driver_exec_manual_start(new_driver);*/
-      message_post_start();
+      driver_exec_t *driver_exec = driver_exec_create(driver->group, in->r.request.body.exec.command, in->r.request.body.exec.name);
+
+      out = command_packet_create_exec_response(in->request_id, driver_exec->session_id);
     }
     else
     {
@@ -93,39 +72,15 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
   }
 }
 
-static void handle_config_int(driver_command_t *driver, char *name, int value)
-{
-}
-
-static void handle_config_string(driver_command_t *driver, char *name, char *value)
-{
-}
-
 static void handle_message(message_t *message, void *d)
 {
   driver_command_t *driver = (driver_command_t*) d;
 
   switch(message->type)
   {
-    case MESSAGE_START:
-      handle_start(driver);
-      break;
-
     case MESSAGE_DATA_IN:
       if(message->message.data_in.session_id == driver->session_id)
         handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
-      break;
-
-    case MESSAGE_CONFIG:
-      if(message->message.config.type == CONFIG_INT)
-        handle_config_int(driver, message->message.config.name, message->message.config.value.int_value);
-      else if(message->message.config.type == CONFIG_STRING)
-        handle_config_string(driver, message->message.config.name, message->message.config.value.string_value);
-      else
-      {
-        LOG_FATAL("Unknown");
-        abort();
-      }
       break;
 
     default:
@@ -134,18 +89,29 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-driver_command_t *driver_command_create(select_group_t *group)
+driver_command_t *driver_command_create(select_group_t *group, char *name)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
+  driver->name = name ? name : "[unnamed command]";
+
   driver->stream = command_packet_stream_create(TRUE);
   driver->group = group;
-  driver->started = FALSE;
 
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START,           handle_message, driver);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
-  message_subscribe(MESSAGE_CONFIG,          handle_message, driver);
+
+  message_options_t options[3];
+
+  options[0].name    = "name";
+  options[0].value.s = driver->name;
+
+  options[1].name    = "is_command";
+  options[1].value.i = TRUE;
+
+  options[2].name    = NULL;
+
+  driver->session_id = message_post_create_session(options);
 
   return driver;
 }

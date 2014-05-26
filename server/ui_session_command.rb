@@ -133,6 +133,7 @@ class UiSessionCommand < UiInterface
 
   def feed(data)
     @stream.feed(data, false) do |packet|
+      puts(packet)
       if(packet.command_id == CommandPacket::COMMAND_PING && packet.is_response?())
         data = packet.data
         expected = @pings[packet.request_id]

@@ -34,30 +34,6 @@ static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
   return SELECT_CLOSE_REMOVE;
 }
 
-/* This is called after the drivers are created, to kick things off. */
-static void handle_start(driver_console_t *driver)
-{
-  char *name = (driver->name) ? (driver->name) : "[unnamed console]";
-  message_options_t options[4];
-
-  if(driver->started)
-    return;
-  driver->started = TRUE;
-
-  options[0].name    = "name";
-  options[0].value.s = name;
-
-  options[1].name    = "download";
-  options[1].value.s = driver->download;
-
-  options[2].name    = "first_chunk";
-  options[2].value.i = driver->first_chunk;
-
-  options[3].name    = NULL;
-
-  driver->session_id = message_post_create_session(options);
-}
-
 static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)
 {
   size_t i;
@@ -66,45 +42,15 @@ static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t lengt
     fputc(data[i], stdout);
 }
 
-static void handle_config_int(driver_console_t *driver, char *name, int value)
-{
-  if(!strcmp(name, "chunk"))
-    driver->first_chunk = value;
-}
-
-static void handle_config_string(driver_console_t *driver, char *name, char *value)
-{
-  if(!strcmp(name, "name"))
-    driver->name = safe_strdup(value);
-  else if(!strcmp(name, "download"))
-    driver->download = safe_strdup(value);
-}
-
 static void handle_message(message_t *message, void *d)
 {
   driver_console_t *driver = (driver_console_t*) d;
 
   switch(message->type)
   {
-    case MESSAGE_START:
-      handle_start(driver);
-      break;
-
     case MESSAGE_DATA_IN:
       if(message->message.data_in.session_id == driver->session_id)
         handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
-      break;
-
-    case MESSAGE_CONFIG:
-      if(message->message.config.type == CONFIG_INT)
-        handle_config_int(driver, message->message.config.name, message->message.config.value.int_value);
-      else if(message->message.config.type == CONFIG_STRING)
-        handle_config_string(driver, message->message.config.name, message->message.config.value.string_value);
-      else
-      {
-        LOG_FATAL("Unknown");
-        abort();
-      }
       break;
 
     default:
@@ -113,10 +59,13 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-driver_console_t *driver_console_create(select_group_t *group)
+driver_console_t *driver_console_create(select_group_t *group, char *name, char *download, int first_chunk)
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
-  driver->started = FALSE;
+
+  driver->name        = name ? name : "[unnamed console]";
+  driver->download    = download;
+  driver->first_chunk = first_chunk;
 
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
@@ -133,9 +82,29 @@ driver_console_t *driver_console_create(select_group_t *group)
 #endif
 
   /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_START,           handle_message, driver);
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
-  message_subscribe(MESSAGE_CONFIG,          handle_message, driver);
+
+  message_options_t options[4];
+
+  options[0].name    = "name";
+  options[0].value.s = driver->name;
+
+  if(driver->download)
+  {
+    options[1].name    = "download";
+    options[1].value.s = driver->download;
+
+    options[2].name    = "first_chunk";
+    options[2].value.i = driver->first_chunk;
+  }
+  else
+  {
+    options[1].name = NULL;
+  }
+
+  options[3].name    = NULL;
+
+  driver->session_id = message_post_create_session(options);
 
   return driver;
 }

@@ -117,13 +117,6 @@ void message_post_config_string(char *name, char *value)
   message_destroy(message);
 }
 
-void message_post_start()
-{
-  message_t *message = message_create(MESSAGE_START);
-  message_post(message);
-  message_destroy(message);
-}
-
 void message_post_shutdown()
 {
   message_t *message = message_create(MESSAGE_SHUTDOWN);

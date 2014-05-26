@@ -53,6 +53,18 @@ driver_ping_t     *driver_ping     = NULL;
 /* Output drivers. */
 driver_dns_t     *driver_dns     = NULL;
 
+typedef enum {
+  TYPE_NOT_SET,
+
+  TYPE_CONSOLE,
+  TYPE_COMMAND,
+  TYPE_EXEC,
+  TYPE_LISTENER,
+  TYPE_PING,
+
+  TYPE_DNS,
+} drivers_t;
+
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
   message_post_heartbeat();
@@ -178,7 +190,6 @@ int main(int argc, char *argv[])
   int               option_index;
   const char       *option_name;
 
-  NBBOOL            input_set = FALSE;
   NBBOOL            output_set = FALSE;
 
   char             *name     = NULL;
@@ -186,6 +197,12 @@ int main(int argc, char *argv[])
   uint32_t          chunk    = -1;
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
+
+  drivers_t input_type = TYPE_NOT_SET;
+
+  char *exec_process = NULL;
+
+  int listen_port = 0;
 
   /* Initialize the modules that need initialization. */
   log_init();
@@ -230,11 +247,10 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "ping"))
         {
-          if(input_set)
+          if(input_type != TYPE_NOT_SET)
             usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
-          input_set = TRUE;
-          driver_ping = driver_ping_create(group);
+          input_type = TYPE_PING;
 
           /* Turn off logging, since this is a simple ping. */
           min_log_level++;
@@ -244,49 +260,45 @@ int main(int argc, char *argv[])
         /* Console-specific options. */
         else if(!strcmp(option_name, "stdin"))
         {
-          if(input_set)
+          if(input_type != TYPE_NOT_SET)
             usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
-          input_set = TRUE;
-          driver_console = driver_console_create(group);
+          input_type = TYPE_CONSOLE;
         }
 
         /* Command options. */
         else if(!strcmp(option_name, "command"))
         {
-          if(input_set)
+          if(input_type != TYPE_NOT_SET)
             usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
-          input_set = TRUE;
-          driver_command = driver_command_create(group);
+          input_type = TYPE_COMMAND;
         }
 
         /* Execute options. */
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
-          if(input_set)
+          if(input_type != TYPE_NOT_SET)
             usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
-          input_set = TRUE;
-          driver_exec = driver_exec_create(group, optarg);
+          exec_process = optarg;
+          input_type = TYPE_EXEC;
         }
 
         /* Listener options. */
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
-          if(input_set)
+          if(input_type != TYPE_NOT_SET)
             usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
 
-          input_set = TRUE;
-          driver_listener = driver_listener_create(group, "0.0.0.0", atoi(optarg));
+          listen_port = atoi(optarg);
+
+          input_type = TYPE_LISTENER;
         }
 
         /* DNS-specific options */
         else if(!strcmp(option_name, "dns"))
         {
-          if(output_set)
-            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
-
           output_set = TRUE;
           driver_dns = driver_dns_create(group, optarg);
         }
@@ -325,9 +337,57 @@ int main(int argc, char *argv[])
     }
   }
 
+  if(chunk != -1 && !download)
+  {
+    LOG_FATAL("--chunk can only be used with --download");
+    exit(1);
+  }
+
   /* If no input was created, default to console. */
-  if(!input_set)
-    driver_console = driver_console_create(group);
+  if(input_type == TYPE_NOT_SET)
+    input_type = TYPE_CONSOLE;
+
+  switch(input_type)
+  {
+    case TYPE_CONSOLE:
+      LOG_WARNING("INPUT: Console");
+      driver_console_create(group, name, download, chunk);
+      break;
+
+    case TYPE_COMMAND:
+      LOG_WARNING("INPUT: Command");
+      driver_command_create(group, name);
+      break;
+
+    case TYPE_EXEC:
+      LOG_WARNING("INPUT: Executing %s", driver_exec->process);
+
+      if(exec_process == NULL)
+        usage(argv[0], "--exec set without a port!");
+
+      driver_exec_create(group, exec_process, name);
+      break;
+
+    case TYPE_LISTENER:
+      LOG_WARNING("INPUT: Listening on port %d", driver_listener->port);
+      if(listen_port == 0)
+        usage(argv[0], "--listen set without a port!");
+
+      driver_listener = driver_listener_create(group, "0.0.0.0", listen_port, name);
+      break;
+
+    case TYPE_PING:
+      LOG_WARNING("INPUT: ping");
+      driver_ping = driver_ping_create(group);
+      break;
+
+    case TYPE_NOT_SET:
+      usage(argv[0], "You have to pick an input type!");
+      break;
+
+    default:
+      usage(argv[0], "Unknown type?");
+  }
 
   /* If no output was set, use the domain, and use the last option as the
    * domain. */
@@ -340,38 +400,6 @@ int main(int argc, char *argv[])
       exit(1);
     }
     driver_dns = driver_dns_create(group, argv[optind]);
-  }
-
-  if(chunk != -1 && !download)
-  {
-    LOG_FATAL("--chunk can only be used with --download");
-    exit(1);
-  }
-
-  if(driver_console)
-  {
-    LOG_WARNING("INPUT: Console");
-  }
-  else if(driver_command)
-  {
-    LOG_WARNING("INPUT: Command");
-  }
-  else if(driver_listener)
-  {
-    LOG_WARNING("INPUT: Listening on port %d", driver_listener->port);
-  }
-  else if(driver_exec)
-  {
-    LOG_WARNING("INPUT: Executing %s", driver_exec->process);
-  }
-  else if(driver_ping)
-  {
-    LOG_WARNING("INPUT: ping");
-  }
-  else
-  {
-    LOG_FATAL("INPUT: Ended up with an unknown input driver!");
-    exit(1);
   }
 
   if(driver_dns)
@@ -399,17 +427,6 @@ int main(int argc, char *argv[])
 
   /* Be sure we clean up at exit. */
   atexit(cleanup);
-
-  /* Set the name for the session */
-  if(name)
-    message_post_config_string("name", name);
-  if(download)
-    message_post_config_string("download", download);
-  if(chunk != 0xFFFFFFFF)
-    message_post_config_int("chunk", chunk);
-
-  /* Kick things off */
-  message_post_start();
 
   /* Add the timeout function */
   select_set_timeout(group, timeout, NULL);

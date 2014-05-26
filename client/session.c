@@ -260,11 +260,17 @@ static uint16_t handle_create_session(char *name, char *download, uint32_t first
 
   session->name = NULL;
   if(name)
+  {
     session->name = safe_strdup(name);
+    LOG_INFO("Setting session->name to %s", session->name);
+  }
 
   session->download = NULL;
   if(download)
+  {
     session->download = safe_strdup(download);
+    LOG_INFO("Setting session->download to %s", session->download);
+  }
 
   session->download_first_chunk   = first_chunk;
   session->download_current_chunk = first_chunk;

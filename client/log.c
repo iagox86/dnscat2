@@ -105,10 +105,6 @@ static void handle_message(message_t *message, void *d)
         LOG_WARNING("Setting config: %s => [unknown type]", message->message.config.name);
       break;
 
-    case MESSAGE_START:
-      LOG_WARNING("Dnscat starting");
-      break;
-
     case MESSAGE_SHUTDOWN:
       LOG_WARNING("Dnscat shutting down");
       break;
@@ -163,7 +159,6 @@ static void handle_message(message_t *message, void *d)
 void log_init()
 {
   message_subscribe(MESSAGE_CONFIG,           handle_message, NULL);
-  message_subscribe(MESSAGE_START,            handle_message, NULL);
   message_subscribe(MESSAGE_SHUTDOWN,         handle_message, NULL);
   message_subscribe(MESSAGE_CREATE_SESSION,   handle_message, NULL);
   message_subscribe(MESSAGE_SESSION_CREATED,  handle_message, NULL);

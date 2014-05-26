@@ -14,11 +14,9 @@ typedef struct
   uint16_t  session_id;
   command_packet_stream_t *stream;
   select_group_t *group;
-
-  NBBOOL started;
 } driver_command_t;
 
-driver_command_t  *driver_command_create(select_group_t *group);
+driver_command_t *driver_command_create(select_group_t *group, char *name);
 void               driver_command_destroy();
 
 #endif

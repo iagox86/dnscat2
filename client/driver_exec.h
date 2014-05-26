@@ -25,11 +25,9 @@ typedef struct
   int pipe_stdout[2];
   pid_t pid;
 #endif
-
-  NBBOOL started;
 } driver_exec_t;
 
-driver_exec_t *driver_exec_create(select_group_t *group, char *process);
+driver_exec_t *driver_exec_create(select_group_t *group, char *process, char *name);
 void           driver_exec_destroy();
 
 /* This can be used to start the driver without sending MESSAGE_START */
