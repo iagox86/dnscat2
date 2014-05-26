@@ -140,6 +140,7 @@ class UiSessionCommand < UiInterface
           puts("Unexpected ping response received")
         elsif(data == expected)
           puts("Ping response 0x%x received!" % packet.request_id)
+          @pings.delete(packet.request_id)
         else
           puts("Ping response 0x%x was invalid!" % packet.request_id)
         end
