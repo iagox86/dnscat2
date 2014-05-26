@@ -114,11 +114,6 @@ class Ui
     if(ui.nil?)
       ui = @command
     end
-    # If the session isn't active, don't switch to it
-    if(!ui.active?())
-      $stderr.puts("Sorry, that session is no longer alive :(")
-      return
-    end
 
     # If the ui isn't changing, don't
     if(ui == @ui)

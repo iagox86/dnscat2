@@ -78,12 +78,23 @@ class UiInterface
   end
 
   def attach()
+    $stdout.puts("\n" * 1000)
     restore_history()
     catch_suspend()
 
     $stdout.print(@history)
 
     @is_attached = true
+
+    if(!active?())
+      $stderr.puts()
+      $stderr.puts("Session is no longer active...")
+      $stderr.puts("Press <enter> to go back")
+      gets()
+      @ui.detach_session()
+    else
+      puts("SESSION IS ACTIVE")
+    end
   end
 
   def catch_suspend()
