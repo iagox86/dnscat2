@@ -31,7 +31,9 @@ static SELECT_RESPONSE_t exec_callback(void *group, int socket, uint8_t *data, s
 
 static SELECT_RESPONSE_t exec_closed_callback(void *group, int socket, void *d)
 {
-  message_post_shutdown();
+  driver_exec_t *driver = (driver_exec_t*) d;
+
+  message_post_close_session(driver->session_id);
 
   return SELECT_CLOSE_REMOVE;
 }

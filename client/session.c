@@ -236,6 +236,8 @@ static void handle_shutdown()
 {
   session_entry_t *entry;
 
+  LOG_WARNING("Received SHUTDOWN message!");
+
   is_shutdown = TRUE;
 
   for(entry = first_session; entry; entry = entry->next)
