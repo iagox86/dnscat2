@@ -322,31 +322,6 @@ class Ui
     ui.error("Bad acknowledgement number; expected 0x%04x, received 0x%04x" % received_ack, expected_ack)
   end
 
-  def dnscat2_msg(incoming, outgoing)
-  end
-
-  def dnscat2_fin(real_id, reason)
-#    # session_destroyed() will take care of this
-#    local_id = @local_ids[real_id]
-#
-#    session = get_ui_session(local_id)
-#    session.display("Session terminated: %s" % reason, '[ERROR]')
-#    SessionManager.kill_session(real_id)
-  end
-
-  # TODO: This doesn't work because I got rid of the send/recv messages
-#  def dnscat2_recv(packet)
-#    if(@options["packet_trace"])
-#      puts("IN: #{packet}")
-#    end
-#  end
-#
-#  def dnscat2_send(packet)
-#    if(@options["packet_trace"])
-#      puts("OUT: #{packet}")
-#    end
-#  end
-
   def log(level, message)
     # Handle the special case, before a level is set
     if(@options["log_level"].nil?)

@@ -12,6 +12,7 @@ Immediate needs:
 - Handle command sessions receiving bad data more gracefully on the client side
 - Have the client print out info when it has multiple simultaneous connections (and more info on non-interactive sessions in general)
 - Handle the case where the server asks the client to exec a bad program
+- Get rid of the error-specific callbacks and have a single 'session error' callback
 
 Cleanups:
 - Go through all the structs to figure out which members are no longer used

@@ -10,12 +10,14 @@ require 'command_packet_stream'
 require 'command_packet'
 require 'parser'
 require 'shellwords'
+require 'ui_handler'
 
 class UiSessionCommand < UiInterface
   attr_reader :session
   attr_reader :local_id
 
   include Parser
+  include UiHandler
 
   def kill_me()
     puts()
@@ -142,22 +144,23 @@ class UiSessionCommand < UiInterface
         puts()
         puts(self.to_s)
 
-        @sessions.each do |session|
-          if(opts[:all] || session.active?)
-            puts("> %s" % session.to_s())
+        each_child_ui do |ui|
+          if(opts[:all] || ui.active?)
+            puts("> %s" % ui.to_s())
           end
         end
 
-        if(opts[:all] && @pending_sessions.length > 0)
+        if(opts[:all] && pending_count() > 0)
           puts()
-          puts("We also have %d pending sessions" % @pending_sessions.length)
+          puts("We also have %d pending sessions" % pending_count())
         end
       end,
     )
   end
 
   def initialize(local_id, session, ui)
-    super("dnscat [command: #{local_id}]> ")
+    super()
+    set_prompt("dnscat [command: #{local_id}]> ")
 
     @local_id = local_id
     @session  = session
@@ -165,9 +168,6 @@ class UiSessionCommand < UiInterface
     @stream = CommandPacketStream.new()
     @command_id = 0x0001
     @pings = {}
-
-    @sessions = []
-    @pending_sessions = {}
 
     register_commands()
 
@@ -190,7 +190,7 @@ class UiSessionCommand < UiInterface
   # Handles any response that contains a new session id (shell and exec, initially)
   def handle_session_response(packet)
     # Globally create the session
-    @pending_sessions[packet.session_id] = true
+    add_pending(packet.session_id)
   end
 
   def handle_shell_response(packet)
@@ -199,15 +199,6 @@ class UiSessionCommand < UiInterface
 
   def handle_exec_response(packet)
     handle_session_response(packet)
-  end
-
-  # Callback
-  def ui_created(ui, local_id, real_id)
-    if(!@pending_sessions[real_id].nil?)
-      output("Child session established: %d" % local_id)
-      @pending_sessions.delete(real_id)
-      @sessions << ui
-    end
   end
 
   def feed(data)

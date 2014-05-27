@@ -5,14 +5,18 @@
 require 'shellwords'
 
 module Parser
-  def initialize(prompt)
+  def initialize()
     super()
 
-    @prompt = prompt
+    @prompt = ""
     @commands = {}
     @aliases = {}
 
     register_command("", Trollop::Parser.new do end, Proc.new do end)
+  end
+
+  def set_prompt(prompt)
+    @prompt = prompt
   end
 
   def register_command(command, parser, func)
