@@ -16,6 +16,8 @@ class UiInterface
     @last_seen = Time.now()
 
     @history = ""
+
+    @pending_sessions = {}
   end
 
   def save_history()

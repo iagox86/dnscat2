@@ -183,7 +183,7 @@ class CommandPacket
       elsif(@command_id == COMMAND_SHELL)
         return "COMMAND_SHELL :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
       elsif(@command_id == COMMAND_EXEC)
-        return "COMMAND_EXEC  :: request_id = 0x%04x, name = %s, command = %s" % [@request_id, @name, @command]
+        return "COMMAND_EXEC  :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
       elsif(@command_id == COMMAND_ERROR)
         return "COMMAND_ERROR :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
       else

@@ -97,7 +97,7 @@ class UiSessionCommand < UiInterface
       Proc.new do |opts|
         packet = CommandPacket.create_shell_request(command_id(), opts[:name])
         @session.queue_outgoing(packet)
-        puts("Shell request to execute a shell")
+        puts("Sent request to execute a shell")
       end,
     )
 

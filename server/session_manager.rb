@@ -17,13 +17,6 @@ class SessionManager
   @@subscribers = []
   @@sessions = {}
 
-  attr_reader :id, :state, :their_seq, :my_seq
-  attr_reader :name
-
-  # Session states
-  STATE_NEW         = 0x00
-  STATE_ESTABLISHED = 0x01
-
   def SessionManager.create_session(id)
     session = Session.new(id)
     session.subscribe(@@subscribers)
@@ -59,11 +52,6 @@ class SessionManager
 
   def SessionManager.destroy()
     Log.ERROR("TODO: Implement destroy()")
-    #Session.destroy(@id)
-  end
-
-  def to_s()
-    return "id: 0x%04x, state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
   def SessionManager.handle_syn(packet)
