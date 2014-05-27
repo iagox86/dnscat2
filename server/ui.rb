@@ -6,11 +6,15 @@
 
 require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
+
+require 'subscribable'
 require 'ui_command'
 require 'ui_session_command'
 require 'ui_session_interactive'
 
 class Ui
+  include Subscribable
+
   def initialize()
     @options = {}
     @thread = Thread.current()
@@ -222,8 +226,10 @@ class Ui
     # Create a new UI
     if(session.is_command)
       ui = UiSessionCommand.new(local_id, session, self)
+      self.subscribe(ui)
     else
       ui = UiSessionInteractive.new(local_id, session, self)
+      self.subscribe(ui)
     end
 
     # Save it in both important lists
@@ -232,6 +238,8 @@ class Ui
 
     # Tell the command window
     @command.output("New session established: #{local_id}")
+
+    notify_subscribers(:ui_created, [ui, local_id, real_id])
   end
 
   def session_data_received(real_id, data)

@@ -26,14 +26,14 @@ class UiSessionInteractive < UiInterface
     if(active?())
       idle = Time.now() - @last_seen
       if(idle > 60)
-        return "session %5d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
+        return "session %d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
       elsif(idle > 5)
-        return "session %5d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
+        return "session %d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
       else
-        return "session %5d :: %s" % [@local_id, @session.name]
+        return "session %d :: %s" % [@local_id, @session.name]
       end
     else
-      return "session %5d :: %s :: [closed]" % [@local_id, @session.name]
+      return "session %d :: %s :: [closed]" % [@local_id, @session.name]
     end
   end
 

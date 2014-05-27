@@ -21,6 +21,8 @@ class SessionManager
     session = Session.new(id)
     session.subscribe(@@subscribers)
     @@sessions[id] = session
+
+    return session
   end
 
   def SessionManager.subscribe(cls)

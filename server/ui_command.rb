@@ -69,12 +69,12 @@ class UiCommand < UiInterface
     register_command('sessions',
       Trollop::Parser.new do
         banner("Lists the current active sessions")
-        opt :a, "Show dead sessions", :type => :boolean, :required => false
+        opt :all, "Show dead sessions", :type => :boolean, :required => false
       end,
 
       Proc.new do |opts, optval|
         puts("Sessions:")
-        do_show_sessions(opts[:a])
+        do_show_sessions(opts[:all])
       end,
     )
 

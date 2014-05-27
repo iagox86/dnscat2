@@ -13,10 +13,12 @@ require 'shellwords'
 
 class UiSessionCommand < UiInterface
   attr_reader :session
+  attr_reader :local_id
 
   include Parser
 
   def kill_me()
+    puts()
     puts("Are you sure you want to kill this session? [Y/n]")
     if($stdin.gets[0].downcase == 'n')
       puts("You might want to use ^z or the 'suspend' command")
@@ -52,6 +54,7 @@ class UiSessionCommand < UiInterface
       end,
 
       Proc.new do |opts|
+        puts()
         puts("Available session commands:")
         @commands.keys.sort.each do |name|
           # Don't display the empty command
@@ -69,7 +72,7 @@ class UiSessionCommand < UiInterface
         banner("Clears the display")
       end,
       Proc.new do |opts|
-        0.upto(1000) do puts() end
+        0.upto(100) do puts() end
       end,
     )
 
@@ -128,6 +131,29 @@ class UiSessionCommand < UiInterface
       end,
     )
 
+    register_command('sessions',
+      Trollop::Parser.new do
+        banner("Lists the current active sessions managed by this session")
+        opt :all, "Show dead sessions", :type => :boolean, :required => false
+      end,
+
+      Proc.new do |opts, optval|
+        puts("Sessions:")
+        puts()
+        puts(self.to_s)
+
+        @sessions.each do |session|
+          if(opts[:all] || session.active?)
+            puts("> %s" % session.to_s())
+          end
+        end
+
+        if(opts[:all] && @pending_sessions.length > 0)
+          puts()
+          puts("We also have %d pending sessions" % @pending_sessions.length)
+        end
+      end,
+    )
   end
 
   def initialize(local_id, session, ui)
@@ -140,27 +166,64 @@ class UiSessionCommand < UiInterface
     @command_id = 0x0001
     @pings = {}
 
+    @sessions = []
+    @pending_sessions = {}
+
     register_commands()
 
     puts("Welcome to a command session! Use 'help' for a list of commands or ^z for the main menu")
   end
 
+  def handle_ping_response(packet)
+    data = packet.data
+    expected = @pings[packet.request_id]
+    if(expected.nil?)
+      puts("Unexpected ping response received")
+    elsif(data == expected)
+      puts("Ping response 0x%x received!" % packet.request_id)
+      @pings.delete(packet.request_id)
+    else
+      puts("Ping response 0x%x was invalid!" % packet.request_id)
+    end
+  end
+
+  # Handles any response that contains a new session id (shell and exec, initially)
+  def handle_session_response(packet)
+    # Globally create the session
+    @pending_sessions[packet.session_id] = true
+  end
+
+  def handle_shell_response(packet)
+    handle_session_response(packet)
+  end
+
+  def handle_exec_response(packet)
+    handle_session_response(packet)
+  end
+
+  # Callback
+  def ui_created(ui, local_id, real_id)
+    if(!@pending_sessions[real_id].nil?)
+      output("Child session established: %d" % local_id)
+      @pending_sessions.delete(real_id)
+      @sessions << ui
+    end
+  end
+
   def feed(data)
     @stream.feed(data, false) do |packet|
-      puts(packet)
-      if(packet.command_id == CommandPacket::COMMAND_PING && packet.is_response?())
-        data = packet.data
-        expected = @pings[packet.request_id]
-        if(expected.nil?)
-          puts("Unexpected ping response received")
-        elsif(data == expected)
-          puts("Ping response 0x%x received!" % packet.request_id)
-          @pings.delete(packet.request_id)
+      if(packet.is_response?())
+        if(packet.command_id == CommandPacket::COMMAND_PING)
+          handle_ping_response(packet)
+        elsif(packet.command_id == CommandPacket::COMMAND_SHELL)
+          handle_shell_response(packet)
+        elsif(packet.command_id == CommandPacket::COMMAND_EXEC)
+          handle_exec_response(packet)
         else
-          puts("Ping response 0x%x was invalid!" % packet.request_id)
+          output("Didn't know how to handle command packet: %s" % packet.to_s)
         end
       else
-        puts("Didn't know how to handle command packet: %s" % packet.to_s)
+        raise(DnscatException, "We got a command request packet somehow")
       end
     end
   end
@@ -187,14 +250,14 @@ class UiSessionCommand < UiInterface
     if(active?())
       idle = Time.now() - @last_seen
       if(idle > 60)
-        return "session %5d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
+        return "session %d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
       elsif(idle > 5)
-        return "session %5d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
+        return "session %d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
       else
-        return "session %5d :: %s" % [@local_id, @session.name]
+        return "session %d :: %s" % [@local_id, @session.name]
       end
     else
-      return "session %5d :: %s :: [closed]" % [@local_id, @session.name]
+      return "session %d :: %s :: [closed]" % [@local_id, @session.name]
     end
   end
 
