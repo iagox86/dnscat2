@@ -16,16 +16,11 @@ class UiSessionCommand < UiInterface
 
   include Parser
 
-  ALIASES = {
-    "q"       => "quit",
-    "exit"    => "quit",
-    "run"     => "exec",
-    "execute" => "exec",
-  }
-
   def kill_me()
     puts("Are you sure you want to kill this session? [Y/n]")
-    if($stdin.gets[0].downcase != 'n')
+    if($stdin.gets[0].downcase == 'n')
+      puts("You might want to use ^z or the 'suspend' command")
+    else
       @ui.kill_session(@local_id)
       @ui.detach_session()
     end
@@ -37,6 +32,9 @@ class UiSessionCommand < UiInterface
     register_alias('exit',    'quit')
     register_alias('run',     'exec')
     register_alias('execute', 'exec')
+    register_alias('up',      'suspend')
+    register_alias('back',    'suspend')
+    register_alias('pause',   'suspend')
 
     register_command("quit",
       Trollop::Parser.new do
@@ -119,6 +117,17 @@ class UiSessionCommand < UiInterface
         puts("Sent request to execute #{opts[:command]}")
       end,
     )
+
+    register_command("suspend",
+      Trollop::Parser.new do
+        banner("Go back to the main menu")
+      end,
+
+      Proc.new do |opts, optarg|
+        @ui.detach_session()
+      end,
+    )
+
   end
 
   def initialize(local_id, session, ui)
@@ -132,6 +141,8 @@ class UiSessionCommand < UiInterface
     @pings = {}
 
     register_commands()
+
+    puts("Welcome to a command session! Use 'help' for a list of commands or ^z for the main menu")
   end
 
   def feed(data)

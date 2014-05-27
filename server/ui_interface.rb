@@ -92,8 +92,6 @@ class UiInterface
       $stderr.puts("Press <enter> to go back")
       gets()
       @ui.detach_session()
-    else
-      puts("SESSION IS ACTIVE")
     end
   end
 
