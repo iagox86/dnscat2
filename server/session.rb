@@ -112,7 +112,7 @@ class Session
   def handle_syn(packet)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!syn_valid?())
-      notify_subscribers(:dnscat2_state_error, [@id, "SYN received in invalid state"])
+      notify_subscribers(:dnscat2_session_error, [@id, "SYN received in invalid state"])
       return nil
     end
 
@@ -128,8 +128,7 @@ class Session
     # Make sure options are sane
     if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD &&
        (@options & Packet::OPT_DOWNLOAD) == 0)
-      notify_subscribers(:dnscat2_bad_options, ["OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD"])
-      Log.ERROR("OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD")
+      notify_subscribers(:dnscat2_session_error, [@id, "Error in client options: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD"])
       return Packet.create_fin(@id, "ERROR: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD", @options)
     end
 
@@ -165,7 +164,7 @@ class Session
   def handle_msg_normal(packet, max_length)
     # Validate the sequence number
     if(@their_seq != packet.seq)
-      notify_subscribers(:dnscat2_msg_bad_seq, [@their_seq, packet.seq])
+      notify_subscribers(:dnscat2_session_error, [@id, "Bad sequence number: expected 0x%04x, received 0x%04x" % [@their_seq, packet.seq]])
 
       # Re-send the last packet
       old_data = next_outgoing(max_length - Packet.msg_header_size(@options))
@@ -174,7 +173,7 @@ class Session
 
     # Validate the acknowledgement number
     if(!valid_ack?(packet.ack))
-      notify_subscribers(:dnscat2_msg_bad_ack, [@my_seq, packet.ack])
+      notify_subscribers(:dnscat2_session_error, [@id, "Bad acknowledgement number: expected 0x%04x, received 0x%04x" % [@my_seq, packet.ack]])
 
       # Re-send the last packet
       old_data = next_outgoing(max_length - Packet.msg_header_size(@options))
@@ -218,7 +217,7 @@ class Session
 
   def handle_msg(packet, max_length)
     if(!msg_valid?())
-      notify_subscribers(:dnscat2_state_error, [@id, "MSG received in invalid state; sending FIN"])
+      notify_subscribers(:dnscat2_session_error, [@id, "MSG received in invalid state; sending FIN"])
 
       # Kill the session as well - in case it exists
       SessionManager.kill_session(@id)
@@ -243,7 +242,7 @@ class Session
   def handle_fin(packet)
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!fin_valid?())
-      notify_subscribers(:dnscat2_state_error, [@id, "FIN received in invalid state"])
+      notify_subscribers(:dnscat2_session_error, [@id, "FIN received in invalid state"])
       return Packet.create_fin(@id, "FIN not expected", @options)
     end
 

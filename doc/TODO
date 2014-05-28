@@ -14,6 +14,7 @@ Immediate needs:
 - Handle the case where the server asks the client to exec a bad program
 - Get rid of the error-specific callbacks and have a single 'session error' callback
 - See if we can change the buffering on the server's input
+- Make some sort of indication when a session has queued data that we haven't seen
 
 Cleanups:
 - Go through all the structs to figure out which members are no longer used

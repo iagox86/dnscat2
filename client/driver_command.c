@@ -93,7 +93,8 @@ driver_command_t *driver_command_create(select_group_t *group, char *name)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
-  driver->name = name ? name : "[unnamed command]";
+  /* TODO: Find a way to name this using uname or the hostname or something. */
+  driver->name = name ? name : "command session";
 
   driver->stream = command_packet_stream_create(TRUE);
   driver->group = group;

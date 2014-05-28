@@ -300,6 +300,7 @@ class Ui
     return true
   end
 
+  # Callback
   def session_heartbeat(real_id)
     ui = @uis_by_real_id[real_id]
     if(ui.nil?)
@@ -308,7 +309,8 @@ class Ui
     ui.heartbeat()
   end
 
-  def dnscat2_state_error(real_id, message)
+  # Callback
+  def dnscat2_session_error(real_id, message)
     ui = @uis_by_real_id[real_id]
     if(ui.nil?)
       raise(DnscatException, "Couldn't find session: #{real_id}")
@@ -316,25 +318,7 @@ class Ui
     ui.error(message)
   end
 
-  def dnscat2_syn_received(real_id, my_seq, their_seq)
-  end
-
-  def dnscat2_msg_bad_seq(expected_seq, received_seq)
-    ui = @uis_by_real_id[real_id]
-    if(ui.nil?)
-      raise(DnscatException, "Couldn't find session: #{real_id}")
-    end
-    ui.error("Bad sequence number; expected 0x%04x, received 0x%04x" % received_seq, expected_seq)
-  end
-
-  def dnscat2_msg_bad_ack(expected_ack, received_ack)
-    ui = @uis_by_real_id[real_id]
-    if(ui.nil?)
-      raise(DnscatException, "Couldn't find session: #{real_id}")
-    end
-    ui.error("Bad acknowledgement number; expected 0x%04x, received 0x%04x" % received_ack, expected_ack)
-  end
-
+  # Callback
   def log(level, message)
     # Handle the special case, before a level is set
     if(@options["log_level"].nil?)
