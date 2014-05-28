@@ -96,11 +96,13 @@ class UiSessionCommand < UiInterface
     register_command("shell",
       Trollop::Parser.new do
         banner("Spawn a shell on the remote host")
-        opt :name, "Name", :type => :string, :required => false, :default => "unnamed"
+        opt :name, "Name", :type => :string, :required => false, :default => nil
       end,
 
       Proc.new do |opts|
-        packet = CommandPacket.create_shell_request(command_id(), opts[:name])
+        name = opts[:name] || "executing a shell"
+
+        packet = CommandPacket.create_shell_request(command_id(), name)
         @session.queue_outgoing(packet)
         puts("Sent request to execute a shell")
       end,
@@ -108,18 +110,22 @@ class UiSessionCommand < UiInterface
 
     register_command("exec",
       Trollop::Parser.new do
-        banner("Spawn a shell on the remote host, which will start a new session")
+        banner("Execute a program on the remote host")
         opt :command, "Command", :type => :string, :required => false, :default => nil
-        opt :name,    "Name",    :type => :string, :required => false, :default => "unnamed"
+        opt :name,    "Name",    :type => :string, :required => false, :default => nil
       end,
 
       Proc.new do |opts, optarg|
-        command = opts[:command].nil?() ? optarg  : opts[:command]
-        name    = opts[:name].nil?()    ? command : opts[:name]
+        command = opts[:command] || optarg
+        name    = opts[:name]    || ("executing %s" % command)
 
-        packet = CommandPacket.create_exec_request(command_id(), name, command)
-        @session.queue_outgoing(packet)
-        puts("Sent request to execute #{opts[:command]}")
+        if(command == "")
+          puts("No command given!")
+        else
+          packet = CommandPacket.create_exec_request(command_id(), name, command)
+          @session.queue_outgoing(packet)
+          puts("Sent request to execute #{opts[:command]}")
+        end
       end,
     )
 
