@@ -71,8 +71,7 @@ class UiCommand < UiInterface
       end,
 
       Proc.new do |opts, optval|
-        puts("Sessions:")
-        do_show_sessions(opts[:all])
+        display_uis(opts[:all])
       end,
     )
 
@@ -86,15 +85,15 @@ class UiCommand < UiInterface
       Proc.new do |opts, optval|
         if(opts[:l])
           puts("Known sessions:")
-          do_show_sessions()
+          display_uis(false)
         elsif(opts[:i].nil?)
           puts("Known sessions:")
-          do_show_sessions()
+          display_uis(false)
         else
           ui = @ui.get_by_local_id(opts[:i])
           if(ui.nil?)
             error("Session #{opts[:i]} not found!")
-            do_show_sessions()
+            display_uis(false)
           else
             @ui.attach_session(ui)
           end
@@ -167,14 +166,6 @@ class UiCommand < UiInterface
     end
   end
 
-  def do_show_sessions(all = false)
-    @ui.each_ui do |local_id, session|
-      if(all || session.active?)
-        puts(session.to_s())
-      end
-    end
-  end
-
   def initialize(ui)
     super()
 
@@ -189,7 +180,7 @@ class UiCommand < UiInterface
   end
 
   def to_s()
-    return "Command window"
+    return "command window"
   end
 
   def destroy()

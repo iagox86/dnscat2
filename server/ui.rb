@@ -238,10 +238,21 @@ class Ui
     @uis_by_local_id[local_id] = ui
     @uis_by_real_id[real_id]   = ui
 
-    # Tell the command window
-    @command.output("New session established: #{local_id}")
-
+    # Let all the other sessions know that this one was created
     notify_subscribers(:ui_created, [ui, local_id, real_id])
+
+    # If nobody else has claimed it, bequeath it to the root (command) ui
+    if(ui.parent.nil?)
+      ui.parent = @command
+
+      # Since the @command window has no way to know that it's supposed to have
+      # this session, add it manually
+      @command.ui_created(ui, local_id, real_id, true)
+    else
+      ui.parent.output("New session established: #{local_id}")
+    end
+
+    @command.output("New session established: #{local_id}")
   end
 
   def session_data_received(real_id, data)

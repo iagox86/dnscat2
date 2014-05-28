@@ -7,6 +7,8 @@
 ##
 
 class UiInterface
+  attr_accessor :parent
+
   def initialize()
     @readline_history = []
 
@@ -18,6 +20,8 @@ class UiInterface
     @history = ""
 
     @pending_sessions = {}
+
+    @parent = nil
   end
 
   def save_history()

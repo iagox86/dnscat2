@@ -13,11 +13,11 @@ module UiHandler
   end
 
   # Callback
-  def ui_created(ui, local_id, real_id)
-    if(@pending[real_id])
+  def ui_created(ui, local_id, real_id, force = false)
+    if(force || @pending[real_id])
       @pending.delete(real_id)
       @uis << ui
-      output("Child session established: %d" % local_id)
+      ui.parent = self
     end
   end
 
@@ -31,20 +31,21 @@ module UiHandler
     end
   end
 
-  def display_uis(all, indent = "")
-    puts(self.to_s)
+  def display_uis(all, where = self, indent = "")
+    where.puts(indent + self.to_s)
     indent += " "
     each_child_ui() do |ui|
       if(all || ui.active?)
-        puts(indent + ui.to_s)
         if(ui.respond_to?(:display_uis))
-          ui.display_uis(indent + " ")
+          ui.display_uis(all, where, indent + " ")
+        else
+          where.puts(indent + ui.to_s)
         end
       end
 
       if(all && pending_count() > 0)
-        puts()
-        puts("We also have %d pending sessions" % pending_count())
+        where.puts()
+        where.puts("We also have %d pending sessions" % pending_count())
       end
     end
   end
