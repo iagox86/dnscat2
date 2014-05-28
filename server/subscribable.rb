@@ -7,7 +7,9 @@
 ##
 
 module Subscribable
-  @subscribers = []
+  def initialize_subscribables()
+    @subscribers = []
+  end
 
   # Begin subscriber stuff (this should be in a mixin, but static stuff doesn't
   # really seem to work

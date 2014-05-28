@@ -37,6 +37,8 @@ class Ui
 
     # Lets us have multiple 'attached' sessions
     @ui_history = []
+
+    initialize_subscribables()
   end
 
   class UiWakeup < Exception

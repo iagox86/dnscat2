@@ -48,6 +48,7 @@ class Session
     @outgoing_data = ''
     @name = ''
 
+    initialize_subscribables()
     notify_subscribers(:session_created, [@id])
   end
 

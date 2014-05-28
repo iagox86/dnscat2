@@ -76,7 +76,7 @@ class Log
   private
 
   def initialize()
-
+    initialize_subscribables()
   end
 end
 

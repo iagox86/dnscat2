@@ -160,7 +160,9 @@ class UiSessionCommand < UiInterface
 
   def initialize(local_id, session, ui)
     super()
-    set_prompt("dnscat [command: #{local_id}]> ")
+
+    initialize_parser("dnscat [command: #{local_id}]> ")
+    initialize_ui_handler()
 
     @local_id = local_id
     @session  = session

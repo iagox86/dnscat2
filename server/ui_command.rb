@@ -179,7 +179,8 @@ class UiCommand < UiInterface
 
   def initialize(ui)
     super()
-    set_prompt("dnscat2> ")
+
+    initialize_parser("dnscat2> ")
     @ui = ui
     register_commands()
   end

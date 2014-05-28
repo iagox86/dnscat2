@@ -3,9 +3,7 @@
 # Created May, 2014
 
 module UiHandler
-  def initialize()
-    super
-
+  def initialize_ui_handler()
     @pending = {}
     @uis = []
   end
