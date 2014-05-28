@@ -113,12 +113,10 @@ void usage(char *name, char *message)
 " --ping                  Attempt to ping a dnscat2 server\n"
 "\n"
 "Input options:\n"
-" --console --stdin       Send/receive output to the console [default]\n"
+" --console               Send/receive output to the console\n"
 " --exec -e <process>     Execute the given process and link it to the stream\n"
 " --listen -l <port>      Listen on the given port and link each connection to\n"
 "                         a new stream\n"
-" --command               Use the experimental \"command\" protocol (will\n"
-"                         likely become the default eventually).\n"
 "\n"
 "DNS-specific options:\n"
 " --dns <domain>          Enable DNS mode with the given domain\n"
@@ -130,11 +128,16 @@ void usage(char *name, char *message)
 " -d                      Display more debug info (can be used multiple times)\n"
 " -q                      Display less debug info (can be used multiple times)\n"
 "\n"
-"%s\n"
+"ERROR: %s\n"
 "\n"
 , name, dns_get_system(), message
 );
   exit(0);
+}
+
+void too_many_inputs(char *name)
+{
+  usage(name, "More than one of --exec, --console, --listen, and --ping can't be set!");
 }
 
 int main(int argc, char *argv[])
@@ -153,11 +156,7 @@ int main(int argc, char *argv[])
     {"ping",    no_argument,       0, 0}, /* Ping */
 
     /* Console options. */
-    {"stdin",   no_argument,       0, 0}, /* Enable console (default) */
-    {"console", no_argument,       0, 0}, /* (alias) */
-
-    /* Command options. */
-    {"command", no_argument,       0, 0}, /* Enable Command */
+    {"console", no_argument,       0, 0}, /* Enable console (default) */
 
     /* Execute-specific options. */
     {"exec",    required_argument, 0, 0}, /* Enable execute */
@@ -248,7 +247,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "ping"))
         {
           if(input_type != TYPE_NOT_SET)
-            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
+            too_many_inputs(argv[0]);
 
           input_type = TYPE_PING;
 
@@ -258,28 +257,19 @@ int main(int argc, char *argv[])
         }
 
         /* Console-specific options. */
-        else if(!strcmp(option_name, "stdin"))
+        else if(!strcmp(option_name, "console"))
         {
           if(input_type != TYPE_NOT_SET)
-            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
+            too_many_inputs(argv[0]);
 
           input_type = TYPE_CONSOLE;
-        }
-
-        /* Command options. */
-        else if(!strcmp(option_name, "command"))
-        {
-          if(input_type != TYPE_NOT_SET)
-            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
-
-          input_type = TYPE_COMMAND;
         }
 
         /* Execute options. */
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
           if(input_type != TYPE_NOT_SET)
-            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
+            too_many_inputs(argv[0]);
 
           exec_process = optarg;
           input_type = TYPE_EXEC;
@@ -289,7 +279,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
           if(input_type != TYPE_NOT_SET)
-            usage(argv[0], "More than one of --command, --exec, --stdin, --listen, and --ping can't be set!");
+            too_many_inputs(argv[0]);
 
           listen_port = atoi(optarg);
 
@@ -332,7 +322,7 @@ int main(int argc, char *argv[])
 
       case '?':
       default:
-        /* Do nothing; we expect some unknown arguments. */
+        usage(argv[0], "Unrecognized argument");
         break;
     }
   }
@@ -343,9 +333,9 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  /* If no input was created, default to console. */
+  /* If no input was created, default to command. */
   if(input_type == TYPE_NOT_SET)
-    input_type = TYPE_CONSOLE;
+    input_type = TYPE_COMMAND;
 
   switch(input_type)
   {
