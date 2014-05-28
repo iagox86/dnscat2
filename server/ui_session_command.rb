@@ -142,18 +142,7 @@ class UiSessionCommand < UiInterface
       Proc.new do |opts, optval|
         puts("Sessions:")
         puts()
-        puts(self.to_s)
-
-        each_child_ui do |ui|
-          if(opts[:all] || ui.active?)
-            puts("> %s" % ui.to_s())
-          end
-        end
-
-        if(opts[:all] && pending_count() > 0)
-          puts()
-          puts("We also have %d pending sessions" % pending_count())
-        end
+        display_uis(opts[:all])
       end,
     )
   end

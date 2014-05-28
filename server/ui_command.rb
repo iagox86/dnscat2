@@ -2,18 +2,16 @@
 # By Ron Bowes
 # Created July 4, 2013
 
-require 'parser'
 require 'readline'
-require 'ui_interface'
 require 'shellwords'
+
+require 'parser'
+require 'ui_handler'
+require 'ui_interface'
 
 class UiCommand < UiInterface
   include Parser
-
-  ALIASES = {
-    "q"    => "quit",
-    "exit" => "quit",
-  }
+  include UiHandler
 
   def register_commands()
     register_alias('q',    'quit')
@@ -180,6 +178,7 @@ class UiCommand < UiInterface
   def initialize(ui)
     super()
 
+    initialize_ui_handler()
     initialize_parser("dnscat2> ")
     @ui = ui
     register_commands()

@@ -30,4 +30,22 @@ module UiHandler
       yield(ui)
     end
   end
+
+  def display_uis(all, indent = "")
+    puts(self.to_s)
+    indent += " "
+    each_child_ui() do |ui|
+      if(all || ui.active?)
+        puts(indent + ui.to_s)
+        if(ui.respond_to?(:display_uis))
+          ui.display_uis(indent + " ")
+        end
+      end
+
+      if(all && pending_count() > 0)
+        puts()
+        puts("We also have %d pending sessions" % pending_count())
+      end
+    end
+  end
 end
