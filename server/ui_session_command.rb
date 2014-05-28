@@ -151,6 +151,28 @@ class UiSessionCommand < UiInterface
         display_uis(opts[:all])
       end,
     )
+
+    register_command("session",
+      Trollop::Parser.new do
+        banner("Interact with a session")
+        opt :i, "Interact with the chosen session", :type => :integer, :required => false
+      end,
+
+      Proc.new do |opts, optval|
+        if(opts[:i].nil?)
+          puts("Known sessions:")
+          display_uis(false)
+        else
+          ui = @ui.get_by_local_id(opts[:i])
+          if(ui.nil?)
+            error("Session #{opts[:i]} not found!")
+            display_uis(false)
+          else
+            @ui.attach_session(ui)
+          end
+        end
+      end
+    )
   end
 
   def initialize(local_id, session, ui)

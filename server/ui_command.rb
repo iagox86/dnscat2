@@ -77,16 +77,12 @@ class UiCommand < UiInterface
 
     register_command("session",
       Trollop::Parser.new do
-        banner("Handle interactions with a particular session (when in interactive mode, use ctrl-z to return to dnscat2)")
+        banner("Interact with a session")
         opt :i, "Interact with the chosen session", :type => :integer, :required => false
-        opt :l, "List sessions"
       end,
 
       Proc.new do |opts, optval|
-        if(opts[:l])
-          puts("Known sessions:")
-          display_uis(false)
-        elsif(opts[:i].nil?)
+        if(opts[:i].nil?)
           puts("Known sessions:")
           display_uis(false)
         else
