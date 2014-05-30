@@ -16,7 +16,6 @@ Immediate needs:
 - Make some sort of indication when a session has queued data that we haven't seen
 
 Crashes:
-- Unmatched quotes
 - "Kill everyone"
 
 Cleanups:

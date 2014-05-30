@@ -3,7 +3,6 @@
 # Created July 4, 2013
 
 require 'readline'
-require 'shellwords'
 
 require 'parser'
 require 'ui_handler'

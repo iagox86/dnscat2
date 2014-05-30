@@ -9,7 +9,6 @@
 require 'command_packet_stream'
 require 'command_packet'
 require 'parser'
-require 'shellwords'
 require 'ui_handler'
 
 class UiSessionCommand < UiInterface

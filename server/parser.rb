@@ -25,18 +25,18 @@ module Parser
   end
 
   def process_line(line)
-    split = line.split(/ /, 2)
+    begin
+      args = Shellwords.shellwords(line)
+    rescue Exception => e
+      error("Parse failed: #{e}")
+      return
+    end
 
-    if(split.length > 0)
-      command = split.shift
-      if(split.length > 0)
-        args = Shellwords.shellwords(split.shift)
-      else
-        args = ""
-      end
+    if(args.length > 0)
+      command = args.shift
     else
       command = ""
-      args = ""
+      args = []
     end
 
     if(@aliases[command])
