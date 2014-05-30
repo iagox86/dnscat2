@@ -15,6 +15,10 @@ Immediate needs:
 - See if we can change the buffering on the server's input
 - Make some sort of indication when a session has queued data that we haven't seen
 
+Crashes:
+- Unmatched quotes
+- "Kill everyone"
+
 Cleanups:
 - Go through all the structs to figure out which members are no longer used
 - Go through and try to initialize all pointers to NULL
