@@ -192,10 +192,6 @@ class UiCommand < UiInterface
   end
 
   def error(str)
-    puts()
-    puts("ERROR: %s" % str)
-    if(attached?())
-      print(">> ")
-    end
+    puts("%s" % str)
   end
 end

@@ -75,8 +75,7 @@ class UiSessionInteractive < UiInterface
   end
 
   def error(str)
-    puts("")
-    puts("ERROR: #{str}")
+    puts("#{str}")
   end
 
   def ack(data)

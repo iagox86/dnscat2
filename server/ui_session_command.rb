@@ -247,12 +247,7 @@ class UiSessionCommand < UiInterface
   end
 
   def error(str)
-    puts()
-    puts("ERROR: %s" % str)
-
-    if(attached?())
-      print(">> ")
-    end
+    puts("%s" % str)
   end
 
   def to_s()

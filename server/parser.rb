@@ -77,6 +77,11 @@ module Parser
     end
 
     # Otherwise, process the line
-    process_line(line)
+    begin
+      process_line(line)
+    rescue Exception => e
+      error("There was an error processing the line: #{e}")
+      error("If you think it was my fault, please submit a bug report!")
+    end
   end
 end
