@@ -14,6 +14,7 @@ class UiInterface
 
     @is_active = true
     @is_attached = false
+    @activity = false
 
     @last_seen = Time.now()
 
@@ -43,6 +44,8 @@ class UiInterface
   def print(data)
     if(@is_attached)
       $stdout.print(data)
+    else
+      @activity = true
     end
     @history += data
   end
@@ -50,6 +53,8 @@ class UiInterface
   def puts(data = nil)
     if(@is_attached)
       $stdout.puts(data)
+    else
+      @activity = true
     end
 
     if(!data.nil?)
@@ -91,6 +96,7 @@ class UiInterface
     $stdout.print(@history)
 
     @is_attached = true
+    @activity = false
 
     if(!active?())
       $stderr.puts()
@@ -129,6 +135,18 @@ class UiInterface
 
   def attached?()
     return @is_attached
+  end
+
+  def activity?()
+    return @activity
+  end
+
+  def activity_indicator()
+    if(@activity)
+      return "[*] "
+    else
+      return ""
+    end
   end
 
   def go()

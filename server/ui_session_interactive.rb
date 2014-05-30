@@ -25,15 +25,15 @@ class UiSessionInteractive < UiInterface
   def to_s()
     if(active?())
       idle = Time.now() - @last_seen
-      if(idle > 60)
-        return "session %d :: %s :: [idle for over a minute; probably dead]" % [@local_id, @session.name]
+      if(idle > 120)
+        return "%ssession %d :: %s :: [idle for over two minutes; probably dead]" % [activity_indicator(), @local_id, @session.name]
       elsif(idle > 5)
-        return "session %d :: %s :: [idle for %d seconds]" % [@local_id, @session.name, idle]
+        return "%ssession %d :: %s :: [idle for %d seconds]" % [activity_indicator(), @local_id, @session.name, idle]
       else
-        return "session %d :: %s" % [@local_id, @session.name]
+        return "%ssession %d :: %s" % [activity_indicator(), @local_id, @session.name]
       end
     else
-      return "session %d :: %s :: [closed]" % [@local_id, @session.name]
+      return "%ssession %d :: %s :: [closed]" % [activity_indicator(), @local_id, @session.name]
     end
   end
 

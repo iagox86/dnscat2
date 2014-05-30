@@ -35,7 +35,7 @@ module UiHandler
     where.puts(indent + self.to_s)
     indent += " "
     each_child_ui() do |ui|
-      if(all || ui.active?)
+      if(all || ui.active? || ui.activity?)
         if(ui.respond_to?(:display_uis))
           ui.display_uis(all, where, indent + " ")
         else
