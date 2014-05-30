@@ -142,7 +142,7 @@ class UiCommand < UiInterface
       end,
 
       Proc.new do |opts, optarg|
-        if(optarg.count != 1)
+        if(optarg.nil? || optarg.to_i == 0)
           puts("Usage: kill <session_id>")
         else
           if(@ui.kill_session(optarg[0].to_i()))
