@@ -15,6 +15,17 @@
 
 #ifdef WIN32
 #include "pstdint.h"
+
+/* Define ssize_t because Windows doesn't. */
+#ifndef _SSIZE_T_DEFINED
+#ifdef  _WIN64
+typedef unsigned __int64    ssize_t;
+#else
+typedef _W64 unsigned int   ssize_t;
+#endif
+#define _SSIZE_T_DEFINED
+#endif
+
 #else
 #include <stdint.h>
 #endif

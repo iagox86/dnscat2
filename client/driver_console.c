@@ -63,9 +63,7 @@ driver_console_t *driver_console_create(select_group_t *group, char *name, char 
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
 
-  driver->name        = name ? name : "[unnamed console]";
-  driver->download    = download;
-  driver->first_chunk = first_chunk;
+  message_options_t options[4];
 
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
@@ -81,10 +79,12 @@ driver_console_t *driver_console_create(select_group_t *group, char *name, char 
   select_set_closed(group,       stdin_handle, console_stdin_closed);
 #endif
 
+  driver->name        = name ? name : "[unnamed console]";
+  driver->download    = download;
+  driver->first_chunk = first_chunk;
+
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
-
-  message_options_t options[4];
 
   options[0].name    = "name";
   options[0].value.s = driver->name;

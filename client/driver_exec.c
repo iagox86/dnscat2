@@ -139,7 +139,7 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process, char *na
   driver_exec->socket_id = --driver_exec->socket_id;
 
   /* On Windows, add the sub-process's stdout as a pipe. */
-  select_group_add_pipe(driver_exec->group, driver_exec->socket_id, driver_exec->exec_stdout[PIPE_READ], driver);
+  select_group_add_pipe(driver_exec->group, driver_exec->socket_id, driver_exec->exec_stdout[PIPE_READ], driver_exec);
   select_set_recv(driver_exec->group, driver_exec->socket_id, exec_callback);
   select_set_closed(driver_exec->group, driver_exec->socket_id, exec_closed_callback);
 #else

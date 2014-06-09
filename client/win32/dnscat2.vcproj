@@ -179,11 +179,23 @@
 				>
 			</File>
 			<File
+				RelativePath="..\command_packet.c"
+				>
+			</File>
+			<File
+				RelativePath="..\command_packet_stream.c"
+				>
+			</File>
+			<File
 				RelativePath="..\dns.c"
 				>
 			</File>
 			<File
 				RelativePath="..\dnscat.c"
+				>
+			</File>
+			<File
+				RelativePath="..\driver_command.c"
 				>
 			</File>
 			<File
@@ -200,6 +212,10 @@
 			</File>
 			<File
 				RelativePath="..\driver_listener.c"
+				>
+			</File>
+			<File
+				RelativePath="..\driver_ping.c"
 				>
 			</File>
 			<File
@@ -253,7 +269,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\command_packet.h"
+				>
+			</File>
+			<File
+				RelativePath="..\command_packet_stream.h"
+				>
+			</File>
+			<File
 				RelativePath="..\dns.h"
+				>
+			</File>
+			<File
+				RelativePath="..\driver_command.h"
 				>
 			</File>
 			<File
@@ -270,6 +298,10 @@
 			</File>
 			<File
 				RelativePath="..\driver_listener.h"
+				>
+			</File>
+			<File
+				RelativePath="..\driver_ping.h"
 				>
 			</File>
 			<File

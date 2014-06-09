@@ -93,6 +93,8 @@ driver_command_t *driver_command_create(select_group_t *group, char *name)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
+  message_options_t options[3];
+
   /* TODO: Find a way to name this using uname or the hostname or something. */
   driver->name = name ? name : "command session";
 
@@ -101,8 +103,6 @@ driver_command_t *driver_command_create(select_group_t *group, char *name)
 
   /* Subscribe to the messages we care about. */
   message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
-
-  message_options_t options[3];
 
   options[0].name    = "name";
   options[0].value.s = driver->name;
