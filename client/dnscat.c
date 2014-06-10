@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
     /* Make sure they gave a domain. */
     if(optind >= argc)
     {
-      usage(argv[0], "Please provide a domain (either with --dns or at the end of the commandline)");
+      usage(argv[0], "Please provide a domain (either with --host or at the end of the commandline)");
       exit(1);
     }
     driver_dns = driver_dns_create(group, argv[optind]);
