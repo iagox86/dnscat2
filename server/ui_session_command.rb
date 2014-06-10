@@ -80,15 +80,15 @@ class UiSessionCommand < UiInterface
     register_command("ping",
       Trollop::Parser.new do
         banner("Sends a 'ping' to the remote host to make sure it's still alive)")
-        opt :size, "Size", :type => :integer, :required => false, :default => 256
+        opt :length, "length", :type => :integer, :required => false, :default => 256
       end,
       Proc.new do |opts|
-        data = "A" * opts[:size]
-        id = command_id()
+        data = "A" * opts[:length]
+        id = request_id()
         @pings[id] = data
         packet = CommandPacket.create_ping_request(id, data)
         @session.queue_outgoing(packet)
-        puts("Ping request 0x%x sent! (0x%x bytes)" % [id, opts[:size]])
+        puts("Ping request 0x%x sent! (0x%x bytes)" % [id, opts[:length]])
       end,
     )
 
@@ -101,7 +101,7 @@ class UiSessionCommand < UiInterface
       Proc.new do |opts|
         name = opts[:name] || "executing a shell"
 
-        packet = CommandPacket.create_shell_request(command_id(), name)
+        packet = CommandPacket.create_shell_request(request_id(), name)
         @session.queue_outgoing(packet)
         puts("Sent request to execute a shell")
       end,
@@ -121,7 +121,7 @@ class UiSessionCommand < UiInterface
         if(command == "")
           puts("No command given!")
         else
-          packet = CommandPacket.create_exec_request(command_id(), name, command)
+          packet = CommandPacket.create_exec_request(request_id(), name, command)
           @session.queue_outgoing(packet)
           puts("Sent request to execute #{opts[:command]}")
         end
@@ -172,6 +172,57 @@ class UiSessionCommand < UiInterface
         end
       end
     )
+
+    register_command("download",
+      Trollop::Parser.new do
+        banner("Download a file off the remote host. Usage: download <from> [to]")
+      end,
+
+      Proc.new do |opts, optval|
+        # Get the two files
+        remote_file, local_file = Shellwords.shellwords(optval)
+
+        # Sanity check
+        if(remote_file.nil? || remote_file == "")
+          puts("Usage: download <from> [to]")
+        else
+          # Make sure we have a local file
+          if(local_file.nil? || local_file == "")
+            # I only want the filename to prevent accidental traversal
+            local_file = File.basename(remote_file)
+          end
+
+          id = request_id()
+          @downloads[id] = local_file
+
+          packet = CommandPacket.create_download_request(id, remote_file)
+          @session.queue_outgoing(packet)
+          puts("Attempting to download #{remote_file} to #{local_file}")
+        end
+      end
+    )
+
+    register_command("upload",
+      Trollop::Parser.new do
+        banner("Upload a file off the remote host. Usage: upload <from> <to>")
+      end,
+
+      Proc.new do |opts, optval|
+        # Get the two files
+        local_file, remote_file = Shellwords.shellwords(optval)
+
+        # Sanity check
+        if(local_file.nil? || local_file == "" || remote_file.nil? || remote_file == "")
+          puts("Usage: upload <from> <to>")
+        else
+          data = IO.read(local_file)
+
+          packet = CommandPacket.create_upload_request(request_id(), remote_file, data)
+          @session.queue_outgoing(packet)
+          puts("Attempting to upload #{local_file} to #{remote_file}")
+        end
+      end
+    )
   end
 
   def initialize(local_id, session, ui)
@@ -184,8 +235,9 @@ class UiSessionCommand < UiInterface
     @session  = session
     @ui = ui
     @stream = CommandPacketStream.new()
-    @command_id = 0x0001
+    @request_id = 0x0001
     @pings = {}
+    @downloads = {}
 
     register_commands()
 
@@ -219,6 +271,24 @@ class UiSessionCommand < UiInterface
     handle_session_response(packet)
   end
 
+  def handle_download_response(packet)
+    file = @downloads[packet.request_id]
+
+    if(file.nil?)
+      error("Got a file response for a command we didn't send?")
+    else
+      File.open(file, "wb") do |f|
+        f.write(packet.data)
+      end
+      puts("Received 0x%x bytes into %s!" % [packet.data.length, file])
+    end
+#$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
+  end
+
+  def handle_upload_response(packet)
+    puts("File uploaded!")
+  end
+
   def feed(data)
     @stream.feed(data, false) do |packet|
       if(packet.is_response?())
@@ -228,6 +298,10 @@ class UiSessionCommand < UiInterface
           handle_shell_response(packet)
         elsif(packet.command_id == CommandPacket::COMMAND_EXEC)
           handle_exec_response(packet)
+        elsif(packet.command_id == CommandPacket::COMMAND_DOWNLOAD)
+          handle_download_response(packet)
+        elsif(packet.command_id == CommandPacket::COMMAND_UPLOAD)
+          handle_upload_response(packet)
         else
           output("Didn't know how to handle command packet: %s" % packet.to_s)
         end
@@ -265,9 +339,9 @@ class UiSessionCommand < UiInterface
     end
   end
 
-  def command_id()
-    id = @command_id
-    @command_id += 1
+  def request_id()
+    id = @request_id
+    @request_id += 1
     return id
   end
 end

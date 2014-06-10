@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -28,7 +30,7 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     command_packet_t *in = command_packet_stream_read(driver->stream);
     command_packet_t *out = NULL;
 
-    printf("Got a command:\n");
+    printf("Got a command: ");
     command_packet_print(in);
 
     if(in->command_id == COMMAND_PING && in->is_request == TRUE)
@@ -53,6 +55,48 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
 
       out = command_packet_create_exec_response(in->request_id, driver_exec->session_id);
     }
+    else if(in->command_id == COMMAND_DOWNLOAD && in->is_request == TRUE)
+    {
+      struct stat s;
+      if(stat(in->r.request.body.download.filename, &s) != 0)
+      {
+        out = command_packet_create_error_response(in->request_id, -1, "Error opening file for reading");
+      }
+      else
+      {
+        uint8_t *data;
+        FILE *f = fopen(in->r.request.body.download.filename, "rb");
+        if(!f)
+        {
+          out = command_packet_create_error_response(in->request_id, -1, "Error opening file for reading");
+        }
+        else
+        {
+          data = safe_malloc(s.st_size);
+          fread(data, s.st_size, 1, f);
+          fclose(f);
+
+          out = command_packet_create_download_response(in->request_id, data, s.st_size);
+
+          safe_free(data);
+        }
+      }
+    }
+    else if(in->command_id == COMMAND_UPLOAD && in->is_request == TRUE)
+    {
+      FILE *f = fopen(in->r.request.body.upload.filename, "wb");
+      if(!f)
+      {
+        out = command_packet_create_error_response(in->request_id, -1, "Error opening file for writing");
+      }
+      else
+      {
+        fwrite(in->r.request.body.upload.data, in->r.request.body.upload.length, 1, f);
+        fclose(f);
+
+        out = command_packet_create_upload_response(in->request_id);
+      }
+    }
     else
     {
       printf("Got a command packet that we don't know how to handle!\n");
@@ -64,6 +108,9 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     {
       uint8_t *data;
       size_t   length;
+
+      printf("Response: ");
+      command_packet_print(out);
 
       data = command_packet_to_bytes(out, &length);
 

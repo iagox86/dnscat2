@@ -96,9 +96,12 @@ below).
 
 The following commands are defined:
 
-#define COMMAND_PING  (0x0000)
-#define COMMAND_SHELL (0x0001)
-#define COMMAND_EXEC  (0x0002)
+#define COMMAND_PING     (0x0000)
+#define COMMAND_SHELL    (0x0001)
+#define COMMAND_EXEC     (0x0002)
+#define COMMAND_DOWNLOAD (0x0003)
+#define COMMAND_UPLOAD   (0x0004)
+#define COMMAND_ERROR    (0xFFFF)
 
 ------------
 COMMAND_PING
@@ -137,6 +140,38 @@ Structure:
 
 Ask a dnscat2 client to run the given command, and bind the input to a
 new session.
+
+----------------
+COMMAND_DOWNLOAD
+----------------
+
+server->client only
+
+Structure:
+(ntstring) filename (request only)
+(variable) data (response only)
+
+Ask a dnscat2 client to over the requested file. The data is the
+remainder of the packet (we know that size from the command packet
+header).
+
+If the file isn't found, a COMMAND_ERROR is returned.
+
+--------------
+COMMAND_UPLOAD
+--------------
+
+server->client only
+
+Structure:
+(ntstring) fully qualified filename (request only)
+(variable) data (request only)
+
+Send a file to the remote host. The filename can be fully qualified, or
+the file will be uploaded to a path relative to the dnscat client's
+location. Like COMMAND_DOWNLOAD, the data is the remainder of the packet.
+
+If the file can't be written, a COMMAND_ERROR is returned.
 
 -------------
 COMMAND_ERROR

@@ -12,16 +12,19 @@ require 'dnscat_exception'
 require 'command_packet_stream'
 
 class CommandPacket
-  COMMAND_PING  = 0x0000
-  COMMAND_SHELL = 0x0001
-  COMMAND_EXEC  = 0x0002
-
-  COMMAND_ERROR = 0xFFFF
+  COMMAND_PING     = 0x0000
+  COMMAND_SHELL    = 0x0001
+  COMMAND_EXEC     = 0x0002
+  COMMAND_DOWNLOAD = 0x0003
+  COMMAND_UPLOAD   = 0x0004
+  COMMAND_ERROR    = 0xFFFF
 
   attr_reader :request_id, :command_id # header
   attr_reader :data # ping
   attr_reader :name, :session_id # shell
   attr_reader :command # command
+  attr_reader :filename, :data # download
+  attr_reader :filename, :data # upload
 
   attr_reader :status, :reason # errors
 
@@ -92,6 +95,34 @@ class CommandPacket
     end
   end
 
+  def parse_download(data, is_request)
+    if(is_request)
+      if(data.index("\0").nil?)
+        raise(DnscatException, "Download packet request doesn't have a NUL byte after name")
+      end
+      @filename, data = data.unpack("Z*a*")
+
+      if(data.length > 0)
+        raise(DnscatException, "Download request packet has extra data on the end")
+      end
+    else
+      @data = data.unpack("a*").pop
+    end
+  end
+
+  def parse_upload(data, is_request)
+    if(is_request)
+      if(data.index("\0").nil?)
+        raise(DnscatException, "Upload packet request doesn't have a NUL byte after name")
+      end
+      @filename, @data = data.unpack("Z*a*")
+    else
+      if(data.length > 0)
+        raise(DnscatException, "Upload packet response has extra data on the end")
+      end
+    end
+  end
+
   def parse_error(data, is_request)
     @status, data = data.unpack("na*")
 
@@ -126,6 +157,10 @@ class CommandPacket
       parse_shell(data, is_request)
     elsif(@command_id == COMMAND_EXEC)
       parse_exec(data, is_request)
+    elsif(@command_id == COMMAND_DOWNLOAD)
+      parse_download(data, is_request)
+    elsif(@command_id == COMMAND_UPLOAD)
+      parse_upload(data, is_request)
     elsif(@command_id == COMMAND_ERROR)
       parse_error(data, is_request)
     else
@@ -160,6 +195,20 @@ class CommandPacket
     return CommandPacket.add_header([session_id].pack('n'), request_id, COMMAND_EXEC)
   end
 
+  def CommandPacket.create_download_request(request_id, filename)
+    return CommandPacket.add_header([filename].pack('Z*'), request_id, COMMAND_DOWNLOAD)
+  end
+  def CommandPacket.create_download_response(request_id, data)
+    return CommandPacket.add_header([data].pack('a*'), request_id, COMMAND_DOWNLOAD)
+  end
+
+  def CommandPacket.create_upload_request(request_id, filename, data)
+    return CommandPacket.add_header([filename, data].pack('Z*a*'), request_id, COMMAND_UPLOAD)
+  end
+  def CommandPacket.create_upload_response(request_id)
+    return CommandPacket.add_header('', request_id, COMMAND_DOWNLOAD)
+  end
+
   def CommandPacket.create_error(request_id, status, reason)
     return CommandPacket.add_header([status, reason].pack("nZ*"), request_id)
   end
@@ -167,25 +216,33 @@ class CommandPacket
   def to_s()
     if(is_request?())
       if(@command_id == COMMAND_PING)
-        return "COMMAND_PING  :: request_id = 0x%04x, data = %s" % [@request_id, @data]
+        return "COMMAND_PING      :: request_id = 0x%04x, data = %s" % [@request_id, @data]
       elsif(@command_id == COMMAND_SHELL)
-        return "COMMAND_SHELL :: request_id = 0x%04x, name = %s" % [@request_id, @name]
+        return "COMMAND_SHELL     :: request_id = 0x%04x, name = %s" % [@request_id, @name]
       elsif(@command_id == COMMAND_EXEC)
-        return "COMMAND_EXEC  :: request_id = 0x%04x, name = %s, command = %s" % [@request_id, @name, @command]
+        return "COMMAND_EXEC      :: request_id = 0x%04x, name = %s, command = %s" % [@request_id, @name, @command]
+      elsif(@command_id == COMMAND_DOWNLOAD)
+        return "COMMAND_DOWNLOAD  :: request_id = 0x%04x, filename = %s" % [@request_id, @filename]
+      elsif(@command_id == COMMAND_UPLOAD)
+        return "COMMAND_UPLOAD    :: request_id = 0x%04x, filename = %s, data = 0x%x bytes" % [@request_id, @filename, @data.length]
       elsif(@command_id == COMMAND_ERROR)
-        return "COMMAND_ERROR :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
+        return "COMMAND_ERROR     :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
       else
         raise(DnscatException, "Unknown command_id: 0x%04x" % @command_id)
       end
     else
       if(@command_id == COMMAND_PING)
-        return "COMMAND_PING  :: request_id = 0x%04x, data = %s" % [@request_id, @data]
+        return "COMMAND_PING     :: request_id = 0x%04x, data = %s" % [@request_id, @data]
       elsif(@command_id == COMMAND_SHELL)
-        return "COMMAND_SHELL :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
+        return "COMMAND_SHELL    :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
       elsif(@command_id == COMMAND_EXEC)
-        return "COMMAND_EXEC  :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
+        return "COMMAND_EXEC     :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
+      elsif(@command_id == COMMAND_DOWNLOAD)
+        return "COMMAND_DOWNLOAD :: request_id = 0x%04x, data = 0x%x bytes" % [@request_id, @data.length]
+      elsif(@command_id == COMMAND_UPLOAD)
+        return "COMMAND_UPLOAD   :: request_id = 0x%04x" % [@request_id]
       elsif(@command_id == COMMAND_ERROR)
-        return "COMMAND_ERROR :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
+        return "COMMAND_ERROR    :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
       else
         raise(DnscatException, "Unknown command_id: 0x%04x" % @command_id)
       end

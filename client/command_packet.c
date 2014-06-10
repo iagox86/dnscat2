@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "buffer.h"
 #include "log.h"
@@ -48,6 +49,29 @@ command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_r
       else
       {
         p->r.response.body.exec.session_id = buffer_read_next_int16(buffer);
+      }
+      break;
+
+    case COMMAND_DOWNLOAD:
+      if(is_request)
+      {
+        p->r.request.body.download.filename = buffer_alloc_next_ntstring(buffer);
+      }
+      else
+      {
+        p->r.response.body.download.data = (uint8_t*)buffer_read_remaining_bytes(buffer, &p->r.response.body.download.length, -1, TRUE);
+      }
+
+      break;
+
+    case COMMAND_UPLOAD:
+      if(is_request)
+      {
+        p->r.request.body.upload.filename = buffer_alloc_next_ntstring(buffer);
+        p->r.request.body.upload.data = buffer_read_remaining_bytes(buffer, &p->r.request.body.upload.length, -1, TRUE);
+      }
+      else
+      {
       }
       break;
 
@@ -147,6 +171,44 @@ command_packet_t *command_packet_create_exec_response(uint16_t request_id, uint1
   return packet;
 }
 
+command_packet_t *command_packet_create_download_request(uint16_t request_id, char *filename)
+{
+  command_packet_t *packet = command_packet_create_request(request_id, COMMAND_DOWNLOAD);
+
+  packet->r.request.body.download.filename = safe_strdup(filename);
+
+  return packet;
+}
+
+command_packet_t *command_packet_create_download_response(uint16_t request_id, uint8_t *data, size_t length)
+{
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_DOWNLOAD);
+  packet->r.response.body.download.data = safe_malloc(length);
+  memcpy(packet->r.response.body.download.data, data, length);
+  packet->r.response.body.download.length = length;
+
+  return packet;
+}
+
+command_packet_t *command_packet_create_upload_request(uint16_t request_id, char *filename, uint8_t *data, size_t length)
+{
+  command_packet_t *packet = command_packet_create_request(request_id, COMMAND_UPLOAD);
+
+  packet->r.request.body.upload.filename = safe_strdup(filename);
+  packet->r.request.body.upload.data = safe_malloc(length);
+  memcpy(packet->r.request.body.upload.data, data, length);
+  packet->r.request.body.upload.length = length;
+
+  return packet;
+}
+
+command_packet_t *command_packet_create_upload_response(uint16_t request_id)
+{
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_UPLOAD);
+
+  return packet;
+}
+
 command_packet_t *command_packet_create_error_request(uint16_t request_id, uint16_t status, char *reason)
 {
   command_packet_t *packet = command_packet_create_request(request_id, COMMAND_ERROR);
@@ -203,6 +265,32 @@ void command_packet_destroy(command_packet_t *packet)
       }
       break;
 
+    case COMMAND_DOWNLOAD:
+      if(packet->is_request)
+      {
+        if(packet->r.request.body.download.filename)
+          safe_free(packet->r.request.body.download.filename);
+      }
+      else
+      {
+        if(packet->r.response.body.download.data)
+          safe_free(packet->r.response.body.download.data);
+      }
+      break;
+
+    case COMMAND_UPLOAD:
+      if(packet->is_request)
+      {
+        if(packet->r.request.body.upload.filename)
+          safe_free(packet->r.request.body.upload.filename);
+        if(packet->r.request.body.upload.data)
+          safe_free(packet->r.request.body.upload.data);
+      }
+      else
+      {
+      }
+      break;
+
     case COMMAND_ERROR:
       if(packet->is_request)
       {
@@ -244,6 +332,20 @@ void command_packet_print(command_packet_t *packet)
         printf("COMMAND_EXEC [request] :: request_id: 0x%04x :: name: %s :: command: %s\n", packet->request_id, packet->r.request.body.exec.name, packet->r.request.body.exec.command);
       else
         printf("COMMAND_EXEC [response] :: request_id: 0x%04x :: session_id: 0x%04x\n", packet->request_id, packet->r.response.body.exec.session_id);
+      break;
+
+    case COMMAND_DOWNLOAD:
+      if(packet->is_request)
+        printf("COMMAND_DOWNLOAD [request] :: request_id: 0x%04x :: filename: %s\n", packet->request_id, packet->r.request.body.download.filename);
+      else
+        printf("COMMAND_DOWNLOAD [response] :: request_id: 0x%04x :: data: 0x%x bytes\n", packet->request_id, (int)packet->r.response.body.download.length);
+      break;
+
+    case COMMAND_UPLOAD:
+      if(packet->is_request)
+        printf("COMMAND_UPLOAD [request] :: request_id: 0x%04x :: filename: %s :: data: 0x%x bytes\n", packet->request_id, packet->r.request.body.upload.filename, (int)packet->r.request.body.upload.length);
+      else
+        printf("COMMAND_UPLOAD [response] :: request_id: 0x%04x\n", packet->request_id);
       break;
 
     case COMMAND_ERROR:
@@ -290,6 +392,28 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
       else
       {
         buffer_add_int16(buffer, packet->r.response.body.exec.session_id);
+      }
+      break;
+
+    case COMMAND_DOWNLOAD:
+      if(packet->is_request)
+      {
+        buffer_add_ntstring(buffer, packet->r.request.body.download.filename);
+      }
+      else
+      {
+        buffer_add_bytes(buffer, packet->r.response.body.download.data, packet->r.response.body.download.length);
+      }
+      break;
+
+    case COMMAND_UPLOAD:
+      if(packet->is_request)
+      {
+        buffer_add_ntstring(buffer, packet->r.request.body.upload.filename);
+        buffer_add_bytes(buffer, packet->r.request.body.upload.data, packet->r.request.body.upload.length);
+      }
+      else
+      {
       }
       break;
 

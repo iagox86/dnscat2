@@ -13,6 +13,7 @@ Immediate needs:
 - Have the client print out info when it has multiple simultaneous connections (and more info on non-interactive sessions in general)
 - Handle the case where the server asks the client to exec a bad program
 - See if we can change the buffering on the server's input
+- Session packets need to have a much, much longer max length, or files need to be chunked up
 
 Cleanups:
 - Go through all the structs to figure out which members are no longer used
