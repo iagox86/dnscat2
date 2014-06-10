@@ -350,10 +350,10 @@ int main(int argc, char *argv[])
       break;
 
     case TYPE_EXEC:
-      LOG_WARNING("INPUT: Executing %s", driver_exec->process);
+      LOG_WARNING("INPUT: Executing %s", exec_process);
 
       if(exec_process == NULL)
-        usage(argv[0], "--exec set without a port!");
+        usage(argv[0], "--exec set without a process!");
 
       driver_exec_create(group, exec_process, name);
       break;
