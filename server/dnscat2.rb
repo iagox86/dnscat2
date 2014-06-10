@@ -79,6 +79,14 @@ if(opts[:dns])
     rescue Exception => e
       puts(e)
       puts(e.backtrace)
+
+      if(e.to_s =~ /no datagram socket/)
+        puts()
+        puts("Translation: Couldn't listen on #{opts[:dnshost]}:#{opts[:dnsport]}")
+        puts("(if you're on Linux, you might need to use sudo or rvmsudo)")
+      end
+
+      exit
     end
   end
 end
