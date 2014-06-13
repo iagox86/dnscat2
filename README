@@ -4,54 +4,92 @@
 
 Welcome to dnscat2, a DNS tunnel that WON'T make you sick and kill you!
 
-dnscat2 - the successor to dnscat, also written by me - is an attempt to
-right some of the wrongs that I committed while writing the original
-version of dnscat. The biggest problem being a total lack of testing or
-of forethought into the protocol.
+This implements a tunnel over the DNS protocol. It sets itself apart from other projects by targeting a single use case: penetration testing.
 
-The original dnscat was heavily linked to the dns protocol. It tried to
-encode the various control fields - things like sequence number - into
-the DNS protocol and use that.
+The server is designed to be as featureful and user friendly as possible. It's run on an authoritative server for a given domain, typically, although you can run it on any server if you don't mind connecting directly (rather than traversing the DNS hierarchy). If you're familiar with metasploit and meterpreter, you'll see some inspiration in the commands and structure.
 
-dnscat2, on the other hand, treats everything as a stream of bytes, and
-uses logic to convert that stream of bytes into dns requests. Thus, it's
-a layered protocol, with DNS being a lower layer (for testing, I
-actually used a TCP layer).
+The client is designed to be simple and portable. It can run on just about any operating system, and requires as few libraries as possible. It can be compiled on POSIX systems, including Linux, BSD, and Cygwin, as well as Microsoft Visual Studio. OS X support is currently untested, but there's no reason to expect it wouldn't work.
 
-I invented a protocol that I'm calling the dnscat protocol. You can find
-documentation about it in docs/protocol.txt. It's a simple polling
-network protocol, where the client occasionally polls the server, and
-the server responds with a message (or an error code). The protocol is
-designed to be resilient to the various issues I had with dnscat1 - that
-is, it can handle out-of-order packets, dropped packets, and duplicated
-packets equally well.
+Having an authoritative server is as simple as buying a domain name from some provider, and pointing the authority to your IP address. Actually, that's not necessarily a simple task, but it isn't impossibly difficult, either. If you're unsure whether or not you've successfully set up your DNS server appropriately, run a server (see below) and, on the client type:
 
-I also used unit testing for the server, where a fake client
-communicates with the dnscat2 server using a fake socket. You can run
-those tests yourself by running server/dnscat2_test.rb.
+$ cd client
+$ make
+$ ./dnscat --ping mydomain.com
 
-Finally, one last change from the original dnscat is that I decided not
-to use the same program for both clients and servers. It turns out that
-dnscat servers are much more complex than clients, so it made sense to
-write the server in a higher level language (I chose ruby), while still
-keeping the client (written in C) as functional/simple/portable as I
-possibly could.
++-------------+
+| Quick start |
++-------------+
+
+To get stated quickly, simply to play around on localhost, try this (requires ruby and bundler - 'gem install bundler', and possibly sudo / rvmsudo):
+
+[server]
+$ cd server/
+$ bundle install
+# ruby ./server.rb mydomain.com
+
+(Note that you can literally use "mydomain.com" to play around)
+
+[client]
+$ cd client/
+$ make
+$ ./dnscat --host localhost mydomain.com
+
+On the server, you should see "New session established: 1". Type "session -i 1" to interact. Type 'help' anywhere on the server to get some help (additionally, every command on the server has a "-h" flag).
 
 +-------------+
 | Compilation |
 +-------------+
 
-TODO
+The server portion doesn't need to be compiled, but it does require a few things:
+- ruby 1.9 or higher
+- bundler
+
+You'll have to run 'bundle install' in the server directory to get the files you need.
+
+The C version should have no strange dependencies, and should compile on any POSIX-compliant system (I've tested it on Linux, FreeBSD, and Cygwin). To compile, simply cd into the client directory and type "make".
+
+On Windows, Visual Studio is required (I tested on Visual Studio 2008, the only version I have). Load client/win32/dnscat2.vcproj and compile it. That should produce dnscat2.exe somewhere.
 
 +--------------+
 | Installation |
 +--------------+
 
-TODO
+This is no installation. Grab the package and run it. The only thing that looks like an installation is installing dependencies for the server:
+
+$ bundle install
 
 +-------+
 | Usage |
 +-------+
 
-TODO
+There isn't much to say here - it's mostly self documenting.
 
+On the client, typically you'll just run it:
+
+$ ./dnscat2 mydomain.com
+
+If you need to use a custom DNS server - or connect directly to the dnscat2 server if you don't have a domain name for yourself - you can use the --host argument. For a list of all arguments, use --help.
+
+On the server, almost everything is self-documenting. The most important commands are:
+- help - get a list of valid commands for the context
+- sessions - list all active sessions
+- session -i XXX - interact with session XXX
+- suspend (or ctrl-Z) - exit out of a session without killing it
+- shell - tell a session to create a shell (this only works when interacting with a session)
+
+And that's about it!
+
++---------+
+| History |
++---------+
+
+dnscat2 - the successor to dnscat, also written by me - is an attempt to right some of the wrongs that I committed while writing the original version of dnscat. The biggest problem being a total lack of testing or of forethought into the protocol.
+
+The original dnscat was heavily linked to the dns protocol. It tried to encode the various control fields - things like sequence number - into the DNS protocol and use that.
+
+dnscat2, on the other hand, treats everything as a stream of bytes, and uses logic to convert that stream of bytes into dns requests. Thus, it's a layered protocol, with DNS being a lower layer.
+
+I invented a protocol that I'm calling the dnscat protocol. You can find documentation about it in docs/protocol.txt. It's a simple polling network protocol, where the client occasionally polls the server, and the server responds with a message (or an error code). The protocol is designed to be resilient to the various issues I had with dnscat1 - that is, it can handle out-of-order packets, dropped packets, and duplicated
+packets equally well.
+
+Finally, one last change from the original dnscat is that I decided not to use the same program for both clients and servers. It turns out that dnscat servers are much more complex than clients, so it made sense to write the server in a higher level language (I chose ruby), while still keeping the client (written in C) as functional/simple/portable as I possibly could.
