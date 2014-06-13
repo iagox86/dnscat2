@@ -171,7 +171,7 @@ class CommandPacket
   def CommandPacket.add_header(packet, request_id, command_id)
     packet = [request_id, command_id, packet].pack("nna*")
 
-    return [packet.length, packet].pack('na*')
+    return [packet.length, packet].pack('Na*')
   end
 
   def CommandPacket.create_ping_request(request_id, data)
@@ -249,21 +249,3 @@ class CommandPacket
     end
   end
 end
-
-### Test code
-#requests = CommandPacket.create_ping_request(0x1111, "ping request") +
-#  CommandPacket.create_shell_request(0x3333, "shell name") +
-#  CommandPacket.create_exec_request(0x5555, "exec name", "exec command")
-#
-#responses = CommandPacket.create_ping_response(0x2222, "ping response") +
-#  CommandPacket.create_shell_response(0x4444, 0x1234) +
-#  CommandPacket.create_exec_response(0x6666, 0x4321)
-#
-#c = CommandPacketStream.new()
-#c.feed(requests, true) do |packet|
-#  puts(packet.to_s)
-#end
-#
-#c.feed(responses, false) do |packet|
-#  puts(packet.to_s)
-#end

@@ -107,7 +107,7 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     if(out)
     {
       uint8_t *data;
-      size_t   length;
+      uint32_t length;
 
       printf("Response: ");
       command_packet_print(out);

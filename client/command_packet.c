@@ -15,7 +15,7 @@
 #include "command_packet.h"
 
 /* Parse a packet from a byte stream. */
-command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_request)
+command_packet_t *command_packet_parse(uint8_t *data, uint32_t length, NBBOOL is_request)
 {
   command_packet_t *p = safe_malloc(sizeof(command_packet_t));
   buffer_t *buffer = buffer_create_with_data(BO_BIG_ENDIAN, data, length);
@@ -59,7 +59,7 @@ command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_r
       }
       else
       {
-        p->r.response.body.download.data = (uint8_t*)buffer_read_remaining_bytes(buffer, &p->r.response.body.download.length, -1, TRUE);
+        p->r.response.body.download.data = (uint8_t*)buffer_read_remaining_bytes(buffer, (size_t*)&p->r.response.body.download.length, -1, TRUE);
       }
 
       break;
@@ -68,7 +68,7 @@ command_packet_t *command_packet_parse(uint8_t *data, size_t length, NBBOOL is_r
       if(is_request)
       {
         p->r.request.body.upload.filename = buffer_alloc_next_ntstring(buffer);
-        p->r.request.body.upload.data = buffer_read_remaining_bytes(buffer, &p->r.request.body.upload.length, -1, TRUE);
+        p->r.request.body.upload.data = buffer_read_remaining_bytes(buffer, (size_t*)&p->r.request.body.upload.length, -1, TRUE);
       }
       else
       {
@@ -180,7 +180,7 @@ command_packet_t *command_packet_create_download_request(uint16_t request_id, ch
   return packet;
 }
 
-command_packet_t *command_packet_create_download_response(uint16_t request_id, uint8_t *data, size_t length)
+command_packet_t *command_packet_create_download_response(uint16_t request_id, uint8_t *data, uint32_t length)
 {
   command_packet_t *packet = command_packet_create_response(request_id, COMMAND_DOWNLOAD);
   packet->r.response.body.download.data = safe_malloc(length);
@@ -190,7 +190,7 @@ command_packet_t *command_packet_create_download_response(uint16_t request_id, u
   return packet;
 }
 
-command_packet_t *command_packet_create_upload_request(uint16_t request_id, char *filename, uint8_t *data, size_t length)
+command_packet_t *command_packet_create_upload_request(uint16_t request_id, char *filename, uint8_t *data, uint32_t length)
 {
   command_packet_t *packet = command_packet_create_request(request_id, COMMAND_UPLOAD);
 
@@ -358,7 +358,7 @@ void command_packet_print(command_packet_t *packet)
 }
 
 /* Needs to be freed with safe_free() */
-uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
+uint8_t *command_packet_to_bytes(command_packet_t *packet, uint32_t *length)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
   buffer_t *buffer_with_size = buffer_create(BO_BIG_ENDIAN);
@@ -436,9 +436,9 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
       exit(1);
   }
 
-  buffer_add_int16(buffer_with_size, buffer_get_length(buffer));
+  buffer_add_int32(buffer_with_size, buffer_get_length(buffer));
   buffer_add_buffer(buffer_with_size, buffer);
   buffer_destroy(buffer);
 
-  return buffer_create_string_and_destroy(buffer_with_size, length);
+  return buffer_create_string_and_destroy(buffer_with_size, (size_t*)length);
 }
