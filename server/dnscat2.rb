@@ -24,7 +24,6 @@ require 'trollop'
 
 Thread::abort_on_exception = true
 
-
 # Options
 opts = Trollop::options do
   opt :dns,       "Start a DNS server",
@@ -34,7 +33,7 @@ opts = Trollop::options do
   opt :dnsport,   "The DNS port to listen on",
     :type => :integer, :default => 53
   opt :domain,    "The DNS domain to respond to [regex, but must only match the non-dnscat portion of the string]",
-    :type => :string,  :default => "skullseclabs.org"
+    :type => :string,  :default => ""
 
   opt :tcp,       "Start a TCP server",
     :type => :boolean, :default => true
@@ -64,6 +63,15 @@ end
 
 if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
+end
+
+domain = opts[:domain]
+if(domain.nil? || domain == "")
+  if(ARGV.length != 1)
+    Trollop::die :domain, "must set a domain (--domain, or as the final argument)"
+  end
+
+  domain = ARGV.pop()
 end
 
 threads = []
