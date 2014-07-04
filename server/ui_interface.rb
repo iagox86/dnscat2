@@ -89,7 +89,8 @@ class UiInterface
   end
 
   def attach()
-    $stdout.puts("\n" * 1000)
+    #$stdout.puts("\n" * 1000)
+    $stdout.puts()
     restore_history()
     catch_suspend()
 

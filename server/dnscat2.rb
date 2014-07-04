@@ -74,12 +74,19 @@ if(domain.nil? || domain == "")
   domain = ARGV.pop()
 end
 
+puts("Handling requests for *.#{domain} only! You should be able to run:")
+puts()
+puts("./dnscat2 #{domain}")
+puts(" -or if you aren't the authority for that domain-")
+puts("./dnscat2 --host <server> #{domain}")
+puts()
+
 threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
       Log.WARNING("Starting DNS server...")
-      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], opts[:domain])
+      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domain)
       SessionManager.go(driver)
     rescue DnscatException => e
       Log.ERROR("Protocol exception caught in DNS module:")

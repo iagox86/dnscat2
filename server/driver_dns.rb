@@ -21,7 +21,7 @@ class DriverDNS
   MAX_MX_LENGTH = 250
 
   def initialize(host, port, domain)
-    Log.WARNING "Starting Dnscat2 DNS server on #{host}:#{port} [domain = #{domain}]..."
+    puts("Starting Dnscat2 DNS server on #{host}:#{port} [domain = #{domain}]...")
 
     @host   = host
     @port   = port
