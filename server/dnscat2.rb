@@ -32,8 +32,8 @@ opts = Trollop::options do
     :type => :string,  :default => "0.0.0.0"
   opt :dnsport,   "The DNS port to listen on",
     :type => :integer, :default => 53
-  opt :domain,    "The DNS domain to respond to [regex, but must only match the non-dnscat portion of the string]",
-    :type => :string,  :default => ""
+  opt :autodomain,"If set (which is the default), in addition to any domain(s) specified, requests to no particular domain (but prefixed with a dnscat2 marker) will be processed",
+    :type => :boolean, :default => true
 
   opt :tcp,       "Start a TCP server",
     :type => :boolean, :default => true
@@ -65,28 +65,58 @@ if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
 end
 
-domain = opts[:domain]
-if(domain.nil? || domain == "")
-  if(ARGV.length != 1)
-    Trollop::die :domain, "must set a domain (--domain, or as the final argument)"
-  end
+autodomain = opts[:autodomain]
+# Make a copy of ARGV
+domains = [].replace(ARGV)
 
-  domain = ARGV.pop()
+if(autodomain == false && domains.length == 0)
+  puts("autodomain is turned off and you didn't provide any DNS names on the")
+  puts("commandline!")
+  puts()
+  puts("You've gotta give me something to detect... try --autodomain or")
+  puts("putting domain names at the end of the command")
+
+  exit(0)
 end
 
-puts("Handling requests for *.#{domain} only! You should be able to run:")
-puts()
-puts("./dnscat2 #{domain}")
-puts(" -or if you aren't the authority for that domain-")
-puts("./dnscat2 --host <server> #{domain}")
-puts()
+if(domains.length > 0)
+  puts("Handling requests for the following domain(s):")
+  puts(domains.join(", "))
+
+  puts()
+  puts("Assuming you are the authority, you can run clients like this:")
+  puts()
+  domains.each do |domain|
+    puts("./dnscat2 #{domain}")
+  end
+
+  if(autodomain)
+    puts()
+    puts("You can also run a directly-connected client:")
+    puts()
+    puts("./dnscat2 --host <server>")
+    puts()
+    puts("Of course, you have to figure out <server> yourself! Clients will connect")
+    puts("directly on UDP port 53.")
+    puts()
+  end
+else
+  puts("It looks like you didn't give me any domains to recognize!")
+  puts("That's cool, though, you can still use a direct connection!")
+  puts("Try running this on your client:")
+  puts()
+  puts("./dnscat2 --host <server>")
+  puts()
+  puts("Of course, you have to figure out <server> yourself! Clients will connect")
+  puts("directly on UDP port 53.")
+end
 
 threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
       Log.WARNING("Starting DNS server...")
-      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domain)
+      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, autodomain)
       SessionManager.go(driver)
     rescue DnscatException => e
       Log.ERROR("Protocol exception caught in DNS module:")
