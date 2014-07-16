@@ -386,10 +386,13 @@ int main(int argc, char *argv[])
     /* Make sure they gave a domain. */
     if(optind >= argc)
     {
-      usage(argv[0], "Please provide a domain (either with --host or at the end of the commandline)");
-      exit(1);
+      LOG_WARNING("Starting DNS driver without a domain! You'll probably need to use --host to specify a direct connection to your server.");
+      driver_dns = driver_dns_create(group, NULL);
     }
-    driver_dns = driver_dns_create(group, argv[optind]);
+    else
+    {
+      driver_dns = driver_dns_create(group, argv[optind]);
+    }
   }
 
   if(driver_dns)
@@ -407,7 +410,10 @@ int main(int argc, char *argv[])
     }
 
     driver_dns->dns_port = dns_options.port;
-    LOG_WARNING("OUTPUT: DNS tunnel to %s", driver_dns->domain);
+    if(driver_dns->domain)
+      LOG_WARNING("OUTPUT: DNS tunnel to %s via %s:%d", driver_dns->domain, driver_dns->dns_host, driver_dns->dns_port);
+    else
+      LOG_WARNING("OUTPUT: DNS tunnel to %s:%d (no domain set! This probably needs to be the exact server where the dnscat2 server is running!)", driver_dns->dns_host, driver_dns->dns_port);
   }
   else
   {

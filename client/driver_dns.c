@@ -19,6 +19,7 @@
 
 #define MAX_FIELD_LENGTH 62
 #define MAX_DNS_LENGTH   255
+#define WILDCARD_PREFIX  "dnscat"
 
 /* The max length is a little complicated:
  * 255 because that's the max DNS length
@@ -27,7 +28,7 @@
  * Minus 1, for the period right before the domain
  * Minus the number of periods that could appear within the name
  */
-#define MAX_DNSCAT_LENGTH(domain) ((255/2) - strlen(domain) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
+#define MAX_DNSCAT_LENGTH(domain) ((255/2) - (domain ? strlen(domain) : strlen(WILDCARD_PREFIX)) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
 
 static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 {
@@ -39,7 +40,7 @@ static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 
 static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
-  driver_dns_t *driver_dns = param;
+  /*driver_dns_t *driver_dns = param;*/
   dns_t        *dns        = dns_create_from_packet(data, length);
 
   LOG_INFO("DNS response received (%d bytes)", length);
@@ -80,64 +81,62 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   }
   else if(dns->answers[0].type == _DNS_TYPE_TEXT)
   {
-    char *answer;
-    char buf[3];
-    size_t i;
+    char     *answer;
+    size_t    answer_length;
 
-    answer = (char*)dns->answers[0].answer->TEXT.text;
+    char      buf[3];
+    size_t    i;
+    buffer_t *incoming_data = buffer_create(BO_BIG_ENDIAN);
+
+    answer        =  (char*)dns->answers[0].answer->TEXT.text;
+    answer_length = (size_t)dns->answers[0].answer->TEXT.length;
+
     LOG_INFO("Received a DNS TXT response: %s", answer);
 
-    if(!strcmp(answer, driver_dns->domain))
+    /* TODO: Do I need to worry about the domain name or wildcard prefix? */
+
+    /* Loop through the part of the answer before the 'domain' */
+    for(i = 0; i < answer_length; i += 2)
     {
-      LOG_INFO("Received a 'nil' answer; ignoring (usually this is due to caching/re-sends and doesn't matter)");
+      /* Validate the answer */
+      if(answer[i] == '.')
+      {
+        /* ignore */
+      }
+      else if(answer[i+1] == '.')
+      {
+        LOG_ERROR("Answer contained an odd number of digits");
+      }
+      else if(!isxdigit((int)answer[i]))
+      {
+        LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
+      }
+      else if(!isxdigit((int)answer[i+1]))
+      {
+        LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
+      }
+      else
+      {
+        buf[0] = answer[i];
+        buf[1] = answer[i + 1];
+        buf[2] = '\0';
+
+        buffer_add_int8(incoming_data, (uint8_t)strtol(buf, NULL, 16));
+      }
     }
-    else
+
+    /* Pass the buffer to the caller */
+    if(buffer_get_length(incoming_data) > 0)
     {
-      buffer_t *incoming_data = buffer_create(BO_BIG_ENDIAN);
+      size_t length;
+      uint8_t *data = buffer_create_string(incoming_data, &length);
 
-      /* Loop through the part of the answer before the 'domain' */
-      for(i = 0; i < dns->answers[0].answer->TEXT.length; i += 2)
-      {
-        /* Validate the answer */
-        if(answer[i] == '.')
-        {
-          /* ignore */
-        }
-        else if(answer[i+1] == '.')
-        {
-          LOG_ERROR("Answer contained an odd number of digits");
-        }
-        else if(!isxdigit((int)answer[i]))
-        {
-          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
-        }
-        else if(!isxdigit((int)answer[i+1]))
-        {
-          LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
-        }
-        else
-        {
-          buf[0] = answer[i];
-          buf[1] = answer[i + 1];
-          buf[2] = '\0';
+      /* Pass the data elsewhere. */
+      message_post_packet_in(data, length);
 
-          buffer_add_int8(incoming_data, (uint8_t)strtol(buf, NULL, 16));
-        }
-      }
-
-      /* Pass the buffer to the caller */
-      if(buffer_get_length(incoming_data) > 0)
-      {
-        size_t length;
-        uint8_t *data = buffer_create_string(incoming_data, &length);
-
-        /* Pass the data elsewhere. */
-        message_post_packet_in(data, length);
-
-        safe_free(data);
-      }
-      buffer_destroy(incoming_data);
+      safe_free(data);
     }
+    buffer_destroy(incoming_data);
   }
   else
   {
@@ -167,6 +166,14 @@ static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length
   assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
 
   buffer = buffer_create(BO_BIG_ENDIAN);
+
+  /* If no domain is set, add the wildcard prefix at the start. */
+  if(!driver->domain)
+  {
+    buffer_add_bytes(buffer, (uint8_t*)WILDCARD_PREFIX, strlen(WILDCARD_PREFIX));
+    buffer_add_int8(buffer, '.');
+  }
+
   section_length = 0;
   /* TODO: I don't much care for this loop... */
   for(i = 0; i < length; i++)
@@ -189,8 +196,15 @@ static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length
     }
   }
 
-  buffer_add_int8(buffer, '.');
-  buffer_add_ntstring(buffer, driver->domain); /* TODO: Hardcoded domain name! */
+  /* If a domain is set, instead of the wildcard prefix, add the domain to the end. */
+  if(driver->domain)
+  {
+    buffer_add_int8(buffer, '.');
+    buffer_add_bytes(buffer, driver->domain, strlen(driver->domain));
+  }
+  buffer_add_int8(buffer, '\0');
+
+  /* Get the result out. */
   encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
 
   /* Double-check we didn't mess up the length. */

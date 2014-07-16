@@ -44,12 +44,16 @@ work over DNS, which has some interesting restrictions:
 For that reason, we take some special considerations.
 
 The initial draft only supports TXT records. The request is always in
-the form of:
+the form of either:
 - [encoded data].[domain]
+or
+- [tag].[encoded data]
 
 Where [encoded data] is the packet, as described below, converted
-directly to a hexadecimal representation, and [domain] is agreed upon in
-advance through some channel.
+directly to a hexadecimal representation, [domain] is agreed upon in
+advance through some channel (generally represents a domain name you are
+the authority for), and [tag] is an agreed-upon tag (set to "dnscat" in
+my implementation)
 
 The [encoded data] can be split across multiple fields, in the form of
 "a.b.c.d". The periods should be simply ignored and discarded. The
@@ -62,7 +66,11 @@ All clients should respect that limitation, otherwise they won't work
 across the Internet.
 
 The [domain] can be any domain, and is discarded by the server before
-proceeding.
+proceeding. [domain] isn't necessarily required, a [tag] prefix can be
+added instead to uniquely identify dnscat requests.
+
+(the reference server accepts a [tag], by default, and accepts one or
+more domains as given on the commandline)
 
 The TXT response is simply the byte data, encoded in the agreed-upon
 fashion. The maximum length of the TXT response, per the spec, is 255

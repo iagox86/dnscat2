@@ -136,21 +136,6 @@ if(opts[:dns])
   end
 end
 
-# TODO: Disabling TCP for now
-#if(opts[:tcp])
-#  threads << Thread.new do
-#    Log.WARNING("Starting DNS server...")
-#    driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], opts[:domain])
-#    SessionManager.get_instance().go(driver)
-#  end
-#end
-
-
-if(threads.length == 0)
-  Log.FATAL("No UI was started! Use --dns or --tcp!")
-  exit
-end
-
 # This is simply to give up the thread's timeslice, allowing the driver threads
 # a small amount of time to initialize themselves
 sleep(0.01)
