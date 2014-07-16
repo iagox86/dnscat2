@@ -23,18 +23,30 @@ $ ./dnscat --ping mydomain.com
 To get stated quickly, simply to play around on localhost, try this (requires ruby and bundler - 'gem install bundler', and possibly sudo / rvmsudo):
 
 [server]
-$ cd server/
+$ git clone https://github.com/iagox86/dnscat2.git
+$ cd dnscat2/server/
 $ bundle install
-# ruby ./server.rb mydomain.com
+# ruby ./server.rb
 
 (Note that you can literally use "mydomain.com" to play around)
 
 [client]
-$ cd client/
+$ git clone https://github.com/iagox86/dnscat2.git
+$ cd dnscat2/client/
 $ make
-$ ./dnscat --host localhost mydomain.com
+$ ./dnscat --host localhost
 
 On the server, you should see "New session established: 1". Type "session -i 1" to interact. Type 'help' anywhere on the server to get some help (additionally, every command on the server has a "-h" flag).
+
+If you have the authoritative DNS server for a domain, you can give the domain name to both the client and the server:
+
+[server]
+# ruby ./server.rb <domain(s)>
+
+[client]
+# ./dnscat <domain>
+
+The system DNS server will be used, if possible, and the DNS request will traverse the DNS infrastructure instead of going directly to the server.
 
 +-------------+
 | Compilation |
