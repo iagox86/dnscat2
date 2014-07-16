@@ -26,7 +26,7 @@ To get stated quickly, simply to play around on localhost, try this (requires ru
 $ git clone https://github.com/iagox86/dnscat2.git
 $ cd dnscat2/server/
 $ bundle install
-# ruby ./server.rb
+# ruby ./dnscat2.rb
 
 (Note that you can literally use "mydomain.com" to play around)
 
