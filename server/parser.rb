@@ -79,9 +79,13 @@ module Parser
     # Otherwise, process the line
     begin
       process_line(line)
+#    rescue SystemExit
+#      exit()
     rescue Exception => e
       error("There was an error processing the line: #{e}")
-      error("If you think it was my fault, please submit a bug report!")
+      error("If you think it was my fault, please submit a bug report with the following stacktrace:")
+      error("")
+      error(e.backtrace)
     end
   end
 end
