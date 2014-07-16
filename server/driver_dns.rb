@@ -23,16 +23,17 @@ class DriverDNS
   Name = Resolv::DNS::Name
   IN = Resolv::DNS::Resource::IN
 
-  def initialize(host, port, domains, autodomain)
+  def initialize(host, port, domains, autodomain, passthrough)
     puts("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
     if(autodomain)
       puts("Will also accept direct queries, if they're tagged properly!")
     end
 
-    @host       = host
-    @port       = port
-    @domains    = domains
-    @autodomain = autodomain
+    @host        = host
+    @port        = port
+    @domains     = domains
+    @autodomain  = autodomain
+    @passthrough = passthrough
 
   end
 
@@ -58,17 +59,11 @@ class DriverDNS
     end
   end
 
-  def DriverDNS.handle_name(name)
-    puts("OTHER RESPONSE:")
-    puts(response)
-
-    return response
-  end
-
   def recv()
     # Save the domains locally so the block can see it
-    domains    = @domains
-    autodomain = @autodomain
+    domains     = @domains
+    autodomain  = @autodomain
+    passthrough = @passthrough
 
     interfaces = [
       [:udp, @host, @port],
@@ -182,8 +177,13 @@ class DriverDNS
 
       # Default DNS handler
       otherwise do |transaction|
-        Log.ERROR("Unable to handle request, passing upstream: #{transaction}")
-        transaction.passthrough!(UPSTREAM)
+        if(passthrough)
+          Log.ERROR("Unable to handle request, passing upstream: #{transaction.name}")
+          transaction.passthrough!(UPSTREAM)
+        else
+          Log.ERROR("Unable to handle request, returning an error: #{transaction.name}")
+          Log.ERROR("(If you want to pass to upstream DNS servers, use --passthrough)")
+        end
       end
     end
   end

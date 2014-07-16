@@ -34,6 +34,8 @@ opts = Trollop::options do
     :type => :integer, :default => 53
   opt :autodomain,"If set (which is the default), in addition to any domain(s) specified, requests to no particular domain (but prefixed with a dnscat2 marker) will be processed",
     :type => :boolean, :default => true
+  opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
+    :type => :boolean, :default => false
 
   opt :tcp,       "Start a TCP server",
     :type => :boolean, :default => true
@@ -65,7 +67,8 @@ if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
 end
 
-autodomain = opts[:autodomain]
+autodomain  = opts[:autodomain]
+passthrough = opts[:passthrough]
 # Make a copy of ARGV
 domains = [].replace(ARGV)
 
@@ -116,7 +119,7 @@ if(opts[:dns])
   threads << Thread.new do
     begin
       Log.WARNING("Starting DNS server...")
-      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, autodomain)
+      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, autodomain, passthrough)
       SessionManager.go(driver)
     rescue DnscatException => e
       Log.ERROR("Protocol exception caught in DNS module:")
