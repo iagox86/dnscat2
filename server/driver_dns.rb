@@ -28,6 +28,9 @@ class DriverDNS
     if(autodomain)
       puts("Will also accept direct queries, if they're tagged properly!")
     end
+    if(domains.nil? || domains.length == 0)
+      puts("WARNING: No domains were selected, which means this server will only respond to direct queries")
+    end
 
     @host        = host
     @port        = port

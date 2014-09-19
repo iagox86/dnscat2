@@ -82,7 +82,7 @@ class Ui
 
       @options[name] = value
 
-      puts("#{name} => #{value}")
+      #puts("#{name} => #{value}")
     end
   end
 
