@@ -25,6 +25,12 @@ module Parser
   end
 
   def process_line(line)
+    # If the line starts with a '!', just pass it to a shell
+    if(line[0] == '!')
+      system(line[1..-1])
+      return
+    end
+
     begin
       args = Shellwords.shellwords(line)
     rescue Exception => e
