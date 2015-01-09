@@ -8,14 +8,14 @@ module UiHandler
     @uis = []
   end
 
-  def add_pending(real_id)
-    @pending[real_id] = true
+  def add_pending(id)
+    @pending[id] = true
   end
 
   # Callback
-  def ui_created(ui, local_id, real_id, force = false)
-    if(force || @pending[real_id])
-      @pending.delete(real_id)
+  def ui_created(ui, id, force = false)
+    if(force || @pending[id])
+      @pending.delete(id)
       @uis << ui
       ui.parent = self
     end

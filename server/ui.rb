@@ -25,15 +25,8 @@ class Ui
     # This is a handle to the current UI the user is interacting with
     @ui = nil
 
-    # The current local_id
-    @current_local_id = 0
-
-    # This is a list of all UIs that are available, indexed by local_id
-    @uis_by_local_id = {}
-    @uis_by_real_id = {}
-
-    # A mapping of real ids to session ids
-    @id_map = {}
+    # These are the available UIs, by session id
+    @uis = {}
 
     # Lets us have multiple 'attached' sessions
     @ui_history = []
@@ -45,12 +38,8 @@ class Ui
     # Nothing required
   end
 
-  def get_by_local_id(id)
-    return @uis_by_local_id[id]
-  end
-
-  def get_by_real_id(id)
-    return @uis_by_real_id[id]
+  def get_by_id(id)
+    return @uis[id]
   end
 
   def set_option(name, value)
@@ -96,17 +85,17 @@ class Ui
     return @options[name]
   end
 
-  def error(msg, local_id = nil)
+  def error(msg, id = nil)
     # Try to use the provided id first
-    if(!local_id.nil?)
-      ui = @uis_by_local_id[local_id]
+    if(!id.nil?)
+      ui = @uis[id]
       if(!ui.nil?)
         ui.error(msg)
         return
       end
     end
 
-    # As a fall-back, or if the local_id wasn't provided, output to the current or
+    # As a fall-back, or if the id wasn't provided, output to the current or
     # the command window
     if(@ui.nil?)
       @command.error(msg)
@@ -200,7 +189,7 @@ class Ui
   end
 
   def each_ui()
-    @uis_by_local_id.each do |s|
+    @uis.each_value do |s|
       yield(s)
     end
   end
@@ -209,16 +198,9 @@ class Ui
   # The rest of this are callbacks
   #################
 
-  def session_established(real_id)
-    # Generate the local id
-    local_id = @current_local_id + 1
-    @current_local_id += 1
-
-    # Create the mapping
-    @id_map[real_id] = local_id
-
+  def session_established(id)
     # Get a handle to the session
-    session = SessionManager.find(real_id)
+    session = SessionManager.find(id)
 
     # Fail if it doesn't exist
     if(session.nil?)
@@ -227,19 +209,17 @@ class Ui
 
     # Create a new UI
     if(session.is_command)
-      ui = UiSessionCommand.new(local_id, session, self)
-      self.subscribe(ui)
+      ui = UiSessionCommand.new(id, session, self)
     else
-      ui = UiSessionInteractive.new(local_id, session, self)
-      self.subscribe(ui)
+      ui = UiSessionInteractive.new(id, session, self)
     end
+    self.subscribe(ui)
 
     # Save it in both important lists
-    @uis_by_local_id[local_id] = ui
-    @uis_by_real_id[real_id]   = ui
+    @uis[id] = ui
 
     # Let all the other sessions know that this one was created
-    notify_subscribers(:ui_created, [ui, local_id, real_id])
+    notify_subscribers(:ui_created, [ui, id])
 
     # If nobody else has claimed it, bequeath it to the root (command) ui
     if(ui.parent.nil?)
@@ -247,34 +227,34 @@ class Ui
 
       # Since the @command window has no way to know that it's supposed to have
       # this session, add it manually
-      @command.ui_created(ui, local_id, real_id, true)
+      @command.ui_created(ui, id, true)
     else
-      ui.parent.output("New session established: #{local_id}")
+      ui.parent.output("New session established: #{id}")
     end
 
-    @command.output("New session established: #{local_id}")
+    @command.output("New session established: #{id}")
   end
 
-  def session_data_received(real_id, data)
-    ui = @uis_by_real_id[real_id]
+  def session_data_received(id, data)
+    ui = @uis[id]
     if(ui.nil?)
-      raise(DnscatException, "Couldn't find session: #{real_id}")
+      raise(DnscatException, "Couldn't find session: #{id}")
     end
     ui.feed(data)
   end
 
-  def session_data_acknowledged(real_id, data)
-    ui = @uis_by_real_id[real_id]
+  def session_data_acknowledged(id, data)
+    ui = @uis[id]
     if(ui.nil?)
-      raise(DnscatException, "Couldn't find session: #{real_id}")
+      raise(DnscatException, "Couldn't find session: #{id}")
     end
     ui.ack(data)
   end
 
-  def session_destroyed(real_id)
-    ui = @uis_by_real_id[real_id]
+  def session_destroyed(id)
+    ui = @uis[id]
     if(ui.nil?)
-      raise(DnscatException, "Couldn't find session: #{real_id}")
+      raise(DnscatException, "Couldn't find session: #{id}")
     end
 
     # Tell the UI it's been destroyed
@@ -287,9 +267,9 @@ class Ui
   end
 
   # This is used by the 'kill' command the user can enter
-  def kill_session(local_id)
+  def kill_session(id)
     # Find the session
-    ui = @uis_by_local_id[local_id]
+    ui = @uis[id]
     if(ui.nil?())
       return false
     end
@@ -301,19 +281,19 @@ class Ui
   end
 
   # Callback
-  def session_heartbeat(real_id)
-    ui = @uis_by_real_id[real_id]
+  def session_heartbeat(id)
+    ui = @uis[id]
     if(ui.nil?)
-      raise(DnscatException, "Couldn't find session: #{real_id}")
+      raise(DnscatException, "Couldn't find session: #{id}")
     end
     ui.heartbeat()
   end
 
   # Callback
-  def dnscat2_session_error(real_id, message)
-    ui = @uis_by_real_id[real_id]
+  def dnscat2_session_error(id, message)
+    ui = @uis[id]
     if(ui.nil?)
-      raise(DnscatException, "Couldn't find session: #{real_id}")
+      raise(DnscatException, "Couldn't find session: #{id}")
     end
     ui.error(message)
   end

@@ -85,7 +85,7 @@ class UiCommand < UiInterface
           puts("Known sessions:")
           display_uis(false)
         else
-          ui = @ui.get_by_local_id(opts[:i])
+          ui = @ui.get_by_id(opts[:i])
           if(ui.nil?)
             error("Session #{opts[:i]} not found!")
             display_uis(false)
@@ -163,6 +163,11 @@ class UiCommand < UiInterface
 
   def initialize(ui)
     super()
+
+    # Set up logging
+    NuLog.logging(nil) do |msg|
+      output(msg)
+    end
 
     initialize_ui_handler()
     initialize_parser("dnscat2> ")

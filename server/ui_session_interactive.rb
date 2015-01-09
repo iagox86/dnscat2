@@ -2,18 +2,18 @@
 # By Ron Bowes
 # Created July 4, 2013
 
-require 'ui_interface'
+require 'ui_interface_with_id'
 
-class UiSessionInteractive < UiInterface
-  attr_accessor :local_id
+class UiSessionInteractive < UiInterfaceWithId
+  attr_accessor :id
   attr_accessor :session
 
   MAX_HISTORY_LENGTH = 10000
 
-  def initialize(local_id, session, ui)
-    super()
+  def initialize(id, session, ui)
+    super(id)
 
-    @local_id = local_id
+    @id = id
     @session  = session
     @ui = ui
 
@@ -26,14 +26,14 @@ class UiSessionInteractive < UiInterface
     if(active?())
       idle = Time.now() - @last_seen
       if(idle > 120)
-        return "%ssession %d :: %s :: [idle for over two minutes; probably dead]" % [activity_indicator(), @local_id, @session.name]
+        return "%ssession %d :: %s :: [idle for over two minutes; probably dead]" % [activity_indicator(), @id, @session.name]
       elsif(idle > 5)
-        return "%ssession %d :: %s :: [idle for %d seconds]" % [activity_indicator(), @local_id, @session.name, idle]
+        return "%ssession %d :: %s :: [idle for %d seconds]" % [activity_indicator(), @id, @session.name, idle]
       else
-        return "%ssession %d :: %s" % [activity_indicator(), @local_id, @session.name]
+        return "%ssession %d :: %s" % [activity_indicator(), @id, @session.name]
       end
     else
-      return "%ssession %d :: %s :: [closed]" % [activity_indicator(), @local_id, @session.name]
+      return "%ssession %d :: %s :: [closed]" % [activity_indicator(), @id, @session.name]
     end
   end
 

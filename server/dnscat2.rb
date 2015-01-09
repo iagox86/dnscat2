@@ -22,6 +22,8 @@ require 'ui'
 # Option parsing
 require 'trollop'
 
+require 'nulog'
+
 Thread::abort_on_exception = true
 
 # Options

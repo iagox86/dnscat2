@@ -10,10 +10,11 @@ require 'command_packet_stream'
 require 'command_packet'
 require 'parser'
 require 'ui_handler'
+require 'ui_interface_with_id'
 
-class UiSessionCommand < UiInterface
+class UiSessionCommand < UiInterfaceWithId
   attr_reader :session
-  attr_reader :local_id
+  attr_reader :id
 
   include Parser
   include UiHandler
@@ -24,7 +25,7 @@ class UiSessionCommand < UiInterface
     if($stdin.gets[0].downcase == 'n')
       puts("You might want to use ^z or the 'suspend' command")
     else
-      @ui.kill_session(@local_id)
+      @ui.kill_session(@id)
       @ui.detach_session()
     end
   end
@@ -162,7 +163,7 @@ class UiSessionCommand < UiInterface
           puts("Known sessions:")
           display_uis(false)
         else
-          ui = @ui.get_by_local_id(opts[:i])
+          ui = @ui.get_by_id(opts[:i])
           if(ui.nil?)
             error("Session #{opts[:i]} not found!")
             display_uis(false)
@@ -225,13 +226,13 @@ class UiSessionCommand < UiInterface
     )
   end
 
-  def initialize(local_id, session, ui)
-    super()
+  def initialize(id, session, ui)
+    super(id)
 
-    initialize_parser("dnscat [command: #{local_id}]> ")
+    initialize_parser("dnscat [command: #{id}]> ")
     initialize_ui_handler()
 
-    @local_id = local_id
+    @id = id
     @session  = session
     @ui = ui
     @stream = CommandPacketStream.new()
@@ -328,14 +329,14 @@ class UiSessionCommand < UiInterface
     if(active?())
       idle = Time.now() - @last_seen
       if(idle > 120)
-        return "%ssession %d :: %s :: [idle for over two minutes; probably dead]" % [activity_indicator(), @local_id, @session.name]
+        return "%ssession %d :: %s :: [idle for over two minutes; probably dead]" % [activity_indicator(), @id, @session.name]
       elsif(idle > 5)
-        return "%ssession %d :: %s :: [idle for %d seconds]" % [activity_indicator(), @local_id, @session.name, idle]
+        return "%ssession %d :: %s :: [idle for %d seconds]" % [activity_indicator(), @id, @session.name, idle]
       else
-        return "%ssession %d :: %s" % [activity_indicator(), @local_id, @session.name]
+        return "%ssession %d :: %s" % [activity_indicator(), @id, @session.name]
       end
     else
-      return "%ssession %d :: %s :: [closed]" % [activity_indicator(), @local_id, @session.name]
+      return "%ssession %d :: %s :: [closed]" % [activity_indicator(), @id, @session.name]
     end
   end
 
