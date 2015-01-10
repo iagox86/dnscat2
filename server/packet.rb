@@ -10,7 +10,15 @@
 
 require 'dnscat_exception'
 
+module PacketHelper
+  def at_least?(data, needed)
+    return (data.length >= needed)
+  end
+end
+
 class Packet
+  extend PacketHelper
+
   # Message types
   MESSAGE_TYPE_SYN        = 0x00
   MESSAGE_TYPE_MSG        = 0x01
@@ -24,188 +32,262 @@ class Packet
   OPT_CHUNKED_DOWNLOAD    = 0x0010
   OPT_COMMAND             = 0x0020
 
-  attr_reader :data, :packet_id, :type, :session_id, :options, :seq, :ack
-  attr_reader :name     # For SYN
-  attr_reader :download # For downloads (in SYN)
-  attr_reader :chunk    # For chunked downloads (in MSG)
-  attr_reader :reason   # For FIN
-  attr_reader :data     # For PING
+  attr_reader :packet_id, :type, :session_id, :body
 
-  def at_least?(data, needed)
-    return (data.length >= needed)
+  class SynBody
+    extend PacketHelper
+
+    attr_reader :seq, :options, :name, :download
+
+    def initialize(options, params = {})
+      @options = options || raise(DnscatException, "options can't be nil!")
+      @seq = params[:seq] || raise(DnscatException, "params[:seq] can't be nil!")
+
+      if((@options & OPT_NAME) == OPT_NAME)
+        @name = params[:name] || raise(DnscatException, "params[:name] can't be nil when OPT_NAME is set!")
+      else
+        @name = "(unnamed)"
+      end
+
+      if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
+        @download = params[:download] || raise(DnscatException, "params[:download] can't be nil when OPT_DOWNLOAD is set!")
+      end
+    end
+
+    def SynBody.parse(data)
+      at_least?(data, 4) || raise(DnscatException, "Packet is too short (SYN)")
+
+      seq, options = data.unpack("nn")
+      data = data[4..-1]
+
+      # Parse the option name, if it has one
+      name = nil
+      if((options & OPT_NAME) == OPT_NAME)
+        if(data.index("\0").nil?)
+          raise(DnscatException, "OPT_NAME set, but no null-terminated name given")
+        end
+        name = data.unpack("Z*").pop
+        data = data[(name.length+1)..-1]
+      else
+        name = "[unnamed]"
+      end
+
+      # Parse the download option, if it exists
+      download = nil
+      if((options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
+        if(data.index("\0").nil?)
+          raise(DnscatException, "OPT_DOWNLOAD set, but no null-terminated name given")
+        end
+        download = data.unpack("Z*").pop
+        data = data[(download.length+1)..-1]
+      end
+
+      # Verify that that was the entire packet
+      if(data.length > 0)
+        raise(DnscatException, "Extra data on the end of an SYN packet :: #{data.unpack("H*")}")
+      end
+
+      return SynBody.new(options, {
+        :seq     => seq,
+        :name    => name,
+        :download => download,
+      })
+    end
+
+    def to_s()
+      result = "[[SYN]] :: isn = %04x, options = %04x" % [@seq, @options]
+
+      if((options & OPT_DOWNLOAD) == OPT_DOWNLOAD || (options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        result += ", download = %s" % @download
+      end
+
+      return result
+    end
+
+    def to_bytes()
+      return [seq, options].pack("nn")
+    end
   end
 
-  def parse_header(data)
+  class MsgBody
+    extend PacketHelper
+
+    attr_reader :chunk, :seq, :ack, :data
+
+    def initialize(options, params = {})
+      @options = options
+      if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        @chunk = params[:chunk] || raise(DnscatException, "params[:chunk] can't be nil when OPT_CHUNKED_DOWNLOAD is set!")
+      else
+        @seq = params[:seq] || raise(DnscatException, "params[:seq] can't be nil unless OPT_CHUNKED_DOWNLOAD is set!")
+        @ack = params[:ack] || raise(DnscatException, "params[:ack] can't be nil unless OPT_CHUNKED_DOWNLOAD is set!")
+      end
+      @data = params[:data] || raise(DnscatException, "params[:data] can't be nil!")
+    end
+
+    def MsgBody.parse(options, data)
+      if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG d/l)")
+
+        chunk = data.unpack("N").pop
+        data = data[4..-1] # Remove the first eight bytes
+      else
+        at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG norm)")
+
+        seq, ack = data.unpack("nn")
+        data = data[4..-1] # Remove the first four bytes
+      end
+
+      return MsgBody.new(options, {
+        :chunk => chunk,
+        :data  => data,
+        :seq   => seq,
+        :ack   => ack,
+        :data  => data,
+      })
+    end
+
+    def MsgBody.header_size(options)
+      return MsgBody.new(options, {
+        :chunk => 0,
+        :seq   => 0,
+        :ack   => 0,
+        :data  => '',
+      }).to_bytes().length()
+    end
+
+    def to_s()
+      data = @data.gsub(/\n/, '\n')
+      if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        return "[[MSG]] :: chunk = %d, data = \"%s\"" % [@chunk, data]
+      else
+        return "[[MSG]] :: seq = %04x, ack = %04x, data = \"%s\"" % [@seq, @ack, data]
+      end
+    end
+
+    def to_bytes()
+      result = ""
+      if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
+        chunk = @chunk || 0
+        result += [chunk, @data].pack("NA*")
+      else
+        seq = @seq || 0
+        ack = @ack || 0
+        result += [seq, ack, @data].pack("nnA*")
+      end
+
+      return result
+    end
+  end
+
+  class FinBody
+    extend PacketHelper
+
+    attr_reader :reason
+
+    def initialize(options, params = {})
+      @options = options
+      @reason = params[:reason] || raise(DnscatException, "params[:reason] can't be nil!")
+    end
+
+    def FinBody.parse(options, data)
+      at_least?(data, 1) || raise(DnscatException, "Packet is too short (FIN)")
+
+      reason = data.unpack("Z*").pop
+      data = data[(reason.length+1)..-1]
+
+      if(data.length > 0)
+        raise(DnscatException, "Extra data on the end of a FIN packet")
+      end
+
+      return FinBody.new(options, {
+        :reason => reason,
+      })
+    end
+
+    def to_s()
+      return "[[FIN]] :: %s" % [@reason]
+    end
+
+    def to_bytes()
+      [@reason].pack("Z*")
+    end
+  end
+
+  # You probably don't ever want to use this, call Packet.parse() or Packet.create_*() instead
+  def initialize(packet_id, type, session_id, body)
+    @packet_id  = packet_id  || rand(0xFFFF)
+    @type       = type       || raise(DnscatException, "type can't be nil!")
+    @session_id = session_id || raise(DnscatException, "session_id can't be nil!")
+    @body       = body
+  end
+
+  def Packet.header_size(options)
+    return Packet.new(0, 0, 0, nil).to_bytes().length()
+  end
+
+  def Packet.parse_header(data)
     at_least?(data, 5) || raise(DnscatException, "Packet is too short (header)")
 
     # (uint16_t) packet_id
     # (uint8_t)  message_type
     # (uint16_t) session_id
-    @packet_id, @type, @session_id = data.unpack("nCn")
+    packet_id, type, session_id = data.unpack("nCn")
+    data = data[5..-1]
 
-    return data[5..-1]
+    return packet_id, type, session_id, data
   end
 
-  def parse_syn(data)
-    at_least?(data, 4) || raise(DnscatException, "Packet is too short (SYN)")
-    @seq, @options = data.unpack("nn")
-    data = data[4..-1]
+  def Packet.peek_session_id(data)
+    _, _, session_id, _ = Packet.parse_header(data)
 
-    # Parse the option name, if it has one
-    @name = nil
-    if((@options & OPT_NAME) == OPT_NAME)
-      if(data.index("\0").nil?)
-        raise(DnscatException, "OPT_NAME set, but no null-terminated name given")
+    return session_id
+  end
+
+  def Packet.parse(data, options = nil)
+    packet_id, type, session_id, data = Packet.parse_header(data)
+
+    if(type == MESSAGE_TYPE_SYN)
+      body = SynBody.parse(data)
+    elsif(type == MESSAGE_TYPE_MSG)
+      if(options.nil?)
+        raise(DnscatException, "Options are required when parsing MSG packets!")
       end
-      @name = data.unpack("Z*").pop
-      data = data[(@name.length+1)..-1]
-    else
-      @name = "[unnamed]"
-    end
-
-    # Parse the download option, if it exists
-    @download = nil
-    if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
-      if(data.index("\0").nil?)
-        raise(DnscatException, "OPT_DOWNLOAD set, but no null-terminated name given")
+      body = MsgBody.parse(options, data)
+    elsif(type == MESSAGE_TYPE_FIN)
+      if(options.nil?)
+        raise(DnscatException, "Options are required when parsing FIN packets!")
       end
-      @download = data.unpack("Z*").pop
-      data = data[(@download.length+1)..-1]
-    end
-
-    # Verify that that was the entire packet
-    if(data.length > 0)
-      raise(DnscatException, "Extra data on the end of an SYN packet :: #{data.unpack("H*")}")
-    end
-  end
-
-  def parse_msg(data, options)
-    if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-      at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG d/l)")
-
-      @chunk = data.unpack("N").pop
-      @data = data[4..-1] # Remove the first eight bytes
+      body = FinBody.parse(options, data)
     else
-      at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG norm)")
-
-      @seq, @ack = data.unpack("nn")
-      @data = data[4..-1] # Remove the first four bytes
-    end
-  end
-
-  def parse_fin(data, options)
-    at_least?(data, 1) || raise(DnscatException, "Packet is too short (FIN)")
-
-    @reason = data.unpack("Z*").pop
-    data = data[(@reason.length+1)..-1]
-
-    if(data.length > 0)
-      raise(DnscatException, "Extra data on the end of a FIN packet")
-    end
-  end
-
-  def parse_ping(data)
-    at_least?(data, 1) || raise(DnscatException, "Packet is too short (PING)")
-
-    @data = data.unpack("Z*").pop
-    data = data[(@data.length+1)..-1]
-
-    if(data.length > 0)
-      raise(DnscatException, "Extra data on the end of a PING packet")
-    end
-  end
-
-  def initialize(data)
-    # Parse the hader
-    parse_header(data)
-  end
-
-  def parse_body(data, options)
-    # Parse the hader
-    data = parse_header(data)
-
-    # Parse the message differently depending on what type it is
-    if(@type == MESSAGE_TYPE_SYN)
-      parse_syn(data)
-    elsif(@type == MESSAGE_TYPE_MSG)
-      parse_msg(data, options)
-    elsif(@type == MESSAGE_TYPE_FIN)
-      parse_fin(data, options)
-    elsif(@type == MESSAGE_TYPE_PING)
-      parse_ping(data)
-    else
-      raise(DnscatException, "Unknown message type: #{@type}")
-    end
-  end
-
-  def Packet.parse_header(data)
-    return Packet.new(data)
-  end
-
-  def Packet.create_header(type, session_id, packet_id = nil)
-    packet_id = packet_id || rand(0xFFFF)
-    return [packet_id, type, session_id].pack("nCn")
-  end
-
-  def Packet.create_syn(session_id, seq, options = 0, packet_id = nil)
-    return create_header(MESSAGE_TYPE_SYN, session_id, packet_id) + [seq, options].pack("nn")
-  end
-
-  def Packet.syn_header_size()
-    return create_syn(0, 0, 0, nil, 0).length
-  end
-
-  def Packet.create_msg(session_id, msg, options, option_data = {}, packet_id = nil)
-    result = create_header(MESSAGE_TYPE_MSG, session_id, packet_id)
-    if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-      chunk = option_data['chunk'] || 0
-      result += [chunk, msg].pack("NA*")
-    else
-      seq = option_data['seq'] || 0
-      ack = option_data['ack'] || 0
-      result += [seq, ack, msg].pack("nnA*")
+      raise(DnscatException, "Unknown message type: #{type}")
     end
 
-    return result
+    return Packet.new(packet_id, type, session_id, body)
   end
 
-  def Packet.msg_header_size(options)
-    return create_msg(0, '', options, {'seq'=>0, 'ack'=>0, 'chunk'=>0}, 0).length
+  def Packet.create_syn(options, params = {})
+    return Packet.new(params[:packet_id], MESSAGE_TYPE_SYN, params[:session_id], SynBody.new(options, params))
   end
 
-  def Packet.create_fin(session_id, reason, options, packet_id = nil)
-    return create_header(MESSAGE_TYPE_FIN, session_id, packet_id) + [reason].pack("Z*")
+  def Packet.create_msg(options, params = {})
+    return Packet.new(params[:packet_id], MESSAGE_TYPE_MSG, params[:session_id], MsgBody.new(options, params))
   end
 
-  def Packet.fin_header_size()
-    return create_fin(0, "", 0).length
-  end
-
-  def Packet.create_ping(data, packet_id = nil)
-    return create_header(MESSAGE_TYPE_PING, 0, packet_id) + [data].pack("Z*")
+  def Packet.create_fin(options, params = {})
+    return Packet.new(params[:packet_id], MESSAGE_TYPE_FIN, params[:session_id], FinBody.new(options, params))
   end
 
   def to_s()
-    result = nil
-    if(@type == MESSAGE_TYPE_SYN)
-      result = "[[SYN]] :: [0x%04x] session = %04x, seq = %04x, options = %04x" % [@packet_id, @session_id, @seq, @options]
+    return "[0x%04x] session = %04x :: %s" % [@packet_id, @session_id, @body.to_s]
+  end
 
-      if((options & OPT_DOWNLOAD) == OPT_DOWNLOAD || (options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        result += ", download = %s" % @download
-      end
-    elsif(@type == MESSAGE_TYPE_MSG)
-      data = @data.gsub(/\n/, '\n')
-      if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        result = "[[MSG]] :: [0x%04x] session = %04x, chunk = %d, data = \"%s\"" % [@packet_id, @session_id, @chunk, data]
-      else
-        result = "[[MSG]] :: [0x%04x] session = %04x, seq = %04x, ack = %04x, data = \"%s\"" % [@packet_id, @session_id, @seq, @ack, data]
-      end
-    elsif(@type == MESSAGE_TYPE_FIN)
-      result = "[[FIN]] :: [0x%04x] session = %04x :: %s" % [@packet_id, @session_id, @reason]
-    elsif(@type == MESSAGE_TYPE_PING)
-      result = "[[PING]] :: [0x%04x] data = %s" % [@packet_id, @data]
-    else
-      raise DnscatException("Unknown packet type")
+  def to_bytes()
+    result = [@packet_id, @type, @session_id].pack("nCn")
+
+    # If we set the body to nil, just return a header (this happens when determining the header length)
+    if(!@body.nil?)
+      result += @body.to_bytes()
     end
 
     return result

@@ -10,10 +10,10 @@ class UiInterfaceWithId < UiInterface
   attr_accessor :parent
 
   def initialize(id)
-    super()
-
     NuLog.logging(id) do |msg|
       output(msg)
     end
+
+    super()
   end
 end

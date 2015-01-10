@@ -15,8 +15,8 @@ require 'ui_session_interactive'
 class Ui
   include Subscribable
 
-  def initialize()
-    @options = {}
+  def initialize(opts)
+    @options = opts
     @thread = Thread.current()
 
     # There's always a single UiCommand in existance
@@ -63,15 +63,16 @@ class Ui
       value = true if(value == "true")
       value = false if(value == "false")
 
-      # Validate the log level
-      if(name == "log_level" && Log.get_by_name(value).nil?)
-        puts("ERROR: Legal values for log_level are: #{Log::LEVELS}")
-        return
+      if(name == "log_level")
+        NuLog.WARNING(nil, "Setting debug level to: #{value.upcase()}")
+        if(!NuLog.set_min_level(value.upcase()))
+          NuLog.ERROR(nil, "Failed! Valid log levels are: #{NuLog::LEVELS}")
+        end
+      else
+        NuLog.WARNING(nil, "#{name} => #{value}")
+        @options[name] = value
       end
 
-      @options[name] = value
-
-      #puts("#{name} => #{value}")
     end
   end
 
@@ -168,7 +169,7 @@ class Ui
     loop do
       begin
         if(@ui.nil?)
-          Log.ERROR("@ui ended up nil somehow!")
+          NuLog.ERROR(nil, "@ui ended up nil somehow!")
         end
 
         # If the ui is no longer active, switch to the @command window
@@ -298,24 +299,24 @@ class Ui
     ui.error(message)
   end
 
-  # Callback
-  def log(level, message)
-    # Handle the special case, before a level is set
-    if(@options["log_level"].nil?)
-      min = Log::INFO
-    else
-      min = Log.get_by_name(@options["log_level"])
-    end
-
-    if(level >= min)
-      # TODO: @command is occasionally nil here - consider creating it earlier?
-      if(@command.nil?)
-        puts("[[#{Log::LEVELS[level]}]] :: #{message}")
-      else
-        @command.error("[[#{Log::LEVELS[level]}]] :: #{message}")
-      end
-    end
-  end
+#  # Callback
+#  def log(level, message)
+#    # Handle the special case, before a level is set
+#    if(@options["log_level"].nil?)
+#      min = Log::INFO
+#    else
+#      min = Log.get_by_name(@options["log_level"])
+#    end
+#
+#    if(level >= min)
+#      # TODO: @command is occasionally nil here - consider creating it earlier?
+#      if(@command.nil?)
+#        puts("[[#{Log::LEVELS[level]}]] :: #{message}")
+#      else
+#        @command.error("[[#{Log::LEVELS[level]}]] :: #{message}")
+#      end
+#    end
+#  end
 
   def wakeup()
     @thread.raise(UiWakeup)

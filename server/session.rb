@@ -7,8 +7,9 @@
 #
 ##
 
-require 'log'
 require 'dnscat_exception'
+require 'nulog'
+require 'packet'
 require 'subscribable'
 
 class Session
@@ -28,11 +29,11 @@ class Session
 
   # These two methods are required for test.rb to work
   def Session.debug_set_isn(n)
-    Log.FATAL("Using debug code")
+    NuLog.FATAL(nil, "Using debug code")
     @@isn = n
   end
   def debug_set_seq(n)
-    Log.FATAL("Using debug code")
+    NuLog.FATAL(@id, "Using debug code")
     @my_seq = n
   end
 
@@ -54,7 +55,7 @@ class Session
 
   def kill()
     if(@state != STATE_KILLED)
-      Log.WARNING("Session killed: #{@id}")
+      NuLog.WARNING(@id, "Session killed")
 
       @state = STATE_KILLED
     end
@@ -117,19 +118,25 @@ class Session
     end
 
     if(@state == STATE_KILLED)
-      return Packet.create_fin(@id, "Session killed", @options)
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => "Session was killed",
+      })
     end
 
     # Save some of their options
-    @their_seq = packet.seq
-    @name = packet.name
-    @options = packet.options
+    @their_seq = packet.body.seq
+    @name      = packet.body.name
+    @options   = packet.body.options
 
     # Make sure options are sane
     if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD &&
        (@options & Packet::OPT_DOWNLOAD) == 0)
       notify_subscribers(:dnscat2_session_error, [@id, "Error in client options: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD"])
-      return Packet.create_fin(@id, "ERROR: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD", @options)
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason     => "ERROR: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD",
+      })
     end
 
     if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
@@ -137,17 +144,20 @@ class Session
     end
 
     # TODO: Allowing any arbitrary file is a security risk
-    if(!packet.download.nil?)
+    if(!packet.body.download.nil?)
       begin
-        @filename = packet.download
+        @filename = packet.body.download
         File.open(@filename, 'rb') do |f|
           queue_outgoing(f.read())
         end
       rescue Exception => e
-        Log.ERROR("Client requested a bad file: #{packet.download}")
-        Log.ERROR(e.inspect)
+        NuLog.ERROR(@id, "Client requested a bad file: #{packet.body.download}")
+        NuLog.ERROR(@id, e.to_s())
 
-        return Packet.create_fin(@id, "ERROR: File couldn't be read: #{e.inspect}", @options)
+        return Packet.create_fin(@options, {
+          :session_id => @id,
+          :reason     => "ERROR: File couldn't be read: #{e.inspect}",
+        })
       end
     end
 
@@ -156,63 +166,90 @@ class Session
     notify_subscribers(:session_established, [@id])
 
     # Notify subscribers that the syn has come (TODO: I doubt we need this)
-    notify_subscribers(:dnscat2_syn_received, [@id, @my_seq, packet.seq])
+    notify_subscribers(:dnscat2_syn_received, [@id, @my_seq, packet.body.seq])
 
-    return Packet.create_syn(@id, @my_seq, @options)
+    return Packet.create_syn(0, {
+      :session_id => @id,
+      :seq        => @my_seq,
+      :options    => 0, # TODO: I haven't paid much attention to what the server puts in its options field
+    })
+  end
+
+  def actual_msg_max_length(max_data_length)
+    return max_data_length - (Packet.header_size(@options) + Packet::MsgBody.header_size(@options))
   end
 
   def handle_msg_normal(packet, max_length)
     # Validate the sequence number
-    if(@their_seq != packet.seq)
+    if(@their_seq != packet.body.seq)
       notify_subscribers(:dnscat2_session_error, [@id, "Bad sequence number: expected 0x%04x, received 0x%04x" % [@their_seq, packet.seq]])
 
       # Re-send the last packet
-      old_data = next_outgoing(max_length - Packet.msg_header_size(@options))
-      return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
+      old_data = next_outgoing(actual_msg_max_length(max_length))
+      return Packet.create_msg(@options, {
+        :session_id => @id,
+        :data       => old_data,
+        :seq        => @my_seq,
+        :ack        => @their_seq,
+      })
     end
 
     # Validate the acknowledgement number
-    if(!valid_ack?(packet.ack))
+    if(!valid_ack?(packet.body.ack))
       notify_subscribers(:dnscat2_session_error, [@id, "Bad acknowledgement number: expected 0x%04x, received 0x%04x" % [@my_seq, packet.ack]])
 
       # Re-send the last packet
-      old_data = next_outgoing(max_length - Packet.msg_header_size(@options))
-      return Packet.create_msg(@id, old_data, @options, {'seq'=>@my_seq,'ack'=>@their_seq})
+      old_data = next_outgoing(actual_msg_max_length(max_length))
+      return Packet.create_msg(@options, {
+        :session_id => @id,
+        :data       => old_data,
+        :seq        => @my_seq,
+        :ack        => @their_seq,
+      })
     end
 
     # Acknowledge the data that has been received so far
     # Note: this is where @my_seq is updated
-    ack_outgoing(packet.ack)
+    ack_outgoing(packet.body.ack)
 
     # Write the incoming data to the session
     # Increment the expected sequence number
-    @their_seq = (@their_seq + packet.data.length) & 0xFFFF;
+    @their_seq = (@their_seq + packet.body.data.length) & 0xFFFF;
 
     # Let everybody know that data has arrived
-    if(packet.data.length > 0)
-      notify_subscribers(:session_data_received, [@id, packet.data])
+    if(packet.body.data.length > 0)
+      notify_subscribers(:session_data_received, [@id, packet.body.data])
     end
 
     # Read the next piece of data
-    new_data = next_outgoing(max_length - Packet.msg_header_size(@options))
+    new_data = next_outgoing(actual_msg_max_length(max_length))
 
     # Create a packet out of it
-    packet = Packet.create_msg(@id, new_data, @options, { 'seq' => @my_seq, 'ack' => @their_seq, })
-
+    packet = Packet.create_msg(@options, {
+      :session_id => @id,
+      :data       => new_data,
+      :seq        => @my_seq,
+      :ack        => @their_seq,
+    })
 
     return packet
-
   end
 
   def handle_msg_chunked(packet, max_length)
     chunks = @outgoing_data.scan(/.{16}/m)
 
-    if(chunks[packet.chunk].nil?)
-      return Packet.create_fin(@id, "Chunk doesn't exist", @options)
+    if(chunks[packet.body.chunk].nil?)
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => "Chunk doesn't exist!",
+      })
     end
 
-    chunk = chunks[packet.chunk]
-    return Packet.create_msg(@id, chunk, @options, { 'chunk' => packet.chunk })
+    chunk = chunks[packet.body.chunk]
+    return Packet.create_msg(@options, {
+      :session_id => @id,
+      :chunk      => chunk,
+    })
   end
 
   def handle_msg(packet, max_length)
@@ -222,11 +259,17 @@ class Session
       # Kill the session as well - in case it exists
       SessionManager.kill_session(@id)
 
-      return Packet.create_fin(@id, "MSG received in invalid state", @options)
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason     => "MSG received in invalid state",
+      })
     end
 
     if(@state == STATE_KILLED)
-      return Packet.create_fin(@id, "Killed", @options)
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => "Session was killed",
+      })
     end
 
     if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)
@@ -243,13 +286,20 @@ class Session
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!fin_valid?())
       notify_subscribers(:dnscat2_session_error, [@id, "FIN received in invalid state"])
-      return Packet.create_fin(@id, "FIN not expected", @options)
+
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => "FIN not expected",
+      })
     end
 
     notify_subscribers(:dnscat2_fin, [@id, packet.reason])
     SessionManager.kill_session(@id)
 
-    return Packet.create_fin(@id, "Bye!", @options)
+    return Packet.create_fin(@options, {
+      :session_id => @id,
+      :reason => "Bye!",
+    })
   end
 end
 

@@ -8,7 +8,7 @@
 # A TCP wrapper for the dnscat2 protocol (mostly for testing)
 ##
 
-require 'log'
+require 'nulog'
 require 'socket'
 
 class DriverTCP
@@ -42,12 +42,12 @@ class DriverTCP
   end
 
   def DriverTCP.go(host, port)
-    Log.WARNING "Starting Dnscat2 TCP server on #{host}:#{port}..."
+    NuLog.WARNING(nil, "Starting Dnscat2 TCP server on #{host}:#{port}...")
     server = TCPServer.new(port)
 
     loop do
       Thread.start(server.accept) do |s|
-        Log.INFO("Received a new connection from #{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})...")
+        NuLog.INFO(nil, "Received a new connection from #{s.peeraddr[3]}:#{s.peeraddr[1]} (#{s.peeraddr[2]})...")
 
         begin
           tcp = DriverTCP.new(s)

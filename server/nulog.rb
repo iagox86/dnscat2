@@ -36,39 +36,41 @@ class NuLog
   # Choose an id of nil to get any logs that don't have a "home"
   # Choose NuLog::LOG_ALL_THE_THINGS for a catch-all address
   def NuLog.logging(id)
-    if(id.is_a?(Fixnum) || id.nil?() || id == LOG_ALL_THE_THINGS)
-      @@loggers[id] ||= []
-      @@loggers[id] << proc
-    else
-      raise(DnscatException, "Failed to add a logger for id #{id} - wrong type")
-    end
+    @@loggers[id] ||= []
+    @@loggers[id] << proc
   end
 
   def NuLog.set_min_level(level)
-    @@min_level = level
+    level = level.upcase()
+    @@min_level = LEVELS_BY_NAME[level]
+
+    if(@@min_level.nil?)
+      return false
+    end
+    return true
   end
 
   def NuLog.get_level_by_name(name)
     return LEVELS_BY_NAME[name.upcase]
   end
 
-  def NuLog.INFO(message, id = nil)
-    NuLog.log(INFO, message, id)
+  def NuLog.INFO(id, message = "")
+    NuLog.log(INFO, id, message)
   end
 
-  def NuLog.WARNING(message, id = nil)
-    NuLog.log(WARNING, message, id)
+  def NuLog.WARNING(id, message = "")
+    NuLog.log(WARNING, id, message)
   end
 
-  def NuLog.ERROR(message, id = nil)
-    NuLog.log(ERROR, message, id)
+  def NuLog.ERROR(id, message = "")
+    NuLog.log(ERROR, id, message)
   end
 
-  def NuLog.FATAL(message, id = nil)
-    NuLog.log(FATAL, message, id)
+  def NuLog.FATAL(id, message = "")
+    NuLog.log(FATAL, id, message)
   end
 
-  def NuLog.try_to_log_to(message, id)
+  def NuLog.try_to_log_to(id, message = "")
     if(@@loggers[id].nil?)
       return false
     end
@@ -85,24 +87,41 @@ class NuLog
     return true
   end
 
-  def NuLog.log(level, message, id = nil)
+  def NuLog.log(level, id, message = "")
+    # Make sure the level is sane
     if(level < INFO || level > FATAL)
       raise(DnscatException, "Bad log level: #{level}")
     end
 
+    # Check if we should even bother
     if(level < @@min_level)
       return
     end
 
-    message = "[%s] %s" % [(LEVELS[level] || "[bad level]"), message]
+    if(message.is_a?(Array))
+      message.each do |m|
+        log(level, id, m)
+      end
+    elsif(message.is_a?(Exception))
+      log(level, id, "[%s]: %s" % [message.class.to_s(), message.to_s()])
+      log(level, id, message.backtrace)
+    else
+      message = "[%s] %s" % [(LEVELS[level] || "[bad level]"), message]
 
-    NuLog.try_to_log_to(message, LOG_ALL_THE_THINGS)
+      NuLog.try_to_log_to(LOG_ALL_THE_THINGS, message)
 
-    if(!NuLog.try_to_log_to(message, id))
-      if(!NuLog.try_to_log_to("DEFAULT: " + message, nil))
-        puts("Couldn't find anywhere to log message with id #{id}: #{message}")
+      if(!NuLog.try_to_log_to(id, message))
+        if(!NuLog.try_to_log_to(nil, message))
+          puts("[nowhere to log] #{message}")
+          puts("Tried to log here: #{id}")
+        end
       end
     end
+  end
+
+  def NuLog.reset()
+    NuLog.INFO(nil, "Resetting the list of loggers")
+    @@loggers.clear()
   end
 end
 

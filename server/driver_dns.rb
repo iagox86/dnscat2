@@ -9,7 +9,8 @@
 ##
 
 require 'rubydns'
-require 'log'
+
+require 'nulog'
 
 class DriverDNS
   # Use upstream DNS for name resolution.
@@ -24,12 +25,12 @@ class DriverDNS
   IN = Resolv::DNS::Resource::IN
 
   def initialize(host, port, domains, autodomain, passthrough)
-    puts("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
+    NuLog::WARNING(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
     if(autodomain)
-      puts("Will also accept direct queries, if they're tagged properly!")
+      NuLog::WARNING(nil, "Will also accept direct queries, if they're tagged properly!")
     end
     if(domains.nil? || domains.length == 0)
-      puts("WARNING: No domains were selected, which means this server will only respond to direct queries")
+      NuLog::WARNING(nil, "No domains were selected, which means this server will only respond to direct queries")
     end
 
     @host        = host
@@ -73,6 +74,7 @@ class DriverDNS
     ]
 
     RubyDNS::run_server(:listen => interfaces) do |s|
+      # Turn off DNS logging
       s.logger.level = Logger::FATAL
 
       # Loop through the domains and see if any match
@@ -102,21 +104,20 @@ class DriverDNS
             response = yield(name, MAX_TXT_LENGTH / 2)
 
             if(response.nil?)
-              Log.INFO("Sending nil response...")
+              NuLog.INFO(nil, "Sending nil response...")
               response = ''
             else
               response = "#{response.unpack("H*").pop}"
             end
 
-            Log.INFO("Sending:  #{response}")
+            NuLog.INFO(nil, "Sending:  #{response}")
             transaction.respond!(response)
           rescue DnscatException => e
-            Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-            Log.ERROR(e.inspect)
+            NuLog.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+            NuLog.ERROR(nil, e.inspect)
           rescue Exception => e
-            Log.ERROR("Error caught:")
-            Log.ERROR(e.inspect)
-            Log.ERROR(e.backtrace)
+            NuLog.ERROR(nil, "Error caught:")
+            NuLog.ERROR(nil, e)
           end
 
           transaction # Return this, effectively
@@ -153,21 +154,20 @@ class DriverDNS
             response = yield(name, MAX_TXT_LENGTH / 2)
 
             if(response.nil?)
-              Log.INFO("Sending nil response...")
+              NuLog.INFO("Sending nil response...")
               response = ''
             else
               response = "#{response.unpack("H*").pop}"
             end
 
-            Log.INFO("Sending:  #{response}")
+            NuLog.INFO(nil, "Sending:  #{response}")
             transaction.respond!(response)
           rescue DnscatException => e
-            Log.ERROR("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-            Log.ERROR(e.inspect)
+            NuLog.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+            NuLog.ERROR(nil, e)
           rescue Exception => e
-            Log.ERROR("Error caught:")
-            Log.ERROR(e.inspect)
-            Log.ERROR(e.backtrace)
+            NuLog.ERROR(nil, "Error caught:")
+            NuLog.ERROR(nil, e)
           end
 
           transaction # Return this, effectively
@@ -181,11 +181,11 @@ class DriverDNS
       # Default DNS handler
       otherwise do |transaction|
         if(passthrough)
-          Log.ERROR("Unable to handle request, passing upstream: #{transaction.name}")
+          NuLog.ERROR(nil, "Unable to handle request, passing upstream: #{transaction.name}")
           transaction.passthrough!(UPSTREAM)
         else
-          Log.ERROR("Unable to handle request, returning an error: #{transaction.name}")
-          Log.ERROR("(If you want to pass to upstream DNS servers, use --passthrough)")
+          NuLog.ERROR(nil, "Unable to handle request, returning an error: #{transaction.name}")
+          NuLog.ERROR(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
         end
       end
     end
@@ -195,5 +195,3 @@ class DriverDNS
     @s.close
   end
 end
-
-
