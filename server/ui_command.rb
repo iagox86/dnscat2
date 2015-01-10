@@ -188,12 +188,10 @@ class UiCommand < UiInterface
   end
 
   def output(str)
-    puts()
     puts(str)
-
-    if(attached?())
-      print(">> ")
-    end
+#    if(attached?())
+#      print(">> ")
+#    end
   end
 
   def error(str)

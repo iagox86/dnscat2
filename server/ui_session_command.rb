@@ -313,12 +313,12 @@ class UiSessionCommand < UiInterfaceWithId
   end
 
   def output(str)
-    puts()
+#    puts()
     puts(str)
 
-    if(attached?())
-      print(">> ")
-    end
+#    if(attached?())
+#      print(">> ")
+#    end
   end
 
   def error(str)
