@@ -38,7 +38,7 @@ class DriverDNS
     @domains     = domains
     @autodomain  = autodomain
     @passthrough = passthrough
-
+    @shown_pt    = false
   end
 
 
@@ -181,11 +181,16 @@ class DriverDNS
       # Default DNS handler
       otherwise do |transaction|
         if(passthrough)
-          NuLog.ERROR(nil, "Unable to handle request, passing upstream: #{transaction.name}")
+          if(!@shown_pt)
+            NuLog.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
+            NuLog.WARNING(nil, "(This will only be shown once)")
+          end
           transaction.passthrough!(UPSTREAM)
-        else
-          NuLog.ERROR(nil, "Unable to handle request, returning an error: #{transaction.name}")
-          NuLog.ERROR(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
+        elsif(!@shown_pt)
+          NuLog.WARNING(nil, "Unable to handle request, returning an error: #{transaction.name}")
+          NuLog.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
+          NuLog.WARNING(nil, "(This will only be shown once)")
+          @shown_pt = true
         end
       end
     end
