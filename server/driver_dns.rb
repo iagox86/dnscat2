@@ -107,11 +107,15 @@ class DriverDNS
 
       match(/#{domain_regex}/, RECORD_TYPES) do |transaction|
         begin
+          # Log what's going on
+          Log.INFO(nil, "Received:  #{transaction.name}")
+
           # Determine the actual name, without the extra cruft
           name, domain = DriverDNS.figure_out_name(transaction.name, domains)
           if(name.nil?)
             raise(DnscatException, "Failed to parse a matching name (please report this, it shouldn't happen): #{transaction.name}")
           end
+
 
           # Determine the type
           type = transaction.resource_class
@@ -151,7 +155,7 @@ class DriverDNS
           # Append domain, if needed
           if(type == IN::TXT)
             # Do nothing
-          elsif(type.nil?)
+          elsif(domain.nil?)
             response = "dnscat." + response
           else
             response = response + "." + domain
