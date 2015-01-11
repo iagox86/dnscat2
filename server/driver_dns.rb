@@ -11,18 +11,25 @@
 require 'rubydns'
 
 require 'log'
+require 'pp' # TODO: Debug
 
 class DriverDNS
   # Use upstream DNS for name resolution.
   UPSTREAM = RubyDNS::Resolver.new([[:udp, "8.8.8.8", 53]])
 
-  MAX_TXT_LENGTH = 250 # The max value that can be expressed by a single byte
-  MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
-  MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
-  MAX_MX_LENGTH = 250
-
   Name = Resolv::DNS::Name
   IN = Resolv::DNS::Resource::IN
+
+  MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
+  MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
+
+  RECORD_TYPES = [IN::TXT, IN::MX, IN::CNAME]
+
+  MAX_LENGTH = {
+    IN::TXT   => 250,
+    IN::MX    => 250,
+    IN::CNAME => 250,
+  }
 
   def initialize(host, port, domains, autodomain, passthrough)
     Log::WARNING(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
@@ -63,10 +70,27 @@ class DriverDNS
     end
   end
 
+  def DriverDNS.figure_out_name(name, domains)
+    # Check if it's one of our domains
+    domains.each do |domain|
+      if(name =~ /^(.*)\.(#{domain})/)
+        return $1, $2
+      end
+    end
+
+    # Check if it starts with dnscat, which is used when
+    # the server is unknown
+    if(name =~ /^dnscat\.(.*)$/)
+      return $1, nil
+    end
+
+    # Can't process. :(
+    return nil
+  end
+
   def recv()
     # Save the domains locally so the block can see it
     domains     = @domains
-    autodomain  = @autodomain
     passthrough = @passthrough
 
     interfaces = [
@@ -77,105 +101,75 @@ class DriverDNS
       # Turn off DNS logging
       s.logger.level = Logger::FATAL
 
-      # Loop through the domains and see if any match
-      domains.each do |domain|
-        domain_regex = /^(.*)\.#{domain}$/
+      # This ugly line basically joins the domains together in a string that looks like:
+      # (^dnscat\.|\.skullseclabs.org$)
+      domain_regex = "(^dnscat\\.|" + (domains.map { |x| "\\.#{x}$" }).join("|") + ")"
 
-        match(domain_regex, IN::TXT) do |transaction|
-          begin
-            # Parse the name with a regex
-            transaction.name.match(domain_regex)
-
-            # Get the name out and validate it
-            name = $1
-            if(name.nil?)
-              raise(DnscatException, "Regex parsing failed for name: #{transaction.name}")
-            end
-
-            # Sanity check the rest
-            if(name !~ /^[a-fA-F0-9.]*$/)
-              raise(DnscatException, "Name contains illegal characters: #{transaction.name}")
-            end
-
-            # Get rid of periods
-            name = name.gsub(/\./, '')
-            name = [name].pack("H*")
-
-            response = yield(name, MAX_TXT_LENGTH / 2)
-
-            if(response.nil?)
-              Log.INFO(nil, "Sending nil response...")
-              response = ''
-            else
-              response = "#{response.unpack("H*").pop}"
-            end
-
-            Log.INFO(nil, "Sending:  #{response}")
-            transaction.respond!(response)
-          rescue DnscatException => e
-            Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-            Log.ERROR(nil, e.inspect)
-          rescue Exception => e
-            Log.ERROR(nil, "Error caught:")
-            Log.ERROR(nil, e)
+      match(/#{domain_regex}/, RECORD_TYPES) do |transaction|
+        begin
+          # Determine the actual name, without the extra cruft
+          name, domain = DriverDNS.figure_out_name(transaction.name, domains)
+          if(name.nil?)
+            raise(DnscatException, "Failed to parse a matching name (please report this, it shouldn't happen): #{transaction.name}")
           end
 
-          transaction # Return this, effectively
-        end
+          # Determine the type
+          type = transaction.resource_class
 
-        match(domain_regex) do |transaction|
-          raise(DnscatException, "Received a request for an unhandled DNS type: #{transaction.name}")
-        end
-      end
-
-      if(autodomain)
-        domain_regex = /^dnscat\.(.*)$/
-
-        match(domain_regex, IN::TXT) do |transaction|
-          begin
-            # Parse the name with a regex
-            transaction.name.match(domain_regex)
-
-            # Get the name out and validate it
-            name = $1
-            if(name.nil?)
-              raise(DnscatException, "Regex parsing failed for name: #{transaction.name}")
-            end
-
-            # Sanity check the rest
-            if(name !~ /^[a-fA-F0-9.]*$/)
-              raise(DnscatException, "Name contains illegal characters: #{transaction.name}")
-            end
-
-            # Get rid of periods
-            name = name.gsub(/\./, '')
-            name = [name].pack("H*")
-
-            response = yield(name, MAX_TXT_LENGTH / 2)
-
-            if(response.nil?)
-              Log.INFO("Sending nil response...")
-              response = ''
-            else
-              response = "#{response.unpack("H*").pop}"
-            end
-
-            Log.INFO(nil, "Sending:  #{response}")
-            transaction.respond!(response)
-          rescue DnscatException => e
-            Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-            Log.ERROR(nil, e)
-          rescue Exception => e
-            Log.ERROR(nil, "Error caught:")
-            Log.ERROR(nil, e)
+          # Sanity check the name
+          if(name !~ /^[a-fA-F0-9.]*$/)
+            raise(DnscatException, "Name contains illegal characters: #{transaction.name}")
           end
 
-          transaction # Return this, effectively
+          # Figure out the length of the domain based on the record type
+          if(type == IN::TXT)
+            domain_length = 0
+          elsif(type.nil?)
+            domain_length = "dnscat.".length
+          else
+            domain_length = domain.length
+          end
+
+          # Figure out the max length of data we can handle
+          max_length = (MAX_LENGTH[type] / 2) - domain_length
+
+          # Get rid of periods
+          name = name.gsub(/\./, '')
+          name = [name].pack("H*")
+
+          response = yield(name, max_length)
+
+          if(response.nil?)
+            Log.INFO(nil, "Sending nil response...")
+            response = ''
+          elsif(response.length > max_length)
+            raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report")
+          else
+            response = "#{response.unpack("H*").pop}"
+          end
+
+          # Append domain, if needed
+          if(type == IN::TXT)
+            # Do nothing
+          elsif(type.nil?)
+            response = "dnscat." + response
+          else
+            response = response + "." + domain
+          end
+
+          Log.INFO(nil, "Sending:  #{response}")
+          transaction.respond!(response)
+        rescue DnscatException => e
+          Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          Log.ERROR(nil, e.inspect)
+          transaction.fail!(:NXDomain)
+        rescue Exception => e
+          Log.ERROR(nil, "Error caught:")
+          Log.ERROR(nil, e)
+          transaction.fail!(:NXDomain)
         end
 
-        match(domain_regex) do |transaction|
-          raise(DnscatException, "Received a request for an unhandled DNS type: #{transaction.name}")
-        end
+        transaction # Return this, effectively
       end
 
       # Default DNS handler
@@ -191,7 +185,11 @@ class DriverDNS
           Log.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
           Log.WARNING(nil, "(This will only be shown once)")
           @shown_pt = true
+
+          transaction.fail!(:NXDomain)
         end
+
+        transaction
       end
     end
   end
