@@ -74,6 +74,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   else if(dns->question_count != 1)
   {
     LOG_ERROR("DNS returned the wrong number of response fields (question_count should be 1, was instead %d).", dns->question_count);
+    dns_print(dns);
   }
   else if(dns->answer_count != 1)
   {

@@ -7,6 +7,7 @@
 require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
 
+require 'log'
 require 'subscribable'
 require 'ui_command'
 require 'ui_session_command'
@@ -64,12 +65,12 @@ class Ui
       value = false if(value == "false")
 
       if(name == "log_level")
-        NuLog.WARNING(nil, "Setting debug level to: #{value.upcase()}")
-        if(!NuLog.set_min_level(value.upcase()))
-          NuLog.ERROR(nil, "Failed! Valid log levels are: #{NuLog::LEVELS}")
+        Log.WARNING(nil, "Setting debug level to: #{value.upcase()}")
+        if(!Log.set_min_level(value.upcase()))
+          Log.ERROR(nil, "Failed! Valid log levels are: #{Log::LEVELS}")
         end
       else
-        NuLog.WARNING(nil, "#{name} => #{value}")
+        Log.WARNING(nil, "#{name} => #{value}")
         @options[name] = value
       end
 
@@ -169,7 +170,7 @@ class Ui
     loop do
       begin
         if(@ui.nil?)
-          NuLog.ERROR(nil, "@ui ended up nil somehow!")
+          Log.ERROR(nil, "@ui ended up nil somehow!")
         end
 
         # If the ui is no longer active, switch to the @command window

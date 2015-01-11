@@ -1092,6 +1092,7 @@ void dns_print(dns_t *dns)
   uint16_t i;
   fprintf(stderr, "trn_id: 0x%04x\n", dns->trn_id);
   fprintf(stderr, "flags:  0x%04x\n", dns->flags);
+  fprintf(stderr, "rcode:  0x%04x\n", dns->rcode);
   for(i = 0; i < dns->question_count; i++)
     fprintf(stderr, "question: %s 0x%04x 0x%04x\n", dns->questions[i].name, dns->questions[i].type, dns->questions[i].class);
 

@@ -1,16 +1,18 @@
 ##
-# ui_interface.rb
+# ui_interface_with_id.rb
 # By Ron Bowes
 # Created May, 2014
 #
 # See LICENSE.txt
 ##
 
+require 'log'
+
 class UiInterfaceWithId < UiInterface
   attr_accessor :parent
 
   def initialize(id)
-    NuLog.logging(id) do |msg|
+    Log.logging(id) do |msg|
       output(msg)
     end
 

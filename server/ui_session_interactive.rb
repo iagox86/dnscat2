@@ -41,7 +41,7 @@ class UiSessionInteractive < UiInterfaceWithId
     super
 
     if(!active?())
-      NuLog.WARNING(@id, "This session is closed!")
+      Log.WARNING(@id, "This session is closed!")
       return false
     end
 

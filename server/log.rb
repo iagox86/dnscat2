@@ -9,7 +9,7 @@
 # as simple as necessary.
 ##
 
-class NuLog
+class Log
   INFO    = 0
   WARNING = 1
   ERROR   = 2
@@ -29,18 +29,18 @@ class NuLog
   LOG_ALL_THE_THINGS = "log_catchall"
 
   # Usage:
-  # NuLog.logging(id) do |msg|
+  # Log.logging(id) do |msg|
   #   puts(msg)
   # end
   #
   # Choose an id of nil to get any logs that don't have a "home"
-  # Choose NuLog::LOG_ALL_THE_THINGS for a catch-all address
-  def NuLog.logging(id)
+  # Choose Log::LOG_ALL_THE_THINGS for a catch-all address
+  def Log.logging(id)
     @@loggers[id] ||= []
     @@loggers[id] << proc
   end
 
-  def NuLog.set_min_level(level)
+  def Log.set_min_level(level)
     level = level.upcase()
     @@min_level = LEVELS_BY_NAME[level]
 
@@ -50,27 +50,27 @@ class NuLog
     return true
   end
 
-  def NuLog.get_level_by_name(name)
+  def Log.get_level_by_name(name)
     return LEVELS_BY_NAME[name.upcase]
   end
 
-  def NuLog.INFO(id, message = "")
-    NuLog.log(INFO, id, message)
+  def Log.INFO(id, message = "")
+    Log.log(INFO, id, message)
   end
 
-  def NuLog.WARNING(id, message = "")
-    NuLog.log(WARNING, id, message)
+  def Log.WARNING(id, message = "")
+    Log.log(WARNING, id, message)
   end
 
-  def NuLog.ERROR(id, message = "")
-    NuLog.log(ERROR, id, message)
+  def Log.ERROR(id, message = "")
+    Log.log(ERROR, id, message)
   end
 
-  def NuLog.FATAL(id, message = "")
-    NuLog.log(FATAL, id, message)
+  def Log.FATAL(id, message = "")
+    Log.log(FATAL, id, message)
   end
 
-  def NuLog.try_to_log_to(id, message = "")
+  def Log.try_to_log_to(id, message = "")
     if(@@loggers[id].nil?)
       return false
     end
@@ -87,7 +87,7 @@ class NuLog
     return true
   end
 
-  def NuLog.log(level, id, message = "")
+  def Log.log(level, id, message = "")
     # Make sure the level is sane
     if(level < INFO || level > FATAL)
       raise(DnscatException, "Bad log level: #{level}")
@@ -108,10 +108,10 @@ class NuLog
     else
       message = "[%s] %s" % [(LEVELS[level] || "[bad level]"), message]
 
-      NuLog.try_to_log_to(LOG_ALL_THE_THINGS, message)
+      Log.try_to_log_to(LOG_ALL_THE_THINGS, message)
 
-      if(!NuLog.try_to_log_to(id, message))
-        if(!NuLog.try_to_log_to(nil, message))
+      if(!Log.try_to_log_to(id, message))
+        if(!Log.try_to_log_to(nil, message))
           puts("[nowhere to log] #{message}")
           puts("Tried to log here: #{id}")
         end
@@ -119,8 +119,8 @@ class NuLog
     end
   end
 
-  def NuLog.reset()
-    NuLog.INFO(nil, "Resetting the list of loggers")
+  def Log.reset()
+    Log.INFO(nil, "Resetting the list of loggers")
     @@loggers.clear()
   end
 end

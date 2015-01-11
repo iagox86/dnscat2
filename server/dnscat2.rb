@@ -14,7 +14,7 @@ $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 require 'driver_dns'
 require 'driver_tcp'
 
-require 'nulog'
+require 'log'
 require 'packet'
 require 'session_manager'
 require 'ui'
@@ -24,7 +24,7 @@ require 'trollop'
 
 Thread::abort_on_exception = true
 
-NuLog.logging(nil) do |msg|
+Log.logging(nil) do |msg|
   puts(msg)
 end
 
@@ -57,9 +57,9 @@ opts = Trollop::options do
     :type => :boolean,  :default => false
 end
 
-NuLog.WARNING(nil, "Setting debug level to: #{opts[:debug].upcase()}")
-if(!NuLog.set_min_level(opts[:debug].upcase()))
-   Trollop::die :debug, "level values are: #{NuLog::LEVELS}"
+Log.WARNING(nil, "Setting debug level to: #{opts[:debug].upcase()}")
+if(!Log.set_min_level(opts[:debug].upcase()))
+   Trollop::die :debug, "level values are: #{Log::LEVELS}"
 end
 
 if(opts[:dnsport] < 0 || opts[:dnsport] > 65535)
@@ -76,11 +76,11 @@ passthrough = opts[:passthrough]
 domains = [].replace(ARGV)
 
 if(autodomain == false && domains.length == 0)
-  NuLog.FATAL(nil, "autodomain is turned off and you didn't provide any DNS names on the")
-  NuLog.FATAL(nil, "commandline!")
-  NuLog.FATAL(nil, "")
-  NuLog.FATAL(nil, "You've gotta give me something to detect... try --autodomain or")
-  NuLog.FATAL(nil, "putting domain names at the end of the command")
+  Log.FATAL(nil, "autodomain is turned off and you didn't provide any DNS names on the")
+  Log.FATAL(nil, "commandline!")
+  Log.FATAL(nil, "")
+  Log.FATAL(nil, "You've gotta give me something to detect... try --autodomain or")
+  Log.FATAL(nil, "putting domain names at the end of the command")
 
   exit(0)
 end
@@ -97,44 +97,44 @@ if(domains.length > 0)
   end
 
   if(autodomain)
-    NuLog.WARNING(nil)
-    NuLog.WARNING(nil, "You can also run a directly-connected client:")
-    NuLog.WARNING(nil)
-    NuLog.WARNING(nil, "./dnscat2 --host <server>")
-    NuLog.WARNING(nil)
-    NuLog.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
-    NuLog.WARNING(nil, "directly on UDP port 53.")
-    NuLog.WARNING(nil)
+    Log.WARNING(nil)
+    Log.WARNING(nil, "You can also run a directly-connected client:")
+    Log.WARNING(nil)
+    Log.WARNING(nil, "./dnscat2 --host <server>")
+    Log.WARNING(nil)
+    Log.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
+    Log.WARNING(nil, "directly on UDP port 53.")
+    Log.WARNING(nil)
   end
 else
-  NuLog.WARNING(nil, "It looks like you didn't give me any domains to recognize!")
-  NuLog.WARNING(nil, "That's cool, though, you can still use a direct connection!")
-  NuLog.WARNING(nil, "Try running this on your client:")
-  NuLog.WARNING(nil)
-  NuLog.WARNING(nil, "./dnscat2 --host <server>")
-  NuLog.WARNING(nil)
-  NuLog.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
-  NuLog.WARNING(nil, "directly on UDP port 53.")
+  Log.WARNING(nil, "It looks like you didn't give me any domains to recognize!")
+  Log.WARNING(nil, "That's cool, though, you can still use a direct connection!")
+  Log.WARNING(nil, "Try running this on your client:")
+  Log.WARNING(nil)
+  Log.WARNING(nil, "./dnscat2 --host <server>")
+  Log.WARNING(nil)
+  Log.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
+  Log.WARNING(nil, "directly on UDP port 53.")
 end
 
 threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
-      NuLog.WARNING(nil, "Starting DNS server...")
+      Log.WARNING(nil, "Starting DNS server...")
       driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, autodomain, passthrough)
       SessionManager.go(driver, opts)
     rescue DnscatException => e
-      NuLog.FATAL(nil, "Protocol exception caught in DNS module:")
-      NuLog.FATAL(nil, e)
+      Log.FATAL(nil, "Protocol exception caught in DNS module:")
+      Log.FATAL(nil, e)
     rescue Exception => e
-      NuLog.FATAL(nil, "Exception starting the driver:")
-      NuLog.FATAL(nil, e)
+      Log.FATAL(nil, "Exception starting the driver:")
+      Log.FATAL(nil, e)
 
       if(e.to_s =~ /no datagram socket/)
-        NuLog.FATAL(nil, "")
-        NuLog.FATAL(nil, "Translation: Couldn't listen on #{opts[:dnshost]}:#{opts[:dnsport]}")
-        NuLog.FATAL(nil, "(if you're on Linux, you might need to use sudo or rvmsudo)")
+        Log.FATAL(nil, "")
+        Log.FATAL(nil, "Translation: Couldn't listen on #{opts[:dnshost]}:#{opts[:dnsport]}")
+        Log.FATAL(nil, "(if you're on Linux, you might need to use sudo or rvmsudo)")
       end
 
       exit
@@ -155,7 +155,7 @@ SessionManager.subscribe(ui)
 ui.set_option("auto_command", opts[:auto_command])
 
 # Turn off the 'main' logger
-NuLog.reset()
+Log.reset()
 
 # Get the UI going
 ui.go()

@@ -4,6 +4,7 @@
 
 require 'readline'
 
+require 'log'
 require 'parser'
 require 'ui_handler'
 require 'ui_interface'
@@ -107,7 +108,7 @@ class UiCommand < UiInterface
           puts()
           do_show_options()
         else
-          optarg = optarg.join(" ")
+          #optarg = optarg.join(" ")
 
           # Split at the '=' sign
           optarg = optarg.split("=", 2)
@@ -165,7 +166,7 @@ class UiCommand < UiInterface
     super()
 
     # Set up logging
-    NuLog.logging(nil) do |msg|
+    Log.logging(nil) do |msg|
       output(msg)
     end
 

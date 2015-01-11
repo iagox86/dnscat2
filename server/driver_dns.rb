@@ -10,7 +10,7 @@
 
 require 'rubydns'
 
-require 'nulog'
+require 'log'
 
 class DriverDNS
   # Use upstream DNS for name resolution.
@@ -25,12 +25,12 @@ class DriverDNS
   IN = Resolv::DNS::Resource::IN
 
   def initialize(host, port, domains, autodomain, passthrough)
-    NuLog::WARNING(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
+    Log::WARNING(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
     if(autodomain)
-      NuLog::WARNING(nil, "Will also accept direct queries, if they're tagged properly!")
+      Log::WARNING(nil, "Will also accept direct queries, if they're tagged properly!")
     end
     if(domains.nil? || domains.length == 0)
-      NuLog::WARNING(nil, "No domains were selected, which means this server will only respond to direct queries")
+      Log::WARNING(nil, "No domains were selected, which means this server will only respond to direct queries")
     end
 
     @host        = host
@@ -104,20 +104,20 @@ class DriverDNS
             response = yield(name, MAX_TXT_LENGTH / 2)
 
             if(response.nil?)
-              NuLog.INFO(nil, "Sending nil response...")
+              Log.INFO(nil, "Sending nil response...")
               response = ''
             else
               response = "#{response.unpack("H*").pop}"
             end
 
-            NuLog.INFO(nil, "Sending:  #{response}")
+            Log.INFO(nil, "Sending:  #{response}")
             transaction.respond!(response)
           rescue DnscatException => e
-            NuLog.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-            NuLog.ERROR(nil, e.inspect)
+            Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+            Log.ERROR(nil, e.inspect)
           rescue Exception => e
-            NuLog.ERROR(nil, "Error caught:")
-            NuLog.ERROR(nil, e)
+            Log.ERROR(nil, "Error caught:")
+            Log.ERROR(nil, e)
           end
 
           transaction # Return this, effectively
@@ -154,20 +154,20 @@ class DriverDNS
             response = yield(name, MAX_TXT_LENGTH / 2)
 
             if(response.nil?)
-              NuLog.INFO("Sending nil response...")
+              Log.INFO("Sending nil response...")
               response = ''
             else
               response = "#{response.unpack("H*").pop}"
             end
 
-            NuLog.INFO(nil, "Sending:  #{response}")
+            Log.INFO(nil, "Sending:  #{response}")
             transaction.respond!(response)
           rescue DnscatException => e
-            NuLog.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-            NuLog.ERROR(nil, e)
+            Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+            Log.ERROR(nil, e)
           rescue Exception => e
-            NuLog.ERROR(nil, "Error caught:")
-            NuLog.ERROR(nil, e)
+            Log.ERROR(nil, "Error caught:")
+            Log.ERROR(nil, e)
           end
 
           transaction # Return this, effectively
@@ -182,14 +182,14 @@ class DriverDNS
       otherwise do |transaction|
         if(passthrough)
           if(!@shown_pt)
-            NuLog.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
-            NuLog.WARNING(nil, "(This will only be shown once)")
+            Log.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
+            Log.WARNING(nil, "(This will only be shown once)")
           end
           transaction.passthrough!(UPSTREAM)
         elsif(!@shown_pt)
-          NuLog.WARNING(nil, "Unable to handle request, returning an error: #{transaction.name}")
-          NuLog.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
-          NuLog.WARNING(nil, "(This will only be shown once)")
+          Log.WARNING(nil, "Unable to handle request, returning an error: #{transaction.name}")
+          Log.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
+          Log.WARNING(nil, "(This will only be shown once)")
           @shown_pt = true
         end
       end

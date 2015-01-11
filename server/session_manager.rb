@@ -9,7 +9,7 @@
 ##
 
 require 'dnscat_exception'
-require 'nulog'
+require 'log'
 require 'packet'
 require 'subscribable'
 require 'session'
@@ -54,7 +54,7 @@ class SessionManager
   end
 
   def SessionManager.destroy()
-    NuLog.FATAL(nil, "TODO: Implement destroy()")
+    Log.FATAL(nil, "TODO: Implement destroy()")
   end
 
   def SessionManager.handle_syn(packet)
@@ -73,7 +73,7 @@ class SessionManager
     if(session.nil?)
       err = "MSG received in non-existent session: %d" % packet.session_id
 
-      NuLog.ERROR(packet.session_id, err)
+      Log.ERROR(packet.session_id, err)
       return Packet.create_fin(0, {
         :session_id => packet.session_id,
         :reason     => err,
@@ -89,7 +89,7 @@ class SessionManager
     if(session.nil?)
       err = "FIN received in non-existent session: %d" % packet.session_id
 
-      NuLog.ERROR(packet.session_id, err)
+      Log.ERROR(packet.session_id, err)
       return Packet.create_fin(0, {
         :session_id => packet.session_id,
         :reason     => err,
@@ -133,7 +133,7 @@ class SessionManager
         # Display the incoming packet (NOTE: this has to be done *after* handle_syn(), otherwise
         # the message doesn't have a session to go to)
         if(opts[:packet_trace])
-          NuLog.WARNING(session_id, "INCOMING: #{packet.to_s}")
+          Log.WARNING(session_id, "INCOMING: #{packet.to_s}")
         end
 
         # If there's a response, validate it
@@ -145,32 +145,32 @@ class SessionManager
 
         # Show the response, if requested
         if(opts[:packet_trace])
-          NuLog.WARNING(session_id, "OUTGOING: #{response.to_s}")
+          Log.WARNING(session_id, "OUTGOING: #{response.to_s}")
         end
 
         response.to_bytes() # Return it, in a way
 
       # Catch IOErrors, but don't destroy the session - it may continue later
       rescue IOError => e
-        NuLog.ERROR(session_id, e)
+        Log.ERROR(session_id, e)
         raise(e)
 
       # Destroy the session on protocol errors - the client will be informed if they
       # send another message, because they'll get a FIN response
       rescue Exception => e
-        NuLog.ERROR(session_id, e)
+        Log.ERROR(session_id, e)
 
         begin
           if(!session_id.nil?)
-            NuLog.ERROR(session_id, "DnscatException caught; closing session #{session_id}...")
+            Log.ERROR(session_id, "DnscatException caught; closing session #{session_id}...")
             kill_session(session_id)
           end
         rescue => e2
-          NuLog.ERROR(session_id, "Error closing session!")
-          NuLog.ERROR(session_id, e2)
+          Log.ERROR(session_id, "Error closing session!")
+          Log.ERROR(session_id, e2)
         end
 
-        NuLog.ERROR(session_id, "Propagating the exception...")
+        Log.ERROR(session_id, "Propagating the exception...")
 
         raise(e)
       end
