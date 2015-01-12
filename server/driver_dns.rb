@@ -160,8 +160,12 @@ class DriverDNS
       # Only match proper domains with proper record types
       match(/#{domain_regex}/, RECORD_TYPES.keys) do |transaction|
         begin
+          # Determine the type
+          type = transaction.resource_class
+          type_info = RECORD_TYPES[type]
+
           # Log what's going on
-          Log.INFO(nil, "Received:  #{transaction.name}")
+          Log.INFO(nil, "Received:  #{transaction.name} (#{type})")
 
           # Determine the actual name, without the extra cruft
           name, domain = DriverDNS.figure_out_name(transaction.name, domains)
@@ -169,9 +173,6 @@ class DriverDNS
             raise(DnscatException, "Failed to parse a matching name (please report this, it shouldn't happen): #{transaction.name}")
           end
 
-          # Determine the type
-          type = transaction.resource_class
-          type_info = RECORD_TYPES[type]
 
           if(type.nil? || type_info.nil?)
             raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)

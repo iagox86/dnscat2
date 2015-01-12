@@ -38,10 +38,85 @@ static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
   return SELECT_OK;
 }
 
+static uint8_t *remove_domain(char *str, char *domain)
+{
+  if(domain)
+  {
+    if(strlen(domain) > strlen(str))
+    {
+      LOG_ERROR("The string is too short to have a domain name attached: %s", str);
+      return NULL;
+    }
+
+    domain = safe_strdup(domain);
+    domain[strlen(str) - strlen(domain)] = '\0';
+
+    return (uint8_t*)domain;
+  }
+  else
+  {
+    return (uint8_t*)safe_strdup(str += strlen(WILDCARD_PREFIX));
+  }
+}
+
+static uint8_t *buffer_decode_hex(uint8_t *str, size_t *length)
+{
+  size_t    i   = 0;
+  buffer_t *out = buffer_create(BO_BIG_ENDIAN);
+
+printf("Decoding: %s\n", str);
+  while(i < *length)
+  {
+    uint8_t c1 = 0;
+    uint8_t c2 = 0;
+
+    /* Read the first character, ignoring periods */
+    do
+    {
+      c1 = toupper(str[i++]);
+    } while(c1 == '.' && i < *length);
+
+    /* Make sure we aren't at the end of the buffer. */
+    if(i >= *length)
+    {
+      LOG_ERROR("Couldn't hex-decode the name (name was an odd length): %s", str);
+      return NULL;
+    }
+
+    /* Make sure we got a hex digit */
+    if(!isxdigit(c1))
+    {
+      LOG_ERROR("Couldn't hex-decode the name (contains non-hex characters): %s", str);
+      return NULL;
+    }
+
+    /* Read the second character. */
+    do
+    {
+      c2 = toupper(str[i++]);
+    } while(c2 == '.' && i < *length);
+
+    /* Make sure we got a hex digit */
+    if(!isxdigit(c2))
+    {
+      LOG_ERROR("Couldn't hex-decode the name (contains non-hex characters): %s", str);
+      return NULL;
+    }
+
+    c1 = ((c1 < 'A') ? (c1 - '0') : (c1 - 'A' + 10));
+    c2 = ((c2 < 'A') ? (c2 - '0') : (c2 - 'A' + 10));
+
+    buffer_add_int8(out, (c1 << 4) | c2);
+  }
+
+  return buffer_create_string_and_destroy(out, length);
+}
+
 static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
   /*driver_dns_t *driver_dns = param;*/
-  dns_t        *dns        = dns_create_from_packet(data, length);
+  dns_t        *dns    = dns_create_from_packet(data, length);
+  driver_dns_t *driver = (driver_dns_t*) param;
 
   LOG_INFO("DNS response received (%d bytes)", length);
 
@@ -76,73 +151,96 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     LOG_ERROR("DNS returned the wrong number of response fields (question_count should be 1, was instead %d).", dns->question_count);
     LOG_ERROR("This is probably due to a DNS error");
   }
-  else if(dns->answer_count != 1)
+  else if(dns->answer_count == 0)
   {
-    LOG_ERROR("DNS returned the wrong number of response fields (answer_count should be 1, was instead %d).", dns->answer_count);
+    LOG_ERROR("DNS didn't return an answer");
     LOG_ERROR("This is probably due to a DNS error");
-  }
-  else if(dns->answers[0].type == _DNS_TYPE_TEXT)
-  {
-    char     *answer;
-    size_t    answer_length;
-
-    char      buf[3];
-    size_t    i;
-    buffer_t *incoming_data = buffer_create(BO_BIG_ENDIAN);
-
-    answer        =  (char*)dns->answers[0].answer->TEXT.text;
-    answer_length = (size_t)dns->answers[0].answer->TEXT.length;
-
-    LOG_INFO("Received a DNS TXT response: %s", answer);
-
-    /* TODO: Do I need to worry about the domain name or wildcard prefix? */
-
-    /* Loop through the part of the answer before the 'domain' */
-    for(i = 0; i < answer_length; i += 2)
-    {
-      /* Validate the answer */
-      if(answer[i] == '.')
-      {
-        /* ignore */
-      }
-      else if(answer[i+1] == '.')
-      {
-        LOG_ERROR("Answer contained an odd number of digits");
-      }
-      else if(!isxdigit((int)answer[i]))
-      {
-        LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i]);
-      }
-      else if(!isxdigit((int)answer[i+1]))
-      {
-        LOG_ERROR("Answer contained an invalid digit: '%c'", answer[i+1]);
-      }
-      else
-      {
-        buf[0] = answer[i];
-        buf[1] = answer[i + 1];
-        buf[2] = '\0';
-
-        buffer_add_int8(incoming_data, (uint8_t)strtol(buf, NULL, 16));
-      }
-    }
-
-    /* Pass the buffer to the caller */
-    if(buffer_get_length(incoming_data) > 0)
-    {
-      size_t length;
-      uint8_t *data = buffer_create_string(incoming_data, &length);
-
-      /* Pass the data elsewhere. */
-      message_post_packet_in(data, length);
-
-      safe_free(data);
-    }
-    buffer_destroy(incoming_data);
   }
   else
   {
-    LOG_ERROR("Unknown DNS type returned");
+    size_t    i;
+
+    uint8_t   *answer = NULL;
+    size_t     answer_length = 0;
+    dns_type_t type = dns->answers[0].type;
+
+    if(type == _DNS_TYPE_TEXT)
+    {
+      /* Get the answer. */
+      answer        = dns->answers[0].answer->TEXT.text;
+      answer_length = dns->answers[0].answer->TEXT.length;
+      LOG_INFO("Received a TXT response (%zu bytes)", answer_length);
+
+      /* Decode it. */
+      answer = buffer_decode_hex(answer, &answer_length);
+    }
+    else if(type == _DNS_TYPE_CNAME)
+    {
+      /* Get the answer. */
+      answer = remove_domain((char*)dns->answers[0].answer->CNAME.name, driver->domain);
+      answer_length = strlen((char*)answer);
+      LOG_INFO("Received a CNAME response (%zu bytes)", answer_length);
+
+      /* Decode it. */
+      answer = buffer_decode_hex(answer, &answer_length);
+    }
+    else if(type == _DNS_TYPE_MX)
+    {
+      /* Get the answer. */
+      answer = remove_domain((char*)dns->answers[0].answer->MX.name, driver->domain);
+      answer_length = strlen((char*)answer);
+      LOG_INFO("Received a MX response (%zu bytes)", answer_length);
+
+      /* Decode it. */
+      answer = buffer_decode_hex(answer, &answer_length);
+    }
+    else if(type == _DNS_TYPE_A)
+    {
+      buffer_t *buf = buffer_create(BO_BIG_ENDIAN);
+
+      for(i = 0; i < dns->answer_count; i++)
+        buffer_add_bytes(buf, dns->answers[i].answer->A.bytes, 4);
+
+      answer_length = buffer_read_next_int8(buf);
+      LOG_INFO("Received an A response (%zu bytes)", answer_length);
+
+      answer = safe_malloc(answer_length);
+      buffer_read_bytes_at(buf, 1, answer, answer_length);
+    }
+#ifndef WIN32
+    else if(type == _DNS_TYPE_AAAA)
+    {
+      buffer_t *buf = buffer_create(BO_BIG_ENDIAN);
+
+      for(i = 0; i < dns->answer_count; i++)
+        buffer_add_bytes(buf, dns->answers[i].answer->AAAA.bytes, 16);
+
+      answer_length = buffer_read_next_int8(buf);
+      LOG_INFO("Received an AAAA response (%zu bytes)", answer_length);
+
+      answer = safe_malloc(answer_length);
+      buffer_read_bytes_at(buf, 1, answer, answer_length);
+    }
+#endif
+    else
+    {
+      LOG_ERROR("Unknown DNS type returned: %d", type);
+      answer = NULL;
+    }
+
+    if(answer)
+    {
+      /*LOG_WARNING("Received a %zu-byte DNS response: %s [0x%04x]", answer_length, answer, type);*/
+
+      /* Pass the buffer to the caller */
+      if(answer_length > 0)
+      {
+        /* Pass the data elsewhere. */
+        message_post_packet_in(answer, answer_length);
+      }
+
+      safe_free(answer);
+    }
   }
 
   dns_destroy(dns);
@@ -213,7 +311,7 @@ static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length
   assert(encoded_length <= MAX_DNS_LENGTH);
 
   dns = dns_create(_DNS_OPCODE_QUERY, _DNS_FLAG_RD, _DNS_RCODE_SUCCESS);
-  dns_add_question(dns, (char*)encoded_bytes, _DNS_TYPE_TEXT, _DNS_CLASS_IN);
+  dns_add_question(dns, (char*)encoded_bytes, driver->type, _DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
   LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_host, driver->dns_port);
@@ -240,7 +338,7 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-driver_dns_t *driver_dns_create(select_group_t *group, char *domain)
+driver_dns_t *driver_dns_create(select_group_t *group, char *domain, dns_type_t type)
 {
   driver_dns_t *driver_dns = (driver_dns_t*) safe_malloc(sizeof(driver_dns_t));
 
@@ -253,8 +351,9 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain)
     exit(1);
   }
 
-  /* Set the domain. */
+  /* Set the domain and stuff. */
   driver_dns->domain   = domain;
+  driver_dns->type     = type;
 
   /* If it succeeds, add it to the select_group */
   select_group_add_socket(group, driver_dns->s, SOCKET_TYPE_STREAM, driver_dns);

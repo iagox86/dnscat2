@@ -40,6 +40,13 @@
 #define DEFAULT_DNS_HOST NULL
 #define DEFAULT_DNS_PORT 53
 
+/* Types of DNS queries we support */
+#ifndef WIN32
+#define DNS_TYPES "TXT, CNAME, MX, A, AAAA"
+#else
+#define DNS_TYPES "TXT, CNAME, MX, A"
+#endif
+
 /* Define these outside the function so they can be freed by the atexec() */
 select_group_t   *group          = NULL;
 
@@ -122,6 +129,7 @@ void usage(char *name, char *message)
 " --dns <domain>          Enable DNS mode with the given domain\n"
 " --host <host>           The DNS server [default: %s]\n"
 " --port <port>           The DNS port [default: 53]\n"
+" --type <port>           The type of DNS record to use (" DNS_TYPES ")\n"
 "\n"
 
 "Debug options:\n"
@@ -167,11 +175,14 @@ int main(int argc, char *argv[])
     {"l",       required_argument, 0, 0},
 
     /* DNS-specific options */
+#if 0
     {"dns",        required_argument, 0, 0}, /* Enable DNS (default) */
+#endif
     {"dnshost",    required_argument, 0, 0}, /* DNS server */
     {"host",       required_argument, 0, 0}, /* (alias) */
     {"dnsport",    required_argument, 0, 0}, /* DNS port */
     {"port",       required_argument, 0, 0}, /* (alias) */
+    {"type",       required_argument, 0, 0},
 
     /* Debug options */
     {"d",       no_argument,       0, 0}, /* More debug */
@@ -195,6 +206,8 @@ int main(int argc, char *argv[])
   char             *download = NULL;
   uint32_t          chunk    = -1;
 
+  dns_type_t        dns_type = _DNS_TYPE_TEXT; /* TODO: Is this the best default? */
+
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
   drivers_t input_type = TYPE_NOT_SET;
@@ -202,6 +215,7 @@ int main(int argc, char *argv[])
   char *exec_process = NULL;
 
   int listen_port = 0;
+
 
   /* Initialize the modules that need initialization. */
   log_init();
@@ -287,11 +301,13 @@ int main(int argc, char *argv[])
         }
 
         /* DNS-specific options */
+#if 0
         else if(!strcmp(option_name, "dns"))
         {
           output_set = TRUE;
           driver_dns = driver_dns_create(group, optarg);
         }
+#endif
         else if(!strcmp(option_name, "dnshost") || !strcmp(option_name, "host"))
         {
           dns_options.host = optarg;
@@ -299,6 +315,24 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "dnsport") || !strcmp(option_name, "port"))
         {
           dns_options.port = atoi(optarg);
+        }
+        else if(!strcmp(option_name, "type"))
+        {
+          if(!strcmp(optarg, "TXT") || !strcmp(optarg, "txt") || !strcmp(optarg, "TEXT") || !strcmp(optarg, "text"))
+            dns_type = _DNS_TYPE_TEXT;
+          else if(!strcmp(optarg, "CNAME") || !strcmp(optarg, "cname"))
+            dns_type = _DNS_TYPE_CNAME;
+          else if(!strcmp(optarg, "MX") || !strcmp(optarg, "mx"))
+            dns_type = _DNS_TYPE_MX;
+          else if(!strcmp(optarg, "A") || !strcmp(optarg, "a"))
+            dns_type = _DNS_TYPE_A;
+#ifndef WIN32
+          else if(!strcmp(optarg, "AAAA") || !strcmp(optarg, "aaaa"))
+            dns_type = _DNS_TYPE_AAAA;
+#endif
+          else
+            usage(argv[0], "Unknown DNS type! Valid types are: " DNS_TYPES);
+
         }
 
         /* Debug options */
@@ -387,11 +421,11 @@ int main(int argc, char *argv[])
     if(optind >= argc)
     {
       LOG_WARNING("Starting DNS driver without a domain! You'll probably need to use --host to specify a direct connection to your server.");
-      driver_dns = driver_dns_create(group, NULL);
+      driver_dns = driver_dns_create(group, NULL, dns_type);
     }
     else
     {
-      driver_dns = driver_dns_create(group, argv[optind]);
+      driver_dns = driver_dns_create(group, argv[optind], dns_type);
     }
   }
 

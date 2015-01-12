@@ -71,7 +71,8 @@ class UiSessionInteractive < UiInterfaceWithId
 
   def output(str)
     # I don't think this is necessary
-    raise(DnscatException, "I don't think I use this")
+    #raise(DnscatException, "I don't think I use this")
+    puts(str)
   end
 
   def error(str)

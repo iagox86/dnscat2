@@ -13,10 +13,11 @@ typedef struct
   int        dns_port;
 
   NBBOOL     is_closed;
+  dns_type_t type;
 
 } driver_dns_t;
 
-driver_dns_t *driver_dns_create(select_group_t *group, char *domain);
+driver_dns_t *driver_dns_create(select_group_t *group, char *domain, dns_type_t type);
 void          driver_dns_destroy();
 
 #endif
