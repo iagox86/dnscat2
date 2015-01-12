@@ -169,89 +169,96 @@ class DriverDNS
 
           # Determine the actual name, without the extra cruft
           name, domain = DriverDNS.figure_out_name(transaction.name, domains)
-          if(name.nil?)
-            raise(DnscatException, "Failed to parse a matching name (please report this, it shouldn't happen): #{transaction.name}")
-          end
+          if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
+            if(passthrough)
+              if(!@shown_pt)
+                Log.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
+                Log.WARNING(nil, "(This will only be shown once)")
+              end
+              transaction.passthrough!(UPSTREAM)
+            elsif(!@shown_pt)
+              Log.WARNING(nil, "Unable to handle request, returning an error: #{transaction.name}")
+              Log.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
+              Log.WARNING(nil, "(This will only be shown once)")
+              @shown_pt = true
 
-
-          if(type.nil? || type_info.nil?)
-            raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
-          end
-
-          # Sanity check the name
-          if(name !~ /^[a-fA-F0-9.]*$/)
-            raise(DnscatException, "Name contains illegal characters: #{transaction.name}")
-          end
-
-          # Get rid of periods in the incoming name
-          name = name.gsub(/\./, '')
-          name = [name].pack("H*")
-
-          # Figure out the length of the domain based on the record type
-          if(type_info[:requires_domain])
-            if(domain.nil?)
-              domain_length = ("dnscat.").length
-            else
-              domain_length = domain.length + 1 # +1 for the dot
+              transaction.fail!(:NXDomain)
             end
           else
-            domain_length = 0
-          end
-
-          # Figure out the max length of data we can handle
-          if(type_info[:requires_hex])
-            max_length = (type_info[:max_length] / 2) - domain_length
-          else
-            max_length = (type_info[:max_length]) - domain_length
-          end
-
-          # Get the response
-          response = yield(name, max_length)
-
-          # Sanity check the response
-          if(response.nil?)
-            response = ''
-          elsif(response.length > max_length)
-            raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report")
-          end
-
-          # Encode the response as needed
-          response = type_info[:encoder].call(response)
-
-          # Append domain, if needed
-          if(type_info[:requires_domain])
-            if(domain.nil?)
-              response = "dnscat." + response
-            else
-              response = response + "." + domain
+            if(type.nil? || type_info.nil?)
+              raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
             end
-          end
 
-          # Do another length sanity check (with the *actual* max length, since everything is encoded now)
-          if(response.length > type_info[:max_length])
-            raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report")
-          end
+            # Get rid of periods in the incoming name
+            name = name.gsub(/\./, '')
+            name = [name].pack("H*")
 
-          # Translate it into a name, if needed
-          if(type_info[:requires_name])
-            response = Name.create(response)
-          end
-
-          # Log the response
-          Log.INFO(nil, "Sending:  #{response}")
-
-          # Make sure response is an array (certain types require an array, and it's easier to assume everything is one)
-          if(!response.is_a?(Array))
-            response = [response]
-          end
-
-          # Allow multiple response records
-          response.each do |r|
-            # MX requires a special response
-            if(type == IN::MX)
-              transaction.respond!(rand(5) * 10, r)
+            # Figure out the length of the domain based on the record type
+            if(type_info[:requires_domain])
+              if(domain.nil?)
+                domain_length = ("dnscat.").length
+              else
+                domain_length = domain.length + 1 # +1 for the dot
+              end
             else
-              transaction.respond!(r)
+              domain_length = 0
+            end
+
+            # Figure out the max length of data we can handle
+            if(type_info[:requires_hex])
+              max_length = (type_info[:max_length] / 2) - domain_length
+            else
+              max_length = (type_info[:max_length]) - domain_length
+            end
+
+            # Get the response
+            response = yield(name, max_length)
+
+            # Sanity check the response
+            if(response.nil?)
+              response = ''
+            elsif(response.length > max_length)
+              raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report")
+            end
+
+            # Encode the response as needed
+            response = type_info[:encoder].call(response)
+
+            # Append domain, if needed
+            if(type_info[:requires_domain])
+              if(domain.nil?)
+                response = "dnscat." + response
+              else
+                response = response + "." + domain
+              end
+            end
+
+            # Do another length sanity check (with the *actual* max length, since everything is encoded now)
+            if(response.length > type_info[:max_length])
+              raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report")
+            end
+
+            # Translate it into a name, if needed
+            if(type_info[:requires_name])
+              response = Name.create(response)
+            end
+
+            # Log the response
+            Log.INFO(nil, "Sending:  #{response}")
+
+            # Make sure response is an array (certain types require an array, and it's easier to assume everything is one)
+            if(!response.is_a?(Array))
+              response = [response]
+            end
+
+            # Allow multiple response records
+            response.each do |r|
+              # MX requires a special response
+              if(type == IN::MX)
+                transaction.respond!(rand(5) * 10, r)
+              else
+                transaction.respond!(r)
+              end
             end
           end
         rescue DnscatException => e
