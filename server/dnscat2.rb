@@ -55,7 +55,7 @@ opts = Trollop::options do
     :type => :boolean,  :default => false
 end
 
-Log.WARNING(nil, "Setting debug level to: #{opts[:debug].upcase()}")
+Log.PRINT(nil, "Setting debug level to: #{opts[:debug].upcase()}")
 if(!Log.set_min_level(opts[:debug].upcase()))
    Trollop::die :debug, "level values are: #{Log::LEVELS}"
 end
@@ -83,20 +83,20 @@ if(domains.length > 0)
     puts("./dnscat2 #{domain}")
   end
 
-  Log.WARNING(nil)
-  Log.WARNING(nil, "You can also run a directly-connected client:")
+  Log.PRINT(nil)
+  Log.PRINT(nil, "You can also run a directly-connected client:")
 else
-  Log.WARNING(nil, "It looks like you didn't give me any domains to recognize!")
-  Log.WARNING(nil, "That's cool, though, you can still use a direct connection!")
-  Log.WARNING(nil, "Try running this on your client:")
+  Log.PRINT(nil, "It looks like you didn't give me any domains to recognize!")
+  Log.PRINT(nil, "That's cool, though, you can still use a direct connection!")
+  Log.PRINT(nil, "Try running this on your client:")
 end
 
-Log.WARNING(nil)
-Log.WARNING(nil, "./dnscat2 --host <server>")
-Log.WARNING(nil)
-Log.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
-Log.WARNING(nil, "directly on UDP port 53.")
-Log.WARNING(nil)
+Log.PRINT(nil)
+Log.PRINT(nil, "./dnscat2 --host <server>")
+Log.PRINT(nil)
+Log.PRINT(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
+Log.PRINT(nil, "directly on UDP port 53.")
+Log.PRINT(nil)
 
 threads = []
 if(opts[:dns])
@@ -113,9 +113,9 @@ if(opts[:dns])
       Log.FATAL(nil, e)
 
       if(e.to_s =~ /no datagram socket/)
-        Log.FATAL(nil, "")
-        Log.FATAL(nil, "Translation: Couldn't listen on #{opts[:dnshost]}:#{opts[:dnsport]}")
-        Log.FATAL(nil, "(if you're on Linux, you might need to use sudo or rvmsudo)")
+        Log.PRINT(nil, "")
+        Log.PRINT(nil, "Translation: Couldn't listen on #{opts[:dnshost]}:#{opts[:dnsport]}")
+        Log.PRINT(nil, "(if you're on Linux, you might need to use sudo or rvmsudo)")
       end
 
       exit

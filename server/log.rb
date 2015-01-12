@@ -54,6 +54,10 @@ class Log
     return LEVELS_BY_NAME[name.upcase]
   end
 
+  def Log.PRINT(id, message = "")
+    Log.log(nil, id, message)
+  end
+
   def Log.INFO(id, message = "")
     Log.log(INFO, id, message)
   end
@@ -89,12 +93,12 @@ class Log
 
   def Log.log(level, id, message = "")
     # Make sure the level is sane
-    if(level < INFO || level > FATAL)
+    if(!level.nil? && (level < INFO || level > FATAL))
       raise(DnscatException, "Bad log level: #{level}")
     end
 
     # Check if we should even bother
-    if(level < @@min_level)
+    if(!level.nil? && level < @@min_level)
       return
     end
 
@@ -106,7 +110,9 @@ class Log
       log(level, id, "[%s]: %s" % [message.class.to_s(), message.to_s()])
       log(level, id, message.backtrace)
     else
-      message = "[%s] %s" % [(LEVELS[level] || "[bad level]"), message]
+      if(!level.nil?)
+        message = "[%s] %s" % [(LEVELS[level] || "[bad level]"), message]
+      end
 
       Log.try_to_log_to(LOG_ALL_THE_THINGS, message)
 
