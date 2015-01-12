@@ -290,6 +290,10 @@ class UiSessionCommand < UiInterfaceWithId
     puts("File uploaded!")
   end
 
+  def handle_error_response(packet)
+    Log.ERROR(@id, "Client responded with error #{packet.status}: #{packet.reason}")
+  end
+
   def feed(data)
     @stream.feed(data, false) do |packet|
       if(packet.is_response?())
@@ -303,6 +307,8 @@ class UiSessionCommand < UiInterfaceWithId
           handle_download_response(packet)
         elsif(packet.command_id == CommandPacket::COMMAND_UPLOAD)
           handle_upload_response(packet)
+        elsif(packet.command_id == CommandPacket::COMMAND_ERROR)
+          handle_error_response(packet)
         else
           output("Didn't know how to handle command packet: %s" % packet.to_s)
         end
