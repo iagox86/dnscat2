@@ -22,6 +22,7 @@ class DriverDNS
   IN = Resolv::DNS::Resource::IN
 
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
+  MAX_AAAA_RECORDS = 5
 
   RECORD_TYPES = {
     IN::TXT => {
@@ -68,7 +69,24 @@ class DriverDNS
            ]
          end
       end,
-    }
+    },
+    IN::AAAA => {
+      :requires_domain => false,
+      :max_length      => (MAX_AAAA_RECORDS * 16) - 1, # Length-prefixed, because low granularity
+      :requires_hex    => false,
+      :requires_name   => false,
+
+      # Encode in length-prefixed IPv6 notation
+      :encoder         => Proc.new() do |name|
+         (name.length.chr + name).chars.each_slice(16).map(&:join).map do |ip|
+           ip = ip.ljust(16, rand(255).chr)
+           ip.bytes.each_slice(2).map do |octet|
+             "%04x" % [octet[0] << 8 | octet[1]]
+           end.join(":")
+         end
+      end,
+    },
+
   }
 
   def initialize(host, port, domains, autodomain, passthrough)
