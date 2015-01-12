@@ -36,8 +36,6 @@ opts = Trollop::options do
     :type => :string,  :default => "0.0.0.0"
   opt :dnsport,   "The DNS port to listen on",
     :type => :integer, :default => 53
-  opt :autodomain,"If set (which is the default), in addition to any domain(s) specified, requests to no particular domain (but prefixed with a dnscat2 marker) will be processed",
-    :type => :boolean, :default => true
   opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
     :type => :boolean, :default => false
 
@@ -70,20 +68,9 @@ if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
 end
 
-autodomain  = opts[:autodomain]
 passthrough = opts[:passthrough]
 # Make a copy of ARGV
 domains = [].replace(ARGV)
-
-if(autodomain == false && domains.length == 0)
-  Log.FATAL(nil, "autodomain is turned off and you didn't provide any DNS names on the")
-  Log.FATAL(nil, "commandline!")
-  Log.FATAL(nil, "")
-  Log.FATAL(nil, "You've gotta give me something to detect... try --autodomain or")
-  Log.FATAL(nil, "putting domain names at the end of the command")
-
-  exit(0)
-end
 
 if(domains.length > 0)
   puts("Handling requests for the following domain(s):")
@@ -96,33 +83,27 @@ if(domains.length > 0)
     puts("./dnscat2 #{domain}")
   end
 
-  if(autodomain)
-    Log.WARNING(nil)
-    Log.WARNING(nil, "You can also run a directly-connected client:")
-    Log.WARNING(nil)
-    Log.WARNING(nil, "./dnscat2 --host <server>")
-    Log.WARNING(nil)
-    Log.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
-    Log.WARNING(nil, "directly on UDP port 53.")
-    Log.WARNING(nil)
-  end
+  Log.WARNING(nil)
+  Log.WARNING(nil, "You can also run a directly-connected client:")
 else
   Log.WARNING(nil, "It looks like you didn't give me any domains to recognize!")
   Log.WARNING(nil, "That's cool, though, you can still use a direct connection!")
   Log.WARNING(nil, "Try running this on your client:")
-  Log.WARNING(nil)
-  Log.WARNING(nil, "./dnscat2 --host <server>")
-  Log.WARNING(nil)
-  Log.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
-  Log.WARNING(nil, "directly on UDP port 53.")
 end
+
+Log.WARNING(nil)
+Log.WARNING(nil, "./dnscat2 --host <server>")
+Log.WARNING(nil)
+Log.WARNING(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
+Log.WARNING(nil, "directly on UDP port 53.")
+Log.WARNING(nil)
 
 threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
       Log.WARNING(nil, "Starting DNS server...")
-      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, autodomain, passthrough)
+      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, passthrough)
       SessionManager.go(driver, opts)
     rescue DnscatException => e
       Log.FATAL(nil, "Protocol exception caught in DNS module:")

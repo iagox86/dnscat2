@@ -85,11 +85,10 @@ class DriverDNS
 
   }
 
-  def initialize(host, port, domains, autodomain, passthrough)
+  def initialize(host, port, domains, passthrough)
     Log::WARNING(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
-    if(autodomain)
-      Log::WARNING(nil, "Will also accept direct queries, if they're tagged properly!")
-    end
+    Log::WARNING(nil, "Will also accept direct queries, if they're tagged properly!")
+
     if(domains.nil? || domains.length == 0)
       Log::WARNING(nil, "No domains were selected, which means this server will only respond to direct queries")
     end
@@ -97,7 +96,6 @@ class DriverDNS
     @host        = host
     @port        = port
     @domains     = domains
-    @autodomain  = autodomain
     @passthrough = passthrough
     @shown_pt    = false
   end
