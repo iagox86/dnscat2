@@ -61,12 +61,8 @@ class DriverDNS
       # Encode in length-prefixed dotted-decimal notation
       :encoder         => Proc.new() do |name|
          (name.length.chr + name).chars.each_slice(4).map(&:join).map do |ip|
-           "%d.%d.%d.%d" % [
-             (ip[0] || rand(255)).ord,
-             (ip[1] || rand(255)).ord,
-             (ip[2] || rand(255)).ord,
-             (ip[3] || rand(255)).ord
-           ]
+           ip = ip.ljust(4, (4 - (ip.length % 4)).chr)
+           "%d.%d.%d.%d" % ip.bytes.to_a # return
          end
       end,
     },
@@ -79,10 +75,10 @@ class DriverDNS
       # Encode in length-prefixed IPv6 notation
       :encoder         => Proc.new() do |name|
          (name.length.chr + name).chars.each_slice(16).map(&:join).map do |ip|
-           ip = ip.ljust(16, rand(255).chr)
+           ip = ip.ljust(16, (16 - (ip.length % 16)).chr)
            ip.bytes.each_slice(2).map do |octet|
              "%04x" % [octet[0] << 8 | octet[1]]
-           end.join(":")
+           end.join(":") # return
          end
       end,
     },
