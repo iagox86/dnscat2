@@ -226,8 +226,8 @@ class DriverDNS
             end
           end
 
-          # Do another length sanity check
-          if(response.length > max_length)
+          # Do another length sanity check (with the *actual* max length, since everything is encoded now)
+          if(response.length > type_info[:max_length])
             raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report")
           end
 
