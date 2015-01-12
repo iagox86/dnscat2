@@ -300,6 +300,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         buffer_read_next_int16(buffer); /* String size (don't care) */
 
         dns->answers[i].answer->A.address = safe_malloc(16);
+        buffer_peek_next_bytes(buffer, dns->answers[i].answer->A.bytes, 4);
         buffer_read_next_ipv4_address(buffer, dns->answers[i].answer->A.address);
       }
       else if(dns->answers[i].type == _DNS_TYPE_NS) /* 0x0002 */
@@ -331,6 +332,7 @@ dns_t *dns_create_from_packet(uint8_t *packet, size_t length)
         buffer_read_next_int16(buffer); /* String size (don't care). */
 
         dns->answers[i].answer->AAAA.address = safe_malloc(40);
+        buffer_peek_next_bytes(buffer, dns->answers[i].answer->AAAA.bytes, 16);
         buffer_read_next_ipv6_address(buffer, dns->answers[i].answer->AAAA.address);
       }
 #endif

@@ -185,11 +185,16 @@ typedef struct
 typedef struct
 {
   char *address;
+  uint8_t bytes[4];
 } A_answer_t;
 
 /* Only define AAAA on Linux. */
 #ifndef WIN32
-typedef A_answer_t AAAA_answer_t;
+typedef struct
+{
+  char *address;
+  uint8_t bytes[16];
+} AAAA_answer_t;
 #endif
 
 /* Nameserver and CNAME (alias) records simply have a name. */
