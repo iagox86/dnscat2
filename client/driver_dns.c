@@ -42,16 +42,18 @@ static uint8_t *remove_domain(char *str, char *domain)
 {
   if(domain)
   {
+    char *fixed = NULL;
+
     if(strlen(domain) > strlen(str))
     {
       LOG_ERROR("The string is too short to have a domain name attached: %s", str);
       return NULL;
     }
 
-    domain = safe_strdup(domain);
-    domain[strlen(str) - strlen(domain)] = '\0';
+    fixed = safe_strdup(str);
+    fixed[strlen(str) - strlen(domain) - 1] = '\0';
 
-    return (uint8_t*)domain;
+    return (uint8_t*)fixed;
   }
   else
   {
@@ -64,7 +66,7 @@ static uint8_t *buffer_decode_hex(uint8_t *str, size_t *length)
   size_t    i   = 0;
   buffer_t *out = buffer_create(BO_BIG_ENDIAN);
 
-printf("Decoding: %s\n", str);
+printf("Decoding: %s (%zu bytes)...\n", str, *length);
   while(i < *length)
   {
     uint8_t c1 = 0;
@@ -151,7 +153,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     LOG_ERROR("DNS returned the wrong number of response fields (question_count should be 1, was instead %d).", dns->question_count);
     LOG_ERROR("This is probably due to a DNS error");
   }
-  else if(dns->answer_count == 0)
+  else if(dns->answer_count < 1)
   {
     LOG_ERROR("DNS didn't return an answer");
     LOG_ERROR("This is probably due to a DNS error");

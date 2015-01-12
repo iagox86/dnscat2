@@ -293,7 +293,7 @@ class Session
       })
     end
 
-    notify_subscribers(:dnscat2_fin, [@id, packet.reason])
+    notify_subscribers(:dnscat2_fin, [@id, packet.body.reason])
     SessionManager.kill_session(@id)
 
     return Packet.create_fin(@options, {
