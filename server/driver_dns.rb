@@ -144,7 +144,6 @@ class DriverDNS
           response = yield(name, max_length)
 
           if(response.nil?)
-            Log.INFO(nil, "Sending nil response...")
             response = ''
           elsif(response.length > max_length)
             raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report")
@@ -162,7 +161,12 @@ class DriverDNS
           end
 
           Log.INFO(nil, "Sending:  #{response}")
-          transaction.respond!(response)
+
+          if(type == IN::MX)
+            transaction.respond!(response, rand(5) * 10)
+          else
+            transaction.respond!(response)
+          end
         rescue DnscatException => e
           Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.ERROR(nil, e.inspect)

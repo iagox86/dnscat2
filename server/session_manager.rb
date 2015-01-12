@@ -148,7 +148,11 @@ class SessionManager
           Log.WARNING(session_id, "OUTGOING: #{response.to_s}")
         end
 
-        response.to_bytes() # Return it, in a way
+        if(response.nil?)
+          nil
+        else
+          response.to_bytes() # Return it, in a way
+        end
 
       # Catch IOErrors, but don't destroy the session - it may continue later
       rescue IOError => e
