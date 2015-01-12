@@ -17,18 +17,58 @@ class DriverDNS
   # Use upstream DNS for name resolution.
   UPSTREAM = RubyDNS::Resolver.new([[:udp, "8.8.8.8", 53]])
 
+  # Get a handle to these things
   Name = Resolv::DNS::Name
   IN = Resolv::DNS::Resource::IN
 
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
-  MAX_A_LENGTH = (MAX_A_RECORDS * 4) - 1 # Minus one because it's a length prefixed value
 
-  RECORD_TYPES = [IN::TXT, IN::MX, IN::CNAME]
+  RECORD_TYPES = {
+    IN::TXT => {
+      :requires_domain => false,
+      :max_length      => 250,
+      :requires_hex    => true,
+      :requires_name   => false,
+      :encoder         => Proc.new() do |name|
+         name.unpack("H*").pop
+      end,
+    },
+    IN::MX => {
+      :requires_domain => true,
+      :max_length      => 240, # Shorter, because some periods need to be added
+      :requires_hex    => true,
+      :requires_name   => true,
+      :encoder         => Proc.new() do |name|
+         name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
+      end,
+    },
+    IN::CNAME => {
+      :requires_domain => true,
+      :max_length      => 240, # Shorter, because some periods need to be added
+      :requires_hex    => true,
+      :requires_name   => true,
+      :encoder         => Proc.new() do |name|
+         name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
+      end,
+    },
+    IN::A => {
+      :requires_domain => false,
+      :max_length      => (MAX_A_RECORDS * 4) - 1, # Length-prefixed, since we only have DWORD granularity
+      :requires_hex    => false,
+      :requires_name   => false,
 
-  MAX_LENGTH = {
-    IN::TXT   => 250,
-    IN::MX    => 250,
-    IN::CNAME => 250,
+      # Encode in length-prefixed dotted-decimal notation
+      :encoder         => Proc.new() do |name|
+         (name.length.chr + name).chars.each_slice(4).map(&:join).map do |ip|
+           "%d.%d.%d.%d" % [
+             (ip[0] || rand(255)).ord,
+             (ip[1] || rand(255)).ord,
+             (ip[2] || rand(255)).ord,
+             (ip[3] || rand(255)).ord
+           ]
+         end
+      end,
+    }
   }
 
   def initialize(host, port, domains, autodomain, passthrough)
@@ -99,13 +139,14 @@ class DriverDNS
 
     RubyDNS::run_server(:listen => interfaces) do |s|
       # Turn off DNS logging
-      s.logger.level = Logger::FATAL
+      s.logger.level = Logger::ERROR
 
       # This ugly line basically joins the domains together in a string that looks like:
       # (^dnscat\.|\.skullseclabs.org$)
       domain_regex = "(^dnscat\\.|" + (domains.map { |x| "\\.#{x}$" }).join("|") + ")"
 
-      match(/#{domain_regex}/, RECORD_TYPES) do |transaction|
+      # Only match proper domains with proper record types
+      match(/#{domain_regex}/, RECORD_TYPES.keys) do |transaction|
         begin
           # Log what's going on
           Log.INFO(nil, "Received:  #{transaction.name}")
@@ -116,56 +157,89 @@ class DriverDNS
             raise(DnscatException, "Failed to parse a matching name (please report this, it shouldn't happen): #{transaction.name}")
           end
 
-
           # Determine the type
           type = transaction.resource_class
+          type_info = RECORD_TYPES[type]
+
+          if(type.nil? || type_info.nil?)
+            raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
+          end
 
           # Sanity check the name
           if(name !~ /^[a-fA-F0-9.]*$/)
             raise(DnscatException, "Name contains illegal characters: #{transaction.name}")
           end
 
-          # Figure out the length of the domain based on the record type
-          if(type == IN::TXT)
-            domain_length = 0
-          elsif(type.nil?)
-            domain_length = "dnscat.".length
-          else
-            domain_length = domain.length
-          end
-
-          # Figure out the max length of data we can handle
-          max_length = (MAX_LENGTH[type] / 2) - domain_length
-
-          # Get rid of periods
+          # Get rid of periods in the incoming name
           name = name.gsub(/\./, '')
           name = [name].pack("H*")
 
+          # Figure out the length of the domain based on the record type
+          if(type_info[:requires_domain])
+            if(domain.nil?)
+              domain_length = ("dnscat.").length
+            else
+              domain_length = domain.length + 1 # +1 for the dot
+            end
+          else
+            domain_length = 0
+          end
+
+          # Figure out the max length of data we can handle
+          if(type_info[:requires_hex])
+            max_length = (type_info[:max_length] / 2) - domain_length
+          else
+            max_length = (type_info[:max_length]) - domain_length
+          end
+
+          # Get the response
           response = yield(name, max_length)
 
+          # Sanity check the response
           if(response.nil?)
             response = ''
           elsif(response.length > max_length)
             raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report")
-          else
-            response = "#{response.unpack("H*").pop}"
           end
+
+          # Encode the response as needed
+          response = type_info[:encoder].call(response)
 
           # Append domain, if needed
-          if(type == IN::TXT)
-            # Do nothing
-          elsif(domain.nil?)
-            response = "dnscat." + response
-          else
-            response = response + "." + domain
+          if(type_info[:requires_domain])
+            if(domain.nil?)
+              response = "dnscat." + response
+            else
+              response = response + "." + domain
+            end
           end
 
+          # Do another length sanity check
+          if(response.length > max_length)
+            raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report")
+          end
+
+          # Translate it into a name, if needed
+          if(type_info[:requires_name])
+            response = Name.create(response)
+          end
+
+          # Log the response
           Log.INFO(nil, "Sending:  #{response}")
 
-          if(type == IN::MX)
-            transaction.respond!(response, rand(5) * 10)
-          else
-            transaction.respond!(response)
+          # Make sure response is an array (certain types require an array, and it's easier to assume everything is one)
+          if(!response.is_a?(Array))
+            response = [response]
+          end
+
+          # Allow multiple response records
+          response.each do |r|
+            # MX requires a special response
+            if(type == IN::MX)
+              transaction.respond!(rand(5) * 10, r)
+            else
+              transaction.respond!(r)
+            end
           end
         rescue DnscatException => e
           Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
