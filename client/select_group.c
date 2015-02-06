@@ -160,7 +160,7 @@ void select_group_add_pipe(select_group_t *group, int identifier, HANDLE pipe, v
 select_recv *select_set_recv(select_group_t *group, int s, select_recv *callback)
 {
   select_t *select = find_select_by_socket(group, s);
-  select_recv *old;
+  select_recv *old = NULL;
 
   if(select)
   {
@@ -173,7 +173,7 @@ select_recv *select_set_recv(select_group_t *group, int s, select_recv *callback
 select_listen *select_set_listen(select_group_t *group, int s, select_listen *callback)
 {
   select_t *select = find_select_by_socket(group, s);
-  select_listen *old;
+  select_listen *old = NULL;
 
   if(select)
   {
@@ -186,7 +186,7 @@ select_listen *select_set_listen(select_group_t *group, int s, select_listen *ca
 select_error *select_set_error(select_group_t *group, int s, select_error *callback)
 {
   select_t *select = find_select_by_socket(group, s);
-  select_error *old;
+  select_error *old = NULL;
 
   if(select)
   {
@@ -199,7 +199,7 @@ select_error *select_set_error(select_group_t *group, int s, select_error *callb
 select_closed *select_set_closed(select_group_t *group, int s, select_closed *callback)
 {
   select_t *select = find_select_by_socket(group, s);
-  select_closed *old;
+  select_closed *old = NULL;
 
   if(select)
   {

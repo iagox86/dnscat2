@@ -18,6 +18,7 @@
 #include <unistd.h>
 #endif
 
+#include "log.h"
 #include "memory.h"
 #include "types.h"
 
@@ -45,7 +46,11 @@ void drop_privileges(char *username)
     else
     {
 /*      fprintf(stderr, "Dropping privileges to account %s:%d.\n", user->pw_name, user->pw_uid); */
-      setuid(user->pw_uid);
+      if(setuid(user->pw_uid))
+      {
+        LOG_FATAL("Failed to drop privileges to %s!", username);
+        exit(1);
+      }
     }
 
     /* Ensure it succeeded. */

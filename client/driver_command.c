@@ -73,11 +73,14 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
         else
         {
           data = safe_malloc(s.st_size);
-          fread(data, s.st_size, 1, f);
+
+          /* TODO: Handling the error kinda poorly here */
+          if(fread(data, s.st_size, 1, f) == s.st_size)
+            out = command_packet_create_download_response(in->request_id, data, s.st_size);
+          else
+            out = NULL;
+
           fclose(f);
-
-          out = command_packet_create_download_response(in->request_id, data, s.st_size);
-
           safe_free(data);
         }
       }

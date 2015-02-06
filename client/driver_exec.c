@@ -44,7 +44,8 @@ static void handle_data_in(driver_exec_t *driver, uint8_t *data, size_t length)
   DWORD written;
   WriteFile(driver->exec_stdin[PIPE_WRITE], data, (DWORD)length, &written, NULL);
 #else
-  write(driver->pipe_stdin[PIPE_WRITE], data, length);
+  if(write(driver->pipe_stdin[PIPE_WRITE], data, length) != length)
+    LOG_ERROR("There was a problem writing data. :(");
 #endif
 }
 

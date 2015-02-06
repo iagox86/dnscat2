@@ -66,7 +66,7 @@ ssize_t udp_read(int s, void *buffer, size_t buffer_length, struct sockaddr_in *
 
 ssize_t udp_send(int sock, char *address, uint16_t port, void *data, size_t length)
 {
-  int    result;
+  int    result = -1;
   struct sockaddr_in serv_addr;
   struct hostent *server;
 
