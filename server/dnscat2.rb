@@ -69,7 +69,7 @@ if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
 end
 
-passthrough = opts[:passthrough]
+DriverDNS.passthrough = opts[:passthrough]
 # Make a copy of ARGV
 domains = [].replace(ARGV)
 
@@ -127,12 +127,25 @@ settings.watch("debug") do |old_val, new_val|
   Log.set_min_level(new_val)
 end
 
+settings.verify("passthrough") do |value|
+  if(!(value == true || value == false))
+    "'passthrough' has to be either 'true' or 'false'!"
+  else
+    nil
+  end
+end
+
+settings.watch("passthrough") do |old_val, new_val|
+  puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
+  DriverDNS.passthrough = new_val
+end
+
 threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
       Log.WARNING(nil, "Starting DNS server...")
-      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, passthrough)
+      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
       SessionManager.go(driver, settings)
     rescue DnscatException => e
       Log.FATAL(nil, "Protocol exception caught in DNS module:")

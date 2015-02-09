@@ -24,6 +24,8 @@ class DriverDNS
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
   MAX_AAAA_RECORDS = 5
 
+  @@passthrough = false
+
   RECORD_TYPES = {
     IN::TXT => {
       :requires_domain => false,
@@ -85,7 +87,7 @@ class DriverDNS
 
   }
 
-  def initialize(host, port, domains, passthrough)
+  def initialize(host, port, domains)
     Log::WARNING(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
     Log::WARNING(nil, "Will also accept direct queries, if they're tagged properly!")
 
@@ -96,10 +98,8 @@ class DriverDNS
     @host        = host
     @port        = port
     @domains     = domains
-    @passthrough = passthrough
     @shown_pt    = false
   end
-
 
   # If domain is non-nil, match /(.*)\.domain/
   # If domain is nil, match /identifier\.(.*)/
@@ -140,10 +140,16 @@ class DriverDNS
     return nil
   end
 
+  def DriverDNS.passthrough=(value)
+    @@passthrough = value
+  end
+  def DriverDNS.passthrough()
+    return @@passthrough
+  end
+
   def recv()
     # Save the domains locally so the block can see it
     domains     = @domains
-    passthrough = @passthrough
 
     interfaces = [
       [:udp, @host, @port],
@@ -170,7 +176,7 @@ class DriverDNS
           # Determine the actual name, without the extra cruft
           name, domain = DriverDNS.figure_out_name(transaction.name, domains)
           if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
-            if(passthrough)
+            if(DriverDNS.passthrough)
               if(!@shown_pt)
                 Log.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
                 Log.WARNING(nil, "(This will only be shown once)")
@@ -178,7 +184,8 @@ class DriverDNS
               transaction.passthrough!(UPSTREAM)
             elsif(!@shown_pt)
               Log.WARNING(nil, "Unable to handle request, returning an error: #{transaction.name}")
-              Log.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
+              Log.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough")
+              Log.WARNING(nil, "or run \"set passthrough=true\")")
               Log.WARNING(nil, "(This will only be shown once)")
               @shown_pt = true
 
@@ -276,7 +283,7 @@ class DriverDNS
 
       # Default DNS handler
       otherwise do |transaction|
-        if(passthrough)
+        if(DriverDNS.passthrough)
           if(!@shown_pt)
             Log.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
             Log.WARNING(nil, "(This will only be shown once)")
