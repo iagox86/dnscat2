@@ -117,7 +117,12 @@ class UiCommand < UiInterface
           if(optarg.length != 2)
             puts("Usage: set <name>=<value>")
           else
-            @ui.set_option(optarg[0], optarg[1])
+            result = @ui.set_option(optarg[0], optarg[1])
+            if(result)
+              puts("ERROR: " + result)
+            else
+              puts(optarg[0] + " => " + optarg[1])
+            end
           end
         end
       end
@@ -157,7 +162,7 @@ class UiCommand < UiInterface
   end
 
   def do_show_options()
-    @ui.each_option do |name, value|
+    @ui.settings.each_pair do |name, value|
       puts("#{name} => #{value}")
     end
   end

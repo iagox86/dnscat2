@@ -16,8 +16,10 @@ require 'ui_session_interactive'
 class Ui
   include Subscribable
 
-  def initialize(opts)
-    @options = opts
+  attr_reader :settings
+
+  def initialize(settings)
+    @settings = settings
     @thread = Thread.current()
 
     # There's always a single UiCommand in existance
@@ -51,12 +53,11 @@ class Ui
     name   = name.gsub(/^ */, '').gsub(/ *$/, '')
     value = value.gsub(/^ */, '').gsub(/ *$/, '')
 
-    if(value == "nil")
-      @options.delete(name)
+    if(value.nil? || value == "nil")
+      @settings.set(name, nil)
 
       puts("#{name} => [deleted]")
     else
-
       # Replace \n with actual newlines
       value = value.gsub(/\\n/, "\n")
 
@@ -64,27 +65,8 @@ class Ui
       value = true if(value == "true")
       value = false if(value == "false")
 
-      if(name == "log_level")
-        Log.WARNING(nil, "Setting debug level to: #{value.upcase()}")
-        if(!Log.set_min_level(value.upcase()))
-          Log.ERROR(nil, "Failed! Valid log levels are: #{Log::LEVELS}")
-        end
-      else
-        Log.WARNING(nil, "#{name} => #{value}")
-        @options[name] = value
-      end
-
+      @settings.set(name, value)
     end
-  end
-
-  def each_option()
-    @options.each_pair do |k, v|
-      yield(k, v)
-    end
-  end
-
-  def get_option(name)
-    return @options[name]
   end
 
   def error(msg, id = nil)

@@ -17,6 +17,7 @@ require 'driver_tcp'
 require 'log'
 require 'packet'
 require 'session_manager'
+require 'settings'
 require 'ui'
 
 # Option parsing
@@ -127,13 +128,30 @@ end
 # a small amount of time to initialize themselves
 sleep(0.01)
 
-ui = Ui.new(opts)
+settings = Settings.new({
+  "auto_command" => opts[:auto_command],
+  "passthrough"  => opts[:passthrough],
+  "debug"        => opts[:debug],
+  "packet_trace" => opts[:packet_trace],
+})
+
+settings.verify("debug") do |value|
+  if(Log::LEVELS.index(value.upcase).nil?)
+    "Possible values for 'debug': " + Log::LEVELS.join(", ")
+  else
+    nil
+  end
+end
+
+settings.watch("debug") do |old_val, new_val|
+  puts("Changed debug from " + old_val + " to " + new_val + "!")
+  Log.set_min_level(new_val)
+end
+
+ui = Ui.new(settings)
 
 # Subscribe the Ui to the important notifications
 SessionManager.subscribe(ui)
-
-# TODO: Verify that this works, and probably put it somewhere better
-ui.set_option("auto_command", opts[:auto_command])
 
 # Turn off the 'main' logger
 Log.reset()
