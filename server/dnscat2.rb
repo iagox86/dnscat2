@@ -99,13 +99,41 @@ Log.PRINT(nil, "Of course, you have to figure out <server> yourself! Clients wil
 Log.PRINT(nil, "directly on UDP port 53.")
 Log.PRINT(nil)
 
+settings = Settings.new({
+  "auto_command" => opts[:auto_command],
+  "passthrough"  => opts[:passthrough],
+  "debug"        => opts[:debug],
+  "packet_trace" => opts[:packet_trace],
+})
+
+settings.verify("debug") do |value|
+  if(Log::LEVELS.index(value.upcase).nil?)
+    "Possible values for 'debug': " + Log::LEVELS.join(", ")
+  else
+    nil
+  end
+end
+
+settings.verify("packet_trace") do |value|
+  if(!(value == true || value == false))
+    "'packet_trace' has to be either 'true' or 'false'!"
+  else
+    nil
+  end
+end
+
+settings.watch("debug") do |old_val, new_val|
+  puts("Changed debug from " + old_val + " to " + new_val + "!")
+  Log.set_min_level(new_val)
+end
+
 threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
       Log.WARNING(nil, "Starting DNS server...")
       driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, passthrough)
-      SessionManager.go(driver, opts)
+      SessionManager.go(driver, settings)
     rescue DnscatException => e
       Log.FATAL(nil, "Protocol exception caught in DNS module:")
       Log.FATAL(nil, e)
@@ -127,26 +155,6 @@ end
 # This is simply to give up the thread's timeslice, allowing the driver threads
 # a small amount of time to initialize themselves
 sleep(0.01)
-
-settings = Settings.new({
-  "auto_command" => opts[:auto_command],
-  "passthrough"  => opts[:passthrough],
-  "debug"        => opts[:debug],
-  "packet_trace" => opts[:packet_trace],
-})
-
-settings.verify("debug") do |value|
-  if(Log::LEVELS.index(value.upcase).nil?)
-    "Possible values for 'debug': " + Log::LEVELS.join(", ")
-  else
-    nil
-  end
-end
-
-settings.watch("debug") do |old_val, new_val|
-  puts("Changed debug from " + old_val + " to " + new_val + "!")
-  Log.set_min_level(new_val)
-end
 
 ui = Ui.new(settings)
 

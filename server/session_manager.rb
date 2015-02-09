@@ -99,7 +99,7 @@ class SessionManager
     return session.handle_fin(packet)
   end
 
-  def SessionManager.go(pipe, opts)
+  def SessionManager.go(pipe, settings)
     pipe.recv() do |data, max_length|
       session_id = nil
 
@@ -132,8 +132,8 @@ class SessionManager
 
         # Display the incoming packet (NOTE: this has to be done *after* handle_syn(), otherwise
         # the message doesn't have a session to go to)
-        if(opts[:packet_trace])
-          Log.WARNING(session_id, "INCOMING: #{packet.to_s}")
+        if(settings.get("packet_trace"))
+          Log.PRINT(session_id, "INCOMING: #{packet.to_s}")
         end
 
         # If there's a response, validate it
@@ -144,8 +144,8 @@ class SessionManager
         end
 
         # Show the response, if requested
-        if(opts[:packet_trace])
-          Log.WARNING(session_id, "OUTGOING: #{response.to_s}")
+        if(settings.get("packet_trace"))
+          Log.PRINT(session_id, "OUTGOING: #{response.to_s}")
         end
 
         if(response.nil?)

@@ -10,6 +10,7 @@ class Settings
   end
 
   def set(name, value)
+    name = name.to_s()
     (@verifiers[name] || []).each do |verifier|
       result = verifier.call(value)
       if(result)
@@ -31,6 +32,7 @@ class Settings
   end
 
   def get(name)
+    name = name.to_s()
     return @settings[name]
   end
 
@@ -45,12 +47,20 @@ class Settings
   end
 
   def watch(name)
+    name = name.to_s()
     @watchers[name] ||= []
     @watchers[name] << proc
   end
 
   def verify(name)
+    name = name.to_s()
     @verifiers[name] ||= []
     @verifiers[name] << proc
+  end
+
+  def print()
+    @settings.each_pair do |k, v|
+      puts(k.to_s + " => " + v.to_s)
+    end
   end
 end
