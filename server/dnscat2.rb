@@ -51,7 +51,7 @@ opts = Trollop::options do
     :type => :string,  :default => "warning"
 
   opt :auto_command,   "Send this to each client that connects",
-    :type => :string,  :default => nil
+    :type => :string,  :default => ""
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
 end

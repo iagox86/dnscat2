@@ -30,7 +30,6 @@ class UiSessionCommand < UiInterfaceWithId
     end
   end
 
-
   def register_commands()
     register_alias('q',       'quit')
     register_alias('exit',    'quit')
@@ -241,6 +240,11 @@ class UiSessionCommand < UiInterfaceWithId
     @downloads = {}
 
     register_commands()
+
+    auto = ui.settings.get("auto_command")
+    if(auto)
+      process_line(auto)
+    end
 
     puts("Welcome to a command session! Use 'help' for a list of commands or ^z for the main menu")
   end
