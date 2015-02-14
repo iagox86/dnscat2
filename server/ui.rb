@@ -45,6 +45,7 @@ class Ui
     return @uis[id]
   end
 
+  # TODO: This should probably be implemented in class Settings
   def set_option(name, value)
     # Remove whitespace
     name  = name.to_s
@@ -53,7 +54,7 @@ class Ui
     name   = name.gsub(/^ */, '').gsub(/ *$/, '')
     value = value.gsub(/^ */, '').gsub(/ *$/, '')
 
-    if(value.nil? || value == "nil")
+    if(value == "" || value == "nil")
       @settings.set(name, nil)
 
       puts("#{name} => [deleted]")

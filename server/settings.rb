@@ -24,6 +24,7 @@ class Settings
       result = callback.call(@settings[name], value)
       if(!result.nil?)
         Log.ERROR(nil, "Couldn't change setting: #{result}")
+        return "error"
       end
     end
 

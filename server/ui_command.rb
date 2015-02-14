@@ -99,30 +99,59 @@ class UiCommand < UiInterface
 
     register_command("set",
       Trollop::Parser.new do
-        banner("Set <name>=<value> variables")
+        banner("set <name> <value> variables")
       end,
 
       Proc.new do |opts, optarg|
         if(optarg.length == 0)
-          puts("Usage: set <name>=<value>")
+          puts("Usage: set <name> <value>")
           puts()
           do_show_options()
         else
           #optarg = optarg.join(" ")
 
           # Split at the '=' sign
-          optarg = optarg.split("=", 2)
+          optarg = optarg.split(" ", 2)
 
           # If we don't have a name=value setup, show an error
-          if(optarg.length != 2)
-            puts("Usage: set <name>=<value>")
+          if(optarg.length == 1)
+            value = @ui.settings.get(optarg[0])
+            if(!value.nil?)
+              puts(optarg[0] + " => " + value.to_s)
+            else
+              puts(optarg[0] + " is not set")
+            end
           else
             result = @ui.set_option(optarg[0], optarg[1])
             if(result)
-              puts("ERROR: " + result)
+              #puts("ERROR: " + result)
             else
               puts(optarg[0] + " => " + optarg[1])
             end
+          end
+        end
+      end
+    )
+
+    register_command("unset",
+      Trollop::Parser.new do
+        banner("unset <name>")
+      end,
+
+      Proc.new do |opts, optarg|
+        if(optarg.length == 0)
+          puts("Usage: unset <name>")
+          puts()
+          do_show_options()
+        else
+          # Split at the '=' sign
+          optarg = optarg.split(" ", 2)
+
+          # If we don't have a name=value setup, show an error
+          if(optarg.length != 1)
+            puts("Usage: unset <name>")
+          else
+            @ui.set_option(optarg[0], nil)
           end
         end
       end
