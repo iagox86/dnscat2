@@ -92,6 +92,26 @@ class UiSessionCommand < UiInterfaceWithId
       end,
     )
 
+    register_command("ping2",
+      Trollop::Parser.new do
+        banner("Sends a 'ping' to the remote host to make sure it's still alive)")
+        opt :length, "length", :type => :integer, :required => false, :default => 256
+      end,
+      Proc.new do |opts|
+        data = "A" * 200
+        id = request_id()
+        @pings[id]   = data
+        @pings[id+1] = data
+
+        packet = CommandPacket.create_ping_request(id, data)
+        packet += CommandPacket.create_ping_request(id+1, data)
+
+        @session.queue_outgoing(packet)
+
+        puts("Ping request 0x%x sent! (0x%x bytes)" % [id, opts[:length]])
+      end,
+    )
+
     register_command("shell",
       Trollop::Parser.new do
         banner("Spawn a shell on the remote host")

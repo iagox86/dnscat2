@@ -156,12 +156,25 @@ class Packet
       }).to_bytes().length()
     end
 
+    def str_format(str)
+      result = ""
+      str.chars.each do |c|
+        if(c.ord < 0x20 || c.ord > 0x7F)
+          result += '\x%02x' % (c.ord)
+        else
+          result += c
+        end
+      end
+
+      return result
+    end
+
     def to_s()
       data = @data.gsub(/\n/, '\n')
       if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        return "[[MSG]] :: chunk = %d, data = \"%s\"" % [@chunk, data]
+        return "[[MSG]] :: chunk = %d, data = \"%s\"" % [@chunk, str_format(data)]
       else
-        return "[[MSG]] :: seq = %04x, ack = %04x, data = \"%s\"" % [@seq, @ack, data]
+        return "[[MSG]] :: seq = %04x, ack = %04x, data = \"%s\"" % [@seq, @ack, str_format(data)]
       end
     end
 
