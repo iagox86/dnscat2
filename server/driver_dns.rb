@@ -88,12 +88,11 @@ class DriverDNS
   }
 
   def initialize(host, port, domains)
-    Log::WARNING(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
-    Log::WARNING(nil, "Will also accept direct queries, if they're tagged properly!")
-
+    Log::PRINT(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{domains.nil? ? "n/a" : domains.join(", ")}]...")
     if(domains.nil? || domains.length == 0)
-      Log::WARNING(nil, "No domains were selected, which means this server will only respond to direct queries")
+      Log::PRINT(nil, "No domains were selected, which means this server will only respond to direct queries")
     end
+    Log::PRINT(nil, "Will also accept direct queries, if they're tagged properly!")
 
     @host        = host
     @port        = port
@@ -178,18 +177,18 @@ class DriverDNS
           if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
             if(DriverDNS.passthrough)
               if(!@shown_pt)
-                Log.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
-                Log.WARNING(nil, "(This will only be shown once)")
+                Log.INFO(nil, "Unable to handle request, passing upstream: #{transaction.name}")
+                Log.INFO(nil, "(This will only be shown once)")
               end
               transaction.passthrough!(UPSTREAM)
             elsif(!@shown_pt)
-              Log.WARNING(nil, "Unable to handle request, returning an error: #{transaction.name}")
-              Log.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough")
-              Log.WARNING(nil, "or run \"set passthrough=true\")")
-              Log.WARNING(nil, "(This will only be shown once)")
+              Log.INFO(nil, "Unable to handle request, returning an error: #{transaction.name}")
+              Log.INFO(nil, "(If you want to pass to upstream DNS servers, use --passthrough")
+              Log.INFO(nil, "or run \"set passthrough=true\")")
+              Log.INFO(nil, "(This will only be shown once)")
               @shown_pt = true
 
-              transaction.fail!(:NXDomain)
+              transaction.failure!(:NXDomain)
             end
           else
             if(type.nil? || type_info.nil?)
@@ -271,11 +270,12 @@ class DriverDNS
         rescue DnscatException => e
           Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.ERROR(nil, e.inspect)
-          transaction.fail!(:NXDomain)
+          puts(transaction.methods)
+          transaction.failure!(:NXDomain)
         rescue Exception => e
           Log.ERROR(nil, "Error caught:")
           Log.ERROR(nil, e)
-          transaction.fail!(:NXDomain)
+          transaction.failure!(:NXDomain)
         end
 
         transaction # Return this, effectively
@@ -285,17 +285,17 @@ class DriverDNS
       otherwise do |transaction|
         if(DriverDNS.passthrough)
           if(!@shown_pt)
-            Log.WARNING(nil, "Unable to handle request, passing upstream: #{transaction.name}")
-            Log.WARNING(nil, "(This will only be shown once)")
+            Log.INFO(nil, "Unable to handle request, passing upstream: #{transaction.name}")
+            Log.INFO(nil, "(This will only be shown once)")
           end
           transaction.passthrough!(UPSTREAM)
         elsif(!@shown_pt)
-          Log.WARNING(nil, "Unable to handle request, returning an error: #{transaction.name}")
-          Log.WARNING(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
-          Log.WARNING(nil, "(This will only be shown once)")
+          Log.INFO(nil, "Unable to handle request, returning an error: #{transaction.name}")
+          Log.INFO(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
+          Log.INFO(nil, "(This will only be shown once)")
           @shown_pt = true
 
-          transaction.fail!(:NXDomain)
+          transaction.failure!(:NXDomain)
         end
 
         transaction

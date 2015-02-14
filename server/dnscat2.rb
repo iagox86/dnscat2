@@ -23,8 +23,7 @@ require 'ui'
 # Option parsing
 require 'trollop'
 
-Thread::abort_on_exception = true
-
+# Capture log messages with no particular destination
 Log.logging(nil) do |msg|
   puts(msg)
 end
@@ -56,6 +55,8 @@ opts = Trollop::options do
     :type => :boolean,  :default => false
 end
 
+# Note: This is no longer strictly required, but it gives the user better feedback if
+# they use a bad debug level, so I'm keeping it
 Log.PRINT(nil, "Setting debug level to: #{opts[:debug].upcase()}")
 if(!Log.set_min_level(opts[:debug].upcase()))
    Trollop::die :debug, "level values are: #{Log::LEVELS}"
@@ -99,20 +100,7 @@ Log.PRINT(nil, "Of course, you have to figure out <server> yourself! Clients wil
 Log.PRINT(nil, "directly on UDP port 53.")
 Log.PRINT(nil)
 
-settings = Settings.new({
-  "auto_command" => opts[:auto_command],
-  "passthrough"  => opts[:passthrough],
-  "debug"        => opts[:debug],
-  "packet_trace" => opts[:packet_trace],
-})
-
-settings.verify("debug") do |value|
-  if(Log::LEVELS.index(value.upcase).nil?)
-    "Possible values for 'debug': " + Log::LEVELS.join(", ")
-  else
-    nil
-  end
-end
+settings = Settings.new()
 
 settings.verify("packet_trace") do |value|
   if(!(value == true || value == false))
@@ -123,28 +111,45 @@ settings.verify("packet_trace") do |value|
 end
 
 settings.watch("debug") do |old_val, new_val|
-  puts("Changed debug from " + old_val + " to " + new_val + "!")
-  Log.set_min_level(new_val)
-end
-
-settings.verify("passthrough") do |value|
-  if(!(value == true || value == false))
-    "'passthrough' has to be either 'true' or 'false'!"
+  if(Log::LEVELS.index(new_val.upcase).nil?)
+    # return
+    "Possible values for 'debug': " + Log::LEVELS.join(", ")
   else
+    if(old_val.nil?)
+      Log.PRINT(nil, "Set debug level to #{new_val}")
+    else
+      puts("Changed debug from #{old_val} to #{new_val}")
+    end
+    Log.set_min_level(new_val)
+
+    # return
     nil
   end
 end
 
 settings.watch("passthrough") do |old_val, new_val|
-  puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
-  DriverDNS.passthrough = new_val
+  if(!(new_val == true || new_val == false))
+    "'passthrough' has to be either 'true' or 'false'!"
+  else
+    # return
+    puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
+    DriverDNS.passthrough = new_val
+
+    # return
+    nil
+  end
 end
+
+settings.set("auto_command", opts[:auto_command])
+settings.set("passthrough",  opts[:passthrough])
+settings.set("debug",        opts[:debug])
+settings.set("packet_trace", opts[:packet_trace])
 
 threads = []
 if(opts[:dns])
   threads << Thread.new do
     begin
-      Log.WARNING(nil, "Starting DNS server...")
+      Log.PRINT(nil, "Starting DNS server...")
       driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
       SessionManager.go(driver, settings)
     rescue DnscatException => e

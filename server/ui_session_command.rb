@@ -241,9 +241,12 @@ class UiSessionCommand < UiInterfaceWithId
 
     register_commands()
 
+    # Process automatic commands
     auto = ui.settings.get("auto_command")
     if(auto)
-      process_line(auto)
+      auto.split(/;/).each() do |line|
+        process_line(line)
+      end
     end
 
     puts("Welcome to a command session! Use 'help' for a list of commands or ^z for the main menu")

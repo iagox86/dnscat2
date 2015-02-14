@@ -2,6 +2,8 @@
 # By Ron Bowes
 # February 8, 2014
 
+require 'log'
+
 class Settings
   def initialize(settings = {})
     @settings = settings
@@ -19,7 +21,10 @@ class Settings
     end
 
     (@watchers[name] || []).each do |callback|
-      callback.call(@settings[name], value)
+      result = callback.call(@settings[name], value)
+      if(!result.nil?)
+        Log.ERROR(nil, "Couldn't change setting: #{result}")
+      end
     end
 
     if(value.nil?)

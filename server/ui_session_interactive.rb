@@ -17,9 +17,10 @@ class UiSessionInteractive < UiInterfaceWithId
     @session  = session
     @ui = ui
 
-    if(!@ui.get_option("auto_command").nil? && @ui.get_option("auto_command").length > 0)
-      @session.queue_outgoing(@ui.get_option("auto_command") + "\n")
-    end
+#    auto_command = @ui.settings.get("auto_command")
+#    if(!auto_command.nil? && auto_command.length > 0)
+#      @session.queue_outgoing(auto_command + "\n")
+#    end
   end
 
   def to_s()
