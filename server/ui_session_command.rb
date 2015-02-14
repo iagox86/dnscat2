@@ -248,7 +248,7 @@ class UiSessionCommand < UiInterfaceWithId
   def initialize(id, session, ui)
     super(id)
 
-    initialize_parser("dnscat [command: #{id}]> ")
+    initialize_parser("dnscat [command: #{id}]> ", ui.settings)
     initialize_ui_handler()
 
     @id = id

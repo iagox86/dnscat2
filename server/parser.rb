@@ -5,10 +5,11 @@
 require 'shellwords'
 
 module Parser
-  def initialize_parser(prompt)
+  def initialize_parser(prompt, settings)
     @prompt = prompt
     @commands = {}
     @aliases = {}
+    @settings = settings
 
     register_command("", Trollop::Parser.new do end, Proc.new do end)
   end
@@ -25,6 +26,11 @@ module Parser
   end
 
   def process_line(line)
+    # Do find/replace for settings
+    @settings.each_pair do |name, value|
+      line = line.gsub(/\$#{name}/, value.to_s)
+    end
+
     # If the line starts with a '!', just pass it to a shell
     if(line[0] == '!')
       system(line[1..-1])

@@ -176,7 +176,7 @@ class UiCommand < UiInterface
     end
 
     initialize_ui_handler()
-    initialize_parser("dnscat2> ")
+    initialize_parser("dnscat2> ", ui.settings)
     @ui = ui
     register_commands()
   end

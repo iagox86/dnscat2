@@ -228,10 +228,10 @@ class Ui
     if(@settings.get("auto_attach"))
       attach_session(ui)
 
-      Log.PRINT(ui.id, "(attached)")
+      Log.PRINT(id, "(attached)")
     end
 
-    @command.output("New session established: #{id}")
+    @settings.set("newest", id.to_s)
   end
 
   def session_data_received(id, data)
