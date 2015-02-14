@@ -23,9 +23,10 @@ require 'ui'
 # Option parsing
 require 'trollop'
 
-# Capture log messages with no particular destination
+# Capture log messages during start up - after creating a command session, all
+# messages go to it, instead
 Log.logging(nil) do |msg|
-  puts(msg)
+  $stdout.puts(msg)
 end
 
 # Options
@@ -51,6 +52,8 @@ opts = Trollop::options do
 
   opt :auto_command,   "Send this to each client that connects",
     :type => :string,  :default => ""
+  opt :auto_attach,    "Automatically attach to new sessions",
+    :type => :boolean, :default => false
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
 end
@@ -140,7 +143,24 @@ settings.watch("passthrough") do |old_val, new_val|
   end
 end
 
+settings.verify("auto_command") do |value|
+  if(value.is_a?(String) || value.is?(nil))
+    nil
+  else
+    "'auto_command' has to be a string!"
+  end
+end
+
+settings.verify("auto_attach") do |value|
+  if(value == true || value == false)
+    nil
+  else
+    "'auto_attach' has to be true or false!"
+  end
+end
+
 settings.set("auto_command", opts[:auto_command])
+settings.set("auto_attach",  opts[:auto_attach])
 settings.set("passthrough",  opts[:passthrough])
 settings.set("debug",        opts[:debug])
 settings.set("packet_trace", opts[:packet_trace])

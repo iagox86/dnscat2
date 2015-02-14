@@ -213,7 +213,22 @@ class Ui
       # this session, add it manually
       @command.ui_created(ui, id, true)
     else
-      ui.parent.output("New session established: #{id}")
+      #ui.parent.output("New session established: #{id}")
+    end
+
+    # Print to the main window and the current window
+    if(ui.parent == @command)
+      Log.PRINT(nil, "New session established: #{id}")
+    else
+      Log.PRINT(nil, "New session established: #{id}")
+      Log.PRINT(ui.parent.id, "New session established: #{id}")
+    end
+
+    # Auto-attach if necessary
+    if(@settings.get("auto_attach"))
+      attach_session(ui)
+
+      Log.PRINT(ui.id, "(attached)")
     end
 
     @command.output("New session established: #{id}")

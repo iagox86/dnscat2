@@ -92,6 +92,10 @@ class Log
   end
 
   def Log.log(level, id, message = "")
+    if(id.is_a?(String))
+      $stdout.puts("WARNING: You probably used Log.log() wrong")
+    end
+
     # Make sure the level is sane
     if(!level.nil? && (level < INFO || level > FATAL))
       raise(DnscatException, "Bad log level: #{level}")
