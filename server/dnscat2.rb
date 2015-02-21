@@ -56,6 +56,8 @@ opts = Trollop::options do
     :type => :boolean, :default => false
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
+  opt :isn,            "Set the initial sequence number",
+    :type => :integer,  :default => nil
 end
 
 # Note: This is no longer strictly required, but it gives the user better feedback if
@@ -143,6 +145,14 @@ settings.watch("passthrough") do |old_val, new_val|
   end
 end
 
+settings.watch("isn") do |old_val, new_val|
+  Session.debug_set_isn(new_val.to_i)
+
+  puts("Changed the initial sequence number to 0x%04x (note: you probably shouldn't do this unless you're debugging something!)")
+
+  nil
+end
+
 settings.verify("auto_command") do |value|
   if(value.is_a?(String) || value.is?(nil))
     nil
@@ -164,6 +174,7 @@ settings.set("auto_attach",  opts[:auto_attach])
 settings.set("passthrough",  opts[:passthrough])
 settings.set("debug",        opts[:debug])
 settings.set("packet_trace", opts[:packet_trace])
+settings.set("isn",          opts[:isn])
 
 threads = []
 if(opts[:dns])

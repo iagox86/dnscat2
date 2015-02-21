@@ -7,5 +7,6 @@
 #define __SESSION_H__
 
 void sessions_init();
+void debug_set_isn(uint16_t value);
 
 #endif

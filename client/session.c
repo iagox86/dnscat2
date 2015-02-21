@@ -16,10 +16,13 @@
 #include "session.h"
 
 /* Set to TRUE after getting the 'shutdown' message. */
-NBBOOL is_shutdown = FALSE;
+static NBBOOL is_shutdown = FALSE;
 
 /* The maximum length of packets. */
-size_t max_packet_length = 10000;
+static size_t max_packet_length = 10000;
+
+/* Allow the user to override the initial sequence number. */
+static uint32_t isn = 0xFFFFFFFF;
 
 typedef enum
 {
@@ -250,7 +253,12 @@ static uint16_t handle_create_session(char *name, char *download, uint32_t first
   session_entry_t *entry;
 
   session->id            = rand() % 0xFFFF;
-  session->my_seq        = rand() % 0xFFFF; /* Random isn */
+
+  /* Check if it's a 16-bit value (I set it to a bigger value to set a random isn) */
+  if(isn == (isn & 0xFFFF))
+    session->my_seq        = isn; /* Use the hardcoded one. */
+  else
+    session->my_seq        = rand() % 0xFFFF; /* Random isn */
 
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
@@ -573,4 +581,11 @@ void sessions_init()
   message_subscribe(MESSAGE_PING_REQUEST,   handle_message, NULL);
   message_subscribe(MESSAGE_PACKET_IN,      handle_message, NULL);
   message_subscribe(MESSAGE_HEARTBEAT,      handle_message, NULL);
+}
+
+void debug_set_isn(uint16_t value)
+{
+  isn = value;
+
+  LOG_WARNING("WARNING: Setting a custom ISN can be dangerous!");
 }

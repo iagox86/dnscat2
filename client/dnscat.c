@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
     {"n",       required_argument, 0, 0},
     {"chunk",   required_argument, 0, 0}, /* Download chunk */
     {"ping",    no_argument,       0, 0}, /* Ping */
+    {"isn",     required_argument, 0, 0}, /* Initial sequence number */
 
     /* Console options. */
     {"console", no_argument,       0, 0}, /* Enable console (default) */
@@ -268,6 +269,11 @@ int main(int argc, char *argv[])
           /* Turn off logging, since this is a simple ping. */
           min_log_level++;
           log_set_min_console_level(min_log_level);
+        }
+        else if(!strcmp(option_name, "isn"))
+        {
+          uint16_t isn = (uint16_t) (atoi(optarg) & 0xFFFF);
+          debug_set_isn(isn);
         }
 
         /* Console-specific options. */

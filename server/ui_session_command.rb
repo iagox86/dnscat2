@@ -98,13 +98,15 @@ class UiSessionCommand < UiInterfaceWithId
         opt :length, "length", :type => :integer, :required => false, :default => 256
       end,
       Proc.new do |opts|
-        data = "A" * 200
+        data = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" * 8
+        data2 = "abcdefghijklmnopqrstuvwxyz" * 8
+
         id = request_id()
         @pings[id]   = data
-        @pings[id+1] = data
+        @pings[id+1] = data2
 
         packet = CommandPacket.create_ping_request(id, data)
-        packet += CommandPacket.create_ping_request(id+1, data)
+        packet += CommandPacket.create_ping_request(id+1, data2)
 
         @session.queue_outgoing(packet)
 
@@ -252,7 +254,7 @@ class UiSessionCommand < UiInterfaceWithId
     initialize_ui_handler()
 
     @id = id
-    @session  = session
+    @session = session
     @ui = ui
     @stream = CommandPacketStream.new()
     @request_id = 0x0001
