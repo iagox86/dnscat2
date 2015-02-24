@@ -285,10 +285,16 @@ class UiSessionCommand < UiInterfaceWithId
     if(file.nil?)
       error("Got a file response for a command we didn't send?")
     else
-      File.open(file, "wb") do |f|
-        f.write(packet.data)
+      if(file == "-")
+        puts(packet.data)
+        puts()
+        puts("Received 0x%x bytes!" % [packet.data.length, file])
+      else
+        File.open(file, "wb") do |f|
+          f.write(packet.data)
+        end
+        puts("Received 0x%x bytes into %s!" % [packet.data.length, file])
       end
-      puts("Received 0x%x bytes into %s!" % [packet.data.length, file])
     end
 #$LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
   end
