@@ -135,6 +135,7 @@ void usage(char *name, char *message)
 "Debug options:\n"
 " -d                      Display more debug info (can be used multiple times)\n"
 " -q                      Display less debug info (can be used multiple times)\n"
+" --packet-trace          Display incoming/outgoing dnscat2 packets\n"
 "\n"
 "ERROR: %s\n"
 "\n"
@@ -186,9 +187,12 @@ int main(int argc, char *argv[])
     {"type",       required_argument, 0, 0},
 
     /* Debug options */
-    {"d",       no_argument,       0, 0}, /* More debug */
-    {"q",       no_argument,       0, 0}, /* Less debug */
-    {0,         0,                 0, 0}  /* End */
+    {"d",            no_argument, 0, 0}, /* More debug */
+    {"q",            no_argument, 0, 0}, /* Less debug */
+    {"packet-trace", no_argument, 0, 0}, /* Trace packets */
+
+    /* Sentry */
+    {0,              0,                 0, 0}  /* End */
   };
 
   /* Define DNS options so we can set them later. */
@@ -353,6 +357,10 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "q"))
         {
           log_set_min_console_level(min_log_level);
+        }
+        else if(!strcmp(option_name, "packet-trace"))
+        {
+          session_enable_packet_trace();
         }
         else
         {

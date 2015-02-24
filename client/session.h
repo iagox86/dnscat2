@@ -8,5 +8,6 @@
 
 void sessions_init();
 void debug_set_isn(uint16_t value);
+void session_enable_packet_trace();
 
 #endif

@@ -24,6 +24,9 @@ static size_t max_packet_length = 10000;
 /* Allow the user to override the initial sequence number. */
 static uint32_t isn = 0xFFFFFFFF;
 
+/* Enable/disable packet tracing. */
+static NBBOOL packet_trace;
+
 typedef enum
 {
   SESSION_STATE_NEW,
@@ -96,6 +99,13 @@ static void do_send_packet(session_t *session, packet_t *packet)
 {
   size_t length;
   uint8_t *data = packet_to_bytes(packet, &length, session->options);
+
+  /* Display if appropriate. */
+  if(packet_trace)
+  {
+    printf("OUTGOING: ");
+    packet_print(packet, session->options);
+  }
 
   message_post_packet_out(data, length);
 
@@ -356,6 +366,12 @@ static void handle_packet_in(uint8_t *data, size_t length)
   /* Check if it's a ping packet, since those don't need a session. */
   if(packet->packet_type == PACKET_TYPE_PING)
   {
+    /* Display if appropriate. */
+    if(packet_trace)
+    {
+      printf("INCOMING: ");
+      packet_print(packet, 0);
+    }
     /* Let listeners know that a ping happened */
     message_post_ping_response(packet->body.ping.data);
 
@@ -376,6 +392,12 @@ static void handle_packet_in(uint8_t *data, size_t length)
   /* Now that we know the session, parse it properly */
   packet = packet_parse(data, length, session->options);
 
+  /* Display if appropriate. */
+  if(packet_trace)
+  {
+    printf("INCOMING: ");
+    packet_print(packet, session->options);
+  }
 
   switch(session->state)
   {
@@ -588,4 +610,9 @@ void debug_set_isn(uint16_t value)
   isn = value;
 
   LOG_WARNING("WARNING: Setting a custom ISN can be dangerous!");
+}
+
+void session_enable_packet_trace()
+{
+  packet_trace = TRUE;
 }

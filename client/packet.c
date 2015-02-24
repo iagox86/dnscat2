@@ -331,9 +331,9 @@ char *packet_to_s(packet_t *packet, options_t options)
   else if(packet->packet_type == PACKET_TYPE_MSG)
   {
     if(options & OPT_CHUNKED_DOWNLOAD)
-      _snprintf_s(ret, 1024, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
+      _snprintf_s(ret, 1024, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, chunk = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.chunked.chunk, packet->body.msg.data_length);
     else
-      _snprintf_s(ret, 1024, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, chunk = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.chunked.chunk);
+      _snprintf_s(ret, 1024, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack, packet->body.msg.data_length);
   }
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
@@ -355,9 +355,9 @@ char *packet_to_s(packet_t *packet, options_t options)
   else if(packet->packet_type == PACKET_TYPE_MSG)
   {
     if(options & OPT_CHUNKED_DOWNLOAD)
-      snprintf(ret, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack);
+      snprintf(ret, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, chunk = 0x%04x, data = 0x%x bytes", packet->packet_id, packet->session_id, packet->body.msg.options.chunked.chunk, (unsigned int)packet->body.msg.data_length);
     else
-      snprintf(ret, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, chunk = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.options.chunked.chunk);
+      snprintf(ret, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x, data = 0x%x bytes", packet->packet_id, packet->session_id, packet->body.msg.options.normal.seq, packet->body.msg.options.normal.ack, (unsigned int)packet->body.msg.data_length);
   }
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
