@@ -188,7 +188,7 @@ class DriverDNS
               Log.INFO(nil, "(This will only be shown once)")
               @shown_pt = true
 
-              transaction.failure!(:NXDomain)
+              transaction.fail!(:NXDomain)
             end
           else
             if(type.nil? || type_info.nil?)
@@ -270,11 +270,11 @@ class DriverDNS
         rescue DnscatException => e
           Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.ERROR(nil, e.inspect)
-          transaction.failure!(:NXDomain)
+          transaction.fail!(:NXDomain)
         rescue Exception => e
           Log.ERROR(nil, "Error caught:")
           Log.ERROR(nil, e)
-          transaction.failure!(:NXDomain)
+          transaction.fail!(:NXDomain)
         end
 
         transaction # Return this, effectively
@@ -294,7 +294,7 @@ class DriverDNS
           Log.INFO(nil, "(This will only be shown once)")
           @shown_pt = true
 
-          transaction.failure!(:NXDomain)
+          transaction.fail!(:NXDomain)
         end
 
         transaction
