@@ -29,7 +29,7 @@ class DriverDNS
   RECORD_TYPES = {
     IN::TXT => {
       :requires_domain => false,
-      :max_length      => 250,
+      :max_length      => 241, # Carefully chosen
       :requires_hex    => true,
       :requires_name   => false,
       :encoder         => Proc.new() do |name|
@@ -38,7 +38,7 @@ class DriverDNS
     },
     IN::MX => {
       :requires_domain => true,
-      :max_length      => 240, # Shorter, because some periods need to be added
+      :max_length      => 241,
       :requires_hex    => true,
       :requires_name   => true,
       :encoder         => Proc.new() do |name|
@@ -47,7 +47,7 @@ class DriverDNS
     },
     IN::CNAME => {
       :requires_domain => true,
-      :max_length      => 240, # Shorter, because some periods need to be added
+      :max_length      => 241,
       :requires_hex    => true,
       :requires_name   => true,
       :encoder         => Proc.new() do |name|
@@ -156,7 +156,7 @@ class DriverDNS
 
     RubyDNS::run_server(:listen => interfaces) do |s|
       # Turn off DNS logging
-      s.logger.level = Logger::ERROR
+      s.logger.level = Logger::WARN
 
       # This ugly line basically joins the domains together in a string that looks like:
       # (^dnscat\.|\.skullseclabs.org$)
