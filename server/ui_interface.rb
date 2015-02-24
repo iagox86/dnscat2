@@ -103,7 +103,7 @@ class UiInterface
       $stderr.puts()
       $stderr.puts("Session is no longer active...")
       $stderr.puts("Press <enter> to go back")
-      gets()
+      $stdin.gets()
       @ui.detach_session()
     end
   end
