@@ -180,7 +180,7 @@ class UiCommand < UiInterface
         if(optarg.nil? || optarg.to_i == 0)
           puts("Usage: kill <session_id>")
         else
-          if(@ui.kill_session(optarg[0].to_i()))
+          if(@ui.kill_session(optarg.to_i))
             puts("Session killed")
           else
             puts("Couldn't kill session!")
