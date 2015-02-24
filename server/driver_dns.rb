@@ -270,7 +270,6 @@ class DriverDNS
         rescue DnscatException => e
           Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.ERROR(nil, e.inspect)
-          puts(transaction.methods)
           transaction.failure!(:NXDomain)
         rescue Exception => e
           Log.ERROR(nil, "Error caught:")

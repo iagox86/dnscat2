@@ -122,6 +122,16 @@ class SessionManager
         response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)
           response = handle_syn(packet)
+        end
+
+        # Display the incoming packet (NOTE: this has to be done *after* handle_syn(), otherwise
+        # the message doesn't have a session to go to)
+        if(settings.get("packet_trace"))
+          Log.PRINT(session_id, "INCOMING: #{packet.to_s}")
+        end
+
+        if(packet.type == Packet::MESSAGE_TYPE_SYN)
+          # Already handled
         elsif(packet.type == Packet::MESSAGE_TYPE_MSG)
           response = handle_msg(packet, max_length)
         elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
@@ -130,11 +140,6 @@ class SessionManager
           raise(DnscatException, "Unknown packet type: #{packet.type}")
         end
 
-        # Display the incoming packet (NOTE: this has to be done *after* handle_syn(), otherwise
-        # the message doesn't have a session to go to)
-        if(settings.get("packet_trace"))
-          Log.PRINT(session_id, "INCOMING: #{packet.to_s}")
-        end
 
         # If there's a response, validate it
         if(!response.nil?)

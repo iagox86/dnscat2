@@ -182,7 +182,7 @@ class Session
   def handle_msg_normal(packet, max_length)
     # Validate the sequence number
     if(@their_seq != packet.body.seq)
-      notify_subscribers(:dnscat2_session_error, [@id, "Bad sequence number: expected 0x%04x, received 0x%04x" % [@their_seq, packet.body.seq]])
+      notify_subscribers(:dnscat2_session_error, [@id, "Bad sequence number on incoming packet: expected 0x%04x, received 0x%04x" % [@their_seq, packet.body.seq]])
 
       # Re-send the last packet
       old_data = next_outgoing(actual_msg_max_length(max_length))
