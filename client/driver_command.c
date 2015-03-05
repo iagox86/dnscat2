@@ -75,10 +75,10 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
           data = safe_malloc(s.st_size);
 
           /* TODO: Handling the error kinda poorly here */
-          if(fread(data, s.st_size, 1, f) == s.st_size)
+          if(fread(data, 1, s.st_size, f) == s.st_size)
             out = command_packet_create_download_response(in->request_id, data, s.st_size);
           else
-            out = NULL;
+            out = command_packet_create_error_response(in->request_id, -1, "There was an error reading the file");
 
           fclose(f);
           safe_free(data);
