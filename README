@@ -6,9 +6,9 @@ Welcome to dnscat2, a DNS tunnel that WON'T make you sick and kill you!
 
 This implements a tunnel over the DNS protocol. It sets itself apart from other projects by targeting a single use case: penetration testing.
 
-The server is designed to be as featureful and user friendly as possible. It's run on an authoritative server for a given domain, typically, although you can run it on any server if you don't mind connecting directly (rather than traversing the DNS hierarchy). If you're familiar with metasploit and meterpreter, you'll see some inspiration in the commands and structure.
+The server is designed to be as featureful and user friendly as possible. It's designed to be run on an authoritative server for a given domain, although you can run it on any server if you don't mind connecting directly on UDP port 53 (rather than traversing the DNS hierarchy). If you're familiar with metasploit and meterpreter, you'll see some inspiration in the commands and structure.
 
-The client is designed to be simple and portable. It can run on just about any operating system, and requires as few libraries as possible. It can be compiled on POSIX systems, including Linux, BSD, and Cygwin, as well as Microsoft Visual Studio. OS X support is currently untested, but there's no reason to expect it wouldn't work.
+The client is designed to be simple and portable. It can run on just about any operating system, and requires as few libraries as possible. It can be compiled on POSIX systems, including Linux, BSD, and Cygwin, as well as Microsoft Visual Studio (developed on 2008, but available on any version). OS X support is currently untested, but there's no reason to expect it wouldn't work.
 
 Having an authoritative server is as simple as buying a domain name from some provider, and pointing the authority to your IP address. Actually, that's not necessarily a simple task, but it isn't impossibly difficult, either. If you're unsure whether or not you've successfully set up your DNS server appropriately, run a server (see below) and, on the client type:
 

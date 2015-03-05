@@ -227,6 +227,35 @@ class Packet
     end
   end
 
+  class PingBody
+    extend PacketHelper
+
+    attr_reader :reason
+
+    def initialize(options, params = {})
+      @options = options
+      @data = params[:data] || raise(DnscatException, "params[:data] can't be nil!")
+    end
+
+    def PingBody.parse(options, data)
+      at_least?(data, 1) || raise(DnscatException, "Packet is too short (PING)")
+
+      data = data.unpack("A*").pop
+
+      return PingBody.new(options, {
+        :data => data,
+      })
+    end
+
+    def to_s()
+      return "[[PING]] :: %s" % [@reason]
+    end
+
+    def to_bytes()
+      [@data].pack("A*")
+    end
+  end
+
   # You probably don't ever want to use this, call Packet.parse() or Packet.create_*() instead
   def initialize(packet_id, type, session_id, body)
     @packet_id  = packet_id  || rand(0xFFFF)
@@ -272,8 +301,10 @@ class Packet
         raise(DnscatException, "Options are required when parsing FIN packets!")
       end
       body = FinBody.parse(options, data)
+    elsif(type == MESSAGE_TYPE_PING)
+      body = PingBody.parse(nil, data)
     else
-      raise(DnscatException, "Unknown message type: #{type}")
+      raise(DnscatException, "Unknown message type: 0x%x", type)
     end
 
     return Packet.new(packet_id, type, session_id, body)
@@ -289,6 +320,10 @@ class Packet
 
   def Packet.create_fin(options, params = {})
     return Packet.new(params[:packet_id], MESSAGE_TYPE_FIN, params[:session_id], FinBody.new(options, params))
+  end
+
+  def Packet.create_ping(params = {})
+    return Packet.new(params[:packet_id], MESSAGE_TYPE_PING, params[:session_id], PingBody.new(nil, params))
   end
 
   def to_s()

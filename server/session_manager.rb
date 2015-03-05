@@ -99,6 +99,10 @@ class SessionManager
     return session.handle_fin(packet)
   end
 
+  def SessionManager.handle_ping(packet)
+    return packet
+  end
+
   def SessionManager.go(pipe, settings)
     pipe.recv() do |data, max_length|
       session_id = nil
@@ -136,6 +140,8 @@ class SessionManager
           response = handle_msg(packet, max_length)
         elsif(packet.type == Packet::MESSAGE_TYPE_FIN)
           response = handle_fin(packet)
+        elsif(packet.type == Packet::MESSAGE_TYPE_PING)
+          response = handle_ping(packet)
         else
           raise(DnscatException, "Unknown packet type: #{packet.type}")
         end
