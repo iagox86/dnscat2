@@ -65,7 +65,12 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
       else
       {
         uint8_t *data;
+#ifdef WIN32
+		FILE *f = NULL;
+		fopen_s(&f, in->r.request.body.download.filename, "rb");
+#else
         FILE *f = fopen(in->r.request.body.download.filename, "rb");
+#endif
         if(!f)
         {
           out = command_packet_create_error_response(in->request_id, -1, "Error opening file for reading");
@@ -74,7 +79,6 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
         {
           data = safe_malloc(s.st_size);
 
-          /* TODO: Handling the error kinda poorly here */
           if(fread(data, 1, s.st_size, f) == s.st_size)
             out = command_packet_create_download_response(in->request_id, data, s.st_size);
           else
@@ -87,7 +91,12 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     }
     else if(in->command_id == COMMAND_UPLOAD && in->is_request == TRUE)
     {
+#ifdef WIN32
+      FILE *f;
+      fopen_s(&f, in->r.request.body.upload.filename, "wb");
+#else
       FILE *f = fopen(in->r.request.body.upload.filename, "wb");
+#endif
       if(!f)
       {
         out = command_packet_create_error_response(in->request_id, -1, "Error opening file for writing");

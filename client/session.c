@@ -266,7 +266,7 @@ static uint16_t handle_create_session(char *name, char *download, uint32_t first
 
   /* Check if it's a 16-bit value (I set it to a bigger value to set a random isn) */
   if(isn == (isn & 0xFFFF))
-    session->my_seq        = isn; /* Use the hardcoded one. */
+    session->my_seq        = (uint16_t) isn; /* Use the hardcoded one. */
   else
     session->my_seq        = rand() % 0xFFFF; /* Random isn */
 
