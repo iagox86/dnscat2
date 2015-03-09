@@ -45,12 +45,12 @@ The remaining fields are determined by the message type (see 'commands' below).
 
 The following commands are defined:
 
-#define COMMAND_PING     (0x0000)
-#define COMMAND_SHELL    (0x0001)
-#define COMMAND_EXEC     (0x0002)
-#define COMMAND_DOWNLOAD (0x0003)
-#define COMMAND_UPLOAD   (0x0004)
-#define COMMAND_ERROR    (0xFFFF)
+    #define COMMAND_PING     (0x0000)
+    #define COMMAND_SHELL    (0x0001)
+    #define COMMAND_EXEC     (0x0002)
+    #define COMMAND_DOWNLOAD (0x0003)
+    #define COMMAND_UPLOAD   (0x0004)
+    #define COMMAND_ERROR    (0xFFFF)
 
 ## COMMAND_PING
 
