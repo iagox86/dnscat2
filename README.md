@@ -19,6 +19,7 @@ Having an authoritative server is as simple as buying a domain name from some pr
 To get stated quickly, simply to play around on localhost, try this (requires ruby and bundler - 'gem install bundler', and possibly sudo / rvmsudo):
 
 [server]
+
     $ git clone https://github.com/iagox86/dnscat2.git
     $ cd dnscat2/server/
     $ bundle install
@@ -27,6 +28,7 @@ To get stated quickly, simply to play around on localhost, try this (requires ru
 (Note that you can literally use "mydomain.com" to play around)
 
 [client]
+
     $ git clone https://github.com/iagox86/dnscat2.git
     $ cd dnscat2/client/
     $ make
@@ -37,9 +39,11 @@ On the server, you should see "New session established: 1". Type "session -i 1" 
 If you have the authoritative DNS server for a domain, you can give the domain name to both the client and the server:
 
 [server]
+
     # ruby ./server.rb <domain(s)>
 
 [client]
+
     # ./dnscat <domain>
 
 The system DNS server will be used, if possible, and the DNS request will traverse the DNS infrastructure instead of going directly to the server.
@@ -57,7 +61,7 @@ The C version should have no strange dependencies, and should compile on any POS
 
 On Windows, Visual Studio is required (I tested on Visual Studio 2008, the only version I have). Load client/win32/dnscat2.vcproj and compile it. That should produce dnscat2.exe somewhere.
 
-    Installation
+# Installation
 
 This is no installation. Grab the package and run it. The only thing that looks like an installation is installing dependencies for the server:
 
@@ -83,7 +87,7 @@ On the server, almost everything is self-documenting. The most important command
 
 And that's about it!
 
-    History
+# History
 
 dnscat2 - the successor to dnscat, also written by me - is an attempt to right some of the wrongs that I committed while writing the original version of dnscat. The biggest problem being a total lack of testing or of forethought into the protocol.
 
