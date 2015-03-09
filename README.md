@@ -1,6 +1,4 @@
-+--------------+
-| Introduction |
-+--------------+
+# Introduction
 
 Welcome to dnscat2, a DNS tunnel that WON'T make you sick and kill you!
 
@@ -12,47 +10,44 @@ The client is designed to be simple and portable. It can run on just about any o
 
 Having an authoritative server is as simple as buying a domain name from some provider, and pointing the authority to your IP address. Actually, that's not necessarily a simple task, but it isn't impossibly difficult, either. If you're unsure whether or not you've successfully set up your DNS server appropriately, run a server (see below) and, on the client type:
 
-$ cd client
-$ make
-$ ./dnscat --ping mydomain.com
+    $ cd client
+    $ make
+    $ ./dnscat --ping mydomain.com
 
-+-------------+
-| Quick start |
-+-------------+
+# Quick start
 
 To get stated quickly, simply to play around on localhost, try this (requires ruby and bundler - 'gem install bundler', and possibly sudo / rvmsudo):
 
 [server]
-$ git clone https://github.com/iagox86/dnscat2.git
-$ cd dnscat2/server/
-$ bundle install
-# ruby ./dnscat2.rb
+    $ git clone https://github.com/iagox86/dnscat2.git
+    $ cd dnscat2/server/
+    $ bundle install
+    # ruby ./dnscat2.rb
 
 (Note that you can literally use "mydomain.com" to play around)
 
 [client]
-$ git clone https://github.com/iagox86/dnscat2.git
-$ cd dnscat2/client/
-$ make
-$ ./dnscat --host localhost
+    $ git clone https://github.com/iagox86/dnscat2.git
+    $ cd dnscat2/client/
+    $ make
+    $ ./dnscat --host localhost
 
 On the server, you should see "New session established: 1". Type "session -i 1" to interact. Type 'help' anywhere on the server to get some help (additionally, every command on the server has a "-h" flag).
 
 If you have the authoritative DNS server for a domain, you can give the domain name to both the client and the server:
 
 [server]
-# ruby ./server.rb <domain(s)>
+    # ruby ./server.rb <domain(s)>
 
 [client]
-# ./dnscat <domain>
+    # ./dnscat <domain>
 
 The system DNS server will be used, if possible, and the DNS request will traverse the DNS infrastructure instead of going directly to the server.
 
-+-------------+
-| Compilation |
-+-------------+
+# Compilation 
 
 The server portion doesn't need to be compiled, but it does require a few things:
+
 - ruby 1.9 or higher
 - bundler
 
@@ -62,27 +57,24 @@ The C version should have no strange dependencies, and should compile on any POS
 
 On Windows, Visual Studio is required (I tested on Visual Studio 2008, the only version I have). Load client/win32/dnscat2.vcproj and compile it. That should produce dnscat2.exe somewhere.
 
-+--------------+
-| Installation |
-+--------------+
+    Installation
 
 This is no installation. Grab the package and run it. The only thing that looks like an installation is installing dependencies for the server:
 
-$ bundle install
+    $ bundle install
 
-+-------+
-| Usage |
-+-------+
+# Usage
 
 There isn't much to say here - it's mostly self documenting.
 
 On the client, typically you'll just run it:
 
-$ ./dnscat2 mydomain.com
+    $ ./dnscat2 mydomain.com
 
 If you need to use a custom DNS server - or connect directly to the dnscat2 server if you don't have a domain name for yourself - you can use the --host argument. For a list of all arguments, use --help.
 
 On the server, almost everything is self-documenting. The most important commands are:
+
 - help - get a list of valid commands for the context
 - sessions - list all active sessions
 - session -i XXX - interact with session XXX
@@ -91,9 +83,7 @@ On the server, almost everything is self-documenting. The most important command
 
 And that's about it!
 
-+---------+
-| History |
-+---------+
+    History
 
 dnscat2 - the successor to dnscat, also written by me - is an attempt to right some of the wrongs that I committed while writing the original version of dnscat. The biggest problem being a total lack of testing or of forethought into the protocol.
 
