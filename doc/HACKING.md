@@ -1,12 +1,14 @@
 This document needs a lot of work...
 
-Client
+# Client
+
 - The "controller" will manage connections and data encoding
 - The "driver" will take the stream of bytes and send a DNS packet
 - The "adapter" will interface witht he outside world
 - Multiple connections will require multiple instances of 'controller'
 
-Server
+# Server
+
 - Written in ruby
 - Quite versatile
 - Run dnscat2_test.rb to perform self-tests

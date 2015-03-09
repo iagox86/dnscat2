@@ -95,7 +95,7 @@ The original dnscat was heavily linked to the dns protocol. It tried to encode t
 
 dnscat2, on the other hand, treats everything as a stream of bytes, and uses logic to convert that stream of bytes into dns requests. Thus, it's a layered protocol, with DNS being a lower layer.
 
-I invented a protocol that I'm calling the dnscat protocol. You can find documentation about it in docs/protocol.txt. It's a simple polling network protocol, where the client occasionally polls the server, and the server responds with a message (or an error code). The protocol is designed to be resilient to the various issues I had with dnscat1 - that is, it can handle out-of-order packets, dropped packets, and duplicated
+I invented a protocol that I'm calling the dnscat protocol. You can find documentation about it in docs/protocol.md. It's a simple polling network protocol, where the client occasionally polls the server, and the server responds with a message (or an error code). The protocol is designed to be resilient to the various issues I had with dnscat1 - that is, it can handle out-of-order packets, dropped packets, and duplicated
 packets equally well.
 
 Finally, one last change from the original dnscat is that I decided not to use the same program for both clients and servers. It turns out that dnscat servers are much more complex than clients, so it made sense to write the server in a higher level language (I chose ruby), while still keeping the client (written in C) as functional/simple/portable as I possibly could.
