@@ -18,7 +18,7 @@ Having an authoritative server is as simple as buying a domain name from some pr
 
 To get stated quickly, simply to play around on localhost, try this (requires ruby and bundler - 'gem install bundler', and possibly sudo / rvmsudo):
 
-[server]
+## server
 
     $ git clone https://github.com/iagox86/dnscat2.git
     $ cd dnscat2/server/
@@ -27,7 +27,7 @@ To get stated quickly, simply to play around on localhost, try this (requires ru
 
 (Note that you can literally use "mydomain.com" to play around)
 
-[client]
+## client
 
     $ git clone https://github.com/iagox86/dnscat2.git
     $ cd dnscat2/client/
@@ -38,11 +38,11 @@ On the server, you should see "New session established: 1". Type "session -i 1" 
 
 If you have the authoritative DNS server for a domain, you can give the domain name to both the client and the server:
 
-[server]
+## server
 
     # ruby ./server.rb <domain(s)>
 
-[client]
+## client
 
     # ./dnscat <domain>
 
