@@ -148,7 +148,7 @@ end
 settings.watch("isn") do |old_val, new_val|
   Session.debug_set_isn(new_val.to_i)
 
-  puts("Changed the initial sequence number to 0x%04x (note: you probably shouldn't do this unless you're debugging something!)")
+  puts("Changed the initial sequence number to 0x%04x (note: you probably shouldn't do this unless you're debugging something!)" % new_val)
 
   nil
 end
@@ -174,7 +174,10 @@ settings.set("auto_attach",  opts[:auto_attach])
 settings.set("passthrough",  opts[:passthrough])
 settings.set("debug",        opts[:debug])
 settings.set("packet_trace", opts[:packet_trace])
-settings.set("isn",          opts[:isn])
+
+if(opts[:isn])
+  settings.set("isn",          opts[:isn])
+end
 
 threads = []
 if(opts[:dns])
