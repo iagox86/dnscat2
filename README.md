@@ -243,8 +243,8 @@ When a new session is created, you'll be informed:
     
     dnscat2> sessions
     command window
-      [*] session 2192 :: command session
-      [*] session 62456 :: command session
+      session 2192 [*] :: command session
+      session 62456 [*] :: command session
 
 You can interact with these sessions using the `session -i` command:
 
@@ -275,11 +275,11 @@ session, use either ctrl-z or the "back" command:
     command window
       session 2192 :: command session
        session 18644 :: executing a shell
-      [*] session 62456 :: command session
+       session 62456 [*] :: command session
     dnscat2> 
 
-Note that some sessions start with `[*]` - that means that there's been
-activity since the last visit.
+Note that some sessions have `[*]` - that means that there's been
+activity since the last time we looked at them.
 
 When you interact with a session, the interface will look different
 depending on the session type. As you saw with the default session type
@@ -306,9 +306,9 @@ On the server, you'll see a session created as usual:
     New session established: 52356
     dnscat2> sessions
     command window
-      [*] session 2192 :: command session :: [closed]
+      session 2192 [*] :: command session :: [closed]
        session 18644 :: executing a shell
-      [*] session 62456 :: command session
+      session 62456 [*] :: command session
      session 52356 :: /bin/sh
 
 And you can interact with it as normal:
@@ -327,9 +327,9 @@ Lastly, to kill a session, the `kill` command can be used:
     Session killed
     dnscat2> sessions
     command window
-      [*] session 2192 :: command session :: [closed]
+      session 2192 [*] :: command session :: [closed]
        session 18644 :: executing a shell
-      [*] session 62456 :: command session
+      session 62456 [*] :: command session
      session 52356 :: /bin/sh
 
 
