@@ -19,7 +19,7 @@ You can get the source from github here:
 
 And the latest binaries here:
 
-* TODO
+* https://downloads.skullsecurity.org/dnscat2/
 
 # How to play
 
