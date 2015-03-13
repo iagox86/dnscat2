@@ -283,9 +283,9 @@ activity since the last visit.
 
 When you interact with a session, the interface will look different
 depending on the session type. As you saw with the default session type
-- command sessions - you get a UI just like the top-level virtual
-session. however, if you interact with a 'shell' session, you won't see
-anything immediately, until you type a command:
+(command sessions) you get a UI just like the top-level virtual session.
+however, if you interact with a 'shell' session, you won't see anything
+immediately, until you type a command:
 
     dnscat2> session -i 18644
     
