@@ -67,14 +67,14 @@ attempting to start a DNS tunnel with whatever your configured DNS
 server is:
 
     $ ./dnscat
-    \[\[ WARNING \]\] :: INPUT: Command
-    \[\[ WARNING \]\] :: Session successfully created: 23518
-    \[\[ WARNING \]\] :: Session creation request
-    \[\[ WARNING \]\] :: Starting DNS driver without a domain! You'll probably need to use --host to specify a direct connection to your server.
-    \[\[ WARNING \]\] :: Setting config: max_packet_length => 115
-    \[\[ WARNING \]\] :: OUTPUT: DNS tunnel to 8.8.8.8:53 (no domain set!  This probably needs to be the exact server where the dnscat2 server is running!)
-    \[\[ ERROR \]\] :: DNS: RCODE_NAME_ERROR
-    \[\[ ERROR \]\] :: DNS: RCODE_NAME_ERROR
+    [[ WARNING ]] :: INPUT: Command
+    [[ WARNING ]] :: Session successfully created: 23518
+    [[ WARNING ]] :: Session creation request
+    [[ WARNING ]] :: Starting DNS driver without a domain! You'll probably need to use --host to specify a direct connection to your server.
+    [[ WARNING ]] :: Setting config: max_packet_length => 115
+    [[ WARNING ]] :: OUTPUT: DNS tunnel to 8.8.8.8:53 (no domain set!  This probably needs to be the exact server where the dnscat2 server is running!)
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
 
 ### Server
 
