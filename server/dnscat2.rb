@@ -137,7 +137,9 @@ settings.watch("passthrough") do |old_val, new_val|
     "'passthrough' has to be either 'true' or 'false'!"
   else
     # return
-    puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
+    if(!old_val.nil?)
+      puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
+    end
     DriverDNS.passthrough = new_val
 
     # return
