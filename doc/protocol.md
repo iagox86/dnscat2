@@ -2,49 +2,108 @@
 
 This document describes the dnscat2 protocol.
 
-I'm referring to this protocol as the dnscat2 protocol, although, strictly speaking, it's not specific to dnscat or DNS in any way.  Basically, I needed a protocol that could track logical connections over multiple lower-level connections/datagrams/whatever that aren't necessarily reliable and where bandwidth is extremely limited.
+I'm referring to this protocol as the dnscat2 protocol, although,
+strictly speaking, it's not specific to dnscat or DNS in any way.
+Basically, I needed a protocol that could track logical connections over
+multiple lower-level connections/datagrams/whatever that aren't
+necessarily reliable and where bandwidth is extremely limited.
 
-Because this is designed for dnscat, it is poll-based - that is, the client sends a packet, and the server responds to it. The server can't know where the client is or how to initiate a connection, so that's taken into account.
+Because this is designed for dnscat, it is poll-based - that is, the
+client sends a packet, and the server responds to it. The server can't
+know where the client is or how to initiate a connection, so that's
+taken into account.
 
-This protocol is datagram-based, has 16-bit session_id values that can track the connection over multiple lower level connections, and handles lower-level dropped/duplicated/out-of-order packets.
+This protocol is datagram-based, has 16-bit session_id values that can
+track the connection over multiple lower level connections, and handles
+lower-level dropped/duplicated/out-of-order packets.
 
-Below, I give a few details on what's required to make this work, a description of how connections work, some constants used in the messages, and, finally, a breakdown of the messages themselves.
+Below, I give a few details on what's required to make this work, a
+description of how connections work, some constants used in the
+messages, and, finally, a breakdown of the messages themselves.
 
 # License
 
 See LICENSE.md.
 
-# DNS
+# Challenges
 
-Although this protocol will work over any protocol, it's designed to work over DNS, which has some interesting restrictions:
+DNS is a pretty challenging protocol to use! Some of the problems
+include:
 
-- Every message requires a response of some sort
-- Retransmissions and drops and out-of-order packets are extremely common
-- DNS is restricted to alphanumeric characters, and isn't necessarily case sensitive
+* Every message requires a response of some sort
+* Retransmissions and drops and out-of-order packets are extremely common
+* DNS is restricted to alphanumeric characters, and isn't necessarily case sensitive
 
-For that reason, we take some special considerations.
+Both the and the DNS tunnel protocol and the dnscat protocol itself are
+designed with these in mind.
 
-The initial draft only supports TXT records. The request is always in the form of either:
+# DNS tunnel protocol
 
-    [encoded data].[domain]
+The dnscat protocol itself is, in spite of its name, protocol agnostic.
+It can be used over any poll/response protocol, such as DNS, HTTP,
+ICMP/Ping, etc. Each of these platforms will have to wrap the data a
+little differently, though, and this section discusses how to use the
+DNS protocol as a transport channel.
+
+## Encoding
+
+All data in both directions is transported in hex-encoded strings.
+"AAA", for example, becomes "414141".
+
+Any periods in the domain name must be ignored. Therefore, "41.4141",
+"414.141", and "414141" are exactly equivalent.
+
+## Send / receive
+
+The client can choose whether to append a domain name (the user must
+have the authoritative server for the domain name) or prepend a static
+tag ("dnscat.") to the message. In other words, the message looks like
+this:
+
+    <encoded data>.<domain>
 
 or
 
-    [tag].[encoded data]
+    <tag>.<encoded data>
 
-Where [encoded data] is the packet, as described below, converted directly to a hexadecimal representation, [domain] is agreed upon in advance through some channel (generally represents a domain name you are the authority for), and [tag] is an agreed-upon tag (set to "dnscat" in my implementation)
+Any data that's not in that form, or that's in an unsupported record
+type, can either be discarded by the server or forwarded to an upstream
+DNS server.
 
-The [encoded data] can be split across multiple fields, in the form of "a.b.c.d". The periods should be simply ignored and discarded. The official client endeavors to avoid splitting a byte across boundaries (eg, "41.4141" is preferred to "414.141"), but the server supports it.
+The dnscat2 server must respond with a proper DNS response directly to
+the system that made the request, containing no error bit set and one or
+more answers. If more than one answer is present, the first byte of each
+answer must be a 1-byte sequence number (intermediate DNS servers
+often rearrange the order of records).
 
-Each field (ie, the section between two periods) has a maximum length of 63, per the DNS spec, and the maximum total amount of data is 255 bytes.  All clients should respect that limitation, otherwise they won't work across the Internet.
+The record type of the response records should be the same as the record
+type of the request, doing otherwise is more suspicious. The precise way
+the answer is encoded depends on the record type.
 
-The [domain] can be any domain, and is discarded by the server before proceeding. [domain] isn't necessarily required, a [tag] prefix can be added instead to uniquely identify dnscat requests.
+## DNS Record type
 
-(the reference server accepts a [tag], by default, and accepts one or more domains as given on the commandline)
+The dnscat server supports the most common DNS message types: `TXT`, `MX`,
+`CNAME`, `A`, and `AAAA`.
 
-The TXT response is simply the byte data, encoded in the agreed-upon fashion. The maximum length of the TXT response, per the spec, is 255 bytes. Nothing else - domain, periods, etc - may be present, the response is simply the data.
+In all cases, the request is encoded as a DNS record, as discussed
+above.
 
-CNAME, MX, and TXT are currently supported. A and AAAA are supported via direct connections. TODO: Flesh this out.
+The response, however, varies slightly.
+
+A `TXT` response is simply the hex-encoded data, with nothing else.
+
+A `CNAME` and `MX` record is encoded with a tag prefix or domain postfix
+(the same format as the request), otherwise it won't be able to traverse
+the DNS network. The `MX` record type also has an additional field in
+DNS, the priority field, which can be set randomly.
+
+Finally, `A` and `AAAA` records, much like `TXT`, are simply the raw
+data with no prefix/postfix. However, due to the short length of the
+responses (4 bytes for `A` and 16 bytes for `AAAA`), multiple answers
+are required. Unfortunately, the DNS hierarchy re-arranges answers, so
+each record must have a one-byte sequence number prepended. The values
+don't matter, as long as they can be sorted to obtain the original
+order.
 
 # Connections
 
