@@ -110,12 +110,27 @@ additional field in DNS, the priority field, which can be set randomly
 and should be ignored by the client.
 
 Finally, `A` and `AAAA` records, much like `TXT`, are simply the raw
-data with no prefix/postfix. However, due to the short length of the
-responses (4 bytes for `A` and 16 bytes for `AAAA`), multiple answers
-are required. Unfortunately, the DNS hierarchy re-arranges answers, so
-each record must have a one-byte sequence number prepended. The values
-don't matter, as long as they can be sorted to obtain the original
-order.
+data with no domain/tag added. However, there are two catches. First,
+due to the short length of the answers (4 bytes for `A` and 16 bytes for
+`AAAA`), multiple answers are required. Unfortunately, the DNS hierarchy
+re-arranges answers, so each record must have a one-byte sequence number
+prepended. The values don't matter, as long as they can be sorted to
+obtain the original order.
+
+The second problem is, there's no clear way to get the length of the
+response, because the response is, effectively in blocks. Therefore, the
+length of the data itself, encoded as a signle byte, is preprended to
+the message. If the data doesn't wind up being a multiple of the block
+size, then it can be padded however the developer likes; the padding
+must be ignored by the other side.
+
+An A response might look like:
+
+    0.9.<byte1>.<byte2> 1.<byte3><byte4><byte5> 2.<byte6><byte7><byte8> 3.<byte9>.<pad>.<pad>
+
+Where the leading `0` is the sequence number of the block, the `9` is
+the length, and the `2` and `3` are sequence numbers.
+
 
 # dnscat protocol
 

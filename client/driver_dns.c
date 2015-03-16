@@ -114,6 +114,18 @@ static uint8_t *buffer_decode_hex(uint8_t *str, size_t *length)
   return buffer_create_string_and_destroy(out, length);
 }
 
+static int cmpfunc_a(const void *a, const void *b)
+{
+  return ((const answer_t*)a)->answer->A.bytes[0] - ((const answer_t*)b)->answer->A.bytes[0];
+}
+
+#ifndef WIN32
+static int cmpfunc_aaaa(const void *a, const void *b)
+{
+  return ((const answer_t*)a)->answer->AAAA.bytes[0] - ((const answer_t*)b)->answer->AAAA.bytes[0];
+}
+#endif
+
 static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
   /*driver_dns_t *driver_dns = param;*/
@@ -200,8 +212,11 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     {
       buffer_t *buf = buffer_create(BO_BIG_ENDIAN);
 
+      qsort(dns->answers, dns->answer_count, sizeof(answer_t), cmpfunc_a);
+
       for(i = 0; i < dns->answer_count; i++)
-        buffer_add_bytes(buf, dns->answers[i].answer->A.bytes, 4);
+        buffer_add_bytes(buf, dns->answers[i].answer->A.bytes + 1, 3);
+      buffer_print(buf);
 
       answer_length = buffer_read_next_int8(buf);
       LOG_INFO("Received an A response (%zu bytes)", answer_length);
@@ -214,8 +229,11 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     {
       buffer_t *buf = buffer_create(BO_BIG_ENDIAN);
 
+      qsort(dns->answers, dns->answer_count, sizeof(answer_t), cmpfunc_aaaa);
+
       for(i = 0; i < dns->answer_count; i++)
-        buffer_add_bytes(buf, dns->answers[i].answer->AAAA.bytes, 16);
+        buffer_add_bytes(buf, dns->answers[i].answer->AAAA.bytes + 1, 15);
+      buffer_print(buf);
 
       answer_length = buffer_read_next_int8(buf);
       LOG_INFO("Received an AAAA response (%zu bytes)", answer_length);
