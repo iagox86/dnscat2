@@ -34,16 +34,19 @@ include:
 * Retransmissions and drops and out-of-order packets are extremely common
 * DNS is restricted to alphanumeric characters, and isn't necessarily case sensitive
 
-Both the and the DNS tunnel protocol and the dnscat protocol itself are
-designed with these in mind.
+Both the DNS Transport Protocol and the dnscat protocol itself are
+designed with these in mind. Unlike other DNS-tunneling tools, I don't
+rely on having a TCP layer taking care of the difficult parts - dnscat
+is capable of doing a raw connection over DNS.
 
-# DNS tunnel protocol
+# DNS Transport Protocol
 
 The dnscat protocol itself is, in spite of its name, protocol agnostic.
-It can be used over any poll/response protocol, such as DNS, HTTP,
-ICMP/Ping, etc. Each of these platforms will have to wrap the data a
-little differently, though, and this section discusses how to use the
-DNS protocol as a transport channel.
+It can be used over any polling protocol, such as DNS, HTTP, ICMP/Ping,
+etc, which I'll refer to as a Transport Protocol. Each of these
+platforms will have to wrap the data a little differently, though, and
+this section discusses how to use the DNS protocol as the transport
+channel.
 
 ## Encoding
 
@@ -52,6 +55,9 @@ All data in both directions is transported in hex-encoded strings.
 
 Any periods in the domain name must be ignored. Therefore, "41.4141",
 "414.141", and "414141" are exactly equivalent.
+
+Additionally, the protocol is not case sensitive, so "5b" and "5B" are
+also equivalent.
 
 ## Send / receive
 
@@ -67,18 +73,19 @@ or
     <tag>.<encoded data>
 
 Any data that's not in that form, or that's in an unsupported record
-type, can either be discarded by the server or forwarded to an upstream
-DNS server.
+type, or that has an appended domain that's unknown to the dnscat
+server, can either be discarded by the server or forwarded to an
+upstream DNS server. The server may choose.
 
-The dnscat2 server must respond with a proper DNS response directly to
-the system that made the request, containing no error bit set and one or
-more answers. If more than one answer is present, the first byte of each
-answer must be a 1-byte sequence number (intermediate DNS servers
-often rearrange the order of records).
+The dnscat2 server must respond with a properly formatted DNS response
+directly to the host that made the request, containing no error bit set
+and one or more answers. If more than one answer is present, the first
+byte of each answer must be a 1-byte sequence number (intermediate DNS
+servers often rearrange the order of records).
 
 The record type of the response records should be the same as the record
-type of the request, doing otherwise is more suspicious. The precise way
-the answer is encoded depends on the record type.
+type of the request. The precise way the answer is encoded depends on
+the record type.
 
 ## DNS Record type
 
@@ -90,12 +97,17 @@ above.
 
 The response, however, varies slightly.
 
-A `TXT` response is simply the hex-encoded data, with nothing else.
+A `TXT` response is simply the hex-encoded data, with nothing else. In
+theory, `TXT` records should be able to contain binary data, but
+Windows' DNS client truncates `TXT` records at NUL bytes so the encoding
+is necessary.
 
-A `CNAME` and `MX` record is encoded with a tag prefix or domain postfix
-(the same format as the request), otherwise it won't be able to traverse
-the DNS network. The `MX` record type also has an additional field in
-DNS, the priority field, which can be set randomly.
+A `CNAME` or `MX` record is encoded the same way as the request: either
+with a tag prefix or a domain postfix. This is necessary because
+intermediate DNS servers won't forward the traffic if it doesn't end
+with the appropriate domain name. The `MX` record type also has an
+additional field in DNS, the priority field, which can be set randomly
+and should be ignored by the client.
 
 Finally, `A` and `AAAA` records, much like `TXT`, are simply the raw
 data with no prefix/postfix. However, due to the short length of the
@@ -105,26 +117,43 @@ each record must have a one-byte sequence number prepended. The values
 don't matter, as long as they can be sorted to obtain the original
 order.
 
-# Connections
+# dnscat protocol
 
-These are all the problems I can think of that come up in a protocol like this (this applies to SYN, MSG, or FIN packets):
+So above, I defined the DNS Transport Protocol, which is how to send
+data through DNS, Below is the actual dnscat protocol, which is what
+clients and servers must talk.
 
-- A request/response is dropped
-- A request/response is repeated
-- An old request/response arrives late
+## Connections
 
-All of those need to be considered when handling the message types below.
+A "connection" is a logical session established between a client and a
+server. A connection starts with a `SYN`, typically contains one of more
+`MSG` packets, typically ends with a `FIN` (or with one party disappearing),
+and has a unique 16-bit identifier called the `session_id`. Note that
+`SYN`/`FIN` shouldn't be confused with the TCP equivalents - these are
+purely a construct of dnscat.
 
-The concept of a connection is like a TCP connection. A connection is denoted by a 16-bit SessionID value in the header. A client is designed to deal with just a single session (usually), whereas the server is expected to handle multiple simultaneous sessions.
+To summarize: A session is started by the client sending the server a
+`SYN` packet and the server responding with a `SYN` packet. The client
+sends MSG packets and the server responds with `MSG` packets. When the
+client decides a connection is over, it sends a `FIN` packet to the
+server and the server responds with a `FIN` packet. When the server
+decides a connection is over, it responds to a `MSG` from the client
+with a `FIN` and the client should no longer respond.
 
-A valid connection starts with the client sending a SYN to the server, and the server responding to that SYN. From that point, until either side sends a FIN (or an arbitrary timeout value is reached), the connection is established.
+A `flags` field is exchanged in the `SYN` packet. These flags affect the
+entire session.
 
-A FIN terminates a connection, and out-of-connection packets (for example, an unexpected SYN) are generally ignored.
+Unexpected packets are ignored, in most states. See below for specifics.
+
+Both the dnscat client and the dnscat client are expected to handle
+multiple sessions; the dnscat client will often have multiple
+simultaneous sessions open with the same server, whereas the server can
+have multiple simultaneous connections with different clients.
 
 A good connection looks like this:
 
     +----------------+
-    | Client  Server |  [[ Good connection ]]
+    | Client  Server |
     +----------------+
     |  SYN -->  |    |
     |   |       v    |
@@ -147,10 +176,10 @@ A good connection looks like this:
     |      <-- FIN   |
     +----------------+
 
-If there's an error in the connection, the server will return a FIN:
+If the server decides a connection is over, the server will return a FIN:
 
     +----------------+
-    | Client  Server |  [[ Error during connection ]]
+    | Client  Server |
     +----------------+
     |  SYN -->  |    |
     |   |       v    |
@@ -167,11 +196,10 @@ If there's an error in the connection, the server will return a FIN:
     | (nil)          |
     +----------------+
 
-
 If an unexpected MSG is received, the server will respond with an error (FIN):
 
     +----------------+
-    | Client  Server |  [[ Good connection ]]
+    | Client  Server |
     +----------------+
     |  MSG -->  |    |
     |   |       v    |
@@ -183,14 +211,57 @@ If an unexpected MSG is received, the server will respond with an error (FIN):
 If an unexpected FIN is received, the server will ignore it:
 
     +----------------+
-    | Client  Server |  [[ Good connection ]]
+    | Client  Server |
     +----------------+
     |  FIN -->  |    |
     |           v    |
     |         (nil)  |
     +----------------+
 
-# Constants
+## SEQ/ACK numbers
+
+`SEQ` (sequence) and `ACK` (acknowledgement) numbers are used similar to
+the equivalent values in TCP. At the start of a connection, both the
+client and server choose a random ISN (initial sequence number) and send
+it to the other.
+
+The `SEQ` number of the client is the `ACK` number of the server, and
+the `SEQ` number of the server is the `ACK` number of the client. That
+means that both sides always know which byte offset to expect.
+
+Each side will send somewhere between 0 and an infinite number of bytes
+to the other side during a session. As more data gets queued to be sent,
+it's helpful to imagine that you're appending the bytes to send to the list
+of all bytes ever sent. When a message is going out, the system should
+look at its own sequence number and the byte queue to decide what to
+send. If there are bytes waiting that haven't been acknowledged by the
+peer, it should send as many of those bytes as it can along with its
+current sequence number.
+
+When a message is received, the receiver must compare the sequence
+number in the message with its own acknowledgement number. If it's
+lower, that means that old data is being received and it must be
+re-acknowledged (the `ACK` may have gotten lost, which caused the server
+to re-send). If it's higher, the data can either be cached until it's
+needed, or silently discarded (the peer may be sending multiple packets
+at once for speed gains). If it's equal, the message can then be
+processed.
+
+When a message is processed, the receiver increments its `ACK` by the
+number of bytes in the packet, then responds with the new `ACK`, its
+current `SEQ`, and any data that is waiting to be sent.
+
+When the sender sees the incremented `ACK`, it should increment its own
+`SEQ` number (assuming the `ACK` value is sane; if it's not, it should
+be silently discarded). Then it sends new data from the updated offset
+(that is, the new `SEQ` value).
+
+You'll note that both sides are constantly acknowledging the other
+side's data (by adding the length to the other side's `SEQ` number)
+while sending out its own data and updating its own `SEQ` number (by
+looking at the other side's `ACK` number).
+
+## Constants
 
     /* Message types */
     #define MESSAGE_TYPE_SYN        (0x00)
@@ -204,120 +275,132 @@ If an unexpected FIN is received, the server will ignore it:
     #define OPT_CHUNKED_DOWNLOAD (0x10)
     #define OPT_COMMAND          (0x20)
 
-# Messages
+## Messages
 
-Note:
+This section will explain how to encode each of the message types. All
+fields are encoded big endian, and the entire packet is sent via the DNS
+Transport Protocol, defined above. It is assumed that the transport
+protocol handles the length, and the length of the packet is known.
 
-- All fields are big endian.
-- It is assumed that we know the length of the datagram; if we don't, a lower-level wrapper is required (eg, for TCP I prefix a 2-byte length header)
+All messages contain a 16-bit `packet_id` field - this should be changed
+(randomized or incremented.. it doesn't matter) for each message sent
+and ignored by the receiver. It's purely designed to deal with caching
+problems.
 
-## MESSAGE_TYPE_SYN [0x00]
+### Datatypes
+
+As mentioned above, all fields are encoded as big endian (network byte
+order). The following datatypes are used:
+
+* `uint8_t` - an 8-bit (one byte) value
+* `uint16_t` - a 16-bit (two byte) value
+* `uint32_t` - a 32-bit (four byte) value
+* `ntstring` - a null-terminated string (that is, a series of bytes with a NUL byte ("\0") at the end
+* `byte[]` - an array of bytes - if no size is specified, then it's the rest of the packet
+
+### MESSAGE_TYPE_SYN [0x00]
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0x00]
 - (uint16_t) session_id
-- (uint16_t) initial seq number
+- (uint16_t) initial sequence number
 - (uint16_t) options
 - If OPT_NAME is set:
-  - (ntstring) name
+  - (ntstring) session_name
 - If OPT_DOWNLOAD or OPT_CHUNKED_DOWNLOAD is set:
   - (ntstring) filename
 
-(Client to server)
+#### Client to server
 
-- Each connection is initiated by a client sending a SYN containing a random session_id and random initial sequence number to the server as well as its requested options (no options are currently defined).
-- If the client doesn't get a response, it should choose a new session_id before retransmitting
-  - (this resolves a potential issue where a Server->Client SYN is lost, and the server thinks a session is running while the client doesn't)
+- Each connection is initiated by a client sending a SYN containing a
+  random session_id and random initial sequence number to the server as
+  well as its requested options
+- If the client doesn't get a response, it should choose a new
+  session_id before retransmitting
+  - (this resolves a potential issue where a Server->Client SYN is lost,
+    and the server thinks a session is running while the client doesn't)
 
-- The following options are valid:
+- The following options are defined:
   - OPT_NAME - 0x01
-    - Packet contains an additional field called the session name, which is a free-form field containing user-readable data
-    - (ntstring) session_name
+    - Packet contains an additional field called the session name, which
+      is a free-form field containing user-readable data
   - OPT_DOWNLOAD - 0x08
-    - Packet contains an additional field for the filename to download from the server
+    - Requests a download from the server
     - Server should serve that file in place of stdin
-    - Servers should *not* let users read arbitrary files, but rather make it up to the user to choose which files/folders to allow
+    - For obvious reasons, servers should *not* let users read arbitrary
+      files, but rather make it up to the user to choose which
+      files/folders to allow
   - CHUNKED_DOWNLOAD - 0x10
-    - Packet contains the filename field, as specified in OPT_DOWNLOAD
+    - Requests a "chunked" download from the server - in the MSG
+      packets, the client will let the server know which offset to
+      download
     - Each MSG also contains an offset field
-    - Each data chunk is exactly XXX bytes long
+    - Each data chunk is exactly XXX-TODO bytes long
 
-(Server to client)
+#### Server to client
 
 - The server responds with its own SYN, containing its initial sequence number and its options.
 
-(Notes)
+#### Notes
 
-- Both the session_id and initial sequence number should be randomized, not incremental or static or anything, to make connection-hijacking attacks more difficult (the two sequence numbers and the session_id give us approximately 48-bits of entropy per connection).
-- packet_id should be different for each packet, and is entirely designed to prevent caching. Incremental is fine. The peer should ignore it.
+- Both the `session_id` and initial sequence number should be
+  randomized, not incremental or static or anything, to make
+  connection-hijacking attacks more difficult (the two sequence numbers
+  and the session_id give us approximately 48-bits of entropy per
+  connection).
+- `packet_id` should be different for each packet, and is entirely
+  designed to prevent caching. Incremental is fine. The peer should
+  ignore it.
 
-(Error states)
-- If a client doesn't receive a response to a SYN packet, it means either the request or response was dropped. The client can choose to re-send the SYN packet for the same session, or it can generate a new SYN packet or session.
-- If a server receives a second SYN for the same session before it receives a MSG packet, it should respond as if it's valid (the response may have been lost).
-- If a client or server receives a SYN for a connection during said connection, it should be silently discarded.
+#### Error states
 
-## MESSAGE_TYPE_MSG: [0x01]
+- If a client doesn't receive a response to a SYN packet, it means
+  either the request or response was dropped. The client can choose to
+  re-send the SYN packet for the same session, or it can generate a new
+  SYN packet or session.
+- If a server receives a second SYN for the same session before it
+  receives a MSG packet, it should respond as if it's valid (the
+  response may have been lost).
+- If a client or server receives a SYN for a connection during said
+  connection, it should be silently discarded.
+
+### MESSAGE_TYPE_MSG: [0x01]
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0x01]
 - (uint16_t) session_id
-- (variable) other fields, as defined by 'options'
+- If OPT_CHUNKED_DOWNLOAD is set:
+  - (uint32_t) chunk number
+- If OPT_CHUCNKED_DOWNLOAD is not set:
+  - (uint16_t) seq
+  - (uint16_t) ack
 - (byte[]) data
 
-Variable fields
-
-- (if OPT_CHUNKED_DOWNLOAD is enabled)
-  - (uint32_t) chunk number
-- (otherwiseFIN and close the connection.
-- The client and server shouldn't increment their sequence numbers or their saved acknowledgement numbers until the other side has acknowledged the value in a response.
-- packet_id should be different for each packet, and is entirely designed to prevent caching. Incremental is fine. The peer should ignore it.
-
-(Command)
+#### Notes
 
 - If the SYN contained OPT_COMMAND, the 'data' field uses the command protocol. See command_protocol.md.
 
-## MESSAGE_TYPE_FIN: [0x02]
+### MESSAGE_TYPE_FIN: [0x02]
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0x02]
 - (uint16_t) session_id
 - (ntstring) reason
-- (variable) other fields, as defined by 'options'
 
-(Client to server)
+#### Notes
 
-- A client sends a FIN message to the server when it's completed its connection.
+- Once a FIN has been sent, the client or server should no longer
+  attempt to respond to anything from that connection.
 
-(Server to client)
-
-- The server responds to a client's FIN with its own FIN.
-- A server can also respond to a MSG with a FIN either when the connection has been cleanly terminated, or when there's an error in the connection.
-
-(Out-of-state packets)
-
-- Once a FIN has been sent, the client or server should no longer attempt to respond to anything from that connection.
-
-(Notes)
-
-- packet_id should be different for each packet, and is entirely designed to prevent caching. Incremental is fine. The peer should ignore it.
-
-## MESSAGE_TYPE_PING: [0xFF]
+### MESSAGE_TYPE_PING: [0xFF]
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0xFF]
 - (uint16_t) reserved
 - (ntstring) data
 
-(Notes)
+#### Notes
 
-The reserved field should be ignored. It's simply there to make it easier to parse (since every other packet has a 24-bit header).
-
-- packet_id should be different for each packet, and is entirely designed to prevent caching. Incremental is fine. The peer should ignore it.
-
-(Client to server)
-
-- A client can send a MESSAGE_TYPE_PING packet any time - before, during, or after a session.
-
-(Server to client)
-
-- The server can only respond to client ping, it can't send pings of its own out.
+- The reserved field should be ignored. It's simply there to make it
+  easier to parse (since every other packet has a 24-bit header).
+- This is the only message that isn't part of a session
