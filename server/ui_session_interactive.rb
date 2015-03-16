@@ -17,6 +17,8 @@ class UiSessionInteractive < UiInterfaceWithId
     @session  = session
     @ui = ui
 
+    puts("Welcome to session #{id}! If it's a shell session and you're not seeing output, try typing \"pwd\" or something!")
+    puts()
 #    auto_command = @ui.settings.get("auto_command")
 #    if(!auto_command.nil? && auto_command.length > 0)
 #      @session.queue_outgoing(auto_command + "\n")

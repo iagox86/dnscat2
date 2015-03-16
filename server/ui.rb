@@ -229,7 +229,7 @@ class Ui
     if(@settings.get("auto_attach"))
       attach_session(ui)
 
-      Log.PRINT(id, "(attached)")
+      Log.INFO(id, "(auto-attached)")
     end
 
     @settings.set("newest", id.to_s)
