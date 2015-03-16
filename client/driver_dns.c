@@ -216,7 +216,6 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
       for(i = 0; i < dns->answer_count; i++)
         buffer_add_bytes(buf, dns->answers[i].answer->A.bytes + 1, 3);
-      buffer_print(buf);
 
       answer_length = buffer_read_next_int8(buf);
       LOG_INFO("Received an A response (%zu bytes)", answer_length);
@@ -233,7 +232,6 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
       for(i = 0; i < dns->answer_count; i++)
         buffer_add_bytes(buf, dns->answers[i].answer->AAAA.bytes + 1, 15);
-      buffer_print(buf);
 
       answer_length = buffer_read_next_int8(buf);
       LOG_INFO("Received an AAAA response (%zu bytes)", answer_length);
