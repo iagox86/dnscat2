@@ -119,9 +119,9 @@ order.
 
 # dnscat protocol
 
-So above, I defined the DNS Transport Protocol, which is how to send
-data through DNS, Below is the actual dnscat protocol, which is what
-clients and servers must talk.
+Above, I defined the DNS Transport Protocol, which is how to send data
+through DNS, Below is the actual dnscat protocol, which is what clients
+and servers must talk.
 
 ## Connections
 
@@ -143,7 +143,7 @@ with a `FIN` and the client should no longer respond.
 A `flags` field is exchanged in the `SYN` packet. These flags affect the
 entire session.
 
-Unexpected packets are ignored, in most states. See below for specifics.
+Unexpected packets are ignored in most states. See below for specifics.
 
 Both the dnscat client and the dnscat client are expected to handle
 multiple sessions; the dnscat client will often have multiple
@@ -310,7 +310,7 @@ order). The following datatypes are used:
 - If OPT_DOWNLOAD or OPT_CHUNKED_DOWNLOAD is set:
   - (ntstring) filename
 
-#### Client to server
+#### Notes
 
 - Each connection is initiated by a client sending a SYN containing a
   random session_id and random initial sequence number to the server as
@@ -319,7 +319,6 @@ order). The following datatypes are used:
   session_id before retransmitting
   - (this resolves a potential issue where a Server->Client SYN is lost,
     and the server thinks a session is running while the client doesn't)
-
 - The following options are defined:
   - OPT_NAME - 0x01
     - Packet contains an additional field called the session name, which
@@ -336,13 +335,8 @@ order). The following datatypes are used:
       download
     - Each MSG also contains an offset field
     - Each data chunk is exactly XXX-TODO bytes long
-
-#### Server to client
-
-- The server responds with its own SYN, containing its initial sequence number and its options.
-
-#### Notes
-
+- The server responds with its own SYN, containing its initial sequence
+  number and its options.
 - Both the `session_id` and initial sequence number should be
   randomized, not incremental or static or anything, to make
   connection-hijacking attacks more difficult (the two sequence numbers
