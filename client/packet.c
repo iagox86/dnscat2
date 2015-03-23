@@ -15,7 +15,9 @@
 
 /* Header for snprintf(), since cygwin doesn't expose it on c89
  * programs. */
+#ifndef __APPLE__
 int snprintf(char *STR, size_t SIZE, const char *FORMAT, ...);
+#endif
 
 packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
 {
