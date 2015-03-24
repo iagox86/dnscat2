@@ -189,8 +189,7 @@ a ping through the DNS hierarchy.
 The client - which is typically run on a system after compromising it -
 is designed to be simple, stable, and portable. It's written in C and
 has as few library dependencies as possible, and compiles/runs natively
-on Linux, Windows, Cygwin, and FreeBSD (and presumably Mac OS X as well,
-but I haven't had the chance to test OS X support).
+on Linux, Windows, Cygwin, FreeBSD, and Mac OS X.
 
 The client is given the domain name on the commandline, for example:
 
