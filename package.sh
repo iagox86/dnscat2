@@ -7,7 +7,7 @@ if [ -z "$1" ]; then
 fi
 VERSION=$1
 
-FILES="bin/dnscat2-linux-x32 bin/dnscat2-linux-x64 bin/dnscat2-win32.exe bin/dnscat2-win64.exe"
+FILES="bin/dnscat2-linux-x32 bin/dnscat2-linux-x64 bin/dnscat2-win32.exe"
 
 echo "Expected files:"
 for i in $FILES; do
@@ -34,19 +34,35 @@ echo "Compressing files..."
 ZIPS=""
 for i in $FILES; do
   if [ -e "$i" ]; then
-    OUTNAME="dist/$(basename $i)-$VERSION"
+    OUTNAME="dist/$(basename $i .exe)-$VERSION"
 
-    tar -cjf $OUTNAME.tar.bz2 $i || die "Failed to create $i.tar.bz2"
-    ZIPS="$ZIPS $OUTNAME.tar.bz2"
+    echo "Compressing $i..."
 
-    tar -czf $OUTNAME.tgz     $i || die "Failed to create $i.tgz"
-    ZIPS="$ZIPS $OUTNAME.tgz"
+    if [[ $i == *"win"* ]]; then
+      zip -q $OUTNAME.zip $i || die "Failed to create $i.zip"
+      ZIPS="$ZIPS $OUTNAME.zip"
+    elif [[ $i == *"linux"* ]]; then
+      tar -cjf $OUTNAME.tar.bz2 $i || die "Failed to create $i.tar.bz2"
+      ZIPS="$ZIPS $OUTNAME.tar.bz2"
 
+      tar -czf $OUTNAME.tgz $i || die "Failed to create $i.tgz"
+      ZIPS="$ZIPS $OUTNAME.tgz"
+    else
+      zip -q $OUTNAME.zip $i || die "Failed to create $i.zip"
+      ZIPS="$ZIPS $OUTNAME.zip"
+
+      tar -cjf $OUTNAME.tar.bz2 $i || die "Failed to create $i.tar.bz2"
+      ZIPS="$ZIPS $OUTNAME.tar.bz2"
+
+      tar -czf $OUTNAME.tgz $i || die "Failed to create $i.tgz"
+      ZIPS="$ZIPS $OUTNAME.tgz"
+    fi
   else
     echo "Missing file warning: $i"
   fi
 done
 
+echo "Signing files..."
 for i in $ZIPS; do
   gpg -q -b $i || die "Failed to sign $i"
 done
