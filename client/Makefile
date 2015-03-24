@@ -48,6 +48,12 @@ uninstall: remove
 
 clean:
 	rm -f *.o *.exe *.stackdump dnscat tcpcat test driver_tcp driver_dns
+	rm -rf win32/Debug/
+	rm -rf win32/*.ncb
+	rm -rf win32/*.sln
+	rm -rf win32/*.suo
+	rm -rf win32/*.vcproj.*
+
 
 tcpcat: ${DNSCAT_TCP_OBJS}
 	-${CC} ${CFLAGS} -o tcpcat ${DNSCAT_TCP_OBJS}

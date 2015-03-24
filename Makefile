@@ -6,6 +6,8 @@ all:
 
 clean:
 	@cd client && make clean
+	@rm -rf dist/*
+
 
 dnscat:
 	@cd client && make dnscat
