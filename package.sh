@@ -43,6 +43,14 @@ echo "Compressing files..."
 ZIPS=""
 for i in $FILES; do
   if [ -e "$i" ]; then
+
+    echo "Making sure $i is the proper version..."
+    if ! fgrep -qra $VERSION $i; then
+      echo "WARNING: $i doesn't contain '$VERSION'"
+      echo "(press ENTER to continue)"
+      read
+    fi
+
     OUTNAME="dist/$(basename $i .exe)-$VERSION"
 
     echo "Compressing $i..."
