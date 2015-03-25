@@ -11,15 +11,43 @@ running! If you're interested in digging deeper into the protocol, how
 the code is structured, future plans, or other esoteric stuff, check
 out the doc/ folder.
 
+# Overview
+
+dnscat2 comes in two parts: the client and the server.
+
+The client is designed to be run on a compromised machine. It's written
+in C and has the minimum possible dependencies. It should run just about
+anywhere (if you find a system where it doesn't compile or run, please
+file a ticket, particularly if you can help me get access to said
+system).
+
+When you run the client, you typically specify a domain name. All
+requests will be sent to the local DNS server, which are then redirected
+to the authoritative DNS server for that domain (which you, presumably,
+have control of).
+
+If you don't have an authoritative DNS server, you can also use direct
+connections. They'll be faster, and still look like DNS traffic, but
+it's much more obvious in a packet log.
+
+The server is designed to be run on the authoritative server. It's in
+ruby, and depends on several different gems. When you run it, much like
+the client, you specify which domain(s) it should listen for. When it
+receives traffic for one of those domains, it attempts to establish a
+logical connection. If it receives other traffic, it ignores it by
+default, but can also forward it upstream.
+
+Detailed instructions for both parts are below.
+
 # Where to get it
 
-You can get the source from github here:
+Here are some important links:
 
-* https://github.com/iagox86/dnscat2
-
-And the latest binaries here:
-
-* https://downloads.skullsecurity.org/dnscat2/
+* [Sourcecode on Github](https://github.com/iagox86/dnscat2)
+* [Downloads](https://downloads.skullsecurity.org/dnscat2/) (you'll find [signed](https://downloads.skullsecurity.org/ron.pgp) Linux 32-bit, Linux 64-bit, Win32, and source code versions of the client, plus an archive of the server - keep in mind that that signature file is hosted on the same server as the files, so if you're worried, please verify :) )
+* [User documentation](https://github.com/iagox86/dnscat2/blob/master/README.md) (this file)
+* [Protocol](https://github.com/iagox86/dnscat2/blob/master/doc/protocol.md) and [command protocol](https://github.com/iagox86/dnscat2/blob/master/doc/command_protocol.md) documents (as a user, you probably don't need these)
+* [Issue tracker](https://github.com/iagox86/dnscat2/issues) (you can also email me issues, just put my first name (ron) in front of my domain name (skullsecurity.net))
 
 # How to play
 
@@ -48,8 +76,8 @@ server, but I use GoDaddy at the moment and it works fine!
 ### Client
 
 Compiling the client should be pretty straight forward - all you should
-need to compile is make/gcc (for Linux) or Microsoft Visual Studio (for
-Windows). Here are the commands on Linux:
+need to compile is make/gcc (for Linux) or either Cygwin or Microsoft
+Visual Studio (for Windows). Here are the commands on Linux:
 
     $ git clone https://github.com/iagox86/dnscat2.git
     $ cd dnscat2/client/
