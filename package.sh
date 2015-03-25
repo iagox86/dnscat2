@@ -7,6 +7,15 @@ if [ -z "$1" ]; then
 fi
 VERSION=$1
 
+VERSION_FILES="client/dnscat.c server/dnscat2.rb"
+for i in $VERSION_FILES; do
+  if ! fgrep -q $VERSION $i; then
+    echo "WARNING: $i doesn't contain '$VERSION'"
+    echo "(press ENTER to continue)"
+    read
+  fi
+done
+
 FILES="bin/dnscat2-linux-x32 bin/dnscat2-linux-x64 bin/dnscat2-win32.exe"
 
 echo "Expected files:"

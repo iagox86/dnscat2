@@ -23,6 +23,10 @@ require 'ui'
 # Option parsing
 require 'trollop'
 
+# version info
+NAME = "dnscat2"
+VERSION = "0.01"
+
 # Capture log messages during start up - after creating a command session, all
 # messages go to it, instead
 Log.logging(nil) do |msg|
@@ -31,6 +35,11 @@ end
 
 # Options
 opts = Trollop::options do
+  version(NAME + " v" + VERSION + " (server)")
+
+  opt :version,   "Get the dnscat version",
+    :type => :boolean, :default => false
+
   opt :dns,       "Start a DNS server",
     :type => :boolean, :default => true
   opt :dnshost,   "The DNS ip address to listen on",

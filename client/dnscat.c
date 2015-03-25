@@ -34,7 +34,8 @@
 #include "driver_ping.h"
 
 /* Default options */
-#define VERSION "0.00"
+#define NAME    "dnscat2"
+#define VERSION "0.01"
 
 /* Default options */
 #define DEFAULT_DNS_HOST NULL
@@ -113,6 +114,7 @@ void usage(char *name, char *message)
 
 "General options:\n"
 " --help -h               This page\n"
+" --version               Ge the version\n"
 " --name -n <name>        Give this connection a name, which will show up in\n"
 "                         the server list\n"
 " --download <filename>   Request the given file off the server\n"
@@ -157,6 +159,7 @@ int main(int argc, char *argv[])
     /* General options */
     {"help",    no_argument,       0, 0}, /* Help */
     {"h",       no_argument,       0, 0},
+    {"version", no_argument,       0, 0}, /* Version */
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
     {"download",required_argument, 0, 0}, /* Download */
@@ -250,6 +253,11 @@ int main(int argc, char *argv[])
         if(!strcmp(option_name, "help") || !strcmp(option_name, "h"))
         {
           usage(argv[0], "--help requested");
+        }
+        if(!strcmp(option_name, "version"))
+        {
+          printf(NAME" v"VERSION" (client)\n");
+          exit(0);
         }
         else if(!strcmp(option_name, "name") || !strcmp(option_name, "n"))
         {
