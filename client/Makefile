@@ -49,6 +49,7 @@ uninstall: remove
 clean:
 	rm -f *.o *.exe *.stackdump dnscat tcpcat test driver_tcp driver_dns
 	rm -rf win32/Debug/
+	rm -rf win32/Release/
 	rm -rf win32/*.ncb
 	rm -rf win32/*.sln
 	rm -rf win32/*.suo
