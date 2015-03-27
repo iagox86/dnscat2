@@ -1,6 +1,8 @@
 /* driver_dns.c
  * Created July/2013
  * By Ron Bowes
+ *
+ * See LICENSE.md
  */
 #include <assert.h>
 #include <ctype.h>

@@ -1,6 +1,8 @@
 # session_handler.rb
 # By Ron Bowes
 # Created May, 2014
+#
+# See LICENSE.md
 
 module UiHandler
   def initialize_ui_handler()

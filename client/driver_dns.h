@@ -1,3 +1,9 @@
+/* driver_dns.h
+ * By Ron Bowes
+ *
+ * See LICENSE.md
+ */
+
 #ifndef __DRIVER_DNS_H__
 #define __DRIVER_DNS_H__
 

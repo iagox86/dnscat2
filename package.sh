@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# packet.sh
+# By Ron
+#
+# See LICENSE.md
+
 die() { echo "$@" 1>&2 ; exit 1; }
 
 if [ -z "$1" ]; then

@@ -1,3 +1,8 @@
+# Gemfile
+# By Ron Bowes
+#
+# See LICENSE.md
+
 source 'https://rubygems.org'
 
 gem 'rubydns'  # dns

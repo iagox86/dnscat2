@@ -2,6 +2,8 @@
  * By Ron Bowes
  * Created March, 2013
  *
+ * See LICENSE.md
+ *
  * A class for creating and parsing dnscat packets.
  */
 #ifndef __PACKET_H__

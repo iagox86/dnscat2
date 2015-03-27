@@ -1,3 +1,9 @@
+/* driver_console.h
+ * By Ron Bowes
+ *
+ * See LICENSE.md
+ */
+
 #ifndef __DRIVER_CONSOLE_H__
 #define __DRIVER_CONSOLE_H__
 

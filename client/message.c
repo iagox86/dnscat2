@@ -1,3 +1,9 @@
+/* message.c
+ * By Ron Bowes
+ *
+ * See LICENSE.md
+ */
+
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>

@@ -2,6 +2,8 @@
  * By Ron Bowes
  * Created May, 2014
  *
+ * See LICENSE.md
+ *
  * A class for handling streams of command packets.
  */
 #ifndef __COMMAND_PACKET_STREAM_H__

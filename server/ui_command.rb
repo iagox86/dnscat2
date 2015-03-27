@@ -1,6 +1,8 @@
 # ui_command.rb
 # By Ron Bowes
 # Created July 4, 2013
+#
+# See LICENSE.md
 
 require 'readline'
 

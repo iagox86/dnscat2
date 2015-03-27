@@ -2,6 +2,8 @@
 # ui.rb
 # Created June 20, 2013
 # By Ron Bowes
+#
+# See LICENSE.md
 ##
 
 require 'trollop' # We use this to parse commands

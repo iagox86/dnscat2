@@ -1,3 +1,9 @@
+/* driver_command.h
+ * By Ron Bowes
+ *
+ * See LICENSE.md
+ */
+
 #ifndef __DRIVER_command_H__
 #define __DRIVER_command_H__
 

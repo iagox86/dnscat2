@@ -1,3 +1,9 @@
+/* message.h
+ * By Ron Bowes
+ *
+ * See LICENSE.md
+ */
+
 #ifndef __MESSAGE_H__
 #define __MESSAGE_H__
 

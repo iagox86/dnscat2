@@ -1,3 +1,9 @@
+/* driver_ping.h
+ * By Ron Bowes
+ *
+ * See LICENSE.md
+ */
+
 #ifndef __DRIVER_PING_H__
 #define __DRIVER_PING_H__
 

@@ -1,6 +1,8 @@
 # ui_session_interactive.rb
 # By Ron Bowes
 # Created July 4, 2013
+#
+# See LICENSE.md
 
 require 'ui_interface_with_id'
 

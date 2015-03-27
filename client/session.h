@@ -1,6 +1,8 @@
 /* session.h
  * By Ron Bowes
  * March, 2013
+ *
+ * See LICENSE.md
  */
 
 #ifndef __SESSION_H__

@@ -1,6 +1,8 @@
 /* options_tcp.c
  * Created March/2013
  * By Ron Bowes
+ *
+ * See LICENSE.md
  */
 #include <assert.h>
 #include <errno.h>

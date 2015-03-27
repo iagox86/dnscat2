@@ -1,3 +1,9 @@
+/* log.h
+ * By Ron Bowes
+ *
+ * See LICENSE.md
+ */
+
 #ifndef __LOG_H__
 #define __LOG_H__
 

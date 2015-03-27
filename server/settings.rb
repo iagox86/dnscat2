@@ -1,6 +1,8 @@
 # settings.rb
 # By Ron Bowes
 # February 8, 2014
+#
+# See LICENSE.md
 
 require 'log'
 

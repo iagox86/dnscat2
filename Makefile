@@ -1,3 +1,8 @@
+# Makefile
+# By Ron
+#
+# See LICENSE.md
+
 all:
 	@cd client && make
 	@echo "Compile complete!"

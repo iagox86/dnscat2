@@ -1,6 +1,8 @@
 /* dnscat.c
  * Created March/2013
  * By Ron Bowes
+ *
+ * See LICENSE.md
  */
 #include <assert.h>
 #include <ctype.h>
