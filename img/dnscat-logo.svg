@@ -9,13 +9,16 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="20.91498mm"
-   height="20.780636mm"
-   viewBox="0 0 74.108198 73.632174"
+   width="64"
+   height="64"
+   viewBox="0 0 64.000002 63.999999"
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="drawing.svg">
+   sodipodi:docname="dnscat-logo.svg"
+   inkscape:export-filename="C:\Users\Ron\Desktop\dnscat2\img\dnscat-logo.png"
+   inkscape:export-xdpi="90"
+   inkscape:export-ydpi="90">
   <defs
      id="defs4" />
   <sodipodi:namedview
@@ -25,21 +28,22 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="8.6375286"
-     inkscape:cx="37.054093"
-     inkscape:cy="36.816088"
+     inkscape:zoom="5.6568543"
+     inkscape:cx="67.432193"
+     inkscape:cy="-1.4927901"
      inkscape:document-units="px"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g3405"
      showgrid="false"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:window-width="1536"
-     inkscape:window-height="803"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1" />
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     inkscape:window-x="-4"
+     inkscape:window-y="-4"
+     inkscape:window-maximized="1"
+     units="px" />
   <metadata
      id="metadata7">
     <rdf:RDF>
@@ -56,11 +60,11 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-50.176175,-46.617821)">
+     transform="translate(-50.176175,-56.249991)">
     <g
        id="g3405">
       <g
-         transform="matrix(0.74074072,0,0,0.74074072,50.210289,38.582368)"
+         transform="matrix(0.64,0,0,0.81731579,50.210289,47.385178)"
          id="g3337">
         <g
            id="g3339">
@@ -77,19 +81,8 @@
       <path
          style="fill:#ffffff"
          id="path3361"
-         d="m 102.17429,78.157393 c -2.73235,0 -4.833019,2.060402 -4.833019,4.792759 l 0,14.857553 c 0,1.59455 -0.242031,1.91711 -1.836586,1.91711 l -0.623535,0 c -0.274623,-6.27852 -1.51547,-13.147506 -4.7779,-16.312165 2.326881,-1.434475 3.883093,-3.9986 3.883093,-6.932721 0,-2.939883 -1.562922,-5.508803 -3.897477,-6.941356 l -1.37456,-5.040546 -1.100418,4.034063 c -0.57178,-0.127483 -1.165126,-0.199859 -1.775242,-0.199859 -0.610117,0 -1.203462,0.07238 -1.775236,0.199859 l -1.100417,-4.034063 -1.374568,5.040546 c -2.334548,1.432553 -3.89747,4.001473 -3.89747,6.941356 0,2.934121 1.556206,5.498246 3.883094,6.932721 -3.770945,3.658311 -4.841645,12.268035 -4.841645,19.18781 l 14.938077,0 3.274413,0 0.559791,0 c 3.180475,0 4.712245,-1.61228 4.712245,-4.792755 l 0,-14.857553 c 0,-1.128699 0.82867,-1.917109 1.95736,-1.917109 0.79416,0 1.43783,-0.643664 1.43783,-1.437826 0,-0.794162 -0.64367,-1.437824 -1.43783,-1.437824 z"
+         d="m 103.53767,88.255175 c -3.579714,0 -6.331824,2.586285 -6.331824,6.01603 l 0,18.649715 c 0,2.00154 -0.31709,2.40642 -2.40613,2.40642 l -0.8169,0 c -0.35979,-7.881 -1.98544,-16.503209 -6.25959,-20.475596 3.04848,-1.800596 5.08729,-5.019171 5.08729,-8.702177 0,-3.690239 -2.0476,-6.914832 -5.10613,-8.71302 l -1.80083,-6.327061 -1.44167,5.06369 c -0.74909,-0.160021 -1.52644,-0.25087 -2.32577,-0.25087 -0.79932,0 -1.576665,0.09085 -2.325753,0.25087 l -1.441669,-5.06369 -1.800838,6.327061 c -3.058518,1.798188 -5.106121,5.022781 -5.106121,8.71302 0,3.683006 2.038804,6.901581 5.087287,8.702177 -4.940359,4.592028 -6.343096,15.399276 -6.343096,24.085196 l 19.57055,0 4.28985,0 0.73339,0 c 4.16677,0 6.173594,-2.02379 6.173594,-6.01602 l 0,-18.649715 c 0,-1.41678 1.08565,-2.406418 2.56436,-2.406418 1.04044,0 1.88372,-0.807949 1.88372,-1.804807 0,-0.996859 -0.84328,-1.804805 -1.88372,-1.804805 z"
          inkscape:connector-curvature="0" />
-      <text
-         sodipodi:linespacing="125%"
-         id="text3386"
-         y="120.06644"
-         x="48.634296"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:18.79623795px;line-height:125%;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         xml:space="preserve"><tspan
-           y="120.06644"
-           x="48.634296"
-           id="tspan3388"
-           sodipodi:role="line">DNSCAT</tspan></text>
     </g>
   </g>
 </svg>
