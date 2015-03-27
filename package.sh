@@ -46,7 +46,11 @@ mkdir dist/ >/dev/null 2>&1
 
 echo "Compressing files..."
 ZIPS=""
+
+cd bin
 for i in $FILES; do
+  i=`basename $i`
+
   if [ -e "$i" ]; then
 
     echo "Making sure $i is the proper version..."
@@ -61,28 +65,31 @@ for i in $FILES; do
     echo "Compressing $i..."
 
     if [[ $i == *"win"* ]]; then
-      zip -q $OUTNAME.zip $i || die "Failed to create $i.zip"
+      zip -qr ../$OUTNAME.zip $i || die "Failed to create $i.zip"
       ZIPS="$ZIPS $OUTNAME.zip"
     elif [[ $i == *"linux"* ]]; then
-      tar -cjf $OUTNAME.tar.bz2 $i || die "Failed to create $i.tar.bz2"
+      tar -cjf ../$OUTNAME.tar.bz2 $i || die "Failed to create $i.tar.bz2"
       ZIPS="$ZIPS $OUTNAME.tar.bz2"
 
-      tar -czf $OUTNAME.tgz $i || die "Failed to create $i.tgz"
+      tar -czf ../$OUTNAME.tgz $i || die "Failed to create $i.tgz"
       ZIPS="$ZIPS $OUTNAME.tgz"
     else
-      zip -q $OUTNAME.zip $i || die "Failed to create $i.zip"
+      zip -qr ../$OUTNAME.zip $i || die "Failed to create $i.zip"
       ZIPS="$ZIPS $OUTNAME.zip"
 
-      tar -cjf $OUTNAME.tar.bz2 $i || die "Failed to create $i.tar.bz2"
+      tar -cjf ../$OUTNAME.tar.bz2 $i || die "Failed to create $i.tar.bz2"
       ZIPS="$ZIPS $OUTNAME.tar.bz2"
 
-      tar -czf $OUTNAME.tgz $i || die "Failed to create $i.tgz"
+      tar -czf ../$OUTNAME.tgz $i || die "Failed to create $i.tgz"
       ZIPS="$ZIPS $OUTNAME.tgz"
     fi
   else
     echo "Missing file warning: $i"
   fi
+
 done
+
+cd ..
 
 echo "Signing files..."
 for i in $ZIPS; do
