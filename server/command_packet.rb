@@ -3,7 +3,7 @@
 # Created May, 2014
 # By Ron Bowes
 #
-# See: LICENSE.txt
+# See: LICENSE.md
 #
 ##
 

@@ -3,7 +3,7 @@
 # Created March, 2013
 # By Ron Bowes
 #
-# See: LICENSE.txt
+# See: LICENSE.md
 #
 # A TCP wrapper for the dnscat2 protocol (mostly for testing)
 ##

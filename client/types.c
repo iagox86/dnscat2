@@ -2,7 +2,7 @@
  * By Ron Bowes
  * Created September 1, 2008
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  */
 
 #include <ctype.h>

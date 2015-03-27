@@ -3,7 +3,7 @@
 # Created March, 2013
 # By Ron Bowes
 #
-# See: LICENSE.txt
+# See: LICENSE.md
 #
 # Self tests for dnscat2_server.rb - implements a fake "client" that's
 # basically just a class.

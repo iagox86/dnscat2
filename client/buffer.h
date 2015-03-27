@@ -2,7 +2,7 @@
  * By Ron
  * Created August, 2008
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  *
  * This is a generic class for buffering (marshalling) data that in many ways
  * dates back to my days as a Battle.net developers. It gives programmers an

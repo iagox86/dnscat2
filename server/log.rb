@@ -3,7 +3,7 @@
 # Created March, 2013
 # By Ron Bowes
 #
-# See: LICENSE.txt
+# See: LICENSE.md
 #
 # A very simple logging class. May improve this later, but for now it can be
 # as simple as necessary.

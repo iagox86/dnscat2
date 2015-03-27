@@ -2,7 +2,7 @@
  * By Ron
  * Created January, 2010
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  *
  * This is a message-passing framework created by and used for dnscat2.
  * Essentially, one or more modules can subscribe to a particular

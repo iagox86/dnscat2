@@ -3,7 +3,7 @@
 # By Ron Bowes
 # Created May, 2014
 #
-# See LICENSE.txt
+# See LICENSE.md
 ##
 
 require 'log'

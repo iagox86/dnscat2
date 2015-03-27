@@ -3,7 +3,7 @@
 # Created March, 2013
 # By Ron Bowes
 #
-# See: LICENSE.txt
+# See: LICENSE.md
 #
 # Implements basically the full Dnscat2 protocol. Doesn't care about
 # lower-level protocols.

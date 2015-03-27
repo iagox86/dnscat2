@@ -2,7 +2,7 @@
  * By Ron Bowes
  * Created December, 2009
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  *
  * This module implements a reasonably functional DNS library that can build or
  * parse DNS packets in a platform-agnostic way. It implements a number of

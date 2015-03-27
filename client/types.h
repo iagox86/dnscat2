@@ -2,7 +2,7 @@
  * By Ron Bowes
  * Created September 1, 2008
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  *
  * Defines (or includes libraries that define) various required datatypes.
  *

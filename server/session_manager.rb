@@ -3,7 +3,7 @@
 # Created April, 2014
 # By Ron Bowes
 #
-# See: LICENSE.txt
+# See: LICENSE.md
 #
 # This keeps track of all the currently active sessions.
 ##

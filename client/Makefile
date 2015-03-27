@@ -2,7 +2,7 @@
 # By Ron Bowes
 # Created January, 2013
 #
-# (See LICENSE.txt)
+# (See LICENSE.md)
 #
 # Should work for Linux and BSD make.
 

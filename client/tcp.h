@@ -2,7 +2,7 @@
  * By Ron
  * Created August, 2008
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  *
  * Platform-independent module for creating/sending TCP sockets for IPv4 TCP
  * connections.

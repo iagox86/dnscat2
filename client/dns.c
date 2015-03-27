@@ -2,7 +2,7 @@
  * By Ron Bowes
  * Created December, 2009
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  */
 
 #include <assert.h>

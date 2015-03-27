@@ -2,7 +2,7 @@
  * By Ron Bowes
  * Created August, 2008
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  *
  * This module implements a simple interface to the select() function that
  * works across Windows, Linux, BSD, and Mac. Any (reasonable) number of

@@ -2,7 +2,7 @@
  * By Ron
  * Created August, 2008
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  */
 
 #include <stdio.h>

@@ -2,7 +2,7 @@
  * By Ron
  * Created January, 2010
  *
- * (See LICENSE.txt)
+ * (See LICENSE.md)
  *
  * Implements functions for managing memory. Optionally (based on defining
  * TEST_MEMORY) keeps track of all memory allocated and prints out a summary at
