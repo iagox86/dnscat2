@@ -334,8 +334,8 @@ static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length
   dns_add_question(dns, (char*)encoded_bytes, driver->type, _DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
-  LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_host, driver->dns_port);
-  udp_send(driver->s, driver->dns_host, driver->dns_port, dns_bytes, dns_length);
+  LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_server, driver->dns_port);
+  udp_send(driver->s, driver->dns_server, driver->dns_port, dns_bytes, dns_length);
 
   safe_free(dns_bytes);
   safe_free(encoded_bytes);
@@ -358,13 +358,13 @@ static void handle_message(message_t *message, void *d)
   }
 }
 
-driver_dns_t *driver_dns_create(select_group_t *group, char *domain, dns_type_t type)
+driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host, uint16_t port, dns_type_t type, char *server)
 {
   driver_dns_t *driver_dns = (driver_dns_t*) safe_malloc(sizeof(driver_dns_t));
 
   /* Create the actual DNS socket. */
   LOG_INFO("Creating UDP (DNS) socket");
-  driver_dns->s = udp_create_socket(0, "0.0.0.0");
+  driver_dns->s = udp_create_socket(0, host);
   if(driver_dns->s == -1)
   {
     LOG_FATAL("Couldn't create UDP socket!");
@@ -372,8 +372,10 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain, dns_type_t 
   }
 
   /* Set the domain and stuff. */
-  driver_dns->domain   = domain;
-  driver_dns->type     = type;
+  driver_dns->domain     = domain;
+  driver_dns->type       = type;
+  driver_dns->dns_port   = port;
+  driver_dns->dns_server = server;
 
   /* If it succeeds, add it to the select_group */
   select_group_add_socket(group, driver_dns->s, SOCKET_TYPE_STREAM, driver_dns);
@@ -391,7 +393,5 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain, dns_type_t 
 
 void driver_dns_destroy(driver_dns_t *driver)
 {
-  if(driver->dns_host)
-    safe_free(driver->dns_host);
   safe_free(driver);
 }

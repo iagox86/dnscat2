@@ -37,7 +37,7 @@
 
 /* Default options */
 #define NAME    "dnscat2"
-#define VERSION "0.01"
+#define VERSION "0.02"
 
 /* Default options */
 #define DEFAULT_DNS_HOST NULL
@@ -129,17 +129,37 @@ void usage(char *name, char *message)
 " --listen -l <port>      Listen on the given port and link each connection to\n"
 "                         a new stream\n"
 "\n"
-"DNS-specific options:\n"
-" --dns <domain>          Enable DNS mode with the given domain\n"
-" --host <host>           The DNS server [default: %s]\n"
-" --port <port>           The DNS port [default: 53]\n"
-" --type <port>           The type of DNS record to use (" DNS_TYPES ")\n"
-"\n"
-
 "Debug options:\n"
 " -d                      Display more debug info (can be used multiple times)\n"
 " -q                      Display less debug info (can be used multiple times)\n"
 " --packet-trace          Display incoming/outgoing dnscat2 packets\n"
+"\n"
+"Tunnel driver options and possible <options>:\n"
+" --dns <options>         Enable DNS mode with the given domain\n"
+"   domain=<domain>       The domain to make requests for\n"
+"   host=<hostname>       The host to listen on (default: 0.0.0.0)\n"
+"   port=<port>           The port to listen on (default: 53)\n"
+"   type=<type>           The type of DNS requests to use, can use\n"
+"                         multiple comma-separated (options: TXT, MX,\n"
+"                         CNAME, A, AAAA) (default: TXT)\n"
+"   server=<server>       The upstream server for making DNS requests\n"
+"                         (default: %s)\n"
+" --tcp <options>         Enable TCP mode\n"
+"   port=<port>           The port to listen on (default: 1234)\n"
+"   host=<hostname>       The host to listen on (default: 0.0.0.0)\n"
+"\n"
+"Examples:\n"
+" --dns=domain=skullseclabs.org\n"
+" --dns=domain=skullseclabs.org:port=53\n"
+" --dns=domain=skullseclabs.org:port=53:type=A,CNAME\n"
+" --tcp=port=1234\n"
+" --tcp=port=1234:host=127.0.0.1\n"
+"\n"
+"By default, a --dns listener on port 53 is enabled if a hostname is\n"
+"passed on the commandline\n"
+"\n"
+"Tunnel driver options are semicolon-separated name=value pairs, with the\n"
+"following possibilities (depending on the protocol):\n"
 "\n"
 "ERROR: %s\n"
 "\n"
@@ -151,6 +171,89 @@ void usage(char *name, char *message)
 void too_many_inputs(char *name)
 {
   usage(name, "More than one of --exec, --console, --listen, and --ping can't be set!");
+}
+
+driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
+{
+  driver_dns_t *driver = NULL;
+
+  if(!server)
+    server = dns_get_system();
+
+  if(!server)
+  {
+    LOG_FATAL("Couldn't determine the system DNS server! Please manually set");
+    LOG_FATAL("the dns server with --dns=server=8.8.8.8");
+    LOG_FATAL("");
+    LOG_FATAL("You can also fix this by creating a proper /etc/resolv.conf\n");
+    exit(1);
+  }
+
+  printf("Creating DNS driver:\n");
+  printf(" domain = %s\n", domain);
+  printf(" host   = %s\n", host);
+  printf(" port   = %u\n", port);
+  printf(" type   = %s\n", type);
+  printf(" server = %s\n", server);
+
+  driver = driver_dns_create(group, domain, host, port, _DNS_TYPE_TEXT, server);
+
+  return driver;
+}
+
+driver_dns_t *create_dns_driver(select_group_t *group, char *options)
+{
+  char     *domain = NULL;
+  char     *host = "0.0.0.0";
+  uint16_t  port = 53;
+  char     *type = "TXT";
+  char     *server = dns_get_system();
+
+  char *token = NULL;
+
+  for(token = strtok(options, ":"); token && *token; token = strtok(NULL, ":"))
+  {
+    char *name  = token;
+    char *value = strchr(token, '=');
+
+    if(value)
+    {
+      *value = '\0';
+      value++;
+
+      if(!strcmp(name, "domain"))
+        domain = value;
+      else if(!strcmp(name, "host"))
+        host = value;
+      else if(!strcmp(name, "port"))
+        port = atoi(value);
+      else if(!strcmp(name, "type"))
+        type = value;
+      else if(!strcmp(name, "server"))
+        server = value;
+      else
+      {
+        printf("Unknown --dns option: %s\n", name);
+        exit(1);
+      }
+    }
+    else
+    {
+      printf("ERROR parsing --dns: it has to be colon-separated name=value pairs!\n");
+      exit(1);
+    }
+  }
+
+  return create_dns_driver_internal(group, domain, host, port, type, server);
+}
+
+void create_tcp_driver(char *options)
+{
+  char *host = "0.0.0.0";
+  uint16_t port = 1234;
+
+  printf(" host   = %s\n", host);
+  printf(" port   = %u\n", port);
 }
 
 int main(int argc, char *argv[])
@@ -181,15 +284,9 @@ int main(int argc, char *argv[])
     {"listen",  required_argument, 0, 0}, /* Enable listener */
     {"l",       required_argument, 0, 0},
 
-    /* DNS-specific options */
-#if 0
-    {"dns",        required_argument, 0, 0}, /* Enable DNS (default) */
-#endif
-    {"dnshost",    required_argument, 0, 0}, /* DNS server */
-    {"host",       required_argument, 0, 0}, /* (alias) */
-    {"dnsport",    required_argument, 0, 0}, /* DNS port */
-    {"port",       required_argument, 0, 0}, /* (alias) */
-    {"type",       required_argument, 0, 0},
+    /* Tunnel drivers */
+    {"dns",        optional_argument, 0, 0}, /* Enable DNS */
+    {"tcp",        optional_argument, 0, 0}, /* Enable DNS */
 
     /* Debug options */
     {"d",            no_argument, 0, 0}, /* More debug */
@@ -199,12 +296,6 @@ int main(int argc, char *argv[])
     /* Sentry */
     {0,              0,                 0, 0}  /* End */
   };
-
-  /* Define DNS options so we can set them later. */
-  struct {
-    char     *host;
-    uint16_t  port;
-  } dns_options = { DEFAULT_DNS_HOST, DEFAULT_DNS_PORT };
 
   char              c;
   int               option_index;
@@ -216,7 +307,8 @@ int main(int argc, char *argv[])
   char             *download = NULL;
   uint32_t          chunk    = -1;
 
-  dns_type_t        dns_type = _DNS_TYPE_TEXT; /* TODO: Is this the best default? */
+  /* TODO: Fix types */
+  /*dns_type_t        dns_type = _DNS_TYPE_TEXT; */ /* TODO: Is this the best default? */
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
@@ -320,39 +412,16 @@ int main(int argc, char *argv[])
           input_type = TYPE_LISTENER;
         }
 
-        /* DNS-specific options */
-#if 0
+        /* Tunnel driver options */
         else if(!strcmp(option_name, "dns"))
         {
           output_set = TRUE;
-          driver_dns = driver_dns_create(group, optarg);
+          driver_dns = create_dns_driver(group, optarg);
         }
-#endif
-        else if(!strcmp(option_name, "dnshost") || !strcmp(option_name, "host"))
+        else if(!strcmp(option_name, "tcp"))
         {
-          dns_options.host = optarg;
-        }
-        else if(!strcmp(option_name, "dnsport") || !strcmp(option_name, "port"))
-        {
-          dns_options.port = atoi(optarg);
-        }
-        else if(!strcmp(option_name, "type"))
-        {
-          if(!strcmp(optarg, "TXT") || !strcmp(optarg, "txt") || !strcmp(optarg, "TEXT") || !strcmp(optarg, "text"))
-            dns_type = _DNS_TYPE_TEXT;
-          else if(!strcmp(optarg, "CNAME") || !strcmp(optarg, "cname"))
-            dns_type = _DNS_TYPE_CNAME;
-          else if(!strcmp(optarg, "MX") || !strcmp(optarg, "mx"))
-            dns_type = _DNS_TYPE_MX;
-          else if(!strcmp(optarg, "A") || !strcmp(optarg, "a"))
-            dns_type = _DNS_TYPE_A;
-#ifndef WIN32
-          else if(!strcmp(optarg, "AAAA") || !strcmp(optarg, "aaaa"))
-            dns_type = _DNS_TYPE_AAAA;
-#endif
-          else
-            usage(argv[0], "Unknown DNS type! Valid types are: " DNS_TYPES);
-
+          output_set = TRUE;
+          create_tcp_driver(optarg);
         }
 
         /* Debug options */
@@ -444,39 +513,14 @@ int main(int argc, char *argv[])
     /* Make sure they gave a domain. */
     if(optind >= argc)
     {
-      LOG_WARNING("Starting DNS driver without a domain! You'll probably need to use --host to specify a direct connection to your server.");
-      driver_dns = driver_dns_create(group, NULL, dns_type);
+      LOG_WARNING("Starting DNS driver without a domain! This probably won't work;\n");
+      LOG_WARNING("You'll probably need to use --dns .");
+      driver_dns = create_dns_driver_internal(group, NULL, "0.0.0.0", 53, "TXT", NULL);
     }
     else
     {
-      driver_dns = driver_dns_create(group, argv[optind], dns_type);
+      driver_dns = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, "TXT", NULL);
     }
-  }
-
-  if(driver_dns)
-  {
-    if(dns_options.host == DEFAULT_DNS_HOST)
-      driver_dns->dns_host = dns_get_system();
-    else
-      driver_dns->dns_host = safe_strdup(dns_options.host);
-
-    if(!driver_dns->dns_host)
-    {
-      LOG_FATAL("Couldn't determine the system DNS server! Please use --host to set one.");
-      LOG_FATAL("You can also create a proper /etc/resolv.conf file to fix this");
-      exit(1);
-    }
-
-    driver_dns->dns_port = dns_options.port;
-    if(driver_dns->domain)
-      LOG_WARNING("OUTPUT: DNS tunnel to %s via %s:%d", driver_dns->domain, driver_dns->dns_host, driver_dns->dns_port);
-    else
-      LOG_WARNING("OUTPUT: DNS tunnel to %s:%d (no domain set! This probably needs to be the exact server where the dnscat2 server is running!)", driver_dns->dns_host, driver_dns->dns_port);
-  }
-  else
-  {
-    LOG_FATAL("OUTPUT: Ended up with an unknown output driver!");
-    exit(1);
   }
 
   /* Be sure we clean up at exit. */
