@@ -11,10 +11,10 @@
 
 #include <stdlib.h>
 
-#include "types.h"
+#include "libs/types.h"
 
 #ifdef WIN32
-#include "pstdint.h"
+#include "libs/pstdint.h"
 #else
 #include <stdint.h>
 #endif

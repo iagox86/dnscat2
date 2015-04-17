@@ -8,10 +8,10 @@
 #ifndef __SESSION_H__
 #define __SESSION_H__
 
-#include "../drivers/driver.h"
-#include "../libs/buffer.h"
-#include "../libs/memory.h"
-#include "../libs/types.h"
+#include "drivers/driver.h"
+#include "libs/buffer.h"
+#include "libs/memory.h"
+#include "libs/types.h"
 
 typedef enum
 {
@@ -37,9 +37,11 @@ typedef struct
 
   time_t          last_transmit;
 
-  options_t       options;
+  uint16_t       options; /* TODO: Make options work right again. */
 
   driver_t       *driver;
+
+  buffer_t       *outgoing_buffer;
 } session_t;
 
 session_t *session_create_console(select_group_t *group, char *name);

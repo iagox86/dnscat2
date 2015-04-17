@@ -9,14 +9,14 @@
 #include <stdlib.h>
 
 #ifdef WIN32
-#include "pstdint.h"
+#include "libs/pstdint.h"
 #else
 #include <stdint.h>
 #endif
 
-#include "../libs/buffer.h"
-#include "../libs/log.h"
-#include "../libs/memory.h"
+#include "libs/buffer.h"
+#include "libs/log.h"
+#include "libs/memory.h"
 
 #include "packet.h"
 

@@ -26,6 +26,7 @@ typedef struct
 
 driver_t *driver_create(driver_type_t type, void *real_driver);
 void      driver_destroy(driver_t *driver);
+void      driver_close(driver_t *driver);
 void      driver_data_received(driver_t *driver, uint8_t *data, size_t length);
 uint8_t  *driver_get_outgoing(driver_t *driver, size_t *length, size_t max_length);
 

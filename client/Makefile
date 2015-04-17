@@ -10,30 +10,24 @@ CC?=gcc
 COMMON_CFLAGS=--std=c89
 #DEBUG_CFLAGS=-g -DTESTMEMORY -Werror
 DEBUG_CFLAGS=-g -Werror
-INCLUDES?=-I controller/ -I drivers/ -I libs/ -I tunnel_drivers/ -I tunnel_drivers/dns/ 
-CFLAGS?=$(INCLUDES) -Wall -D_BSD_SOURCE -O2 -fstack-protector-all -Wformat -Wformat-security ${DEBUG_CFLAGS}
+CFLAGS?=-I. -Wall -D_BSD_SOURCE -O2 -fstack-protector-all -Wformat -Wformat-security ${DEBUG_CFLAGS}
 LIBS=-pie -Wl,-z,relro,-z,now
 CFLAGS+=$(COMMON_CFLAGS)
 
-OBJS=controller/command_packet.o \
-		 controller/command_packet_stream.o \
-		 controller/packet.o \
+OBJS=controller/packet.o \
 		 controller/session.o \
-		 drivers/driver_command.o \
+		 controller/controller.o \
+		 drivers/driver.o \
 		 drivers/driver_console.o \
-		 drivers/driver_exec.o \
-		 drivers/driver_listener.o \
-		 drivers/driver_ping.o \
 		 libs/buffer.o \
+		 libs/dns.o \
 		 libs/log.o \
 		 libs/memory.o \
-		 libs/message.o \
 		 libs/select_group.o \
 		 libs/tcp.o \
 		 libs/types.o \
 		 libs/udp.o \
-		 tunnel_drivers/dns/dns.o \
-		 tunnel_drivers/dns/driver_dns.o \
+		 tunnel_drivers/driver_dns.o \
 
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 

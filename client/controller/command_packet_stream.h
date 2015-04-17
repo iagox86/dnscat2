@@ -11,9 +11,9 @@
 
 #include <stdlib.h>
 
-#include "buffer.h"
-#include "command_packet.h"
-#include "types.h"
+#include "libs/buffer.h"
+#include "libs/command_packet.h"
+#include "libs/types.h"
 
 #ifdef WIN32
 #include "pstdint.h"

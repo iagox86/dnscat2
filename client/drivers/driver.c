@@ -13,8 +13,8 @@
 #include <unistd.h>
 #endif
 
+#include "libs/memory.h"
 #include "driver_console.h"
-#include "../libs/memory.h"
 
 #include "driver.h"
 
@@ -32,6 +32,8 @@ driver_t *driver_create(driver_type_t type, void *real_driver)
       exit(1);
       break;
   }
+
+  return driver;
 }
 
 void driver_destroy(driver_t *driver)
@@ -40,6 +42,23 @@ void driver_destroy(driver_t *driver)
   {
     case DRIVER_TYPE_CONSOLE:
       return driver_console_destroy(driver->real_driver.console);
+      break;
+
+    default:
+      printf("UNKNOWN DRIVER TYPE!\n");
+      exit(1);
+      break;
+  }
+
+  safe_free(driver);
+}
+
+void driver_close(driver_t *driver)
+{
+  switch(driver->type)
+  {
+    case DRIVER_TYPE_CONSOLE:
+      return driver_console_close(driver->real_driver.console);
       break;
 
     default:

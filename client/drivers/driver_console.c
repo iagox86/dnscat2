@@ -13,11 +13,11 @@
 #include <unistd.h>
 #endif
 
-#include "../libs/buffer.h"
-#include "../libs/log.h"
-#include "../libs/memory.h"
-#include "../libs/select_group.h"
-#include "../libs/types.h"
+#include "libs/buffer.h"
+#include "libs/log.h"
+#include "libs/memory.h"
+#include "libs/select_group.h"
+#include "libs/types.h"
 
 #include "driver_console.h"
 
@@ -118,4 +118,9 @@ void driver_console_destroy(driver_console_t *driver)
     safe_free(driver->download);
 #endif
   safe_free(driver);
+}
+
+void driver_console_close(driver_console_t *driver)
+{
+  printf("TODO: Close console driver in some meaningful way\n");
 }

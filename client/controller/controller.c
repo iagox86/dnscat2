@@ -16,9 +16,9 @@
 #include <stdint.h>
 #endif
 
-#include "../libs/dns.h"
-#include "../libs/log.h"
-#include "../tunnel_drivers/driver_dns.h"
+#include "libs/dns.h"
+#include "libs/log.h"
+#include "tunnel_drivers/driver_dns.h"
 #include "packet.h"
 #include "session.h"
 
@@ -31,7 +31,7 @@ typedef struct _session_entry_t
 } session_entry_t;
 static session_entry_t *first_session;
 
-static void controller_add_session(session_t *session)
+void controller_add_session(session_t *session)
 {
   session_entry_t *entry = NULL;
 
@@ -42,7 +42,7 @@ static void controller_add_session(session_t *session)
   first_session = entry;
 }
 
-static size_t controller_open_session_count()
+size_t controller_open_session_count()
 {
   size_t count = 0;
 
@@ -77,6 +77,7 @@ static session_t *sessions_get_by_id(uint16_t session_id)
  */
 static session_entry_t *current_session = NULL;
 
+#if 0
 static session_t *sessions_get_next()
 {
   /* If there's no session, use the first one. */
@@ -103,6 +104,7 @@ static session_t *sessions_get_next()
   /* All done! */
   return current_session->session;
 }
+#endif
 
 /* Get the next session in line that isn't shutdown.
  * TODO: can/should we give higher priority to sessions that have data
@@ -173,6 +175,7 @@ void controller_data_incoming(uint8_t *data, size_t length)
   session_data_incoming(session, data, length);
 }
 
+/* TODO: Find a way to speed up when we keep getting data. */
 uint8_t *controller_get_outgoing(size_t *length, size_t max_length)
 {
   /* This needs to somehow be balanced. */

@@ -8,12 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "buffer.h"
-#include "log.h"
-#include "memory.h"
+#include "libs/buffer.h"
+#include "libs/log.h"
+#include "libs/memory.h"
 
 #ifdef WIN32
-#include "pstdint.h"
+#include "libs/pstdint.h"
 #else
 #include <stdint.h>
 #endif

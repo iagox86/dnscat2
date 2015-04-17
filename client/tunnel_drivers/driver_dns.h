@@ -7,7 +7,8 @@
 #ifndef __DRIVER_DNS_H__
 #define __DRIVER_DNS_H__
 
-#include "../libs/select_group.h"
+#include "libs/dns.h"
+#include "libs/select_group.h"
 
 typedef struct
 {

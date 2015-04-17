@@ -19,7 +19,6 @@
 #include <sys/socket.h>
 #endif
 
-#include "tunnel_drivers/dns/driver_dns.h"
 #include "controller/controller.h"
 #include "controller/session.h"
 #include "libs/buffer.h"
@@ -27,6 +26,7 @@
 #include "libs/memory.h"
 #include "libs/select_group.h"
 #include "libs/udp.h"
+#include "tunnel_drivers/driver_dns.h"
 
 #include "drivers/driver_console.h"
 #if 0
@@ -69,8 +69,7 @@ typedef enum {
 
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
-  message_post_heartbeat();
-
+  printf("Tock tick???\n");
   return SELECT_OK;
 }
 
@@ -78,7 +77,7 @@ static void cleanup(void)
 {
   LOG_WARNING("Terminating");
 
-  controller_shutdown();
+  /*controller_shutdown();*/
 
   if(group)
     select_group_destroy(group);
@@ -153,8 +152,6 @@ void too_many_inputs(char *name)
 
 void create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
 {
-  driver_dns_t *driver = NULL;
-
   if(!server)
     server = dns_get_system();
 
@@ -174,9 +171,7 @@ void create_dns_driver_internal(select_group_t *group, char *domain, char *host,
   printf(" type   = %s\n", type);
   printf(" server = %s\n", server);
 
-  driver = driver_dns_create(group, domain, host, port, _DNS_TYPE_TEXT, server);
-
-  controller_set_tunnel_driver(TUNNEL_DRIVER_DNS, driver);
+  driver_dns_create(group, domain, host, port, _DNS_TYPE_TEXT, server);
 }
 
 void create_dns_driver(select_group_t *group, char *options)
@@ -281,9 +276,9 @@ int main(int argc, char *argv[])
 
   NBBOOL            output_set = FALSE;
 
-  char             *name     = NULL;
+  /*char             *name     = NULL;
   char             *download = NULL;
-  uint32_t          chunk    = -1;
+  uint32_t          chunk    = -1;*/
 
   /* TODO: Fix types */
   /*dns_type_t        dns_type = _DNS_TYPE_TEXT; */ /* TODO: Is this the best default? */
@@ -292,15 +287,7 @@ int main(int argc, char *argv[])
 
   drivers_t input_type = TYPE_NOT_SET;
 
-  char *exec_process = NULL;
-
-  int listen_port = 0;
-
   session_t *session = NULL;
-
-
-  /* Initialize the modules that need initialization. */
-  log_init();
 
   group = select_group_create();
 
@@ -334,8 +321,9 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "name") || !strcmp(option_name, "n"))
         {
-          name = optarg;
+          /*name = optarg;*/ /* TODO: Fix name. */
         }
+#if 0
         else if(!strcmp(option_name, "download"))
         {
           download = optarg;
@@ -355,6 +343,7 @@ int main(int argc, char *argv[])
           min_log_level++;
           log_set_min_console_level(min_log_level);
         }
+#endif
         else if(!strcmp(option_name, "isn"))
         {
           uint16_t isn = (uint16_t) (atoi(optarg) & 0xFFFF);
@@ -376,7 +365,7 @@ int main(int argc, char *argv[])
           if(input_type != TYPE_NOT_SET)
             too_many_inputs(argv[0]);
 
-          exec_process = optarg;
+          /*exec_process = optarg;*/ /* TODO: Fix exec. */
           input_type = TYPE_EXEC;
         }
 
@@ -386,7 +375,7 @@ int main(int argc, char *argv[])
           if(input_type != TYPE_NOT_SET)
             too_many_inputs(argv[0]);
 
-          listen_port = atoi(optarg);
+          /*listen_port = atoi(optarg);*/
 
           input_type = TYPE_LISTENER;
         }
@@ -418,7 +407,8 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "packet-trace"))
         {
-          session_enable_packet_trace();
+          printf("TODO: Fix packet-trace\n");
+          /*session_enable_packet_trace();*/
         }
         else
         {
@@ -432,26 +422,29 @@ int main(int argc, char *argv[])
         break;
     }
   }
-
+#if 0
   if(chunk != -1 && !download)
   {
     LOG_FATAL("--chunk can only be used with --download");
     exit(1);
   }
+#endif
 
   /* If no input was created, default to command. */
   if(input_type == TYPE_NOT_SET)
     input_type = TYPE_COMMAND;
 
   /* Create the initial session. */
-  session = session_create_console("FIXME: Session Naming :)", NULL, 0, FALSE);
+  session = session_create_console(group, "FIXME: Session Naming :)");
+  controller_add_session(session);
+
+#if 0
   switch(input_type)
   {
     case TYPE_CONSOLE:
       LOG_WARNING("INPUT: Console");
       driver_console_create(group, session);
       break;
-#if 0
     case TYPE_COMMAND:
       LOG_WARNING("INPUT: Command");
       driver_command_create(group, name);
@@ -485,8 +478,8 @@ int main(int argc, char *argv[])
 
     default:
       usage(argv[0], "Unknown type?");
-#endif
   }
+#endif
 
   /* If no output was set, use the domain, and use the last option as the
    * domain. */
@@ -495,8 +488,8 @@ int main(int argc, char *argv[])
     /* Make sure they gave a domain. */
     if(optind >= argc)
     {
-      LOG_WARNING("Starting DNS driver without a domain! This probably won't work;\n");
-      LOG_WARNING("You'll probably need to use --dns .");
+      LOG_WARNING("Starting DNS driver without a domain! This probably won't work;");
+      LOG_WARNING("You'll probably need to use --dns.");
       create_dns_driver_internal(group, NULL, "0.0.0.0", 53, "TXT", NULL);
     }
     else

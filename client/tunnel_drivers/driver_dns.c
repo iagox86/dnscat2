@@ -10,13 +10,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../controller/controller.h"
-#include "../libs/buffer.h"
-#include "../libs/dns.h"
-#include "../libs/log.h"
-#include "../libs/memory.h"
-#include "../libs/types.h"
-#include "../libs/udp.h"
+#include "controller/controller.h"
+#include "libs/buffer.h"
+#include "libs/dns.h"
+#include "libs/log.h"
+#include "libs/memory.h"
+#include "libs/types.h"
+#include "libs/udp.h"
 
 #include "driver_dns.h"
 
@@ -208,6 +208,8 @@ static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
   safe_free(data);
 
   dns_destroy(dns);
+
+  return SELECT_OK;
 }
 
 static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)

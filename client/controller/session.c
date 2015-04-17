@@ -22,10 +22,7 @@
 #include "session.h"
 
 /* Set to TRUE after getting the 'shutdown' message. */
-static NBBOOL is_shutdown = FALSE;
-
-/* The maximum length of packets. */
-static size_t max_packet_length = 10000;
+/* static NBBOOL is_shutdown = FALSE;*/
 
 /* Allow the user to override the initial sequence number. */
 static uint32_t isn = 0xFFFFFFFF;
@@ -55,26 +52,56 @@ static NBBOOL can_i_transmit_yet(session_t *session)
   return FALSE;
 }
 
+/* Polls the driver for data and puts it in our own buffer. This is necessary
+ * because the session needs to ACK data and such. */
+static void poll_for_data(session_t *session)
+{
+  size_t length = -1;
+
+  /* Read all the data we can. */
+  uint8_t *data = driver_get_outgoing(session->driver, &length, -1);
+
+  /* If there's no data left, go into 'shutdown' mode. */
+  if(!data)
+  {
+    if(buffer_get_remaining_bytes(session->outgoing_buffer) == 0)
+      session->is_shutdown = TRUE;
+  }
+  else
+  {
+    if(length)
+      buffer_add_bytes(session->outgoing_buffer, data, length);
+  }
+
+  safe_free(data);
+}
+
 uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length)
 {
-  /* TODO */
-/*static void do_send_stuff(session_t *session)*/
-  packet_t *packet;
-  uint8_t  *data;
-  size_t    length;
+  packet_t *packet      = NULL;
+  uint8_t  *result      = NULL;
+  uint8_t  *data        = NULL;
+  size_t    data_length = -1;
+
+  /* Suck in any data we can from the driver. */
+  poll_for_data(session);
 
   /* Don't transmit too quickly without receiving anything. */
+  /* TODO: I'm not sure that this is necessary anymore. */
   if(!can_i_transmit_yet(session))
   {
     LOG_INFO("Retransmission timer hasn't expired, not re-sending...");
-    return;
+    return NULL;
   }
 
   switch(session->state)
   {
     case SESSION_STATE_NEW:
       LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
-      packet = packet_create_syn(session->id, session->my_seq, 0);
+
+      packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
+
+#if 0
       if(session->name)
         packet_syn_set_name(packet, session->name);
       if(session->download)
@@ -83,35 +110,28 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
         packet_syn_set_chunked_download(packet);
       if(session->is_command)
         packet_syn_set_is_command(packet);
+#endif
 
       update_counter(session);
-      do_send_packet(session, packet);
-
+      result = packet_to_bytes(packet, length, session->options);
       packet_destroy(packet);
+
       break;
 
     case SESSION_STATE_ESTABLISHED:
-      if(session->download_first_chunk)
-      {
-        /* We don't allow outgoing data in chunked mode */
-        packet = packet_create_msg_chunked(session->id, session->download_current_chunk);
-      }
+      /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
+      data = buffer_read_remaining_bytes(session->outgoing_buffer, &data_length, max_length - packet_get_msg_size(session->options), FALSE);
+      LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, data_length);
+
+      /* TODO: Create a FIN if we're shut down. */
+      if(data_length == 0 && session->is_shutdown)
+        packet = packet_create_fin(session->id, "Stream closed");
       else
-      {
-        /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
-        data = buffer_read_remaining_bytes(session->outgoing_data, &length, max_packet_length - packet_get_msg_size(session->options), FALSE);
-        LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, length);
+        packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, data_length);
 
-        packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, length);
+      safe_free(data);
 
-        safe_free(data);
-      }
-
-      /* Send the packet */
-      update_counter(session);
-      do_send_packet(session, packet);
-
-      /* Free everything */
+      result = packet_to_bytes(packet, length, session->options);
       packet_destroy(packet);
 
       break;
@@ -121,36 +141,16 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
       exit(1);
   }
 
-  return NULL;
+  return result;
 }
 
 void session_data_incoming(session_t *session, uint8_t *data, size_t length)
 {
-  NBBOOL poll_right_away = FALSE;
-
   /* Parse the packet to get the session id */
-  packet_t *packet = packet_parse(data, length, 0);
-  session_t *session = NULL;
+  packet_t *packet = packet_parse(data, length, session->options);
 
-  /* Check if it's a ping packet, since those don't need a session. */
-  if(packet->packet_type == PACKET_TYPE_PING)
-  {
-    packet_destroy(packet);
-    return;
-  }
-
-  /* If it's not a ping packet, find the session and handle accordingly. */
-  session = sessions_get_by_id(packet->session_id);
-  packet_destroy(packet);
-
-  if(!session)
-  {
-    LOG_ERROR("Tried to access a non-existent session (handle_packet_in): %d", packet->session_id);
-    return;
-  }
-
-  /* Now that we know the session, parse it properly */
-  packet = packet_parse(data, length, session->options);
+  /* Suck in any data we can from the driver. */
+  poll_for_data(session);
 
   switch(session->state)
   {
@@ -159,7 +159,7 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
       {
         LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
         session->their_seq = packet->body.syn.seq;
-        session->options   = packet->body.syn.options;
+        session->options   = (options_t) packet->body.syn.options;
         session->state = SESSION_STATE_ESTABLISHED;
       }
       else if(packet->packet_type == PACKET_TYPE_MSG)
@@ -168,12 +168,14 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
       }
       else if(packet->packet_type == PACKET_TYPE_FIN)
       {
+        /* TODO: I shouldn't exit here. */
         LOG_FATAL("In SESSION_STATE_NEW, received FIN: %s", packet->body.fin.reason);
 
         exit(0);
       }
       else
       {
+        /* TODO: I shouldn't exit here. */
         LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
         exit(1);
       }
@@ -188,101 +190,74 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
       {
         LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
 
-        if(session->download_first_chunk)
+        /* Validate the SEQ */
+        if(packet->body.msg.options.normal.seq == session->their_seq)
         {
-          if(packet->body.msg.options.chunked.chunk == session->download_current_chunk)
+          /* Verify the ACK is sane */
+          uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
+
+          if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
           {
-            /* Let listeners know that data has arrived. */
-            message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
-
-            /* Go to the next chunk. */
-            session->download_current_chunk++;
-
-            /* Don't wait to poll again. */
+            /* Reset the retransmit counter since we got some valid data. */
             reset_counter(session);
-            poll_right_away = TRUE;
+
+            /* Increment their sequence number */
+            session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
+
+            /* Remove the acknowledged data from the buffer */
+            buffer_consume(session->outgoing_buffer, bytes_acked);
+
+            /* Increment my sequence number */
+            if(bytes_acked != 0)
+            {
+              session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
+            }
+
+            /* Print the data, if we received any, and then immediately receive more. */
+            if(packet->body.msg.data_length > 0)
+            {
+              driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
+            }
           }
           else
           {
-            LOG_WARNING("Bad chunk received (%d instead of %d)", packet->body.msg.options.chunked.chunk, session->download_current_chunk);
+            LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_buffer));
             packet_destroy(packet);
             return;
           }
         }
         else
         {
-          /* Validate the SEQ */
-          if(packet->body.msg.options.normal.seq == session->their_seq)
-          {
-            /* Verify the ACK is sane */
-            uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
-
-            if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_data))
-            {
-              /* Reset the retransmit counter since we got some valid data. */
-              reset_counter(session);
-
-              /* Increment their sequence number */
-              session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
-
-              /* Remove the acknowledged data from the buffer */
-              buffer_consume(session->outgoing_data, bytes_acked);
-
-              /* Increment my sequence number */
-              if(bytes_acked != 0)
-              {
-                session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
-                poll_right_away = TRUE;
-              }
-
-              /* Print the data, if we received any, and then immediately receive more. */
-              if(packet->body.msg.data_length > 0)
-              {
-                message_post_data_in(session->id, packet->body.msg.data, packet->body.msg.data_length);
-                poll_right_away = TRUE;
-              }
-            }
-            else
-            {
-              LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_data));
-              packet_destroy(packet);
-              return;
-            }
-          }
-          else
-          {
-            LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
-            packet_destroy(packet);
-            return;
-          }
+          LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
+          packet_destroy(packet);
+          return;
         }
       }
       else if(packet->packet_type == PACKET_TYPE_FIN)
       {
-        LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s", packet->body.fin.reason);
-        message_post_close_session(session->id);
+        LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
+        session->is_shutdown = TRUE;
+        driver_close(session->driver);
       }
       else
       {
-        LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
-        message_post_close_session(session->id);
+        LOG_FATAL("Unknown packet type: 0x%02x - closing session", packet->packet_type);
+        session->is_shutdown = TRUE;
+        driver_close(session->driver);
       }
 
       break;
     default:
       LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
       packet_destroy(packet);
-      message_post_close_session(session->id);
+      session->is_shutdown = TRUE;
+      driver_close(session->driver);
       exit(1);
   }
 
-  /* If there is still outgoing data to be sent, and new data has been ACKed
-   * (ie, this isn't a retransmission), send it. */
-  if(poll_right_away)
-    do_send_stuff(session);
-
   packet_destroy(packet);
 }
+
 #if 0
 static void do_send_packet(session_t *session, packet_t *packet)
 {
@@ -303,12 +278,7 @@ static void do_send_packet(session_t *session, packet_t *packet)
 }
 #endif
 
-
-void session_recv(session_t *session, packet_t *packet)
-{
-}
-
-static void session_destroy(session_t *session)
+void session_destroy(session_t *session)
 {
   if(session->name)
     safe_free(session->name);
@@ -316,78 +286,6 @@ static void session_destroy(session_t *session)
     safe_free(session->download);
 
   safe_free(session);
-}
-
-static void remove_completed_sessions()
-{
-  printf("remove_completed_sessions() not implemented\n");
-  exit(0);
-#if 0
-  session_entry_t *this;
-  session_entry_t *previous = NULL;
-  session_entry_t *next;
-
-  for(this = first_session; this; this = next)
-  {
-    session_t *session = this->session;
-    next = this->next;
-
-    if(session->is_closed && buffer_get_remaining_bytes(session->outgoing_data) == 0)
-    {
-      /* Send a final FIN */
-      packet_t *packet = packet_create_fin(session->id, "Session closed");
-      LOG_WARNING("Session %d is out of data and closed, killing it!", session->id);
-      do_send_packet(session, packet);
-      packet_destroy(packet);
-
-      /* Let listeners know that the session is closed before we unlink the session. */
-      message_post_session_closed(session->id);
-
-      /* Destroy and unlink the session. */
-      session_destroy(session);
-      if(previous)
-        previous->next = this->next;
-      else
-        first_session = this->next;
-      safe_free(this);
-    }
-    else
-    {
-      previous = this;
-    }
-  }
-
-  if(first_session == NULL && is_shutdown)
-  {
-    LOG_WARNING("Everything's done!");
-    exit(0);
-  }
-#endif
-}
-
-static void handle_config_int(char *name, int value)
-{
-  if(!strcmp(name, "max_packet_length"))
-    max_packet_length = value;
-}
-
-static void handle_config_string(char *name, char *value)
-{
-}
-
-static void handle_shutdown()
-{
-  printf("handle_shutdown() not implemented\n");
-#if 0
-  session_entry_t *entry;
-
-  LOG_WARNING("Received SHUTDOWN message!");
-
-  is_shutdown = TRUE;
-
-  for(entry = first_session; entry; entry = entry->next)
-    message_post_close_session(entry->session->id);
-#endif
 }
 
 static session_t *session_create(char *name)
@@ -404,9 +302,10 @@ static session_t *session_create(char *name)
 
   session->state         = SESSION_STATE_NEW;
   session->their_seq     = 0;
-  session->is_closed     = FALSE;
+  session->is_shutdown   = FALSE;
 
   session->last_transmit = 0;
+  session->outgoing_buffer = buffer_create(BO_LITTLE_ENDIAN);
 
   session->name = NULL;
   if(name)
@@ -434,30 +333,7 @@ session_t *session_create_console(select_group_t *group, char *name)
   return session;
 }
 
-static void handle_close_session(uint16_t session_id)
-{
-  /* TODO */
-  printf("handle_close_session() not implemented\n");
 #if 0
-  session_t *session = sessions_get_by_id(session_id);
-  if(!session)
-  {
-    LOG_ERROR("Tried to access a non-existent session (handle_close_session): %d", session_id);
-    return;
-  }
-
-  if(session->is_closed)
-  {
-    LOG_WARNING("Trying to close a closed session: %d", session_id);
-  }
-  else
-  {
-    /* Mark the session as closed, it'll be removed in the heartbeat */
-    session->is_closed = TRUE;
-  }
-#endif
-}
-
 static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
 {
   session_t *session = sessions_get_by_id(session_id);
@@ -506,6 +382,7 @@ static void handle_heartbeat()
   remove_completed_sessions();
 #endif
 }
+#endif
 
 void debug_set_isn(uint16_t value)
 {

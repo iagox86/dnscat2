@@ -7,10 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "buffer.h"
-#include "command_packet.h"
-#include "log.h"
-#include "memory.h"
+#include "libs/buffer.h"
+#include "libs/command_packet.h"
+#include "libs/log.h"
+#include "libs/memory.h"
 
 #ifdef WIN32
 #include "pstdint.h"
