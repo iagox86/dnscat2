@@ -94,6 +94,9 @@ typedef struct
 /* Parse a packet from a byte stream. */
 packet_t *packet_parse(uint8_t *data, size_t length, options_t options);
 
+/* Just get the session_id. */
+uint16_t packet_peek_session_id(uint8_t *data, size_t length);
+
 /* Create a packet with the given characteristics. */
 packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options);
 packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);

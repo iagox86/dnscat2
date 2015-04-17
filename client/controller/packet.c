@@ -14,9 +14,10 @@
 #include <stdint.h>
 #endif
 
-#include "buffer.h"
-#include "log.h"
-#include "memory.h"
+#include "../libs/buffer.h"
+#include "../libs/log.h"
+#include "../libs/memory.h"
+
 #include "packet.h"
 
 /* Header for snprintf(), since cygwin doesn't expose it on c89
@@ -38,7 +39,7 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
   }
 
   packet->packet_id    = buffer_read_next_int16(buffer);
-  packet->packet_type  = buffer_read_next_int8(buffer);
+  packet->packet_type  = (packet_type_t) buffer_read_next_int8(buffer);
   packet->session_id   = buffer_read_next_int16(buffer);
 
   switch(packet->packet_type)
@@ -81,9 +82,41 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
   return packet;
 }
 
+uint16_t packet_peek_session_id(uint8_t *data, size_t length)
+{
+  buffer_t *buffer = NULL;
+  uint16_t session_id = -1;
+
+  /* Create a buffer of the first 5 bytes. */
+  if(length < 5)
+  {
+    printf("Packet is too short!\n");
+    return -1;
+  }
+
+  /* Create a buffer with the first 5 bytes of data. */
+  buffer_create_with_data(BO_BIG_ENDIAN, data, 5);
+
+  /* Discard packet_id. */
+  buffer_consume(buffer, 2);
+
+  /* Discard packet_type. */
+  buffer_consume(buffer, 1);
+
+  /* Finally, get the session_id. */
+  session_id = buffer_read_next_int16(buffer);
+
+  /* Kill the buffer. */
+  buffer_destroy(buffer);
+
+  /* Done! */
+  return session_id;
+}
+
 packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
+
   packet->packet_type      = PACKET_TYPE_SYN;
   packet->packet_id        = rand() % 0xFFFF;
   packet->session_id       = session_id;
@@ -209,8 +242,8 @@ size_t packet_get_syn_size()
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_syn(0, 0, 0);
-    uint8_t *data = packet_to_bytes(p, &size, 0);
+    packet_t *p = packet_create_syn(0, 0, (options_t)0);
+    uint8_t *data = packet_to_bytes(p, &size, (options_t)0);
     safe_free(data);
     packet_destroy(p);
   }
@@ -262,7 +295,7 @@ size_t packet_get_ping_size()
   if(size == 0)
   {
     packet_t *p = packet_create_ping("");
-    uint8_t *data = packet_to_bytes(p, &size, 0);
+    uint8_t *data = packet_to_bytes(p, &size, (options_t)0);
     safe_free(data);
     packet_destroy(p);
   }
