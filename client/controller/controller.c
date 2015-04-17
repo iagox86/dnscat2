@@ -6,8 +6,6 @@
  * See LICENSE.md
  */
 
-#include "controller.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,12 +16,12 @@
 #include <stdint.h>
 #endif
 
-#include "driver_dns.h"
+#include "../libs/log.h"
+#include "../tunnel_drivers/driver_dns.h"
 #include "packet.h"
 #include "session.h"
 
-tunnel_driver_t  tunnel_driver_type = -1;
-void            *tunnel_driver      = NULL;
+#include "controller.h"
 
 typedef struct _session_entry_t
 {
@@ -33,17 +31,32 @@ typedef struct _session_entry_t
 
 static session_entry_t *first_session;
 
-static session_t *controller_create_session(uint16_t session_id)
+static session_t *controller_add_session(session_t *session)
 {
   session_entry_t *entry = NULL;
-
-  session_t *session = session_create();
 
   /* Add it to the linked list. */
   entry = safe_malloc(sizeof(session_entry_t));
   entry->session = session;
   entry->next = first_session;
   first_session = entry;
+}
+
+size_t controller_open_session_count()
+{
+  size_t count = 0;
+
+  session_entry_t *entry = first_session;
+
+  while(entry)
+  {
+    if(!session_is_shutdown(entry->session))
+      count++;
+
+    entry = entry->next;
+  }
+
+  return count;
 }
 
 static session_t *sessions_get_by_id(uint16_t session_id)
@@ -53,22 +66,25 @@ static session_t *sessions_get_by_id(uint16_t session_id)
   for(entry = first_session; entry; entry = entry->next)
     if(entry->session->id == session_id)
       return entry->session;
+
   return NULL;
 }
 
-void controller_data_received(uint8_t *data, size_t length)
+void controller_data_incoming(uint8_t *data, size_t length)
 {
   /* Parse the packet to get the session id */
   packet_t *packet = packet_parse(data, length, 0);
   session_t *session;
 
-  /* Check if it's a ping packet, since those don't need a session. */
+  /* Check if it's a ping packet, since we can deal with those instantly. */
   if(packet->packet_type == PACKET_TYPE_PING)
   {
-    session = NULL;
+    printf("Ping received!\n");
 
-    /* TODO: Return a PING response */
-    return;
+    /* 0 = no options on ping. */
+    packet_print(packet, 0);
+
+    exit(0);
   }
 
   /* If it's not a ping packet, find the session and handle accordingly. */
@@ -84,34 +100,11 @@ void controller_data_received(uint8_t *data, size_t length)
   /* Now that we know the session, parse it properly */
   packet = packet_parse(data, length, session->options);
 
-  /* Display if appropriate. */
-  if(packet_trace)
-  {
-    printf("INCOMING: ");
-    packet_print(packet, session->options);
-  }
+  /* Pass the data onto the session. */
+  session_data_incoming(session, data, length);
 }
 
-void controller_set_tunnel_driver(tunnel_driver_t type, void *driver)
-{
-  tunnel_driver_type = type;
-  tunnel_driver      = driver;
-}
-
-void controller_send(packet_t *packet)
-{
-  switch(tunnel_driver_type)
-  {
-    case TUNNEL_DRIVER_DNS:
-      driver_dns_send((driver_dns_t*) tunnel_driver, packet->data, packet->length);
-      break;
-
-    default:
-      printf("ERROR: tunnel_driver isn't set right!\n");
-      exit(1);
-  }
-}
-
+#if 0
 static void do_send_stuff(session_t *session)
 {
   packet_t *packet;
@@ -176,27 +169,20 @@ static void do_send_stuff(session_t *session)
       exit(1);
   }
 }
+#endif
 
-static void handle_packet_in(uint8_t *data, size_t length)
+#if 0
+void controller_data_incoming(uint8_t *data, size_t length)
 {
   NBBOOL poll_right_away = FALSE;
 
   /* Parse the packet to get the session id */
   packet_t *packet = packet_parse(data, length, 0);
-  session_t *session;
+  session_t *session = NULL;
 
   /* Check if it's a ping packet, since those don't need a session. */
   if(packet->packet_type == PACKET_TYPE_PING)
   {
-    /* Display if appropriate. */
-    if(packet_trace)
-    {
-      printf("INCOMING: ");
-      packet_print(packet, 0);
-    }
-    /* Let listeners know that a ping happened */
-    message_post_ping_response(packet->body.ping.data);
-
     packet_destroy(packet);
     return;
   }
@@ -213,13 +199,6 @@ static void handle_packet_in(uint8_t *data, size_t length)
 
   /* Now that we know the session, parse it properly */
   packet = packet_parse(data, length, session->options);
-
-  /* Display if appropriate. */
-  if(packet_trace)
-  {
-    printf("INCOMING: ");
-    packet_print(packet, session->options);
-  }
 
   switch(session->state)
   {
@@ -352,4 +331,4 @@ static void handle_packet_in(uint8_t *data, size_t length)
 
   packet_destroy(packet);
 }
-
+#endif

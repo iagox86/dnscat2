@@ -444,7 +444,7 @@ int main(int argc, char *argv[])
     input_type = TYPE_COMMAND;
 
   /* Create the initial session. */
-  session = session_create("FIXME: Session Naming :)", NULL, 0, FALSE);
+  session = session_create_console("FIXME: Session Naming :)", NULL, 0, FALSE);
   switch(input_type)
   {
     case TYPE_CONSOLE:

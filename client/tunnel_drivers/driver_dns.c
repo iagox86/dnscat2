@@ -10,12 +10,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "buffer.h"
-#include "dns.h"
-#include "log.h"
-#include "memory.h"
-#include "types.h"
-#include "udp.h"
+#include "../controller/controller.h"
+#include "../libs/buffer.h"
+#include "../libs/dns.h"
+#include "../libs/log.h"
+#include "../libs/memory.h"
+#include "../libs/types.h"
+#include "../libs/udp.h"
 
 #include "driver_dns.h"
 
@@ -127,6 +128,87 @@ static int cmpfunc_aaaa(const void *a, const void *b)
   return ((const answer_t*)a)->answer->AAAA.bytes[0] - ((const answer_t*)b)->answer->AAAA.bytes[0];
 }
 #endif
+
+static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
+{
+  size_t        i;
+  dns_t        *dns;
+  buffer_t     *buffer;
+  uint8_t      *encoded_bytes;
+  size_t        encoded_length;
+  uint8_t      *dns_bytes;
+  size_t        dns_length;
+  size_t        section_length;
+
+  driver_dns_t *driver = (driver_dns_t*) param;
+  size_t length;
+  uint8_t *data = controller_get_outgoing((size_t*)&length, (size_t)MAX_DNSCAT_LENGTH(driver->domain));
+
+  printf("Tick...tock...\n");
+
+  assert(driver->s != -1); /* Make sure we have a valid socket. */
+  assert(data); /* Make sure they aren't trying to send NULL. */
+  assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
+  assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
+
+  buffer = buffer_create(BO_BIG_ENDIAN);
+
+  /* If no domain is set, add the wildcard prefix at the start. */
+  if(!driver->domain)
+  {
+    buffer_add_bytes(buffer, (uint8_t*)WILDCARD_PREFIX, strlen(WILDCARD_PREFIX));
+    buffer_add_int8(buffer, '.');
+  }
+
+  section_length = 0;
+  /* TODO: I don't much care for this loop... */
+  for(i = 0; i < length; i++)
+  {
+    char hex_buf[3];
+
+#ifdef WIN32
+    sprintf_s(hex_buf, 3, "%02x", data[i]);
+#else
+    sprintf(hex_buf, "%02x", data[i]);
+#endif
+    buffer_add_bytes(buffer, hex_buf, 2);
+
+    /* Add periods when we need them. */
+    section_length += 2;
+    if(i + 1 != length && section_length + 2 >= MAX_FIELD_LENGTH)
+    {
+      section_length = 0;
+      buffer_add_int8(buffer, '.');
+    }
+  }
+
+  /* If a domain is set, instead of the wildcard prefix, add the domain to the end. */
+  if(driver->domain)
+  {
+    buffer_add_int8(buffer, '.');
+    buffer_add_bytes(buffer, driver->domain, strlen(driver->domain));
+  }
+  buffer_add_int8(buffer, '\0');
+
+  /* Get the result out. */
+  encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
+
+  /* Double-check we didn't mess up the length. */
+  assert(encoded_length <= MAX_DNS_LENGTH);
+
+  dns = dns_create(_DNS_OPCODE_QUERY, _DNS_FLAG_RD, _DNS_RCODE_SUCCESS);
+  dns_add_question(dns, (char*)encoded_bytes, driver->type, _DNS_CLASS_IN);
+  dns_bytes = dns_to_packet(dns, &dns_length);
+
+  LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_server, driver->dns_port);
+  udp_send(driver->s, driver->dns_server, driver->dns_port, dns_bytes, dns_length);
+
+  safe_free(dns_bytes);
+  safe_free(encoded_bytes);
+  safe_free(data);
+
+  dns_destroy(dns);
+}
 
 static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
@@ -256,7 +338,7 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
       if(answer_length > 0)
       {
         /* Pass the data elsewhere. */
-        message_post_packet_in(answer, answer_length);
+        controller_data_incoming(answer, answer_length);
       }
 
       safe_free(answer);
@@ -266,96 +348,6 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   dns_destroy(dns);
 
   return SELECT_OK;
-}
-
-/* This function expects to receive the proper length of data. */
-static void handle_packet_out(driver_dns_t *driver, uint8_t *data, size_t length)
-{
-  size_t        i;
-  dns_t        *dns;
-  buffer_t     *buffer;
-  uint8_t      *encoded_bytes;
-  size_t        encoded_length;
-  uint8_t      *dns_bytes;
-  size_t        dns_length;
-  size_t        section_length;
-
-  assert(driver->s != -1); /* Make sure we have a valid socket. */
-  assert(data); /* Make sure they aren't trying to send NULL. */
-  assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
-  assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
-
-  buffer = buffer_create(BO_BIG_ENDIAN);
-
-  /* If no domain is set, add the wildcard prefix at the start. */
-  if(!driver->domain)
-  {
-    buffer_add_bytes(buffer, (uint8_t*)WILDCARD_PREFIX, strlen(WILDCARD_PREFIX));
-    buffer_add_int8(buffer, '.');
-  }
-
-  section_length = 0;
-  /* TODO: I don't much care for this loop... */
-  for(i = 0; i < length; i++)
-  {
-    char hex_buf[3];
-
-#ifdef WIN32
-    sprintf_s(hex_buf, 3, "%02x", data[i]);
-#else
-    sprintf(hex_buf, "%02x", data[i]);
-#endif
-    buffer_add_bytes(buffer, hex_buf, 2);
-
-    /* Add periods when we need them. */
-    section_length += 2;
-    if(i + 1 != length && section_length + 2 >= MAX_FIELD_LENGTH)
-    {
-      section_length = 0;
-      buffer_add_int8(buffer, '.');
-    }
-  }
-
-  /* If a domain is set, instead of the wildcard prefix, add the domain to the end. */
-  if(driver->domain)
-  {
-    buffer_add_int8(buffer, '.');
-    buffer_add_bytes(buffer, driver->domain, strlen(driver->domain));
-  }
-  buffer_add_int8(buffer, '\0');
-
-  /* Get the result out. */
-  encoded_bytes = buffer_create_string_and_destroy(buffer, &encoded_length);
-
-  /* Double-check we didn't mess up the length. */
-  assert(encoded_length <= MAX_DNS_LENGTH);
-
-  dns = dns_create(_DNS_OPCODE_QUERY, _DNS_FLAG_RD, _DNS_RCODE_SUCCESS);
-  dns_add_question(dns, (char*)encoded_bytes, driver->type, _DNS_CLASS_IN);
-  dns_bytes = dns_to_packet(dns, &dns_length);
-
-  LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_server, driver->dns_port);
-  udp_send(driver->s, driver->dns_server, driver->dns_port, dns_bytes, dns_length);
-
-  safe_free(dns_bytes);
-  safe_free(encoded_bytes);
-  dns_destroy(dns);
-}
-
-static void handle_message(message_t *message, void *d)
-{
-  driver_dns_t *driver_dns = (driver_dns_t*) d;
-
-  switch(message->type)
-  {
-    case MESSAGE_PACKET_OUT:
-      handle_packet_out(driver_dns, message->message.packet_out.data, message->message.packet_out.length);
-      break;
-
-    default:
-      LOG_FATAL("driver_dns received an invalid message!");
-      abort();
-  }
 }
 
 driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host, uint16_t port, dns_type_t type, char *server)
@@ -380,15 +372,10 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host,
   /* If it succeeds, add it to the select_group */
   select_group_add_socket(group, driver_dns->s, SOCKET_TYPE_STREAM, driver_dns);
   select_set_recv(group, driver_dns->s, recv_socket_callback);
+  select_set_timeout(group, timeout_callback, driver_dns);
   select_set_closed(group, driver_dns->s, dns_data_closed);
 
-  /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_PACKET_OUT, handle_message, driver_dns);
-
-  /* TODO: Do I still need this? */
-  message_post_config_int("max_packet_length", MAX_DNSCAT_LENGTH(driver_dns->domain));
-
-  return driver_dns;
+  return SELECT_OK;
 }
 
 void driver_dns_destroy(driver_dns_t *driver)

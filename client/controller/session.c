@@ -14,9 +14,10 @@
 #include <unistd.h>
 #endif
 
-#include "buffer.h"
-#include "log.h"
-#include "memory.h"
+#include "libs/log.h"
+#include "libs/memory.h"
+#include "libs/select_group.h"
+
 #include "session.h"
 
 /* Set to TRUE after getting the 'shutdown' message. */
@@ -85,7 +86,6 @@ static void session_destroy(session_t *session)
   if(session->download)
     safe_free(session->download);
 
-  buffer_destroy(session->outgoing_data);
   safe_free(session);
 }
 
@@ -161,7 +161,7 @@ static void handle_shutdown()
 #endif
 }
 
-session_t *session_create(char *name, char *download, uint32_t first_chunk, NBBOOL is_command)
+static session_t *session_create(char *name)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
 
@@ -177,8 +177,6 @@ session_t *session_create(char *name, char *download, uint32_t first_chunk, NBBO
   session->their_seq     = 0;
   session->is_closed     = FALSE;
 
-  session->outgoing_data = buffer_create(BO_BIG_ENDIAN);
-
   session->last_transmit = 0;
 
   session->name = NULL;
@@ -188,18 +186,21 @@ session_t *session_create(char *name, char *download, uint32_t first_chunk, NBBO
     LOG_INFO("Setting session->name to %s", session->name);
   }
 
-  session->download = NULL;
-  if(download)
-  {
-    session->download = safe_strdup(download);
-    LOG_INFO("Setting session->download to %s", session->download);
-  }
+#if 0
+  session->download               = NULL;
+  session->download_first_chunk   = 0;
+  session->download_current_chunk = 0;
+  session->is_command             = FALSE
+#endif
 
-  session->download_first_chunk   = first_chunk;
-  session->download_current_chunk = first_chunk;
-  session->is_command = is_command;
+  return session;
+}
 
-  message_post_session_created(session->id);
+session_t *session_create_console(select_group_t *group, char *name)
+{
+  session_t *session     = session_create(name);
+
+  session->driver = driver_create(DRIVER_TYPE_CONSOLE, driver_console_create(group));
 
   return session;
 }
@@ -287,4 +288,9 @@ void debug_set_isn(uint16_t value)
 void session_enable_packet_trace()
 {
   packet_trace = TRUE;
+}
+
+NBBOOL session_is_shutdown(session_t *session)
+{
+  return session->is_shutdown;
 }

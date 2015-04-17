@@ -7,7 +7,7 @@
 #ifndef __DRIVER_CONSOLE_H__
 #define __DRIVER_CONSOLE_H__
 
-#include "../controller/session.h"
+#include "../libs/buffer.h"
 #include "../libs/select_group.h"
 
 typedef struct
@@ -17,12 +17,15 @@ typedef struct
   char      *download;
   uint32_t   first_chunk;
 #endif
-  session_t *session;
   select_group_t *group;
+  buffer_t       *outgoing_data;
+  NBBOOL          is_shutdown;
 } driver_console_t;
 
 /*driver_console_t  *driver_console_create(select_group_t *group, char *name, char *download, int first_chunk);*/
-driver_console_t *driver_console_create(select_group_t *group, session_t *session);
-void               driver_console_destroy();
+driver_console_t *driver_console_create(select_group_t *group);
+void              driver_console_destroy(driver_console_t *driver);
+void              driver_console_data_received(driver_console_t *driver, uint8_t *data, size_t length);
+uint8_t          *driver_console_get_outgoing(driver_console_t *driver, size_t *length, size_t max_length);
 
 #endif

@@ -6,10 +6,7 @@
  * See LICENSE.md
  */
 
-typedef enum
-{
-  TUNNEL_DRIVER_DNS,
-} tunnel_driver_t;
+#include "../libs/types.h"
 
-void controller_data_received(uint8_t *data, size_t length);
-void controller_set_send_sink(tunnel_driver_t type, void *driver);
+void controller_data_incoming(uint8_t *data, size_t length);
+uint8_t *controller_get_outgoing(size_t *length, size_t max_length);
