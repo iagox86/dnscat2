@@ -318,10 +318,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\message.h"
-				>
-			</File>
-			<File
 				RelativePath="..\my_getopt.h"
 				>
 			</File>

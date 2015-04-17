@@ -10,7 +10,6 @@
 
 #include "assert.h"
 #include "memory.h"
-#include "message.h"
 
 #include "log.h"
 

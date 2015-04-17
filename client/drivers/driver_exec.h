@@ -9,7 +9,6 @@
 
 #include <sys/types.h>
 
-#include "message.h"
 #include "select_group.h"
 #include "session.h"
 

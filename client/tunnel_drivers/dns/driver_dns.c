@@ -4,6 +4,7 @@
  *
  * See LICENSE.md
  */
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -13,7 +14,6 @@
 #include "dns.h"
 #include "log.h"
 #include "memory.h"
-#include "message.h"
 #include "types.h"
 #include "udp.h"
 

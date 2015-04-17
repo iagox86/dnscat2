@@ -7,7 +7,6 @@
 #ifndef __DRIVER_PING_H__
 #define __DRIVER_PING_H__
 
-#include "message.h"
 #include "select_group.h"
 #include "session.h"
 

@@ -13,12 +13,11 @@
 #include <unistd.h>
 #endif
 
-#include "log.h"
-#include "memory.h"
-#include "message.h"
-#include "select_group.h"
-#include "session.h"
-#include "types.h"
+#include "../libs/log.h"
+#include "../libs/memory.h"
+#include "../libs/select_group.h"
+#include "../controller/session.h"
+#include "../libs/types.h"
 
 #include "driver_console.h"
 
@@ -27,7 +26,8 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 {
   driver_console_t *driver_console = (driver_console_t*) d;
 
-  message_post_data_out(driver_console->session_id, data, length);
+  /* TODO: Tell the controller that we have data */
+  session_send(driver_console->session, data, length);
 
   return SELECT_OK;
 }
@@ -35,7 +35,10 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 {
   /* When the stdin pipe is closed, the stdin driver signals the end. */
-  message_post_shutdown();
+  driver_console_t *driver_console = (driver_console_t*) d;
+
+  /* TODO: Tell the controller that we have data */
+  session_shutdown(driver_console->session);
 
   return SELECT_CLOSE_REMOVE;
 }
@@ -48,27 +51,14 @@ static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t lengt
     fputc(data[i], stdout);
 }
 
-static void handle_message(message_t *message, void *d)
-{
-  driver_console_t *driver = (driver_console_t*) d;
-
-  switch(message->type)
-  {
-    case MESSAGE_DATA_IN:
-      if(message->message.data_in.session_id == driver->session_id)
-        handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
-      break;
-
-    default:
-      LOG_FATAL("driver_console received an invalid message: %d", message->type);
-      abort();
-  }
-}
-
-driver_console_t *driver_console_create(select_group_t *group, char *name, char *download, int first_chunk)
+driver_console_t *driver_console_create(select_group_t *group, session_t *session)
+/*, char *name, char *download, int first_chunk)*/
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
 
+  driver->group = group;
+  driver->session = session;
+#if 0
   message_options_t options[4];
 
 #ifdef WIN32
@@ -89,9 +79,6 @@ driver_console_t *driver_console_create(select_group_t *group, char *name, char 
   driver->download    = download;
   driver->first_chunk = first_chunk;
 
-  /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
-
   options[0].name    = "name";
   options[0].value.s = driver->name;
 
@@ -109,17 +96,18 @@ driver_console_t *driver_console_create(select_group_t *group, char *name, char 
   }
 
   options[3].name    = NULL;
-
-  driver->session_id = message_post_create_session(options);
+#endif
 
   return driver;
 }
 
 void driver_console_destroy(driver_console_t *driver)
 {
+#if 0
   if(driver->name)
     safe_free(driver->name);
   if(driver->download)
     safe_free(driver->download);
   safe_free(driver);
+#endif
 }
