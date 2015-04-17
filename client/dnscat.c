@@ -19,21 +19,23 @@
 #include <sys/socket.h>
 #endif
 
-#include "buffer.h"
-#include "dns.h"
-#include "log.h"
-#include "memory.h"
-#include "message.h"
-#include "select_group.h"
-#include "session.h"
-#include "udp.h"
+#include "tunnel_drivers/dns/driver_dns.h"
+#include "controller/controller.h"
+#include "controller/session.h"
+#include "libs/buffer.h"
+#include "libs/log.h"
+#include "libs/memory.h"
+#include "libs/select_group.h"
+#include "libs/udp.h"
 
-#include "driver_console.h"
+#include "drivers/driver_console.h"
+#if 0
 #include "driver_command.h"
 #include "driver_dns.h"
 #include "driver_exec.h"
 #include "driver_listener.h"
 #include "driver_ping.h"
+#endif
 
 /* Default options */
 #define NAME    "dnscat2"
@@ -52,16 +54,6 @@
 
 /* Define these outside the function so they can be freed by the atexec() */
 select_group_t   *group          = NULL;
-
-/* Input drivers. */
-driver_console_t  *driver_console  = NULL;
-driver_command_t  *driver_command  = NULL;
-driver_exec_t     *driver_exec     = NULL;
-driver_listener_t *driver_listener = NULL;
-driver_ping_t     *driver_ping     = NULL;
-
-/* Output drivers. */
-driver_dns_t     *driver_dns     = NULL;
 
 typedef enum {
   TYPE_NOT_SET,
@@ -86,24 +78,10 @@ static void cleanup(void)
 {
   LOG_WARNING("Terminating");
 
-  message_post_shutdown();
-  message_cleanup();
+  controller_shutdown();
 
   if(group)
     select_group_destroy(group);
-
-  if(driver_console)
-    driver_console_destroy(driver_console);
-  if(driver_command)
-    driver_command_destroy(driver_command);
-  if(driver_dns)
-    driver_dns_destroy(driver_dns);
-  if(driver_exec)
-    driver_exec_destroy(driver_exec);
-  if(driver_listener)
-    driver_listener_destroy(driver_listener);
-  if(driver_ping)
-    driver_ping_destroy(driver_ping);
 
   print_memory();
 }
@@ -173,7 +151,7 @@ void too_many_inputs(char *name)
   usage(name, "More than one of --exec, --console, --listen, and --ping can't be set!");
 }
 
-driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
+void create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
 {
   driver_dns_t *driver = NULL;
 
@@ -198,10 +176,10 @@ driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, ch
 
   driver = driver_dns_create(group, domain, host, port, _DNS_TYPE_TEXT, server);
 
-  return driver;
+  controller_set_tunnel_driver(TUNNEL_DRIVER_DNS, driver);
 }
 
-driver_dns_t *create_dns_driver(select_group_t *group, char *options)
+void create_dns_driver(select_group_t *group, char *options)
 {
   char     *domain = NULL;
   char     *host = "0.0.0.0";
@@ -244,7 +222,7 @@ driver_dns_t *create_dns_driver(select_group_t *group, char *options)
     }
   }
 
-  return create_dns_driver_internal(group, domain, host, port, type, server);
+  create_dns_driver_internal(group, domain, host, port, type, server);
 }
 
 void create_tcp_driver(char *options)
@@ -318,10 +296,11 @@ int main(int argc, char *argv[])
 
   int listen_port = 0;
 
+  session_t *session = NULL;
+
 
   /* Initialize the modules that need initialization. */
   log_init();
-  sessions_init();
 
   group = select_group_create();
 
@@ -416,7 +395,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "dns"))
         {
           output_set = TRUE;
-          driver_dns = create_dns_driver(group, optarg);
+          create_dns_driver(group, optarg);
         }
         else if(!strcmp(option_name, "tcp"))
         {
@@ -464,13 +443,15 @@ int main(int argc, char *argv[])
   if(input_type == TYPE_NOT_SET)
     input_type = TYPE_COMMAND;
 
+  /* Create the initial session. */
+  session = session_create_console("FIXME: Session Naming :)", NULL, 0, FALSE);
   switch(input_type)
   {
     case TYPE_CONSOLE:
       LOG_WARNING("INPUT: Console");
-      driver_console_create(group, name, download, chunk);
+      driver_console_create(group, session);
       break;
-
+#if 0
     case TYPE_COMMAND:
       LOG_WARNING("INPUT: Command");
       driver_command_create(group, name);
@@ -504,6 +485,7 @@ int main(int argc, char *argv[])
 
     default:
       usage(argv[0], "Unknown type?");
+#endif
   }
 
   /* If no output was set, use the domain, and use the last option as the
@@ -515,11 +497,11 @@ int main(int argc, char *argv[])
     {
       LOG_WARNING("Starting DNS driver without a domain! This probably won't work;\n");
       LOG_WARNING("You'll probably need to use --dns .");
-      driver_dns = create_dns_driver_internal(group, NULL, "0.0.0.0", 53, "TXT", NULL);
+      create_dns_driver_internal(group, NULL, "0.0.0.0", 53, "TXT", NULL);
     }
     else
     {
-      driver_dns = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, "TXT", NULL);
+      create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, "TXT", NULL);
     }
   }
 

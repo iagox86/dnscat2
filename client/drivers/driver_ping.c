@@ -15,7 +15,6 @@
 
 #include "log.h"
 #include "memory.h"
-#include "message.h"
 #include "select_group.h"
 #include "session.h"
 #include "types.h"

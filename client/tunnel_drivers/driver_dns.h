@@ -7,8 +7,7 @@
 #ifndef __DRIVER_DNS_H__
 #define __DRIVER_DNS_H__
 
-#include "select_group.h"
-#include "session.h"
+#include "../libs/select_group.h"
 
 typedef struct
 {

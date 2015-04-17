@@ -9,7 +9,6 @@
 
 #include "command_packet.h"
 #include "command_packet_stream.h"
-#include "message.h"
 #include "select_group.h"
 #include "session.h"
 #include "types.h"

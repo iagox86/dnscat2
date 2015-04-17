@@ -13,21 +13,21 @@
 #include <unistd.h>
 #endif
 
-#include "log.h"
-#include "memory.h"
-#include "message.h"
-#include "select_group.h"
-#include "session.h"
-#include "types.h"
+#include "../libs/buffer.h"
+#include "../libs/log.h"
+#include "../libs/memory.h"
+#include "../libs/select_group.h"
+#include "../libs/types.h"
 
 #include "driver_console.h"
 
 /* There can only be one driver_console, so store these as global variables. */
 static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *d)
 {
-  driver_console_t *driver_console = (driver_console_t*) d;
+  driver_console_t *driver = (driver_console_t*) d;
 
-  message_post_data_out(driver_console->session_id, data, length);
+  /* TODO: Tell the controller that we have data */
+  buffer_add_bytes(driver->outgoing_data, data, length);
 
   return SELECT_OK;
 }
@@ -35,12 +35,15 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
 {
   /* When the stdin pipe is closed, the stdin driver signals the end. */
-  message_post_shutdown();
+  driver_console_t *driver = (driver_console_t*) d;
+
+  /* Record that we've been shut down - we'll continue reading to the end of the buffer, still. */
+  driver->is_shutdown = TRUE;
 
   return SELECT_CLOSE_REMOVE;
 }
 
-static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t length)
+void driver_console_data_received(driver_console_t *driver, uint8_t *data, size_t length)
 {
   size_t i;
 
@@ -48,29 +51,22 @@ static void handle_data_in(driver_console_t *driver, uint8_t *data, size_t lengt
     fputc(data[i], stdout);
 }
 
-static void handle_message(message_t *message, void *d)
+uint8_t *driver_console_get_outgoing(driver_console_t *driver, size_t *length, size_t max_length)
 {
-  driver_console_t *driver = (driver_console_t*) d;
+  /* If the driver has been killed and we have no bytes left, return NULL to close the session. */
+  if(driver->is_shutdown && buffer_get_remaining_bytes(driver->outgoing_data) == 0)
+    return NULL;
 
-  switch(message->type)
-  {
-    case MESSAGE_DATA_IN:
-      if(message->message.data_in.session_id == driver->session_id)
-        handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
-      break;
-
-    default:
-      LOG_FATAL("driver_console received an invalid message: %d", message->type);
-      abort();
-  }
+  return buffer_read_remaining_bytes(driver->outgoing_data, length, max_length, TRUE);
 }
 
-driver_console_t *driver_console_create(select_group_t *group, char *name, char *download, int first_chunk)
+driver_console_t *driver_console_create(select_group_t *group)
+/*, char *name, char *download, int first_chunk)*/
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
 
-  message_options_t options[4];
-
+  driver->group       = group;
+  driver->is_shutdown = FALSE;
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
   HANDLE stdin_handle = get_stdin_handle();
@@ -85,12 +81,11 @@ driver_console_t *driver_console_create(select_group_t *group, char *name, char 
   select_set_closed(group,       stdin_handle, console_stdin_closed);
 #endif
 
+#if 0
+  message_options_t options[4];
   driver->name        = name ? name : "[unnamed console]";
   driver->download    = download;
   driver->first_chunk = first_chunk;
-
-  /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
 
   options[0].name    = "name";
   options[0].value.s = driver->name;
@@ -109,17 +104,18 @@ driver_console_t *driver_console_create(select_group_t *group, char *name, char 
   }
 
   options[3].name    = NULL;
-
-  driver->session_id = message_post_create_session(options);
+#endif
 
   return driver;
 }
 
 void driver_console_destroy(driver_console_t *driver)
 {
+#if 0
   if(driver->name)
     safe_free(driver->name);
   if(driver->download)
     safe_free(driver->download);
+#endif
   safe_free(driver);
 }
