@@ -48,5 +48,6 @@ void debug_set_isn(uint16_t value);
 NBBOOL session_is_shutdown(session_t *session);
 
 void session_data_incoming(session_t *session, uint8_t *data, size_t length);
+uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length);
 
 #endif

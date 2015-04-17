@@ -16,6 +16,7 @@
 #include <stdint.h>
 #endif
 
+#include "../libs/dns.h"
 #include "../libs/log.h"
 #include "../tunnel_drivers/driver_dns.h"
 #include "packet.h"
@@ -28,10 +29,9 @@ typedef struct _session_entry_t
   session_t *session;
   struct _session_entry_t *next;
 } session_entry_t;
-
 static session_entry_t *first_session;
 
-static session_t *controller_add_session(session_t *session)
+static void controller_add_session(session_t *session)
 {
   session_entry_t *entry = NULL;
 
@@ -42,7 +42,7 @@ static session_t *controller_add_session(session_t *session)
   first_session = entry;
 }
 
-size_t controller_open_session_count()
+static size_t controller_open_session_count()
 {
   size_t count = 0;
 
@@ -70,10 +70,83 @@ static session_t *sessions_get_by_id(uint16_t session_id)
   return NULL;
 }
 
+/* Version beta 0.01 suffered from a bug that I didn't understand: if one
+ * session had a ton of data to send, all the other sessions were ignored till
+ * it was done (if it was a new session). This function will get the "next"
+ * session using a global variable.
+ */
+static session_entry_t *current_session = NULL;
+
+static session_t *sessions_get_next()
+{
+  /* If there's no session, use the first one. */
+  if(!current_session)
+    current_session = first_session;
+
+  /* If there's still no session, give up. */
+  if(!current_session)
+    return NULL;
+
+  /* Get the next session. */
+  current_session = current_session->next;
+
+  /* If we're at the end, go to the beginning. Also attempting a record for the
+   * number of NULL checks one a single pointer. */
+  if(!current_session)
+    current_session = first_session;
+
+  /* If this is NULL, something crazy is happening (we already had a
+   * first_session at some point in the past, so it means the linked list has
+   * had a member removed, which we can't currently do. */
+  assert(current_session);
+
+  /* All done! */
+  return current_session->session;
+}
+
+/* Get the next session in line that isn't shutdown.
+ * TODO: can/should we give higher priority to sessions that have data
+ * waiting?
+ */
+static session_t *sessions_get_next_active()
+{
+  /* Keep track of where we start. */
+  session_entry_t *start = NULL;
+
+  /* If there's no session, use the first one. */
+  if(!current_session)
+    current_session = first_session;
+
+  /* If there's still no session, give up. */
+  if(!current_session)
+    return NULL;
+
+  /* Record our starting point. */
+  start = current_session;
+
+  /* Get the next session. */
+  do
+  {
+    current_session = current_session->next;
+
+    /* If we're at the end, go to the beginning. Also attempting a record for the
+    * number of NULL checks one a single pointer. */
+    if(!current_session)
+      current_session = first_session;
+
+    if(!session_is_shutdown(current_session->session))
+      return current_session->session;
+  }
+  while(current_session != start);
+
+  /* If we reached the starting point, there are no active sessions. */
+  return NULL;
+}
+
 void controller_data_incoming(uint8_t *data, size_t length)
 {
   /* Parse the packet to get the session id */
-  packet_t *packet = packet_parse(data, length, 0);
+  packet_t *packet = packet_parse(data, length, (options_t)0);
   session_t *session;
 
   /* Check if it's a ping packet, since we can deal with those instantly. */
@@ -82,7 +155,7 @@ void controller_data_incoming(uint8_t *data, size_t length)
     printf("Ping received!\n");
 
     /* 0 = no options on ping. */
-    packet_print(packet, 0);
+    packet_print(packet, (options_t)0);
 
     exit(0);
   }
@@ -102,6 +175,20 @@ void controller_data_incoming(uint8_t *data, size_t length)
 
   /* Pass the data onto the session. */
   session_data_incoming(session, data, length);
+}
+
+uint8_t *controller_get_outgoing(size_t *length, size_t max_length)
+{
+  /* This needs to somehow be balanced. */
+  session_t *session = sessions_get_next_active();
+
+  if(!session)
+  {
+    printf("No sessions left! Should we exit?\n");
+    return NULL;
+  }
+
+  return session_get_outgoing(session, length, max_length);
 }
 
 #if 0
