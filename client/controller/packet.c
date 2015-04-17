@@ -95,7 +95,7 @@ uint16_t packet_peek_session_id(uint8_t *data, size_t length)
   }
 
   /* Create a buffer with the first 5 bytes of data. */
-  buffer_create_with_data(BO_BIG_ENDIAN, data, 5);
+  buffer = buffer_create_with_data(BO_BIG_ENDIAN, data, 5);
 
   /* Discard packet_id. */
   buffer_consume(buffer, 2);

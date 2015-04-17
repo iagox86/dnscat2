@@ -67,12 +67,13 @@ typedef enum {
   TYPE_DNS,
 } drivers_t;
 
+#if 0
 static SELECT_RESPONSE_t timeout(void *group, void *param)
 {
   printf("Tock tick???\n");
   return SELECT_OK;
 }
-
+#endif
 static void cleanup(void)
 {
   LOG_WARNING("Terminating");
@@ -502,7 +503,7 @@ int main(int argc, char *argv[])
   atexit(cleanup);
 
   /* Add the timeout function */
-  select_set_timeout(group, timeout, NULL);
+  /*select_set_timeout(group, timeout, NULL);*/
   while(TRUE)
     select_group_do_select(group, 1000);
 

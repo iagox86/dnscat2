@@ -65,8 +65,10 @@ driver_console_t *driver_console_create(select_group_t *group)
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
 
-  driver->group       = group;
-  driver->is_shutdown = FALSE;
+  driver->group         = group;
+  driver->is_shutdown   = FALSE;
+  driver->outgoing_data = buffer_create(BO_LITTLE_ENDIAN);
+
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
   HANDLE stdin_handle = get_stdin_handle();

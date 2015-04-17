@@ -144,6 +144,11 @@ static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
   size_t length;
   uint8_t *data = controller_get_outgoing((size_t*)&length, (size_t)MAX_DNSCAT_LENGTH(driver->domain));
 
+  /* If we aren't supposed to send anything (like we're waiting for a timeout),
+   * data is NULL. */
+  if(!data)
+    return SELECT_OK;
+
   printf("Tick...tock...\n");
 
   assert(driver->s != -1); /* Make sure we have a valid socket. */
