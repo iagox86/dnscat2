@@ -1,2 +1,8 @@
 - Make it possible to change the DNS types
 - Make it possible to change the DNS server
+- Make non-console drivers work
+- Add the option to adjust the retransmit delay
+- Figure out when the best time is to exit()
+- Make packet_trace work again
+- Go through the commandline options and make sure each of them works
+  again

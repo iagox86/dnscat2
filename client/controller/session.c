@@ -33,12 +33,10 @@ static NBBOOL packet_trace;
 #define RETRANSMIT_DELAY 1000 /* Milliseconds */
 
 /* Allow anything to go out. Call this at the start or after receiving legit data. */
-#if 0
 static void reset_counter(session_t *session)
 {
   session->last_transmit = 0;
 }
-#endif
 
 static double time_ms()
 {
@@ -210,7 +208,8 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
           if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
           {
             /* Reset the retransmit counter since we got some valid data. */
-            /*reset_counter(session);*/
+            if(bytes_acked > 0)
+              reset_counter(session);
 
             /* Increment their sequence number */
             session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
