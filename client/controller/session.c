@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+#include <sys/time.h>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -30,24 +30,34 @@ static uint32_t isn = 0xFFFFFFFF;
 /* Enable/disable packet tracing. */
 static NBBOOL packet_trace;
 
-#define RETRANSMIT_DELAY 1 /* Seconds */
+#define RETRANSMIT_DELAY 1000 /* Milliseconds */
 
 /* Allow anything to go out. Call this at the start or after receiving legit data. */
+#if 0
 static void reset_counter(session_t *session)
 {
   session->last_transmit = 0;
+}
+#endif
+
+static double time_ms()
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000 ;
 }
 
 /* Wait for a delay or incoming data before retransmitting. Call this after transmitting data. */
 static void update_counter(session_t *session)
 {
-  session->last_transmit = time(NULL);
+  session->last_transmit = time_ms();
 }
 
 /* Decide whether or not we should transmit data yet. */
 static NBBOOL can_i_transmit_yet(session_t *session)
 {
-  if(time(NULL) - session->last_transmit > RETRANSMIT_DELAY)
+  /*printf("%d\n", (int)(time_ms() - session->last_transmit));*/
+  if(time_ms() - session->last_transmit > RETRANSMIT_DELAY)
     return TRUE;
   return FALSE;
 }
@@ -87,7 +97,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
   poll_for_data(session);
 
   /* Don't transmit too quickly without receiving anything. */
-  /* TODO: I'm not sure that this is necessary anymore. */
   if(!can_i_transmit_yet(session))
   {
     LOG_INFO("Retransmission timer hasn't expired, not re-sending...");
@@ -131,6 +140,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 
       safe_free(data);
 
+      update_counter(session);
       result = packet_to_bytes(packet, length, session->options);
       packet_destroy(packet);
 
@@ -196,10 +206,11 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
           /* Verify the ACK is sane */
           uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
 
+          /* If there's still bytes waiting in the buffer.. */
           if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
           {
             /* Reset the retransmit counter since we got some valid data. */
-            reset_counter(session);
+            /*reset_counter(session);*/
 
             /* Increment their sequence number */
             session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
