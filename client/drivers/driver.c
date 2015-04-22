@@ -21,10 +21,16 @@
 driver_t *driver_create(driver_type_t type, void *real_driver)
 {
   driver_t *driver = (driver_t *)safe_malloc(sizeof(driver_t));
+  driver->type = type;
+
   switch(type)
   {
     case DRIVER_TYPE_CONSOLE:
       driver->real_driver.console = (driver_console_t*) real_driver;
+      break;
+
+    case DRIVER_TYPE_EXEC:
+      driver->real_driver.exec = (driver_exec_t*) real_driver;
       break;
 
     default:
@@ -44,6 +50,10 @@ void driver_destroy(driver_t *driver)
       return driver_console_destroy(driver->real_driver.console);
       break;
 
+    case DRIVER_TYPE_EXEC:
+      return driver_exec_destroy(driver->real_driver.exec);
+      break;
+
     default:
       printf("UNKNOWN DRIVER TYPE!\n");
       exit(1);
@@ -59,6 +69,10 @@ void driver_close(driver_t *driver)
   {
     case DRIVER_TYPE_CONSOLE:
       return driver_console_close(driver->real_driver.console);
+      break;
+
+    case DRIVER_TYPE_EXEC:
+      return driver_exec_close(driver->real_driver.exec);
       break;
 
     default:
@@ -78,6 +92,10 @@ void driver_data_received(driver_t *driver, uint8_t *data, size_t length)
       return driver_console_data_received(driver->real_driver.console, data, length);
       break;
 
+    case DRIVER_TYPE_EXEC:
+      return driver_exec_data_received(driver->real_driver.exec, data, length);
+      break;
+
     default:
       printf("UNKNOWN DRIVER TYPE!\n");
       exit(1);
@@ -91,6 +109,10 @@ uint8_t *driver_get_outgoing(driver_t *driver, size_t *length, size_t max_length
   {
     case DRIVER_TYPE_CONSOLE:
       return driver_console_get_outgoing(driver->real_driver.console, length, max_length);
+      break;
+
+    case DRIVER_TYPE_EXEC:
+      return driver_exec_get_outgoing(driver->real_driver.exec, length, max_length);
       break;
 
     default:

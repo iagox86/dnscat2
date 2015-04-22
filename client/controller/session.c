@@ -336,9 +336,18 @@ static session_t *session_create(char *name)
 
 session_t *session_create_console(select_group_t *group, char *name)
 {
-  session_t *session     = session_create(name);
+  session_t *session = session_create(name);
 
   session->driver = driver_create(DRIVER_TYPE_CONSOLE, driver_console_create(group));
+
+  return session;
+}
+
+session_t *session_create_exec(select_group_t *group, char *name, char *process)
+{
+  session_t *session = session_create(name);
+
+  session->driver = driver_create(DRIVER_TYPE_EXEC, driver_exec_create(group, process));
 
   return session;
 }

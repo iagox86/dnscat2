@@ -26,7 +26,6 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
 {
   driver_console_t *driver = (driver_console_t*) d;
 
-  /* TODO: Tell the controller that we have data */
   buffer_add_bytes(driver->outgoing_data, data, length);
 
   return SELECT_OK;
@@ -83,31 +82,6 @@ driver_console_t *driver_console_create(select_group_t *group)
   select_set_closed(group,       stdin_handle, console_stdin_closed);
 #endif
 
-#if 0
-  message_options_t options[4];
-  driver->name        = name ? name : "[unnamed console]";
-  driver->download    = download;
-  driver->first_chunk = first_chunk;
-
-  options[0].name    = "name";
-  options[0].value.s = driver->name;
-
-  if(driver->download)
-  {
-    options[1].name    = "download";
-    options[1].value.s = driver->download;
-
-    options[2].name    = "first_chunk";
-    options[2].value.i = driver->first_chunk;
-  }
-  else
-  {
-    options[1].name = NULL;
-  }
-
-  options[3].name    = NULL;
-#endif
-
   return driver;
 }
 
@@ -124,5 +98,5 @@ void driver_console_destroy(driver_console_t *driver)
 
 void driver_console_close(driver_console_t *driver)
 {
-  printf("TODO: Close console driver in some meaningful way\n");
+  driver->is_shutdown = TRUE;
 }

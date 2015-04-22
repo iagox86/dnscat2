@@ -8,10 +8,12 @@
 #define __DRIVER_H__
 
 #include "driver_console.h"
+#include "driver_exec.h"
 
 typedef enum
 {
-  DRIVER_TYPE_CONSOLE
+  DRIVER_TYPE_CONSOLE,
+  DRIVER_TYPE_EXEC,
 } driver_type_t;
 
 typedef struct
@@ -21,6 +23,7 @@ typedef struct
   union
   {
     driver_console_t *console;
+    driver_exec_t    *exec;
   } real_driver;
 } driver_t;
 

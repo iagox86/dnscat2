@@ -45,6 +45,8 @@ typedef struct
 } session_t;
 
 session_t *session_create_console(select_group_t *group, char *name);
+session_t *session_create_exec(select_group_t *group, char *name, char *process);
+
 void debug_set_isn(uint16_t value);
 
 NBBOOL session_is_shutdown(session_t *session);

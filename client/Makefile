@@ -19,6 +19,7 @@ OBJS=controller/packet.o \
 		 controller/controller.o \
 		 drivers/driver.o \
 		 drivers/driver_console.o \
+		 drivers/driver_exec.o \
 		 libs/buffer.o \
 		 libs/dns.o \
 		 libs/log.o \

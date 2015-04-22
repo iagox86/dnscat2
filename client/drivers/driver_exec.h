@@ -9,15 +9,15 @@
 
 #include <sys/types.h>
 
-#include "select_group.h"
-#include "session.h"
+#include "libs/buffer.h"
+#include "libs/select_group.h"
 
 typedef struct
 {
-  uint16_t        session_id;
   char           *process;
   select_group_t *group;
-  char           *name;
+  buffer_t       *outgoing_data;
+  NBBOOL          is_shutdown;
 
 #ifdef WIN32
   HANDLE exec_stdin[2];  /* The stdin handle. */
@@ -32,10 +32,10 @@ typedef struct
 #endif
 } driver_exec_t;
 
-driver_exec_t *driver_exec_create(select_group_t *group, char *process, char *name);
-void           driver_exec_destroy();
-
-/* This can be used to start the driver without sending MESSAGE_START */
-void driver_exec_manual_start(driver_exec_t *driver);
+driver_exec_t *driver_exec_create(select_group_t *group, char *process);
+void           driver_exec_destroy(driver_exec_t *driver);
+void           driver_exec_data_received(driver_exec_t *driver, uint8_t *data, size_t length);
+uint8_t       *driver_exec_get_outgoing(driver_exec_t *driver, size_t *length, size_t max_length);
+void           driver_exec_close(driver_exec_t *driver);
 
 #endif

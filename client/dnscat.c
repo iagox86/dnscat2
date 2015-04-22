@@ -139,11 +139,6 @@ void usage(char *name, char *message)
   exit(0);
 }
 
-void too_many_inputs(char *name)
-{
-  usage(name, "More than one of --exec, --console, --listen, and --ping can't be set!");
-}
-
 void create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
 {
   if(!server)
@@ -247,10 +242,6 @@ int main(int argc, char *argv[])
     {"exec",    required_argument, 0, 0}, /* Enable execute */
     {"e",       required_argument, 0, 0},
 
-    /* Listener options */
-    {"listen",  required_argument, 0, 0}, /* Enable listener */
-    {"l",       required_argument, 0, 0},
-
     /* Tunnel drivers */
     {"dns",        optional_argument, 0, 0}, /* Enable DNS */
     {"tcp",        optional_argument, 0, 0}, /* Enable DNS */
@@ -278,8 +269,6 @@ int main(int argc, char *argv[])
   /*dns_type_t        dns_type = _DNS_TYPE_TEXT; */ /* TODO: Is this the best default? */
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
-
-  drivers_t input_type = TYPE_NOT_SET;
 
   session_t *session = NULL;
 
@@ -328,9 +317,6 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "ping"))
         {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
-
           input_type = TYPE_PING;
 
           /* Turn off logging, since this is a simple ping. */
@@ -347,31 +333,25 @@ int main(int argc, char *argv[])
         /* Console-specific options. */
         else if(!strcmp(option_name, "console"))
         {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
-
-          input_type = TYPE_CONSOLE;
+          session = session_create_console(group, "FIXME: Session Naming :)");
+          controller_add_session(session);
         }
 
         /* Execute options. */
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
-
           /*exec_process = optarg;*/ /* TODO: Fix exec. */
-          input_type = TYPE_EXEC;
+
+          session = session_create_exec(group, optarg, optarg);
+          controller_add_session(session);
         }
 
         /* Listener options. */
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
-
           /*listen_port = atoi(optarg);*/
 
-          input_type = TYPE_LISTENER;
+          /*input_type = TYPE_LISTENER;*/
         }
 
         /* Tunnel driver options */
@@ -424,14 +404,7 @@ int main(int argc, char *argv[])
   }
 #endif
 
-  /* If no input was created, default to command. */
-  if(input_type == TYPE_NOT_SET)
-    input_type = TYPE_COMMAND;
-
-  /* Create the initial session. */
-  session = session_create_console(group, "FIXME: Session Naming :)");
-  controller_add_session(session);
-
+  /* TODO: A default driver. */
 #if 0
   switch(input_type)
   {
