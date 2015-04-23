@@ -167,13 +167,13 @@ packet_t *packet_create_fin(uint16_t session_id, char *reason)
   return packet;
 }
 
-packet_t *packet_create_ping(char *data)
+packet_t *packet_create_ping(uint16_t session_id, char *data)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
   packet->packet_type     = PACKET_TYPE_PING;
   packet->packet_id       = rand() % 0xFFFF;
-  packet->session_id      = 0;
+  packet->session_id      = session_id;
   packet->body.ping.data  = safe_strdup(data);
 
   return packet;
@@ -294,7 +294,7 @@ size_t packet_get_ping_size()
   /* If the size isn't known yet, calculate it. */
   if(size == 0)
   {
-    packet_t *p = packet_create_ping("");
+    packet_t *p = packet_create_ping(0, "");
     uint8_t *data = packet_to_bytes(p, &size, (options_t)0);
     safe_free(data);
     packet_destroy(p);

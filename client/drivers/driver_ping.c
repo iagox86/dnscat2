@@ -79,7 +79,7 @@ driver_ping_t *driver_ping_create(select_group_t *group)
   driver->data = safe_malloc(PING_LENGTH + 1);
   memset(driver->data, 0, PING_LENGTH);
 
-  for(i = 0; i < PING_LENGTH - 1; i++)
+  for(i = 0; i < PING_LENGTH; i++)
     driver->data[i] = (rand() % 26) + 'a';
 
   return driver;

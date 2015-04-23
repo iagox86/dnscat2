@@ -13,5 +13,3 @@
 - Kill the process when a driver_exec session is destroyed
 - Add a 'proper' way to kill drivers to controller.c, and make sure all closing/killing goes through that
 - The server needs to respond to PING packets' id field
-- I can probably get rid of poll_for_data() by exposing another function or two to drivers
-- Make controller_add_session() happen automatically in the sessions's constructor

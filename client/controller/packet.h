@@ -102,7 +102,7 @@ packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options
 packet_t *packet_create_msg_normal(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
 packet_t *packet_create_msg_chunked(uint16_t session_id, uint32_t chunk);
 packet_t *packet_create_fin(uint16_t session_id, char *reason);
-packet_t *packet_create_ping(char *data);
+packet_t *packet_create_ping(uint16_t session_id, char *data);
 
 /* Set the OPT_NAME field and add a name value. */
 void packet_syn_set_name(packet_t *packet, char *name);

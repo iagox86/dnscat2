@@ -102,7 +102,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
   {
     /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
     data = buffer_read_remaining_bytes(session->outgoing_buffer, &data_length, max_length - packet_get_ping_size(), FALSE);
-    packet = packet_create_ping((char*)data);
+    packet = packet_create_ping(session->id, (char*)data);
     safe_free(data);
 
     LOG_INFO("In PING, sending a PING packet (%zd bytes of data...)", data_length);
@@ -363,7 +363,6 @@ session_t *session_create_ping(select_group_t *group, char *name)
 
   session->driver = driver_create(DRIVER_TYPE_PING, driver_ping_create(group));
   session->is_ping = TRUE;
-  session->id      = 0;
 
   return session;
 }
