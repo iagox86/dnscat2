@@ -1,11 +1,8 @@
 - Make it possible to change the DNS types
 - Make it possible to change the DNS server
-- Make non-console drivers work
 - Add the option to adjust the retransmit delay
-- Figure out when the best time is to exit()
 - Make packet_trace work again
-- Go through the commandline options and make sure each of them works
-  again
+- Go through the commandline options and make sure each of them works again
 - Change how sub-protocols work - have a flag then a protocol ID, probably, would make life far less confusing
 - The client should transmit new data immediately after receiving data
 - Make it possible to close sessions on both ends using ctrl-d

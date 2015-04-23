@@ -145,7 +145,7 @@ static session_t *sessions_get_next_active()
   return NULL;
 }
 
-void controller_data_incoming(uint8_t *data, size_t length)
+NBBOOL controller_data_incoming(uint8_t *data, size_t length)
 {
   uint16_t session_id = packet_peek_session_id(data, length);
   session_t *session = sessions_get_by_id(session_id);
@@ -168,11 +168,11 @@ void controller_data_incoming(uint8_t *data, size_t length)
   if(!session)
   {
     LOG_ERROR("Tried to access a non-existent session (%s): %d", __FUNCTION__, session_id);
-    return;
+    return FALSE;
   }
 
   /* Pass the data onto the session. */
-  session_data_incoming(session, data, length);
+  return session_data_incoming(session, data, length);
 }
 
 /* TODO: Find a way to speed up when we keep getting data. */

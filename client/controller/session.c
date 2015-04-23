@@ -169,10 +169,13 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
   return result;
 }
 
-void session_data_incoming(session_t *session, uint8_t *data, size_t length)
+NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 {
   /* Parse the packet to get the session id */
   packet_t *packet = packet_parse(data, length, session->options);
+
+  /* Set to TRUE if data was properly ACKed and we should send more right away. */
+  NBBOOL send_right_away = FALSE;
 
   /* Suck in any data we can from the driver. */
   poll_for_data(session);
@@ -192,6 +195,9 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
           session->their_seq = packet->body.syn.seq;
           session->options   = (options_t) packet->body.syn.options;
           session->state = SESSION_STATE_ESTABLISHED;
+
+          /* Since we established a valid session, we can send stuff right away. */
+          send_right_away = TRUE;
         }
         else if(packet->packet_type == PACKET_TYPE_MSG)
         {
@@ -251,19 +257,18 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
               {
                 driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
               }
+
+              /* Since we just got a valid ACK, we can send stuff right away. */
+              send_right_away = TRUE;
             }
             else
             {
               LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_buffer));
-              packet_destroy(packet);
-              return;
             }
           }
           else
           {
             LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
-            packet_destroy(packet);
-            return;
           }
         }
         else if(packet->packet_type == PACKET_TYPE_FIN)
@@ -290,6 +295,8 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
   }
 
   packet_destroy(packet);
+
+  return send_right_away;
 }
 
 void session_destroy(session_t *session)

@@ -129,7 +129,7 @@ static int cmpfunc_aaaa(const void *a, const void *b)
 }
 #endif
 
-static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
+static void do_send(driver_dns_t *driver)
 {
   size_t        i;
   dns_t        *dns;
@@ -140,14 +140,13 @@ static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
   size_t        dns_length;
   size_t        section_length;
 
-  driver_dns_t *driver = (driver_dns_t*) param;
   size_t length;
   uint8_t *data = controller_get_outgoing((size_t*)&length, (size_t)MAX_DNSCAT_LENGTH(driver->domain));
 
   /* If we aren't supposed to send anything (like we're waiting for a timeout),
    * data is NULL. */
   if(!data)
-    return SELECT_OK;
+    return;
 
   assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
@@ -211,6 +210,11 @@ static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
   safe_free(data);
 
   dns_destroy(dns);
+}
+
+static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
+{
+  do_send((driver_dns_t*)param);
 
   return SELECT_OK;
 }
@@ -343,7 +347,8 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
       if(answer_length > 0)
       {
         /* Pass the data elsewhere. */
-        controller_data_incoming(answer, answer_length);
+        if(controller_data_incoming(answer, answer_length))
+          do_send(driver);
       }
 
       safe_free(answer);

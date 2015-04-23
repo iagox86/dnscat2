@@ -464,7 +464,7 @@ int main(int argc, char *argv[])
   atexit(cleanup);
 
   while(TRUE)
-    select_group_do_select(group, 50);
+    select_group_do_select(group, 50); /* TODO: Change back to 50. */
 
   return 0;
 }
