@@ -14,9 +14,10 @@ typedef struct
 {
   int        s;
 
-  char      *domain;
-  char      *dns_server;
-  int        dns_port;
+  select_group_t *group;
+  char           *domain;
+  char           *dns_server;
+  int             dns_port;
 
   NBBOOL     is_closed;
   dns_type_t type;
@@ -25,5 +26,6 @@ typedef struct
 
 driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host, uint16_t port, dns_type_t type, char *server);
 void          driver_dns_destroy();
+void          driver_dns_go(driver_dns_t *driver);
 
 #endif

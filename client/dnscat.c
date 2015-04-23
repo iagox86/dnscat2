@@ -119,7 +119,7 @@ void usage(char *name, char *message)
   exit(0);
 }
 
-void create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
+driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
 {
   if(!server)
     server = dns_get_system();
@@ -140,10 +140,10 @@ void create_dns_driver_internal(select_group_t *group, char *domain, char *host,
   printf(" type   = %s\n", type);
   printf(" server = %s\n", server);
 
-  driver_dns_create(group, domain, host, port, _DNS_TYPE_TEXT, server);
+  return driver_dns_create(group, domain, host, port, _DNS_TYPE_TEXT, server);
 }
 
-void create_dns_driver(select_group_t *group, char *options)
+driver_dns_t *create_dns_driver(select_group_t *group, char *options)
 {
   char     *domain = NULL;
   char     *host = "0.0.0.0";
@@ -186,7 +186,8 @@ void create_dns_driver(select_group_t *group, char *options)
     }
   }
 
-  create_dns_driver_internal(group, domain, host, port, type, server);
+  printf("D\n");
+  return create_dns_driver_internal(group, domain, host, port, type, server);
 }
 
 void create_tcp_driver(char *options)
@@ -242,6 +243,8 @@ int main(int argc, char *argv[])
 
   NBBOOL            tunnel_driver_created = FALSE;
   NBBOOL            driver_created        = FALSE;
+
+  driver_dns_t     *tunnel_driver = NULL;
 
   /*char             *name     = NULL;
   char             *download = NULL;
@@ -346,7 +349,9 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "dns"))
         {
           tunnel_driver_created = TRUE;
-          create_dns_driver(group, optarg);
+          printf("A\n");
+          tunnel_driver = create_dns_driver(group, optarg);
+          printf("%p\n", tunnel_driver);
         }
         else if(!strcmp(option_name, "tcp"))
         {
@@ -445,11 +450,13 @@ int main(int argc, char *argv[])
     {
       LOG_WARNING("Starting DNS driver without a domain! This probably won't work;");
       LOG_WARNING("You'll probably need to use --dns.");
-      create_dns_driver_internal(group, NULL, "0.0.0.0", 53, "TXT", NULL);
+          printf("b\n");
+      tunnel_driver = create_dns_driver_internal(group, NULL, "0.0.0.0", 53, "TXT", NULL);
     }
     else
     {
-      create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, "TXT", NULL);
+          printf("c\n");
+      tunnel_driver = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, "TXT", NULL);
     }
   }
 
@@ -463,8 +470,8 @@ int main(int argc, char *argv[])
   /* Be sure we clean up at exit. */
   atexit(cleanup);
 
-  while(TRUE)
-    select_group_do_select(group, 50); /* TODO: Change back to 50. */
+  /* Start the driver! */
+  driver_dns_go(tunnel_driver);
 
   return 0;
 }

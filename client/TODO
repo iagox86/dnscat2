@@ -7,3 +7,4 @@
 - The client should transmit new data immediately after receiving data
 - Make it possible to close sessions on both ends using ctrl-d
 - Add a 'proper' way to kill drivers to controller.c, and make sure all closing/killing goes through that
+- When new data is ready to go out, it should immediately be sent (unless we're waiting for an ACK)

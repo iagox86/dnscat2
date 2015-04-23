@@ -362,33 +362,44 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
 driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host, uint16_t port, dns_type_t type, char *server)
 {
-  driver_dns_t *driver_dns = (driver_dns_t*) safe_malloc(sizeof(driver_dns_t));
+  driver_dns_t *driver = (driver_dns_t*) safe_malloc(sizeof(driver_dns_t));
 
   /* Create the actual DNS socket. */
   LOG_INFO("Creating UDP (DNS) socket");
-  driver_dns->s = udp_create_socket(0, host);
-  if(driver_dns->s == -1)
+  driver->s = udp_create_socket(0, host);
+  if(driver->s == -1)
   {
     LOG_FATAL("Couldn't create UDP socket!");
     exit(1);
   }
 
   /* Set the domain and stuff. */
-  driver_dns->domain     = domain;
-  driver_dns->type       = type;
-  driver_dns->dns_port   = port;
-  driver_dns->dns_server = server;
+  driver->group      = group;
+  driver->domain     = domain;
+  driver->type       = type;
+  driver->dns_port   = port;
+  driver->dns_server = server;
 
   /* If it succeeds, add it to the select_group */
-  select_group_add_socket(group, driver_dns->s, SOCKET_TYPE_STREAM, driver_dns);
-  select_set_recv(group, driver_dns->s, recv_socket_callback);
-  select_set_timeout(group, timeout_callback, driver_dns);
-  select_set_closed(group, driver_dns->s, dns_data_closed);
+  select_group_add_socket(group, driver->s, SOCKET_TYPE_STREAM, driver);
+  select_set_recv(group, driver->s, recv_socket_callback);
+  select_set_timeout(group, timeout_callback, driver);
+  select_set_closed(group, driver->s, dns_data_closed);
 
-  return SELECT_OK;
+  return driver;
 }
 
 void driver_dns_destroy(driver_dns_t *driver)
 {
   safe_free(driver);
+}
+
+void driver_dns_go(driver_dns_t *driver)
+{
+  /* Do a fake timeout at the start so we can get going more quickly. */
+  timeout_callback(driver->group, driver);
+
+  /* Loop forever and poke the socket. */
+  while(TRUE)
+    select_group_do_select(driver->group, 50); /* TODO: Change back to 50. */
 }
