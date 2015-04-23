@@ -87,12 +87,8 @@ driver_console_t *driver_console_create(select_group_t *group)
 
 void driver_console_destroy(driver_console_t *driver)
 {
-#if 0
-  if(driver->name)
-    safe_free(driver->name);
-  if(driver->download)
-    safe_free(driver->download);
-#endif
+  if(!driver->is_shutdown)
+    driver_console_close(driver);
   safe_free(driver);
 }
 

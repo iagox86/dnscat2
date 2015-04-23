@@ -162,6 +162,9 @@ driver_command_t *driver_command_create(select_group_t *group)
 
 void driver_command_destroy(driver_command_t *driver)
 {
+  if(!driver->is_shutdown)
+    driver_command_close(driver);
+
   if(driver->name)
     safe_free(driver->name);
   if(driver->stream)

@@ -12,6 +12,8 @@
 
 #ifndef WIN32
 #include <unistd.h>
+#include <sys/types.h>
+#include <signal.h>
 #endif
 
 #include "libs/buffer.h"
@@ -191,11 +193,15 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
 
 void driver_exec_destroy(driver_exec_t *driver)
 {
+  if(!driver->is_shutdown)
+    driver_exec_close(driver);
   safe_free(driver);
 }
 
 void driver_exec_close(driver_exec_t *driver)
 {
   /* TODO: Kill the process. */
+  LOG_WARNING("exec driver shut down; killing process %d", driver->pid);
+  kill(driver->pid, SIGINT);
   driver->is_shutdown = TRUE;
 }
