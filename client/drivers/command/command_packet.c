@@ -27,7 +27,7 @@ command_packet_t *command_packet_parse(uint8_t *data, uint32_t length, NBBOOL is
   buffer_t *buffer = buffer_create_with_data(BO_BIG_ENDIAN, data, length);
 
   p->request_id = buffer_read_next_int16(buffer);
-  p->command_id = buffer_read_next_int16(buffer);
+  p->command_id = (command_packet_type_t) buffer_read_next_int16(buffer);
   p->is_request = is_request;
 
   switch(p->command_id)

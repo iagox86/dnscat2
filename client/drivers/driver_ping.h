@@ -7,15 +7,18 @@
 #ifndef __DRIVER_PING_H__
 #define __DRIVER_PING_H__
 
-#include "select_group.h"
-#include "session.h"
+#include "libs/select_group.h"
 
 typedef struct
 {
-  char *data;
+  char   *data;
+  NBBOOL  is_shutdown;
 } driver_ping_t;
 
-driver_ping_t  *driver_ping_create(select_group_t *group);
-void            driver_ping_destroy();
+driver_ping_t *driver_ping_create(select_group_t *group);
+void           driver_ping_destroy(driver_ping_t *driver);
+void           driver_ping_data_received(driver_ping_t *driver, uint8_t *data, size_t length);
+uint8_t       *driver_ping_get_outgoing(driver_ping_t *driver, size_t *length, size_t max_length);
+void           driver_ping_close(driver_ping_t *driver);
 
 #endif

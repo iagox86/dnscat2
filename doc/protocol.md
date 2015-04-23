@@ -405,11 +405,10 @@ order). The following datatypes are used:
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0xFF]
-- (uint16_t) reserved
+- (uint16_t) ping_id
 - (ntstring) data
 
 #### Notes
 
-- The reserved field should be ignored. It's simply there to make it
-  easier to parse (since every other packet has a 24-bit header).
-- This is the only message that isn't part of a session
+- The 'ping_id' field should be simply echoed back from the server as if
+  it was data

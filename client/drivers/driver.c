@@ -33,6 +33,14 @@ driver_t *driver_create(driver_type_t type, void *real_driver)
       driver->real_driver.exec = (driver_exec_t*) real_driver;
       break;
 
+    case DRIVER_TYPE_COMMAND:
+      driver->real_driver.command = (driver_command_t*) real_driver;
+      break;
+
+    case DRIVER_TYPE_PING:
+      driver->real_driver.ping = (driver_ping_t*) real_driver;
+      break;
+
     default:
       printf("UNKNOWN DRIVER TYPE!\n");
       exit(1);
@@ -52,6 +60,14 @@ void driver_destroy(driver_t *driver)
 
     case DRIVER_TYPE_EXEC:
       return driver_exec_destroy(driver->real_driver.exec);
+      break;
+
+    case DRIVER_TYPE_COMMAND:
+      return driver_command_destroy(driver->real_driver.command);
+      break;
+
+    case DRIVER_TYPE_PING:
+      return driver_ping_destroy(driver->real_driver.ping);
       break;
 
     default:
@@ -75,6 +91,14 @@ void driver_close(driver_t *driver)
       return driver_exec_close(driver->real_driver.exec);
       break;
 
+    case DRIVER_TYPE_COMMAND:
+      return driver_command_close(driver->real_driver.command);
+      break;
+
+    case DRIVER_TYPE_PING:
+      return driver_ping_close(driver->real_driver.ping);
+      break;
+
     default:
       printf("UNKNOWN DRIVER TYPE!\n");
       exit(1);
@@ -96,6 +120,14 @@ void driver_data_received(driver_t *driver, uint8_t *data, size_t length)
       return driver_exec_data_received(driver->real_driver.exec, data, length);
       break;
 
+    case DRIVER_TYPE_COMMAND:
+      return driver_command_data_received(driver->real_driver.command, data, length);
+      break;
+
+    case DRIVER_TYPE_PING:
+      return driver_ping_data_received(driver->real_driver.ping, data, length);
+      break;
+
     default:
       printf("UNKNOWN DRIVER TYPE!\n");
       exit(1);
@@ -113,6 +145,10 @@ uint8_t *driver_get_outgoing(driver_t *driver, size_t *length, size_t max_length
 
     case DRIVER_TYPE_EXEC:
       return driver_exec_get_outgoing(driver->real_driver.exec, length, max_length);
+      break;
+
+    case DRIVER_TYPE_PING:
+      return driver_ping_get_outgoing(driver->real_driver.ping, length, max_length);
       break;
 
     default:

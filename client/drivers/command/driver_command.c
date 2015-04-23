@@ -1,5 +1,6 @@
 /* driver_command.c
  * By Ron Bowes
+ * Created May, 2014
  *
  * See LICENSE.md
  */
@@ -17,16 +18,17 @@
 
 #include "command_packet.h"
 #include "command_packet_stream.h"
-#include "driver_exec.h"
-#include "log.h"
-#include "memory.h"
-#include "select_group.h"
-#include "session.h"
-#include "types.h"
+#include "controller/session.h"
+#include "controller/controller.h"
+#include "drivers/driver_exec.h"
+#include "libs/log.h"
+#include "libs/memory.h"
+#include "libs/select_group.h"
+#include "libs/types.h"
 
 #include "driver_command.h"
 
-static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t length)
+void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_t length)
 {
   command_packet_stream_feed(driver->stream, data, length);
 
@@ -46,19 +48,20 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
     else if(in->command_id == COMMAND_SHELL && in->is_request == TRUE)
     {
 #ifdef WIN32
-      driver_exec_t *driver_exec = driver_exec_create(driver->group, "cmd.exe", in->r.request.body.shell.name);
+      session_t *session = session_create_exec(driver->group, "cmd.exe", "cmd.exe");
 #else
-      /* TODO: Get the 'default' shell? */
-      driver_exec_t *driver_exec = driver_exec_create(driver->group, "sh", in->r.request.body.shell.name);
+      session_t *session = session_create_exec(driver->group, "sh", "sh");
 #endif
+      controller_add_session(session);
 
-      out = command_packet_create_shell_response(in->request_id, driver_exec->session_id);
+      out = command_packet_create_shell_response(in->request_id, session->id);
     }
     else if(in->command_id == COMMAND_EXEC && in->is_request == TRUE)
     {
-      driver_exec_t *driver_exec = driver_exec_create(driver->group, in->r.request.body.exec.command, in->r.request.body.exec.name);
+      session_t *session = session_create_exec(driver->group, in->r.request.body.exec.command, in->r.request.body.exec.name);
+      controller_add_session(session);
 
-      out = command_packet_create_exec_response(in->request_id, driver_exec->session_id);
+      out = command_packet_create_exec_response(in->request_id, session->id);
     }
     else if(in->command_id == COMMAND_DOWNLOAD && in->is_request == TRUE)
     {
@@ -70,11 +73,12 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
       else
       {
         uint8_t *data;
+        FILE *f = NULL;
+
 #ifdef WIN32
-		FILE *f = NULL;
-		fopen_s(&f, in->r.request.body.download.filename, "rb");
+        fopen_s(&f, in->r.request.body.download.filename, "rb");
 #else
-        FILE *f = fopen(in->r.request.body.download.filename, "rb");
+        f = fopen(in->r.request.body.download.filename, "rb");
 #endif
         if(!f)
         {
@@ -130,53 +134,28 @@ static void handle_data_in(driver_command_t *driver, uint8_t *data, size_t lengt
       command_packet_print(out);
 
       data = command_packet_to_bytes(out, &length);
-
-      message_post_data_out(driver->session_id, data, length);
+      buffer_add_bytes(driver->outgoing_data, data, length);
     }
   }
 }
 
-static void handle_message(message_t *message, void *d)
+uint8_t *driver_command_get_outgoing(driver_command_t *driver, size_t *length, size_t max_length)
 {
-  driver_command_t *driver = (driver_command_t*) d;
+  /* If the driver has been killed and we have no bytes left, return NULL to close the session. */
+  if(driver->is_shutdown && buffer_get_remaining_bytes(driver->outgoing_data) == 0)
+    return NULL;
 
-  switch(message->type)
-  {
-    case MESSAGE_DATA_IN:
-      if(message->message.data_in.session_id == driver->session_id)
-        handle_data_in(driver, message->message.data_in.data, message->message.data_in.length);
-      break;
-
-    default:
-      LOG_FATAL("driver_command received an invalid message: %d", message->type);
-      abort();
-  }
+  return buffer_read_remaining_bytes(driver->outgoing_data, length, max_length, TRUE);
 }
 
-driver_command_t *driver_command_create(select_group_t *group, char *name)
+driver_command_t *driver_command_create(select_group_t *group)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
-  message_options_t options[3];
-
-  /* TODO: Find a way to name this using uname or the hostname or something. */
-  driver->name = name ? name : "command session";
-
   driver->stream = command_packet_stream_create(TRUE);
   driver->group = group;
-
-  /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_DATA_IN,         handle_message, driver);
-
-  options[0].name    = "name";
-  options[0].value.s = driver->name;
-
-  options[1].name    = "is_command";
-  options[1].value.i = TRUE;
-
-  options[2].name    = NULL;
-
-  driver->session_id = message_post_create_session(options);
+  driver->is_shutdown = FALSE;
+  driver->outgoing_data = buffer_create(BO_LITTLE_ENDIAN);
 
   return driver;
 }
@@ -189,3 +168,9 @@ void driver_command_destroy(driver_command_t *driver)
     command_packet_stream_destroy(driver->stream);
   safe_free(driver);
 }
+
+void driver_command_close(driver_command_t *driver)
+{
+  driver->is_shutdown = TRUE;
+}
+

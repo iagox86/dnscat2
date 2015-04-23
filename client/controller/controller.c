@@ -183,7 +183,8 @@ uint8_t *controller_get_outgoing(size_t *length, size_t max_length)
 
   if(!session)
   {
-    printf("No sessions left! Should we exit?\n");
+    LOG_FATAL("There are no active sessions left! Goodbye!");
+    exit(0);
     return NULL;
   }
 

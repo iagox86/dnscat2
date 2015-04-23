@@ -12,11 +12,11 @@
 #include <stdlib.h>
 
 #include "libs/buffer.h"
-#include "libs/command_packet.h"
 #include "libs/types.h"
+#include "command_packet.h"
 
 #ifdef WIN32
-#include "pstdint.h"
+#include "libs/pstdint.h"
 #else
 #include <stdint.h>
 #endif

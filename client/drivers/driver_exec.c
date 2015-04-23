@@ -196,5 +196,6 @@ void driver_exec_destroy(driver_exec_t *driver)
 
 void driver_exec_close(driver_exec_t *driver)
 {
+  /* TODO: Kill the process. */
   driver->is_shutdown = TRUE;
 }

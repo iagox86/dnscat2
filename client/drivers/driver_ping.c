@@ -13,82 +13,74 @@
 #include <unistd.h>
 #endif
 
-#include "log.h"
-#include "memory.h"
-#include "select_group.h"
-#include "session.h"
-#include "types.h"
+#include "libs/log.h"
+#include "libs/memory.h"
+#include "libs/select_group.h"
+#include "libs/types.h"
 
 #include "driver_ping.h"
 
 #define PING_LENGTH 16
 
-static void handle_ping(driver_ping_t *driver, char *data)
+void driver_ping_data_received(driver_ping_t *driver, uint8_t *data, size_t length)
 {
-  if(!strcmp(data, driver->data))
+  if(!strcmp((char*)data, (char*)driver->data))
   {
     printf("Ping response received! This seems like a valid dnscat2 server.\n");
-    message_post_shutdown();
+
+    exit(0);
   }
   else
   {
     printf("Ping response received, but it didn't contain the right data!\n");
     printf("Expected: %s\n", driver->data);
     printf("Received: %s\n", data);
+    printf("\n");
   }
 }
 
-static void handle_heartbeat(driver_ping_t *driver)
+uint8_t *driver_ping_get_outgoing(driver_ping_t *driver, size_t *length, size_t max_length)
 {
-  static int count = 0;
+  static NBBOOL already_sent = FALSE;
+  uint8_t *result = NULL;
 
-  count++;
-  if(count > 10)
+  /* Only return this once. */
+  if(already_sent) {
+    *length = 0;
+    return safe_malloc(0);
+  }
+  already_sent = TRUE;
+
+  if(PING_LENGTH > max_length)
   {
-    printf("There doesn't seem to be a dnscat2 server there. :(\n");
-    message_post_shutdown();
+    LOG_FATAL("Sorry, the ping packet is too long to respect the protocol's length restrictions :(");
+    exit(1);
   }
 
-  printf("Sending a ping...\n");
-  message_post_ping_request(driver->data);
+  result = malloc(PING_LENGTH);
+  memcpy(result, driver->data, PING_LENGTH);
+  *length = PING_LENGTH;
+
+  return result;
 }
 
-static void handle_message(message_t *message, void *d)
+void driver_ping_close(driver_ping_t *driver)
 {
-  driver_ping_t *driver = (driver_ping_t*) d;
-
-  switch(message->type)
-  {
-    case MESSAGE_PING_RESPONSE:
-      handle_ping(driver, message->message.ping_response.data);
-      break;
-
-    case MESSAGE_HEARTBEAT:
-      handle_heartbeat(driver);
-      break;
-
-    default:
-      LOG_FATAL("driver_ping received an invalid message: %d", message->type);
-      abort();
-  }
+  driver->is_shutdown = TRUE;
 }
 
 driver_ping_t *driver_ping_create(select_group_t *group)
 {
   size_t i;
   driver_ping_t *driver = (driver_ping_t*) safe_malloc(sizeof(driver_ping_t));
-
-  /* Subscribe to the messages we care about. */
-  message_subscribe(MESSAGE_PING_RESPONSE, handle_message, driver);
-  message_subscribe(MESSAGE_HEARTBEAT,     handle_message, driver);
+  driver->is_shutdown = FALSE;
 
   /* Create the data */
   driver->data = safe_malloc(PING_LENGTH + 1);
+  memset(driver->data, 0, PING_LENGTH);
 
-  for(i = 0; i < PING_LENGTH; i++)
+  for(i = 0; i < PING_LENGTH - 1; i++)
     driver->data[i] = (rand() % 26) + 'a';
-
-  /* Note: The actual ping will be sent on a heartbeat */
 
   return driver;
 }

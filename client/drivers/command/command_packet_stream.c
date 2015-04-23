@@ -1,5 +1,6 @@
 /* command_packet_stream.c
  * By Ron Bowes
+ * Created May, 2014
  *
  * See LICENSE.md
  */
@@ -7,8 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "command_packet.h"
 #include "libs/buffer.h"
-#include "libs/command_packet.h"
 #include "libs/log.h"
 #include "libs/memory.h"
 

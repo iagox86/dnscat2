@@ -6,3 +6,12 @@
 - Make packet_trace work again
 - Go through the commandline options and make sure each of them works
   again
+- Change how sub-protocols work - have a flag then a protocol ID, probably, would make life far less confusing
+- The client should transmit new data immediately after receiving data
+- Make it possible to close sessions on both ends using ctrl-d
+- The 'sessions' command should display all sessions, not just sub-sessions
+- Kill the process when a driver_exec session is destroyed
+- Add a 'proper' way to kill drivers to controller.c, and make sure all closing/killing goes through that
+- The server needs to respond to PING packets' id field
+- I can probably get rid of poll_for_data() by exposing another function or two to drivers
+- Make controller_add_session() happen automatically in the sessions's constructor

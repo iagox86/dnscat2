@@ -28,15 +28,6 @@
 #include "libs/udp.h"
 #include "tunnel_drivers/driver_dns.h"
 
-#include "drivers/driver_console.h"
-#if 0
-#include "driver_command.h"
-#include "driver_dns.h"
-#include "driver_exec.h"
-#include "driver_listener.h"
-#include "driver_ping.h"
-#endif
-
 /* Default options */
 #define NAME    "dnscat2"
 #define VERSION "0.02"
@@ -54,18 +45,6 @@
 
 /* Define these outside the function so they can be freed by the atexec() */
 select_group_t   *group          = NULL;
-
-typedef enum {
-  TYPE_NOT_SET,
-
-  TYPE_CONSOLE,
-  TYPE_COMMAND,
-  TYPE_EXEC,
-  TYPE_LISTENER,
-  TYPE_PING,
-
-  TYPE_DNS,
-} drivers_t;
 
 static void cleanup(void)
 {
@@ -92,13 +71,14 @@ void usage(char *name, char *message)
 "                         the server list\n"
 " --download <filename>   Request the given file off the server\n"
 " --chunk <n>             start at the given chunk of the --download file\n"
-" --ping                  Attempt to ping a dnscat2 server\n"
 "\n"
 "Input options:\n"
 " --console               Send/receive output to the console\n"
 " --exec -e <process>     Execute the given process and link it to the stream\n"
 " --listen -l <port>      Listen on the given port and link each connection to\n"
 "                         a new stream\n"
+" --command               Start an interactive 'command' session (default)\n"
+" --ping                  Simply check if there's a dnscat2 server listening\n"
 "\n"
 "Debug options:\n"
 " -d                      Display more debug info (can be used multiple times)\n"
@@ -232,19 +212,20 @@ int main(int argc, char *argv[])
     {"download",required_argument, 0, 0}, /* Download */
     {"n",       required_argument, 0, 0},
     {"chunk",   required_argument, 0, 0}, /* Download chunk */
-    {"ping",    no_argument,       0, 0}, /* Ping */
     {"isn",     required_argument, 0, 0}, /* Initial sequence number */
 
-    /* Console options. */
-    {"console", no_argument,       0, 0}, /* Enable console (default) */
-
-    /* Execute-specific options. */
+    /* i/o options. */
+    {"console", no_argument,       0, 0}, /* Enable console */
     {"exec",    required_argument, 0, 0}, /* Enable execute */
     {"e",       required_argument, 0, 0},
+    {"command", no_argument,       0, 0}, /* Enable command (default) */
+    {"ping",    no_argument,       0, 0}, /* Ping */
 
     /* Tunnel drivers */
     {"dns",        optional_argument, 0, 0}, /* Enable DNS */
-    {"tcp",        optional_argument, 0, 0}, /* Enable DNS */
+#if 0
+    {"tcp",        optional_argument, 0, 0}, /* Enable TCP */
+#endif
 
     /* Debug options */
     {"d",            no_argument, 0, 0}, /* More debug */
@@ -259,7 +240,8 @@ int main(int argc, char *argv[])
   int               option_index;
   const char       *option_name;
 
-  NBBOOL            output_set = FALSE;
+  NBBOOL            tunnel_driver_created = FALSE;
+  NBBOOL            driver_created        = FALSE;
 
   /*char             *name     = NULL;
   char             *download = NULL;
@@ -315,14 +297,6 @@ int main(int argc, char *argv[])
         {
           chunk = atoi(optarg);
         }
-        else if(!strcmp(option_name, "ping"))
-        {
-          input_type = TYPE_PING;
-
-          /* Turn off logging, since this is a simple ping. */
-          min_log_level++;
-          log_set_min_console_level(min_log_level);
-        }
 #endif
         else if(!strcmp(option_name, "isn"))
         {
@@ -330,19 +304,33 @@ int main(int argc, char *argv[])
           debug_set_isn(isn);
         }
 
-        /* Console-specific options. */
+        /* i/o drivers */
         else if(!strcmp(option_name, "console"))
         {
+          driver_created = TRUE;
+
           session = session_create_console(group, "FIXME: Session Naming :)");
           controller_add_session(session);
         }
-
-        /* Execute options. */
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
-          /*exec_process = optarg;*/ /* TODO: Fix exec. */
+          driver_created = TRUE;
 
           session = session_create_exec(group, optarg, optarg);
+          controller_add_session(session);
+        }
+        else if(!strcmp(option_name, "command"))
+        {
+          driver_created = TRUE;
+
+          session = session_create_command(group, "FIXME: Session Naming :(");
+          controller_add_session(session);
+        }
+        else if(!strcmp(option_name, "ping"))
+        {
+          driver_created = TRUE;
+
+          session = session_create_ping(group, "FIXME: Session Naming :|");
           controller_add_session(session);
         }
 
@@ -357,12 +345,12 @@ int main(int argc, char *argv[])
         /* Tunnel driver options */
         else if(!strcmp(option_name, "dns"))
         {
-          output_set = TRUE;
+          tunnel_driver_created = TRUE;
           create_dns_driver(group, optarg);
         }
         else if(!strcmp(option_name, "tcp"))
         {
-          output_set = TRUE;
+          tunnel_driver_created = TRUE;
           create_tcp_driver(optarg);
         }
 
@@ -450,7 +438,7 @@ int main(int argc, char *argv[])
 
   /* If no output was set, use the domain, and use the last option as the
    * domain. */
-  if(!output_set)
+  if(!tunnel_driver_created)
   {
     /* Make sure they gave a domain. */
     if(optind >= argc)
@@ -463,6 +451,13 @@ int main(int argc, char *argv[])
     {
       create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, "TXT", NULL);
     }
+  }
+
+  /* If no i/o was set, create a command session. */
+  if(!driver_created)
+  {
+    session = session_create_command(group, "FIXME: Session Naming :(");
+    controller_add_session(session);
   }
 
   /* Be sure we clean up at exit. */

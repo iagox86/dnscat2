@@ -9,11 +9,15 @@
 
 #include "driver_console.h"
 #include "driver_exec.h"
+#include "driver_ping.h"
+#include "drivers/command/driver_command.h"
 
 typedef enum
 {
   DRIVER_TYPE_CONSOLE,
   DRIVER_TYPE_EXEC,
+  DRIVER_TYPE_COMMAND,
+  DRIVER_TYPE_PING,
 } driver_type_t;
 
 typedef struct
@@ -24,6 +28,8 @@ typedef struct
   {
     driver_console_t *console;
     driver_exec_t    *exec;
+    driver_command_t *command;
+    driver_ping_t    *ping;
   } real_driver;
 } driver_t;
 

@@ -29,15 +29,12 @@ typedef struct
   NBBOOL          is_shutdown;
   char           *name;
 
-  char           *download;
-  uint32_t        download_first_chunk;
-  uint32_t        download_current_chunk;
-
-  NBBOOL          is_command;
-
   time_t          last_transmit;
 
   uint16_t       options; /* TODO: Make options work right again. */
+  NBBOOL         is_command;
+
+  NBBOOL         is_ping;
 
   driver_t       *driver;
 
@@ -46,6 +43,8 @@ typedef struct
 
 session_t *session_create_console(select_group_t *group, char *name);
 session_t *session_create_exec(select_group_t *group, char *name, char *process);
+session_t *session_create_command(select_group_t *group, char *name);
+session_t *session_create_ping(select_group_t *group, char *name);
 
 void debug_set_isn(uint16_t value);
 

@@ -21,9 +21,6 @@
 
 #include "session.h"
 
-/* Set to TRUE after getting the 'shutdown' message. */
-/* static NBBOOL is_shutdown = FALSE;*/
-
 /* Allow the user to override the initial sequence number. */
 static uint32_t isn = 0xFFFFFFFF;
 
@@ -69,7 +66,8 @@ static void poll_for_data(session_t *session)
   /* Read all the data we can. */
   uint8_t *data = driver_get_outgoing(session->driver, &length, -1);
 
-  /* If there's no data left, go into 'shutdown' mode. */
+  /* If a driver returns NULL, it means it's done - once the driver is
+   * done and all our data is sent, go into 'shutdown' mode. */
   if(!data)
   {
     if(buffer_get_remaining_bytes(session->outgoing_buffer) == 0)
@@ -96,57 +94,76 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 
   /* Don't transmit too quickly without receiving anything. */
   if(!can_i_transmit_yet(session))
-  {
-    LOG_INFO("Retransmission timer hasn't expired, not re-sending...");
     return NULL;
-  }
 
-  switch(session->state)
+  /* It's pretty ugly, but I don't see any other way, since ping requires
+   * special packets we have to handle it separately. */
+  if(session->is_ping)
   {
-    case SESSION_STATE_NEW:
-      LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
+    /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
+    data = buffer_read_remaining_bytes(session->outgoing_buffer, &data_length, max_length - packet_get_ping_size(), FALSE);
+    packet = packet_create_ping((char*)data);
+    safe_free(data);
 
-      packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
+    LOG_INFO("In PING, sending a PING packet (%zd bytes of data...)", data_length);
+
+    update_counter(session);
+    result = packet_to_bytes(packet, length, session->options);
+    packet_destroy(packet);
+  }
+  else
+  {
+    switch(session->state)
+    {
+      case SESSION_STATE_NEW:
+        LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
+
+        packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
 
 #if 0
-      if(session->name)
-        packet_syn_set_name(packet, session->name);
-      if(session->download)
-        packet_syn_set_download(packet, session->download);
-      if(session->download_first_chunk)
-        packet_syn_set_chunked_download(packet);
-      if(session->is_command)
-        packet_syn_set_is_command(packet);
+        if(session->name)
+          packet_syn_set_name(packet, session->name);
+        if(session->download)
+          packet_syn_set_download(packet, session->download);
+        if(session->download_first_chunk)
+          packet_syn_set_chunked_download(packet);
 #endif
 
-      update_counter(session);
-      result = packet_to_bytes(packet, length, session->options);
-      packet_destroy(packet);
+        if(session->is_command)
+          packet_syn_set_is_command(packet);
 
-      break;
+        if(session->name)
+          packet_syn_set_name(packet, session->name);
 
-    case SESSION_STATE_ESTABLISHED:
-      /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
-      data = buffer_read_remaining_bytes(session->outgoing_buffer, &data_length, max_length - packet_get_msg_size(session->options), FALSE);
-      LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...", session->my_seq, session->their_seq, data_length);
+        update_counter(session);
+        result = packet_to_bytes(packet, length, session->options);
+        packet_destroy(packet);
 
-      /* TODO: Create a FIN if we're shut down. */
-      if(data_length == 0 && session->is_shutdown)
-        packet = packet_create_fin(session->id, "Stream closed");
-      else
-        packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, data_length);
+        break;
 
-      safe_free(data);
+      case SESSION_STATE_ESTABLISHED:
+        /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
+        data = buffer_read_remaining_bytes(session->outgoing_buffer, &data_length, max_length - packet_get_msg_size(session->options), FALSE);
+        LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...)", session->my_seq, session->their_seq, data_length);
 
-      update_counter(session);
-      result = packet_to_bytes(packet, length, session->options);
-      packet_destroy(packet);
+        /* TODO: Create a FIN if we're shut down. */
+        if(data_length == 0 && session->is_shutdown)
+          packet = packet_create_fin(session->id, "Stream closed");
+        else
+          packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, data_length);
 
-      break;
+        safe_free(data);
 
-    default:
-      LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
-      exit(1);
+        update_counter(session);
+        result = packet_to_bytes(packet, length, session->options);
+        packet_destroy(packet);
+
+        break;
+
+      default:
+        LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
+        exit(1);
+    }
   }
 
   return result;
@@ -160,140 +177,125 @@ void session_data_incoming(session_t *session, uint8_t *data, size_t length)
   /* Suck in any data we can from the driver. */
   poll_for_data(session);
 
-  switch(session->state)
+  if(session->is_ping)
   {
-    case SESSION_STATE_NEW:
-      if(packet->packet_type == PACKET_TYPE_SYN)
-      {
-        LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
-        session->their_seq = packet->body.syn.seq;
-        session->options   = (options_t) packet->body.syn.options;
-        session->state = SESSION_STATE_ESTABLISHED;
-      }
-      else if(packet->packet_type == PACKET_TYPE_MSG)
-      {
-        LOG_WARNING("In SESSION_STATE_NEW, received unexpected MSG (ignoring)");
-      }
-      else if(packet->packet_type == PACKET_TYPE_FIN)
-      {
-        /* TODO: I shouldn't exit here. */
-        LOG_FATAL("In SESSION_STATE_NEW, received FIN: %s", packet->body.fin.reason);
-
-        exit(0);
-      }
-      else
-      {
-        /* TODO: I shouldn't exit here. */
-        LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
-        exit(1);
-      }
-
-      break;
-    case SESSION_STATE_ESTABLISHED:
-      if(packet->packet_type == PACKET_TYPE_SYN)
-      {
-        LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
-      }
-      else if(packet->packet_type == PACKET_TYPE_MSG)
-      {
-        LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
-
-        /* Validate the SEQ */
-        if(packet->body.msg.options.normal.seq == session->their_seq)
+    driver_data_received(session->driver, (uint8_t*)packet->body.ping.data, strlen(packet->body.ping.data));
+  }
+  else
+  {
+    switch(session->state)
+    {
+      case SESSION_STATE_NEW:
+        if(packet->packet_type == PACKET_TYPE_SYN)
         {
-          /* Verify the ACK is sane */
-          uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
+          LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
+          session->their_seq = packet->body.syn.seq;
+          session->options   = (options_t) packet->body.syn.options;
+          session->state = SESSION_STATE_ESTABLISHED;
+        }
+        else if(packet->packet_type == PACKET_TYPE_MSG)
+        {
+          LOG_WARNING("In SESSION_STATE_NEW, received unexpected MSG (ignoring)");
+        }
+        else if(packet->packet_type == PACKET_TYPE_FIN)
+        {
+          /* TODO: I shouldn't exit here. */
+          LOG_FATAL("In SESSION_STATE_NEW, received FIN: %s", packet->body.fin.reason);
 
-          /* If there's still bytes waiting in the buffer.. */
-          if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
+          exit(0);
+        }
+        else
+        {
+          /* TODO: I shouldn't exit here. */
+          LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
+          exit(1);
+        }
+
+        break;
+      case SESSION_STATE_ESTABLISHED:
+        if(packet->packet_type == PACKET_TYPE_SYN)
+        {
+          LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
+        }
+        else if(packet->packet_type == PACKET_TYPE_MSG)
+        {
+          LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
+
+          /* Validate the SEQ */
+          if(packet->body.msg.options.normal.seq == session->their_seq)
           {
-            /* Reset the retransmit counter since we got some valid data. */
-            if(bytes_acked > 0)
-              reset_counter(session);
+            /* Verify the ACK is sane */
+            uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
 
-            /* Increment their sequence number */
-            session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
-
-            /* Remove the acknowledged data from the buffer */
-            buffer_consume(session->outgoing_buffer, bytes_acked);
-
-            /* Increment my sequence number */
-            if(bytes_acked != 0)
+            /* If there's still bytes waiting in the buffer.. */
+            if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
             {
-              session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
+              /* Reset the retransmit counter since we got some valid data. */
+              if(bytes_acked > 0)
+                reset_counter(session);
+
+              /* Increment their sequence number */
+              session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
+
+              /* Remove the acknowledged data from the buffer */
+              buffer_consume(session->outgoing_buffer, bytes_acked);
+
+              /* Increment my sequence number */
+              if(bytes_acked != 0)
+              {
+                session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
+              }
+
+              /* Print the data, if we received any, and then immediately receive more. */
+              if(packet->body.msg.data_length > 0)
+              {
+                driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
+              }
             }
-
-            /* Print the data, if we received any, and then immediately receive more. */
-            if(packet->body.msg.data_length > 0)
+            else
             {
-              driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
+              LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_buffer));
+              packet_destroy(packet);
+              return;
             }
           }
           else
           {
-            LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_buffer));
+            LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
             packet_destroy(packet);
             return;
           }
         }
+        else if(packet->packet_type == PACKET_TYPE_FIN)
+        {
+          LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
+          session->is_shutdown = TRUE;
+          driver_close(session->driver);
+        }
         else
         {
-          LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
-          packet_destroy(packet);
-          return;
+          LOG_FATAL("Unknown packet type: 0x%02x - closing session", packet->packet_type);
+          session->is_shutdown = TRUE;
+          driver_close(session->driver);
         }
-      }
-      else if(packet->packet_type == PACKET_TYPE_FIN)
-      {
-        LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
-        session->is_shutdown = TRUE;
-        driver_close(session->driver);
-      }
-      else
-      {
-        LOG_FATAL("Unknown packet type: 0x%02x - closing session", packet->packet_type);
-        session->is_shutdown = TRUE;
-        driver_close(session->driver);
-      }
 
-      break;
-    default:
-      LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
-      packet_destroy(packet);
-      session->is_shutdown = TRUE;
-      driver_close(session->driver);
-      exit(1);
+        break;
+      default:
+        LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
+        packet_destroy(packet);
+        session->is_shutdown = TRUE;
+        driver_close(session->driver);
+        exit(1);
+    }
   }
 
   packet_destroy(packet);
 }
 
-#if 0
-static void do_send_packet(session_t *session, packet_t *packet)
-{
-  size_t length;
-  uint8_t *data = packet_to_bytes(packet, &length, session->options);
-
-  /* Display if appropriate. */
-  if(packet_trace)
-  {
-    printf("OUTGOING: ");
-    packet_print(packet, session->options);
-  }
-
-  /* TODO: Do something with the data */
-  message_post_packet_out(data, length);
-
-  safe_free(data);
-}
-#endif
-
 void session_destroy(session_t *session)
 {
   if(session->name)
     safe_free(session->name);
-  if(session->download)
-    safe_free(session->download);
 
   safe_free(session);
 }
@@ -324,13 +326,6 @@ static session_t *session_create(char *name)
     LOG_INFO("Setting session->name to %s", session->name);
   }
 
-#if 0
-  session->download               = NULL;
-  session->download_first_chunk   = 0;
-  session->download_current_chunk = 0;
-  session->is_command             = FALSE
-#endif
-
   return session;
 }
 
@@ -348,6 +343,27 @@ session_t *session_create_exec(select_group_t *group, char *name, char *process)
   session_t *session = session_create(name);
 
   session->driver = driver_create(DRIVER_TYPE_EXEC, driver_exec_create(group, process));
+
+  return session;
+}
+
+session_t *session_create_command(select_group_t *group, char *name)
+{
+  session_t *session = session_create(name);
+
+  session->driver = driver_create(DRIVER_TYPE_COMMAND, driver_command_create(group));
+  session->is_command = TRUE;
+
+  return session;
+}
+
+session_t *session_create_ping(select_group_t *group, char *name)
+{
+  session_t *session = session_create(name);
+
+  session->driver = driver_create(DRIVER_TYPE_PING, driver_ping_create(group));
+  session->is_ping = TRUE;
+  session->id      = 0;
 
   return session;
 }

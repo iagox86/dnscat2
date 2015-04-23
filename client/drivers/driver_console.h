@@ -22,7 +22,6 @@ typedef struct
   NBBOOL          is_shutdown;
 } driver_console_t;
 
-/*driver_console_t  *driver_console_create(select_group_t *group, char *name, char *download, int first_chunk);*/
 driver_console_t *driver_console_create(select_group_t *group);
 void              driver_console_destroy(driver_console_t *driver);
 void              driver_console_data_received(driver_console_t *driver, uint8_t *data, size_t length);
