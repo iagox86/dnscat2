@@ -129,6 +129,11 @@ static int cmpfunc_aaaa(const void *a, const void *b)
 }
 #endif
 
+static dns_type_t get_type(driver_dns_t *driver)
+{
+  return driver->types[rand() % driver->type_count];
+}
+
 static void do_send(driver_dns_t *driver)
 {
   size_t        i;
@@ -199,7 +204,7 @@ static void do_send(driver_dns_t *driver)
   assert(encoded_length <= MAX_DNS_LENGTH);
 
   dns = dns_create(_DNS_OPCODE_QUERY, _DNS_FLAG_RD, _DNS_RCODE_SUCCESS);
-  dns_add_question(dns, (char*)encoded_bytes, driver->type, _DNS_CLASS_IN);
+  dns_add_question(dns, (char*)encoded_bytes, get_type(driver), _DNS_CLASS_IN);
   dns_bytes = dns_to_packet(dns, &dns_length);
 
   LOG_INFO("Sending DNS query for: %s to %s:%d", encoded_bytes, driver->dns_server, driver->dns_port);
@@ -360,9 +365,10 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
   return SELECT_OK;
 }
 
-driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host, uint16_t port, dns_type_t type, char *server)
+driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host, uint16_t port, char *types, char *server)
 {
   driver_dns_t *driver = (driver_dns_t*) safe_malloc(sizeof(driver_dns_t));
+  char *token = NULL;
 
   /* Create the actual DNS socket. */
   LOG_INFO("Creating UDP (DNS) socket");
@@ -376,9 +382,41 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host,
   /* Set the domain and stuff. */
   driver->group      = group;
   driver->domain     = domain;
-  driver->type       = type;
   driver->dns_port   = port;
   driver->dns_server = server;
+
+  /* Allow the user to choose 'any' protocol. */
+  if(!strcasecmp(types, "ANY"))
+    types = DNS_TYPES;
+
+  /* Make a copy of types, since strtok() changes it. */
+  types = safe_strdup(types);
+
+  driver->type_count = 0;
+  for(token = strtok(types, ", "); token && driver->type_count < DNS_MAX_TYPES; token = strtok(NULL, ", "))
+  {
+    if(!strcasecmp(token, "TXT") || !strcasecmp(token, "TEXT"))
+      driver->types[driver->type_count++] = _DNS_TYPE_TEXT;
+    else if(!strcasecmp(token, "MX"))
+      driver->types[driver->type_count++] = _DNS_TYPE_MX;
+    else if(!strcasecmp(token, "CNAME"))
+      driver->types[driver->type_count++] = _DNS_TYPE_CNAME;
+    else if(!strcasecmp(token, "A"))
+      driver->types[driver->type_count++] = _DNS_TYPE_A;
+#ifndef WIN32
+    else if(!strcasecmp(token, "AAAA"))
+      driver->types[driver->type_count++] = _DNS_TYPE_AAAA;
+#endif
+  }
+
+  /* Now that we no longer need types. */
+  safe_free(types);
+
+  if(driver->type_count == 0)
+  {
+    LOG_FATAL("You didn't pass any valid DNS types to use! Allowed types are "DNS_TYPES);
+    exit(1);
+  }
 
   /* If it succeeds, add it to the select_group */
   select_group_add_socket(group, driver->s, SOCKET_TYPE_STREAM, driver);

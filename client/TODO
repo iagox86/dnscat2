@@ -1,6 +1,4 @@
-- Make it possible to change the DNS types
-- Make it possible to change the DNS server
-- Add the option to adjust the retransmit delay
+- Add the option to adjust the retransmit delay + other delays
 - Make packet_trace work again
 - Go through the commandline options and make sure each of them works again
 - Change how sub-protocols work - have a flag then a protocol ID, probably, would make life far less confusing

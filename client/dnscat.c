@@ -36,13 +36,6 @@
 #define DEFAULT_DNS_HOST NULL
 #define DEFAULT_DNS_PORT 53
 
-/* Types of DNS queries we support */
-#ifndef WIN32
-#define DNS_TYPES "TXT, CNAME, MX, A, AAAA"
-#else
-#define DNS_TYPES "TXT, CNAME, MX, A"
-#endif
-
 /* Define these outside the function so they can be freed by the atexec() */
 select_group_t   *group          = NULL;
 
@@ -92,7 +85,7 @@ void usage(char *name, char *message)
 "   port=<port>           The port to listen on (default: 53)\n"
 "   type=<type>           The type of DNS requests to use, can use\n"
 "                         multiple comma-separated (options: TXT, MX,\n"
-"                         CNAME, A, AAAA) (default: TXT)\n"
+"                         CNAME, A, AAAA) (default: "DEFAULT_TYPES")\n"
 "   server=<server>       The upstream server for making DNS requests\n"
 "                         (default: %s)\n"
 " --tcp <options>         Enable TCP mode\n"
@@ -140,7 +133,7 @@ driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, ch
   printf(" type   = %s\n", type);
   printf(" server = %s\n", server);
 
-  return driver_dns_create(group, domain, host, port, _DNS_TYPE_TEXT, server);
+  return driver_dns_create(group, domain, host, port, type, server);
 }
 
 driver_dns_t *create_dns_driver(select_group_t *group, char *options)
@@ -148,7 +141,7 @@ driver_dns_t *create_dns_driver(select_group_t *group, char *options)
   char     *domain = NULL;
   char     *host = "0.0.0.0";
   uint16_t  port = 53;
-  char     *type = "TXT";
+  char     *type = DEFAULT_TYPES;
   char     *server = dns_get_system();
 
   char *token = NULL;
@@ -186,7 +179,6 @@ driver_dns_t *create_dns_driver(select_group_t *group, char *options)
     }
   }
 
-  printf("D\n");
   return create_dns_driver_internal(group, domain, host, port, type, server);
 }
 
@@ -451,12 +443,12 @@ int main(int argc, char *argv[])
       LOG_WARNING("Starting DNS driver without a domain! This probably won't work;");
       LOG_WARNING("You'll probably need to use --dns.");
           printf("b\n");
-      tunnel_driver = create_dns_driver_internal(group, NULL, "0.0.0.0", 53, "TXT", NULL);
+      tunnel_driver = create_dns_driver_internal(group, NULL, "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
     else
     {
           printf("c\n");
-      tunnel_driver = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, "TXT", NULL);
+      tunnel_driver = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
   }
 
