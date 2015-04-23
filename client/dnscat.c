@@ -341,9 +341,7 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "dns"))
         {
           tunnel_driver_created = TRUE;
-          printf("A\n");
           tunnel_driver = create_dns_driver(group, optarg);
-          printf("%p\n", tunnel_driver);
         }
         else if(!strcmp(option_name, "tcp"))
         {
