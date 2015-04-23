@@ -120,15 +120,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 
         packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
 
-#if 0
-        if(session->name)
-          packet_syn_set_name(packet, session->name);
-        if(session->download)
-          packet_syn_set_download(packet, session->download);
-        if(session->download_first_chunk)
-          packet_syn_set_chunked_download(packet);
-#endif
-
         if(session->is_command)
           packet_syn_set_is_command(packet);
 
@@ -182,6 +173,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 
   if(session->is_ping)
   {
+    /* This only returns if the receive is bad. */
     driver_data_received(session->driver, (uint8_t*)packet->body.ping.data, strlen(packet->body.ping.data));
   }
   else
@@ -197,6 +189,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
           session->state = SESSION_STATE_ESTABLISHED;
 
           /* Since we established a valid session, we can send stuff right away. */
+          reset_counter(session);
           send_right_away = TRUE;
         }
         else if(packet->packet_type == PACKET_TYPE_MSG)
@@ -238,7 +231,10 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
             {
               /* Reset the retransmit counter since we got some valid data. */
               if(bytes_acked > 0)
+              {
                 reset_counter(session);
+                send_right_away = TRUE;
+              }
 
               /* Increment their sequence number */
               session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
@@ -257,9 +253,6 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
               {
                 driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
               }
-
-              /* Since we just got a valid ACK, we can send stuff right away. */
-              send_right_away = TRUE;
             }
             else
             {
