@@ -401,5 +401,5 @@ void driver_dns_go(driver_dns_t *driver)
 
   /* Loop forever and poke the socket. */
   while(TRUE)
-    select_group_do_select(driver->group, 50); /* TODO: Change back to 50. */
+    select_group_do_select(driver->group, 50);
 }
