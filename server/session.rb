@@ -102,7 +102,7 @@ class Session
   end
 
   def queue_outgoing(data)
-    @outgoing_data = @outgoing_data + data
+    @outgoing_data = @outgoing_data + data.force_encoding("ASCII-8BIT")
     notify_subscribers(:session_data_queued, [@id, data])
   end
 
