@@ -1,8 +1,12 @@
 - Add the option to adjust the retransmit delay + other delays
-- Make packet_trace work again
 - Go through the commandline options and make sure each of them works again
 - Change how sub-protocols work - have a flag then a protocol ID, probably, would make life far less confusing
-- The client should transmit new data immediately after receiving data
 - Make it possible to close sessions on both ends using ctrl-d
 - Add a 'proper' way to kill drivers to controller.c, and make sure all closing/killing goes through that
-- When new data is ready to go out, it should immediately be sent (unless we're waiting for an ACK)
+- Go through TODOs
+- Fix 'names'
+- Remove dead code
+- Fix Windows
+- Make 'command' the default driver
+- Convert printf to LOG_* where appropriate
+- Add commandline options for reverse compability with the 0.01

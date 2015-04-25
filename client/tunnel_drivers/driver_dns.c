@@ -386,7 +386,7 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host,
   driver->dns_server = server;
 
   /* Allow the user to choose 'any' protocol. */
-  if(!strcasecmp(types, "ANY"))
+  if(!strcmp(types, "ANY"))
     types = DNS_TYPES;
 
   /* Make a copy of types, since strtok() changes it. */
@@ -395,16 +395,16 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host,
   driver->type_count = 0;
   for(token = strtok(types, ", "); token && driver->type_count < DNS_MAX_TYPES; token = strtok(NULL, ", "))
   {
-    if(!strcasecmp(token, "TXT") || !strcasecmp(token, "TEXT"))
+    if(!strcmp(token, "TXT") || !strcmp(token, "TEXT"))
       driver->types[driver->type_count++] = _DNS_TYPE_TEXT;
-    else if(!strcasecmp(token, "MX"))
+    else if(!strcmp(token, "MX"))
       driver->types[driver->type_count++] = _DNS_TYPE_MX;
-    else if(!strcasecmp(token, "CNAME"))
+    else if(!strcmp(token, "CNAME"))
       driver->types[driver->type_count++] = _DNS_TYPE_CNAME;
-    else if(!strcasecmp(token, "A"))
+    else if(!strcmp(token, "A"))
       driver->types[driver->type_count++] = _DNS_TYPE_A;
 #ifndef WIN32
-    else if(!strcasecmp(token, "AAAA"))
+    else if(!strcmp(token, "AAAA"))
       driver->types[driver->type_count++] = _DNS_TYPE_AAAA;
 #endif
   }

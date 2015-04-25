@@ -62,14 +62,12 @@ void usage(char *name, char *message)
 " --version               Ge the version\n"
 " --name -n <name>        Give this connection a name, which will show up in\n"
 "                         the server list\n"
-" --download <filename>   Request the given file off the server\n"
-" --chunk <n>             start at the given chunk of the --download file\n"
 "\n"
 "Input options:\n"
 " --console               Send/receive output to the console\n"
 " --exec -e <process>     Execute the given process and link it to the stream\n"
-" --listen -l <port>      Listen on the given port and link each connection to\n"
-"                         a new stream\n"
+/*" --listen -l <port>      Listen on the given port and link each connection to\n"
+"                         a new stream\n"*/
 " --command               Start an interactive 'command' session (default)\n"
 " --ping                  Simply check if there's a dnscat2 server listening\n"
 "\n"
@@ -238,13 +236,6 @@ int main(int argc, char *argv[])
 
   driver_dns_t     *tunnel_driver = NULL;
 
-  /*char             *name     = NULL;
-  char             *download = NULL;
-  uint32_t          chunk    = -1;*/
-
-  /* TODO: Fix types */
-  /*dns_type_t        dns_type = _DNS_TYPE_TEXT; */ /* TODO: Is this the best default? */
-
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
   session_t *session = NULL;
@@ -283,16 +274,6 @@ int main(int argc, char *argv[])
         {
           /*name = optarg;*/ /* TODO: Fix name. */
         }
-#if 0
-        else if(!strcmp(option_name, "download"))
-        {
-          download = optarg;
-        }
-        else if(!strcmp(option_name, "chunk"))
-        {
-          chunk = atoi(optarg);
-        }
-#endif
         else if(!strcmp(option_name, "isn"))
         {
           uint16_t isn = (uint16_t) (atoi(optarg) & 0xFFFF);
@@ -332,6 +313,8 @@ int main(int argc, char *argv[])
         /* Listener options. */
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
+          printf("--listen isn't implemented yet! :(\n");
+          exit(1);
           /*listen_port = atoi(optarg);*/
 
           /*input_type = TYPE_LISTENER;*/
@@ -360,12 +343,13 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "q"))
         {
+          min_log_level++;
           log_set_min_console_level(min_log_level);
         }
         else if(!strcmp(option_name, "packet-trace"))
         {
           printf("TODO: Fix packet-trace\n");
-          /*session_enable_packet_trace();*/
+          session_enable_packet_trace();
         }
         else
         {

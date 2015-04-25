@@ -126,10 +126,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
         if(session->name)
           packet_syn_set_name(packet, session->name);
 
-        update_counter(session);
-        result = packet_to_bytes(packet, length, session->options);
-        packet_destroy(packet);
-
         break;
 
       case SESSION_STATE_ESTABLISHED:
@@ -145,16 +141,26 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 
         safe_free(data);
 
-        update_counter(session);
-        result = packet_to_bytes(packet, length, session->options);
-        packet_destroy(packet);
-
         break;
 
       default:
         LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
         exit(1);
     }
+  }
+
+  if(packet)
+  {
+  /* Print packet data if we're supposed to. */
+    if(packet_trace)
+    {
+      printf("OUTGOING: ");
+      packet_print(packet, session->options);
+    }
+
+    update_counter(session);
+    result = packet_to_bytes(packet, length, session->options);
+    packet_destroy(packet);
   }
 
   return result;
@@ -170,6 +176,13 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 
   /* Suck in any data we can from the driver. */
   poll_for_data(session);
+
+  /* Print packet data if we're supposed to. */
+  if(packet_trace)
+  {
+    printf("INCOMING: ");
+    packet_print(packet, session->options);
+  }
 
   if(session->is_ping)
   {
