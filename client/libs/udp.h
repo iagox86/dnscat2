@@ -4,7 +4,7 @@
  *
  * (See LICENSE.md)
  *
- * Platform-independent module for creating/sending TCP sockets for IPv4 UDP packets.
+ * Platform-independent module for creating/sending IPv4 UDP packets.
  */
 
 #ifndef __UDP_H__

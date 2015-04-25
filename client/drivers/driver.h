@@ -2,6 +2,9 @@
  * By Ron Bowes
  *
  * See LICENSE.md
+ *
+ * This is basically a hack to make a polymorphic class in C. It just lets
+ * other stuff call functions, and passes it to the appropriate implementation.
  */
 
 #ifndef __DRIVER_H__

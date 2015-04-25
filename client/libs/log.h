@@ -2,6 +2,9 @@
  * By Ron Bowes
  *
  * See LICENSE.md
+ *
+ * This is a pretty boring module that is used for logging data to the
+ * console.
  */
 
 #ifndef __LOG_H__

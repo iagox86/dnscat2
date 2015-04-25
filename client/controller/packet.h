@@ -4,8 +4,11 @@
  *
  * See LICENSE.md
  *
- * A class for creating and parsing dnscat packets.
+ * A class for creating and parsing dnscat packets. This is part of the
+ * "dnscat protocol", it's assumed that the packets are already marshalled
+ * and unmarshalled by a tunnelling protocol.
  */
+
 #ifndef __PACKET_H__
 #define __PACKET_H__
 

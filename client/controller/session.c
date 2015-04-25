@@ -51,7 +51,6 @@ static void update_counter(session_t *session)
 /* Decide whether or not we should transmit data yet. */
 static NBBOOL can_i_transmit_yet(session_t *session)
 {
-  /*printf("%d\n", (int)(time_ms() - session->last_transmit));*/
   if(time_ms() - session->last_transmit > RETRANSMIT_DELAY)
     return TRUE;
   return FALSE;
@@ -379,57 +378,6 @@ session_t *session_create_ping(select_group_t *group, char *name)
 
   return session;
 }
-
-#if 0
-static void handle_data_out(uint16_t session_id, uint8_t *data, size_t length)
-{
-  session_t *session = sessions_get_by_id(session_id);
-  if(!session)
-  {
-    LOG_ERROR("Tried to access a non-existent session (handle_data_out): %d", session_id);
-    return;
-  }
-
-  /* Add the bytes to the outgoing data buffer. */
-  buffer_add_bytes(session->outgoing_data, data, length);
-
-  /* Trigger a send. */
-  do_send_stuff(session);
-}
-
-static void handle_ping_request(char *ping_data)
-{
-  packet_t *packet = packet_create_ping(ping_data);
-  size_t length;
-  uint8_t *data = packet_to_bytes(packet, &length, 0);
-
-  message_post_packet_out(data, length);
-
-  packet_destroy(packet);
-  safe_free(data);
-}
-
-static void handle_heartbeat()
-{
-  printf("handle_heartbeat() not implemented\n");
-#if 0
-  session_entry_t *entry;
-
-  for(entry = first_session; entry; entry = entry->next)
-  {
-    /* Cleanup the incoming/outgoing buffers, if we can, to save memory */
-    if(buffer_get_remaining_bytes(entry->session->outgoing_data) == 0)
-      buffer_clear(entry->session->outgoing_data);
-
-    /* Send stuff if we can */
-    do_send_stuff(entry->session);
-  }
-
-  /* Remove any completed sessions. */
-  remove_completed_sessions();
-#endif
-}
-#endif
 
 void debug_set_isn(uint16_t value)
 {

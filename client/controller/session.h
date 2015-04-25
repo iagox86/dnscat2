@@ -3,6 +3,10 @@
  * March, 2013
  *
  * See LICENSE.md
+ *
+ * A session keeps track of an active dnscat session. That includes
+ * bookkeeping data like sequence/acknowledgement numbers and buffering
+ * data that hasn't been sent yet.
  */
 
 #ifndef __SESSION_H__

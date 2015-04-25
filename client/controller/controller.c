@@ -150,20 +150,6 @@ NBBOOL controller_data_incoming(uint8_t *data, size_t length)
   uint16_t session_id = packet_peek_session_id(data, length);
   session_t *session = sessions_get_by_id(session_id);
 
-  /* Check if it's a ping packet, since we can deal with those instantly. */
-  /* TODO: Fix ping. */
-#if 0
-  if(packet->packet_type == PACKET_TYPE_PING)
-  {
-    printf("Ping received!\n");
-
-    /* 0 = no options on ping. */
-    packet_print(packet, (options_t)0);
-
-    exit(0);
-  }
-#endif
-
   /* If we weren't able to find a session, print an error and return. */
   if(!session)
   {

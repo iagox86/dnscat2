@@ -2,8 +2,8 @@
 - Make it possible to close sessions on both ends using ctrl-d
 - Add a 'proper' way to kill drivers to controller.c, and make sure all closing/killing goes through that
 - Go through TODOs
-- Remove dead code
 - Fix Windows
 - Convert printf to LOG_* where appropriate
 - Add commandline options for reverse compability with the 0.01
 - Give an option to kill the session after a certain number of ignored packets
+- Write a HACKING doc that details the structure

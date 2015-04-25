@@ -2,6 +2,11 @@
  * By Ron Bowes
  *
  * See LICENSE.md
+ *
+ * Implements an i/o driver that executes a process, and tunnels the
+ * stdout/stdin/stderr through the socket to the server. As far as the
+ * server is aware, it's indistinguishable from a console (since it's
+ * simply text going in and out).
  */
 
 #ifndef __DRIVER_EXEC_H__

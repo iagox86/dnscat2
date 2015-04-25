@@ -200,7 +200,6 @@ void driver_exec_destroy(driver_exec_t *driver)
 
 void driver_exec_close(driver_exec_t *driver)
 {
-  /* TODO: Kill the process. */
   LOG_WARNING("exec driver shut down; killing process %d", driver->pid);
   kill(driver->pid, SIGINT);
   driver->is_shutdown = TRUE;

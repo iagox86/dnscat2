@@ -3,6 +3,8 @@
  * By Ron Bowes
  *
  * See LICENSE.md
+ *
+ * I don't think this is actually being used yet.
  */
 
 #include "driver_dns.h"

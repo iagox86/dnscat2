@@ -2,6 +2,9 @@
  * By Ron Bowes
  *
  * See LICENSE.md
+ *
+ * This is a super simple drivers that just sends some set data to the
+ * server, then verifies it when it comes back.
  */
 
 #ifndef __DRIVER_PING_H__

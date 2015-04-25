@@ -2,6 +2,12 @@
  * By Ron Bowes
  *
  * See LICENSE.md
+ *
+ * This implements a simple i/o driver that acts on the console and lets
+ * the user send messages to the server by typing them. It's kinda fun to see
+ * your messages flying over DNS, and this is great for testing or for
+ * demonstrating how to make drivers, but its ultimate utility isn't that
+ * useful.
  */
 
 #ifndef __DRIVER_CONSOLE_H__

@@ -8,6 +8,10 @@
  *
  * Additionally, this module implements several miscellanious functions in a
  * platform-independent way.
+ *
+ * You'll notice things with nb* names - that dates back to the
+ * heritage, a lot of dnscat2 stuff came from dnscat1, which was part of
+ * my 'nbtool' library for hacking netbios. History lesson!
  */
 
 #ifndef __TYPES_H__
@@ -31,14 +35,6 @@ typedef _W64 unsigned int   ssize_t;
 #endif
 
 #include <stdlib.h>
-
-typedef void(simple_callback_t)(void *param);
-typedef void(data_callback_t)(uint8_t *data, size_t length, void *param);
-typedef void(session_data_callback_t)(uint16_t session_id, uint8_t *data, size_t length, void *param);
-
-typedef void(session_callback_t)(uint16_t session_id, uint8_t *data, size_t length);
-typedef uint16_t(session_create_callback_t)();
-typedef void(session_closed_callback_t)(uint16_t session_id);
 
 #ifndef TRUE
 typedef enum

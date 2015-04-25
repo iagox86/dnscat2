@@ -4,6 +4,10 @@
  * On April, 2015
  *
  * See LICENSE.md
+ *
+ * The controller basically keeps track of active sessions and passes data
+ * back and forth between the tunnel driver and the session. There is only
+ * ever a single instance of this.
  */
 
 #include "libs/types.h"

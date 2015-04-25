@@ -2,6 +2,14 @@
  * By Ron Bowes
  *
  * See LICENSE.md
+ *
+ * This is a "tunnel driver" for DNS. What that means is, it converts data
+ * on the wire - in this case, DNS packets - into a stream of bytes that
+ * form the actual dnscat protocol.
+ *
+ * By abstracting out the 'tunnel protocol' from the dnscat protocol, it
+ * makes it trivial to use the same program to tunnel over multiple different
+ * protocols - DNS, ICMP, etc.
  */
 
 #ifndef __DRIVER_DNS_H__
