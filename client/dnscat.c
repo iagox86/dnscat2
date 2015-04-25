@@ -60,8 +60,6 @@ void usage(char *name, char *message)
 "General options:\n"
 " --help -h               This page\n"
 " --version               Ge the version\n"
-" --name -n <name>        Give this connection a name, which will show up in\n"
-"                         the server list\n"
 "\n"
 "Input options:\n"
 " --console               Send/receive output to the console\n"
@@ -99,9 +97,6 @@ void usage(char *name, char *message)
 "\n"
 "By default, a --dns listener on port 53 is enabled if a hostname is\n"
 "passed on the commandline\n"
-"\n"
-"Tunnel driver options are semicolon-separated name=value pairs, with the\n"
-"following possibilities (depending on the protocol):\n"
 "\n"
 "ERROR: %s\n"
 "\n"
@@ -238,7 +233,7 @@ int main(int argc, char *argv[])
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
-  session_t *session = NULL;
+  session_t        *session = NULL;
 
   group = select_group_create();
 
@@ -270,10 +265,6 @@ int main(int argc, char *argv[])
           printf(NAME" v"VERSION" (client)\n");
           exit(0);
         }
-        else if(!strcmp(option_name, "name") || !strcmp(option_name, "n"))
-        {
-          /*name = optarg;*/ /* TODO: Fix name. */
-        }
         else if(!strcmp(option_name, "isn"))
         {
           uint16_t isn = (uint16_t) (atoi(optarg) & 0xFFFF);
@@ -285,7 +276,7 @@ int main(int argc, char *argv[])
         {
           driver_created = TRUE;
 
-          session = session_create_console(group, "FIXME: Session Naming :)");
+          session = session_create_console(group, "Console session");
           controller_add_session(session);
         }
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
@@ -299,14 +290,14 @@ int main(int argc, char *argv[])
         {
           driver_created = TRUE;
 
-          session = session_create_command(group, "FIXME: Session Naming :(");
+          session = session_create_command(group, "Command session");
           controller_add_session(session);
         }
         else if(!strcmp(option_name, "ping"))
         {
           driver_created = TRUE;
 
-          session = session_create_ping(group, "FIXME: Session Naming :|");
+          session = session_create_ping(group, "Ping session");
           controller_add_session(session);
         }
 
@@ -348,7 +339,6 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "packet-trace"))
         {
-          printf("TODO: Fix packet-trace\n");
           session_enable_packet_trace();
         }
         else

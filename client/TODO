@@ -1,12 +1,9 @@
 - Add the option to adjust the retransmit delay + other delays
-- Go through the commandline options and make sure each of them works again
-- Change how sub-protocols work - have a flag then a protocol ID, probably, would make life far less confusing
 - Make it possible to close sessions on both ends using ctrl-d
 - Add a 'proper' way to kill drivers to controller.c, and make sure all closing/killing goes through that
 - Go through TODOs
-- Fix 'names'
 - Remove dead code
 - Fix Windows
-- Make 'command' the default driver
 - Convert printf to LOG_* where appropriate
 - Add commandline options for reverse compability with the 0.01
+- Give an option to kill the session after a certain number of ignored packets

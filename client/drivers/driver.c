@@ -147,6 +147,10 @@ uint8_t *driver_get_outgoing(driver_t *driver, size_t *length, size_t max_length
       return driver_exec_get_outgoing(driver->real_driver.exec, length, max_length);
       break;
 
+    case DRIVER_TYPE_COMMAND:
+      return driver_command_get_outgoing(driver->real_driver.command, length, max_length);
+      break;
+
     case DRIVER_TYPE_PING:
       return driver_ping_get_outgoing(driver->real_driver.ping, length, max_length);
       break;
