@@ -67,6 +67,8 @@ opts = Trollop::options do
     :type => :boolean,  :default => false
   opt :isn,            "Set the initial sequence number",
     :type => :integer,  :default => nil
+  opt :process,        "Start a process instead of using interactive console sessions",
+    :type => :string,   :default => nil
 end
 
 # Note: This is no longer strictly required, but it gives the user better feedback if
@@ -185,6 +187,7 @@ settings.set("auto_attach",  opts[:auto_attach])
 settings.set("passthrough",  opts[:passthrough])
 settings.set("debug",        opts[:debug])
 settings.set("packet_trace", opts[:packet_trace])
+settings.set("process",      opts[:process])
 
 if(opts[:isn])
   settings.set("isn",          opts[:isn])

@@ -12,6 +12,8 @@ require 'log'
 require 'packet'
 require 'subscribable'
 
+require 'open3'
+
 class Session
   include Subscribable
 
@@ -20,7 +22,7 @@ class Session
   attr_reader :id, :state, :their_seq, :my_seq
   attr_reader :name
   attr_reader :options
-  attr_reader :is_command
+  attr_reader :is_command, :process
 
   # Session states
   STATE_NEW         = 0x00
@@ -37,13 +39,14 @@ class Session
     @my_seq = n
   end
 
-  def initialize(id)
+  def initialize(id, process = nil)
     @id = id
     @state = STATE_NEW
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
     @options = 0
     @is_command = false
+    @process = process
 
     @incoming_data = ''
     @outgoing_data = ''
@@ -110,6 +113,42 @@ class Session
     return "id: 0x%04x, state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
+  def start_process(process)
+    # Do this in a thread, since read() blocks
+    Thread.new do
+      # Put this in an error block, since Threads don't print errors when debug is off
+      begin
+        # popen2e combines stderr and stdout into a single pipe, which is handy
+        #puts("Starting process: #{process}")
+        Open3.popen2e(process) do |stdin, stdout, wait_thr|
+          # Save stdin so we can write to it when data comes
+          @process_stdin = stdin
+
+          # Read the output character by character.. I'm not sure if there's a better way, .gets() isn't
+          # binary friendly, and reading more than 1 byte means that buffering happens
+          while line = stdout.read(1)
+            #$stdout.puts("READ FROM PROCESS: #{line}")
+            @outgoing_data += line
+          end
+
+          # Get the exit status
+          exit_status = wait_thr.value
+
+          # TODO: Handle exit
+          if(!exit_status.success?)
+            Log.ERROR("Command exited with an error: #{process}")
+          else
+            Log.WARNING("Command exited successfully: #{process}")
+          end
+
+          SessionManager.kill_session(@id)
+        end
+      rescue Exception => e
+        $stdout.puts("ERROR: #{e}")
+      end
+    end
+  end
+
   def handle_syn(packet)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!syn_valid?())
@@ -141,6 +180,12 @@ class Session
 
     if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
       @is_command = true
+    else
+      # We're only gonna use the process if it's not a command session
+      if(@process)
+        start_process(@process)
+      end
+
     end
 
     # TODO: Allowing any arbitrary file is a security risk
@@ -218,7 +263,12 @@ class Session
 
     # Let everybody know that data has arrived
     if(packet.body.data.length > 0)
-      notify_subscribers(:session_data_received, [@id, packet.body.data])
+      if(@process_stdin)
+        #$stdout.puts("WRITTEN TO PROCESS: " + packet.body.data)
+        @process_stdin.write(packet.body.data)
+      else
+        notify_subscribers(:session_data_received, [@id, packet.body.data])
+      end
     end
 
     # Read the next piece of data

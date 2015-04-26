@@ -18,8 +18,8 @@ class SessionManager
   @@subscribers = []
   @@sessions = {}
 
-  def SessionManager.create_session(id)
-    session = Session.new(id)
+  def SessionManager.create_session(id, process)
+    session = Session.new(id, process)
     session.subscribe(@@subscribers)
     @@sessions[id] = session
 
@@ -57,12 +57,12 @@ class SessionManager
     Log.FATAL(nil, "TODO: Implement destroy()")
   end
 
-  def SessionManager.handle_syn(packet)
+  def SessionManager.handle_syn(packet, settings)
     session = find(packet.session_id)
 
     if(session.nil?)
       # If the session doesn't exist, and it's a SYN, create it
-      session = create_session(packet.session_id)
+      session = create_session(packet.session_id, settings.get("process"))
     end
 
     return session.handle_syn(packet)
@@ -116,7 +116,6 @@ class SessionManager
         # Parse the packet
         packet = Packet.parse(data, options)
 
-
         # Poke everybody else to let the know we're still seeing packets
         # TODO: Do I care?
         if(!session.nil?)
@@ -125,7 +124,7 @@ class SessionManager
 
         response = nil
         if(packet.type == Packet::MESSAGE_TYPE_SYN)
-          response = handle_syn(packet)
+          response = handle_syn(packet, settings)
         end
 
         # Display the incoming packet (NOTE: this has to be done *after* handle_syn(), otherwise
