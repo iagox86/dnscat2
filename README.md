@@ -73,8 +73,8 @@ client that directly connects to your dnscat on your ip address and UDP
 port 53. The traffic still looks like DNS traffic, and might get past
 dumber IDS/IPS systems, but is still likely to be stopped by firewalls.
 
-I don't currently have a guide on how to set up an authoritative DNS
-server, but I use GoDaddy at the moment and it works fine!
+You can find a guide to setup an authoritative dns server on Namecheap in
+the docs.
 
 ## Compiling
 
