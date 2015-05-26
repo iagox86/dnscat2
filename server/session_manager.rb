@@ -150,7 +150,7 @@ class SessionManager
         # If there's a response, validate it
         if(!response.nil?)
           if(response.to_bytes().length > max_length)
-            raise(DnscatException, "Tried to send packet of #{response.length} bytes, but max_length is #{max_length} bytes")
+            raise(DnscatException, "Tried to send packet of #{response.to_bytes().length} bytes, but max_length is #{max_length} bytes")
           end
         end
 
