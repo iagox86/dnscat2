@@ -26,7 +26,7 @@
 #endif
 
 /* The default types. */
-#define DEFAULT_TYPES "TXT,CNAME, MX"
+#define DEFAULT_TYPES "TXT,CNAME,MX"
 
 /* The maximum number of types that can be selected amongst. */
 #define DNS_MAX_TYPES 32

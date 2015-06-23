@@ -371,7 +371,7 @@ driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host,
   char *token = NULL;
 
   /* Create the actual DNS socket. */
-  LOG_INFO("Creating UDP (DNS) socket");
+  LOG_INFO("Creating UDP (DNS) socket on %s", host);
   driver->s = udp_create_socket(0, host);
   if(driver->s == -1)
   {
