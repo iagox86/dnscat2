@@ -58,5 +58,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length);
 uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length);
 
 void session_enable_packet_trace();
+void session_set_delay(int delay_ms);
+void session_set_transmit_immediately(NBBOOL transmit_immediately);
 
 #endif

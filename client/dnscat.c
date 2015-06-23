@@ -37,7 +37,7 @@
 #define DEFAULT_DNS_PORT 53
 
 /* Define these outside the function so they can be freed by the atexec() */
-select_group_t   *group          = NULL;
+select_group_t *group = NULL;
 
 static void cleanup(void)
 {
@@ -56,10 +56,16 @@ void usage(char *name, char *message)
   fprintf(stderr,
 "Usage: %s [args] [domain]\n"
 "\n"
-
 "General options:\n"
 " --help -h               This page\n"
-" --version               Ge the version\n"
+" --version               Get the version\n"
+" --delay <ms>            Set the maximum delay between packets (default: 1000).\n"
+"                         The minimum is technically 50 for technical reasons,\n"
+"                         but transmitting too quickly might make performance\n"
+"                         worse.\n"
+" --steady                If set, always wait for the delay before sending\n"
+"                         the next message (by default, when a response is\n"
+"                         received, the next message is immediately transmitted.\n"
 "\n"
 "Input options:\n"
 " --console               Send/receive output to the console\n"
@@ -84,9 +90,11 @@ void usage(char *name, char *message)
 "                         CNAME, A, AAAA) (default: "DEFAULT_TYPES")\n"
 "   server=<server>       The upstream server for making DNS requests\n"
 "                         (default: %s)\n"
+#if 0
 " --tcp <options>         Enable TCP mode\n"
 "   port=<port>           The port to listen on (default: 1234)\n"
 "   host=<hostname>       The host to listen on (default: 0.0.0.0)\n"
+#endif
 "\n"
 "Examples:\n"
 " --dns domain=skullseclabs.org\n"
@@ -188,6 +196,7 @@ void create_tcp_driver(char *options)
 int main(int argc, char *argv[])
 {
   /* Define the options specific to the DNS protocol. */
+  /* TODO: Get rid of the ones that are no longer being used. */
   struct option long_options[] =
   {
     /* General options */
@@ -200,6 +209,8 @@ int main(int argc, char *argv[])
     {"n",       required_argument, 0, 0},
     {"chunk",   required_argument, 0, 0}, /* Download chunk */
     {"isn",     required_argument, 0, 0}, /* Initial sequence number */
+    {"delay",   required_argument, 0, 0}, /* Retransmit delay */
+    {"steady",  no_argument,       0, 0}, /* Don't transmit immediately after getting a response. */
 
     /* i/o options. */
     {"console", no_argument,       0, 0}, /* Enable console */
@@ -270,6 +281,16 @@ int main(int argc, char *argv[])
         {
           uint16_t isn = (uint16_t) (atoi(optarg) & 0xFFFF);
           debug_set_isn(isn);
+        }
+        else if(!strcmp(option_name, "delay"))
+        {
+          int delay = (int) atoi(optarg);
+          session_set_delay(delay);
+          LOG_INFO("Setting delay between packets to %dms", delay);
+        }
+        else if(!strcmp(option_name, "steady"))
+        {
+          session_set_transmit_immediately(FALSE);
         }
 
         /* i/o drivers */

@@ -27,7 +27,11 @@ static uint32_t isn = 0xFFFFFFFF;
 /* Enable/disable packet tracing. */
 static NBBOOL packet_trace;
 
-#define RETRANSMIT_DELAY 1000 /* Milliseconds */
+/* The amount of delay between packets. */
+static int packet_delay = 1000;
+
+/* Transmit instantly when data is received. */
+static NBBOOL transmit_instantly_on_data = TRUE;
 
 /* Allow anything to go out. Call this at the start or after receiving legit data. */
 static void reset_counter(session_t *session)
@@ -51,7 +55,7 @@ static void update_counter(session_t *session)
 /* Decide whether or not we should transmit data yet. */
 static NBBOOL can_i_transmit_yet(session_t *session)
 {
-  if(time_ms() - session->last_transmit > RETRANSMIT_DELAY)
+  if(time_ms() - session->last_transmit > packet_delay)
     return TRUE;
   return FALSE;
 }
@@ -244,8 +248,13 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
               /* Reset the retransmit counter since we got some valid data. */
               if(bytes_acked > 0)
               {
-                reset_counter(session);
-                send_right_away = TRUE;
+                /* Only reset the counter if we want to re-transmit
+                 * right away. */
+                if(transmit_instantly_on_data)
+                {
+                  reset_counter(session);
+                  send_right_away = TRUE;
+                }
               }
 
               /* Increment their sequence number */
@@ -389,6 +398,16 @@ void debug_set_isn(uint16_t value)
 void session_enable_packet_trace()
 {
   packet_trace = TRUE;
+}
+
+void session_set_delay(int delay_ms)
+{
+  packet_delay = delay_ms;
+}
+
+void session_set_transmit_immediately(NBBOOL transmit_immediately)
+{
+  transmit_instantly_on_data = transmit_immediately;
 }
 
 NBBOOL session_is_shutdown(session_t *session)
