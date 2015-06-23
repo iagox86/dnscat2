@@ -90,11 +90,11 @@ void usage(char *name, char *message)
 "\n"
 "Examples:\n"
 " --dns=domain=skullseclabs.org\n"
-" --dns=domain=skullseclabs.org:server=8.8.8.8:port=53\n"
-" --dns=domain=skullseclabs.org:port=5353\n"
-" --dns=domain=skullseclabs.org:port=53:type=A,CNAME\n"
+" --dns=domain=skullseclabs.org,server=8.8.8.8,port=53\n"
+" --dns=domain=skullseclabs.org,port=5353\n"
+" --dns=domain=skullseclabs.org,port=53,type=A,CNAME\n"
 " --tcp=port=1234\n"
-" --tcp=port=1234:host=127.0.0.1\n"
+" --tcp=port=1234,host=127.0.0.1\n"
 "\n"
 "By default, a --dns listener on port 53 is enabled if a hostname is\n"
 "passed on the commandline\n"
@@ -140,7 +140,7 @@ driver_dns_t *create_dns_driver(select_group_t *group, char *options)
 
   char *token = NULL;
 
-  for(token = strtok(options, ":"); token && *token; token = strtok(NULL, ":"))
+  for(token = strtok(options, ":,"); token && *token; token = strtok(NULL, ":,"))
   {
     char *name  = token;
     char *value = strchr(token, '=');
