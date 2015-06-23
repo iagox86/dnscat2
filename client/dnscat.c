@@ -89,12 +89,12 @@ void usage(char *name, char *message)
 "   host=<hostname>       The host to listen on (default: 0.0.0.0)\n"
 "\n"
 "Examples:\n"
-" --dns=domain=skullseclabs.org\n"
-" --dns=domain=skullseclabs.org,server=8.8.8.8,port=53\n"
-" --dns=domain=skullseclabs.org,port=5353\n"
-" --dns=domain=skullseclabs.org,port=53,type=A,CNAME\n"
-" --tcp=port=1234\n"
-" --tcp=port=1234,host=127.0.0.1\n"
+" --dns domain=skullseclabs.org\n"
+" --dns domain=skullseclabs.org,server=8.8.8.8,port=53\n"
+" --dns domain=skullseclabs.org,port=5353\n"
+" --dns domain=skullseclabs.org,port=53,type=A,CNAME\n"
+" --tcp port=1234\n"
+" --tcp port=1234,host=127.0.0.1\n"
 "\n"
 "By default, a --dns listener on port 53 is enabled if a hostname is\n"
 "passed on the commandline\n"
@@ -114,7 +114,7 @@ driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, ch
   if(!server)
   {
     LOG_FATAL("Couldn't determine the system DNS server! Please manually set");
-    LOG_FATAL("the dns server with --dns=server=8.8.8.8");
+    LOG_FATAL("the dns server with --dns server=8.8.8.8");
     LOG_FATAL("");
     LOG_FATAL("You can also fix this by creating a proper /etc/resolv.conf\n");
     exit(1);
@@ -209,9 +209,9 @@ int main(int argc, char *argv[])
     {"ping",    no_argument,       0, 0}, /* Ping */
 
     /* Tunnel drivers */
-    {"dns",        optional_argument, 0, 0}, /* Enable DNS */
+    {"dns",     required_argument, 0, 0}, /* Enable DNS */
 #if 0
-    {"tcp",        optional_argument, 0, 0}, /* Enable TCP */
+    {"tcp",     optional_argument, 0, 0}, /* Enable TCP */
 #endif
 
     /* Debug options */
