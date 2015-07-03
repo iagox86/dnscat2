@@ -58,7 +58,7 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
     }
     else if(in->command_id == COMMAND_EXEC && in->is_request == TRUE)
     {
-      session_t *session = session_create_exec(driver->group, in->r.request.body.exec.command, in->r.request.body.exec.name);
+      session_t *session = session_create_exec(driver->group, in->r.request.body.exec.name, in->r.request.body.exec.command);
       controller_add_session(session);
 
       out = command_packet_create_exec_response(in->request_id, session->id);

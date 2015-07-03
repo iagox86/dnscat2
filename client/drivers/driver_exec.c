@@ -134,7 +134,7 @@ driver_exec_t *driver_exec_create(select_group_t *group, char *process)
   select_set_recv(driver->group, driver->socket_id, exec_callback);
   select_set_closed(driver->group, driver->socket_id, exec_closed_callback);
 #else
-  LOG_INFO("Attempting to start process '%s'...", driver->process);
+  LOG_WARNING("Starting: /bin/sh -c '%s'", driver->process);
 
   /* Create communication channels. */
   if(pipe(driver->pipe_stdin) == -1)
