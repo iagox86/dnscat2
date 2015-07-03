@@ -57,7 +57,7 @@ uint8_t *driver_ping_get_outgoing(driver_ping_t *driver, size_t *length, size_t 
     exit(1);
   }
 
-  result = malloc(PING_LENGTH);
+  result = safe_malloc(PING_LENGTH);
   memcpy(result, driver->data, PING_LENGTH);
   *length = PING_LENGTH;
 
