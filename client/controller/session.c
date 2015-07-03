@@ -112,7 +112,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 
     update_counter(session);
     result = packet_to_bytes(packet, length, session->options);
-    packet_destroy(packet);
   }
   else
   {

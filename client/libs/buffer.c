@@ -255,7 +255,10 @@ uint8_t *buffer_read_remaining_bytes(buffer_t *buffer, size_t *length, size_t ma
     *length = max_bytes;
 
   /* Allocate room for that many bytes */
-  ret = safe_malloc(*length);
+  if(*length+1 < *length)
+    DIE("Overflow.");
+
+  ret = safe_malloc(*length+1);
 
   /* Copy the data into the new buffer */
   if(consume)
