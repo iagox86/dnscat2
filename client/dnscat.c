@@ -177,13 +177,13 @@ driver_dns_t *create_dns_driver(select_group_t *group, char *options)
         server = value;
       else
       {
-        printf("Unknown --dns option: %s\n", name);
+        LOG_FATAL("Unknown --dns option: %s\n", name);
         exit(1);
       }
     }
     else
     {
-      printf("ERROR parsing --dns: it has to be colon-separated name=value pairs!\n");
+      LOG_FATAL("ERROR parsing --dns: it has to be colon-separated name=value pairs!\n");
       exit(1);
     }
   }
@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
         /* Listener options. */
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
-          printf("--listen isn't implemented yet! :(\n");
+          LOG_FATAL("--listen isn't implemented yet! :(\n");
           exit(1);
           /*listen_port = atoi(optarg);*/
 
@@ -452,14 +452,14 @@ int main(int argc, char *argv[])
     /* Make sure they gave a domain. */
     if(optind >= argc)
     {
-      LOG_WARNING("Starting DNS driver without a domain! This probably won't work;");
-      LOG_WARNING("You'll probably need to use --dns.");
-          printf("b\n");
+      printf("Starting DNS driver without a domain! This will only work if you\n");
+      printf("are directly connecting to the dnscat2 server.\n");
+      printf("\n");
+      printf("You'll need to use --dns server=<server> if you aren't.\n");
       tunnel_driver = create_dns_driver_internal(group, NULL, "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
     else
     {
-          printf("c\n");
       tunnel_driver = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
   }

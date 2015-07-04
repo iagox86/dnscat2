@@ -1,6 +1,7 @@
 - Make it possible to close sessions on both ends using ctrl-d
 - Go through TODOs
 - Fix Windows
-- Convert printf to LOG_* where appropriate
 - Write a HACKING doc that details the structure
 - Update documentation, in particular with now sample outputs
+- Fix session naming
+- Make sure all commandline arguments still work

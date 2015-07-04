@@ -13,6 +13,7 @@
 #include <unistd.h>
 #endif
 
+#include "libs/log.h"
 #include "libs/memory.h"
 #include "driver_console.h"
 
@@ -42,7 +43,7 @@ driver_t *driver_create(driver_type_t type, void *real_driver)
       break;
 
     default:
-      printf("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
       exit(1);
       break;
   }
@@ -71,7 +72,7 @@ void driver_destroy(driver_t *driver)
       break;
 
     default:
-      printf("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
       exit(1);
       break;
   }
@@ -100,7 +101,7 @@ void driver_close(driver_t *driver)
       break;
 
     default:
-      printf("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
       exit(1);
       break;
   }
@@ -129,7 +130,7 @@ void driver_data_received(driver_t *driver, uint8_t *data, size_t length)
       break;
 
     default:
-      printf("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
       exit(1);
       break;
   }
@@ -156,7 +157,7 @@ uint8_t *driver_get_outgoing(driver_t *driver, size_t *length, size_t max_length
       break;
 
     default:
-      printf("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
       exit(1);
       break;
   }

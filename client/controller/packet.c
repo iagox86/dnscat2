@@ -90,7 +90,7 @@ uint16_t packet_peek_session_id(uint8_t *data, size_t length)
   /* Create a buffer of the first 5 bytes. */
   if(length < 5)
   {
-    printf("Packet is too short!\n");
+    LOG_FATAL("Packet is too short!\n");
     return -1;
   }
 

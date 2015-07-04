@@ -36,6 +36,8 @@ void driver_ping_data_received(driver_ping_t *driver, uint8_t *data, size_t leng
     printf("Expected: %s\n", driver->data);
     printf("Received: %s\n", data);
     printf("\n");
+    printf("The only reason this can happen is if something is messing with\n");
+    printf("your DNS traffic.\n");
   }
 }
 
