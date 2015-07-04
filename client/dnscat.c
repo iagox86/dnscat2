@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
   /* If no i/o was set, create a command session. */
   if(!driver_created)
   {
-    session = session_create_command(group, "FIXME: Session Naming :(");
+    session = session_create_command(group, "command (default)");
     controller_add_session(session);
   }
 

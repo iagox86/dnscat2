@@ -1,4 +1,3 @@
-- Make it possible to close sessions on both ends using ctrl-d
 - Go through TODOs
 - Fix Windows
 - Write a HACKING doc that details the structure
