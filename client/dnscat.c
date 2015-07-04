@@ -106,11 +106,13 @@ void usage(char *name, char *message)
 " --dns domain=skullseclabs.org,server=8.8.8.8,port=53\n"
 " --dns domain=skullseclabs.org,port=5353\n"
 " --dns domain=skullseclabs.org,port=53,type=A,CNAME\n"
+#if 0
 " --tcp port=1234\n"
 " --tcp port=1234,host=127.0.0.1\n"
+#endif
 "\n"
-"By default, a --dns listener on port 53 is enabled if a hostname is\n"
-"passed on the commandline\n"
+"By default, a --dns driver on port 53 is enabled if a hostname is\n"
+"passed on the commandline.\n"
 "\n"
 "ERROR: %s\n"
 "\n"
