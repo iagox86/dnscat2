@@ -34,6 +34,7 @@ typedef struct
   char           *name;
 
   time_t          last_transmit;
+  int             missed_transmissions;
 
   uint16_t       options; /* TODO: Make options work right again. */
   NBBOOL         is_command;
@@ -60,5 +61,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 void session_enable_packet_trace();
 void session_set_delay(int delay_ms);
 void session_set_transmit_immediately(NBBOOL transmit_immediately);
+void session_kill(session_t *session);
 
 #endif

@@ -34,9 +34,11 @@ static int packet_delay = 1000;
 static NBBOOL transmit_instantly_on_data = TRUE;
 
 /* Allow anything to go out. Call this at the start or after receiving legit data. */
+/* TODO: Get rid of this function - its purpose is unclear, and it just uglifies the code. */
 static void reset_counter(session_t *session)
 {
   session->last_transmit = 0;
+  session->missed_transmissions = 0;
 }
 
 static double time_ms()
@@ -50,6 +52,7 @@ static double time_ms()
 static void update_counter(session_t *session)
 {
   session->last_transmit = time_ms();
+  session->missed_transmissions++;
 }
 
 /* Decide whether or not we should transmit data yet. */
@@ -74,7 +77,7 @@ static void poll_for_data(session_t *session)
   if(!data)
   {
     if(buffer_get_remaining_bytes(session->outgoing_buffer) == 0)
-      session->is_shutdown = TRUE;
+      session_kill(session);
   }
   else
   {
@@ -109,9 +112,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
     safe_free(data);
 
     LOG_INFO("In PING, sending a PING packet (%zd bytes of data...)", data_length);
-
-    update_counter(session);
-    result = packet_to_bytes(packet, length, session->options);
   }
   else
   {
@@ -244,6 +244,9 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
             /* If there's still bytes waiting in the buffer.. */
             if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
             {
+              /* Since we got a valid response back, the connection isn't dying. */
+              session->missed_transmissions = 0;
+
               /* Reset the retransmit counter since we got some valid data. */
               if(bytes_acked > 0)
               {
@@ -287,22 +290,20 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
         else if(packet->packet_type == PACKET_TYPE_FIN)
         {
           LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
-          session->is_shutdown = TRUE;
-          driver_close(session->driver);
+          reset_counter(session);
+          session_kill(session);
         }
         else
         {
           LOG_FATAL("Unknown packet type: 0x%02x - closing session", packet->packet_type);
-          session->is_shutdown = TRUE;
-          driver_close(session->driver);
+          session_kill(session);
         }
 
         break;
       default:
         LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
         packet_destroy(packet);
-        session->is_shutdown = TRUE;
-        driver_close(session->driver);
+        session_kill(session);
         exit(1);
     }
   }
@@ -310,6 +311,12 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
   packet_destroy(packet);
 
   return send_right_away;
+}
+
+void session_kill(session_t *session)
+{
+  session->is_shutdown = TRUE;
+  driver_close(session->driver);
 }
 
 void session_destroy(session_t *session)
@@ -337,6 +344,7 @@ static session_t *session_create(char *name)
   session->is_shutdown   = FALSE;
 
   session->last_transmit = 0;
+  session->missed_transmissions = 0;
   session->outgoing_buffer = buffer_create(BO_LITTLE_ENDIAN);
 
   session->name = NULL;

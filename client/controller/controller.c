@@ -24,6 +24,8 @@
 
 #include "controller.h"
 
+static int max_retransmits = 10;
+
 typedef struct _session_entry_t
 {
   session_t *session;
@@ -175,4 +177,34 @@ uint8_t *controller_get_outgoing(size_t *length, size_t max_length)
   }
 
   return session_get_outgoing(session, length, max_length);
+}
+
+static void kill_ignored_sessions()
+{
+  session_entry_t *entry = first_session;
+
+  if(max_retransmits < 0)
+    return;
+
+  while(entry)
+  {
+    if(entry->session->missed_transmissions > max_retransmits)
+    {
+      LOG_ERROR("The server hasn't returned a valid response in the last %d attempts.. closing session.", entry->session->missed_transmissions - 1);
+      session_kill(entry->session);
+    }
+
+    entry = entry->next;
+  }
+}
+
+/* This will be called something like every 50ms. */
+void controller_heartbeat()
+{
+  kill_ignored_sessions();
+}
+
+void controller_set_max_retransmits(int retransmits)
+{
+  max_retransmits = retransmits;
 }

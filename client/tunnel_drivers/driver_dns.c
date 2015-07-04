@@ -220,6 +220,7 @@ static void do_send(driver_dns_t *driver)
 static SELECT_RESPONSE_t timeout_callback(void *group, void *param)
 {
   do_send((driver_dns_t*)param);
+  controller_heartbeat();
 
   return SELECT_OK;
 }

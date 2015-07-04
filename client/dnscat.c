@@ -57,43 +57,48 @@ void usage(char *name, char *message)
 "Usage: %s [args] [domain]\n"
 "\n"
 "General options:\n"
-" --help -h               This page\n"
-" --version               Get the version\n"
+" --help -h               This page.\n"
+" --version               Get the version.\n"
 " --delay <ms>            Set the maximum delay between packets (default: 1000).\n"
 "                         The minimum is technically 50 for technical reasons,\n"
 "                         but transmitting too quickly might make performance\n"
 "                         worse.\n"
-" --steady                If set, always wait for the delay before sending\n"
+" --steady                If set, always wait for the delay before sending.\n"
 "                         the next message (by default, when a response is\n"
 "                         received, the next message is immediately transmitted.\n"
+" --max-retransmits <n>   Only re-transmit a message <n> times before giving up\n"
+"                         and assuming the server is dead (default: 10).\n"
+" --retransmit-forever    Set if you want the client to re-transmit forever\n"
+"                         until a server turns up. This can be helpful, but also\n"
+"                         makes the server potentially run forever.\n"
 "\n"
 "Input options:\n"
-" --console               Send/receive output to the console\n"
-" --exec -e <process>     Execute the given process and link it to the stream\n"
+" --console               Send/receive output to the console.\n"
+" --exec -e <process>     Execute the given process and link it to the stream.\n"
 /*" --listen -l <port>      Listen on the given port and link each connection to\n"
 "                         a new stream\n"*/
-" --command               Start an interactive 'command' session (default)\n"
-" --ping                  Simply check if there's a dnscat2 server listening\n"
+" --command               Start an interactive 'command' session (default).\n"
+" --ping                  Simply check if there's a dnscat2 server listening.\n"
 "\n"
 "Debug options:\n"
-" -d                      Display more debug info (can be used multiple times)\n"
-" -q                      Display less debug info (can be used multiple times)\n"
+" -d                      Display more debug info (can be used multiple times).\n"
+" -q                      Display less debug info (can be used multiple times).\n"
 " --packet-trace          Display incoming/outgoing dnscat2 packets\n"
 "\n"
 "Driver options:\n"
-" --dns <options>         Enable DNS mode with the given domain\n"
-"   domain=<domain>       The domain to make requests for\n"
-"   host=<hostname>       The host to listen on (default: 0.0.0.0)\n"
-"   port=<port>           The port to listen on (default: 53)\n"
+" --dns <options>         Enable DNS mode with the given domain.\n"
+"   domain=<domain>       The domain to make requests for.\n"
+"   host=<hostname>       The host to listen on (default: 0.0.0.0).\n"
+"   port=<port>           The port to listen on (default: 53).\n"
 "   type=<type>           The type of DNS requests to use, can use\n"
 "                         multiple comma-separated (options: TXT, MX,\n"
-"                         CNAME, A, AAAA) (default: "DEFAULT_TYPES")\n"
+"                         CNAME, A, AAAA) (default: "DEFAULT_TYPES").\n"
 "   server=<server>       The upstream server for making DNS requests\n"
-"                         (default: %s)\n"
+"                         (default: autodetected = %s).\n"
 #if 0
-" --tcp <options>         Enable TCP mode\n"
-"   port=<port>           The port to listen on (default: 1234)\n"
-"   host=<hostname>       The host to listen on (default: 0.0.0.0)\n"
+" --tcp <options>         Enable TCP mode.\n"
+"   port=<port>           The port to listen on (default: 1234).\n"
+"   host=<hostname>       The host to listen on (default: 0.0.0.0).\n"
 #endif
 "\n"
 "Examples:\n"
@@ -209,8 +214,11 @@ int main(int argc, char *argv[])
     {"n",       required_argument, 0, 0},
     {"chunk",   required_argument, 0, 0}, /* Download chunk */
     {"isn",     required_argument, 0, 0}, /* Initial sequence number */
-    {"delay",   required_argument, 0, 0}, /* Retransmit delay */
-    {"steady",  no_argument,       0, 0}, /* Don't transmit immediately after getting a response. */
+
+    {"delay",              required_argument, 0, 0}, /* Retransmit delay */
+    {"steady",             no_argument,       0, 0}, /* Don't transmit immediately after getting a response. */
+    {"max-retransmits",    required_argument, 0, 0}, /* Set the max retransmissions */
+    {"retransmit-forever", no_argument,       0, 0}, /* Retransmit forever if needed */
 
     /* i/o options. */
     {"console", no_argument,       0, 0}, /* Enable console */
@@ -291,6 +299,14 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "steady"))
         {
           session_set_transmit_immediately(FALSE);
+        }
+        else if(!strcmp(option_name, "max-retransmits"))
+        {
+          controller_set_max_retransmits(atoi(optarg));
+        }
+        else if(!strcmp(option_name, "retransmit-forever"))
+        {
+          controller_set_max_retransmits(-1);
         }
 
         /* i/o drivers */
