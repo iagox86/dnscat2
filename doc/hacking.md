@@ -287,43 +287,43 @@ moving to 64-bit lengths all around).
 Essentially, you create a buffer with your chosen byte order (little,
 big, network (aka, big) or host:
 
-  buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
+    buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
 
 Then you can add bytes, integers, null-terminated strings (ntstrings),
 byte arrays, and other buffers to it:
 
-  buffer_add_int8(buffer, 1);
-  buffer_add_ntstring(buffer, "hello");
-  buffer_add_bytes(buffer, (uint8_t*)"hello", 5);
+    buffer_add_int8(buffer, 1);
+    buffer_add_ntstring(buffer, "hello");
+    buffer_add_bytes(buffer, (uint8_t*)"hello", 5);
 
 You can convert it to an array and destroy it at the same time (which is
 the normal situation):
 
-  size_t length;
-  uint8_t *out = buffer_create_string_and_destroy(buffer, &length);
-  [...]
-  safe_free(out);
+    size_t length;
+    uint8_t *out = buffer_create_string_and_destroy(buffer, &length);
+    [...]
+    safe_free(out);
 
 You can also create a buffer containing data:
 
-  buffer_t *buffer = buffer_create_with_data(BO_BIG_ENDIAN, data, length);
+    buffer_t *buffer = buffer_create_with_data(BO_BIG_ENDIAN, data, length);
 
 This makes a copy of data, so you can free it if necessary. Once it's
 created you can read in values:
 
-  uint8_t byte = buffer_read_next_int8(buffer);
-  uint16_t word = buffer_read_next_int16(buffer);
+    uint8_t byte = buffer_read_next_int8(buffer);
+    uint16_t word = buffer_read_next_int16(buffer);
 
 You can also read an ntstring into a string you allocate:
 
-  char str[128];
-  buffer_read_next_ntstring(buffer, str, 128);
+    char str[128];
+    buffer_read_next_ntstring(buffer, str, 128);
 
 Or you can allocate a string and read the next ntstring into it:
 
-  char *str = buffer_alloc_next_ntstring(buffer);
-  [...]
-  safe_free(str);
+    char *str = buffer_alloc_next_ntstring(buffer);
+    [...]
+    safe_free(str);
 
 You can also read at certain indices (buffer_read_int8_at(...), for
 example). See libs/buffer.h for all the various functions.
