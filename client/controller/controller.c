@@ -188,7 +188,7 @@ static void kill_ignored_sessions()
 
   while(entry)
   {
-    if(entry->session->missed_transmissions > max_retransmits)
+    if(!entry->session->is_shutdown && entry->session->missed_transmissions > max_retransmits)
     {
       LOG_ERROR("The server hasn't returned a valid response in the last %d attempts.. closing session.", entry->session->missed_transmissions - 1);
       session_kill(entry->session);
