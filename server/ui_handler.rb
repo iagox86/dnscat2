@@ -33,13 +33,18 @@ module UiHandler
     end
   end
 
-  def display_uis(all, where = self, indent = "")
-    where.puts(indent + self.to_s)
+  def display_uis(all, highlight, where = self, indent = "")
+    if(self.id == highlight.id)
+      where.puts(indent + self.to_s + " <-- You are here!")
+    else
+      where.puts(indent + self.to_s)
+    end
+
     indent += " "
     each_child_ui() do |ui|
       if(all || ui.active? || ui.activity?)
         if(ui.respond_to?(:display_uis))
-          ui.display_uis(all, where, indent + " ")
+          ui.display_uis(all, highlight, where, indent)
         else
           where.puts(indent + ui.to_s)
         end

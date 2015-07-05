@@ -147,7 +147,7 @@ class UiSessionCommand < UiInterfaceWithId
       Proc.new do |opts, optval|
         puts("Sessions:")
         puts()
-        display_uis(opts[:all])
+        @ui.get_command().display_uis(opts[:all], self)
       end,
     )
 
@@ -160,12 +160,12 @@ class UiSessionCommand < UiInterfaceWithId
       Proc.new do |opts, optval|
         if(opts[:i].nil?)
           puts("Known sessions:")
-          display_uis(false)
+          @ui.get_command().display_uis(false, self)
         else
           ui = @ui.get_by_id(opts[:i])
           if(ui.nil?)
             error("Session #{opts[:i]} not found!")
-            display_uis(false)
+            @ui.get_command().display_uis(false, self)
           else
             @ui.attach_session(ui)
           end

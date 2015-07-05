@@ -9,9 +9,10 @@
 require 'log'
 
 class UiInterfaceWithId < UiInterface
-  attr_accessor :parent
+  attr_accessor :parent, :id
 
   def initialize(id)
+    @id = id
     Log.logging(id) do |msg|
       output(msg)
     end
