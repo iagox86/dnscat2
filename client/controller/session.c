@@ -83,9 +83,9 @@ static void poll_for_data(session_t *session)
   {
     if(length)
       buffer_add_bytes(session->outgoing_buffer, data, length);
-  }
 
-  safe_free(data);
+    safe_free(data);
+  }
 }
 
 uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length)

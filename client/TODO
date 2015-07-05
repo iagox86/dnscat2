@@ -1,6 +1,5 @@
 - Go through TODOs
 - Fix Windows
-- Write a HACKING doc that details the structure
 - Update documentation, in particular with now sample outputs
-- Fix session naming
 - Make sure all commandline arguments still work
+- Check for memory leaks
