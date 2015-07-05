@@ -315,6 +315,12 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 
 void session_kill(session_t *session)
 {
+  if(session->is_shutdown)
+  {
+    LOG_WARNING("Tried to kill a session that's already dead: %d\n", session->id);
+    return;
+  }
+
   session->is_shutdown = TRUE;
   driver_close(session->driver);
 }
