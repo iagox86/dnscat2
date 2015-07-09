@@ -1,63 +1,69 @@
 # Introduction
 
 This document describes the layout and logic behind the dnscat2
-codebase.
+codebase. It's intended for developers or perhaps security auditors.
 
-# Server
-
-TODO: Currently the server, as written, needs to be re-structured and
-changed to conform to better styles. dnscat2 0.03 beta will focus on
-converting the server to a similar style to the client.
+This document complements [protocol.md](protocol.md).
 
 # Client
 
 The client is written in C, and can be found in the client/ directory.
-Most code, where possible, conforms to the C89 standard, and uses a
-variety of libraries I've written over the years.
+Where possible, the code conforms to the C89 standard, and uses a
+variety of libraries I've written over the years. I avoid external
+dependencies because as much as possible because I want this to be able
+to compile and run in as many environments and with as few
+pre-requisites as possible.
 
-Any changes should conform closely to the C89 standard.
+Any changes should conform closely to the C89 standard and should not
+introduce dependencies unless it's absolutely necessary.
 
 Additionally, unless there's a good reason not to, the code should be
-written very modularly - each implementing, xxx.c, should have a
-corresponding xxx.h file that defines its structures and functions. When
-it makes sense, each module should have its own type, xxx_t, which is
+written very modularly - each implementation, xxx.c, should have a
+corresponding xxx.h file that defines its types and functions. When it
+makes sense, each module should have its own type, xxx_t, which is
 created by xxx_create() and destroyed/freed by xxx_destroy().
 xxx_destroy(xxx_create()) shouldn't leak memory.
 
 This keeps the code clean and well structured.
 
 Finally, all changes should be compatible with Windows, Linux, OS X, and
-BSD.
+FreeBSD, at a minimum.
 
 ## Structure
 
 The main file is client/dnscat.c. It contains the main() function, which
 handles the commandline parsing, starts the initial drivers, and enters
-the main receive loop.
+the main network loop.
 
 To understand the structure, it'd be helpful to understand how the
-dnscat protocol works - see protocol.md for that. I'll give a quick
-overview, though.
+dnscat protocol works - see [protocol.md](protocol.md) for that. I'll
+give a quick overview, though.
 
 ### tunnel_driver
 
 The actual code that touches the network is called a tunnel_driver, and
 is located in tunnel_drivers/. An example of a tunnel driver - and the
-only tunnel_driver that exists as of this writing - is dns. This is
-where the "dns tunneling protocol" discussed in protocol.md is handled.
+only tunnel_driver that exists as of this writing - is dns. The protocol
+I invented for doing packets over DNS (sort of akin to layer 2) is
+called the "DNS Tunneling Protocol", and is discussed in detail in
+[protocol.md](protocol.md).
 
 The tunnel_driver has no real understanding of the dnscat protocol or of
-sessions or 'connections' or anything like that. It simply decodes data
-from the wire (occasionally in complex ways, such as for 'A' packets)
-and sends it to the controller.
+sessions or 'connections' or anything like that.  The "dnscat protocol"
+happens at a higher layer (in sessions), and is tunnel_driver agnostic.
+All it does is take data that's embedded in a packet and convert it into
+a stream of bytes.
 
-When a tunnel_driver is created, it creates the socket(s) it needs to
-communicate with the outside world, and starts polling for data - it is
-important for the tunnel driver to be in constant communication with a
-server. All communication with the rest of dnscat2 is done via the
-controller. When the tunnel_driver gets data, it's decoded and sent to
-the controller. When the tunnel_driver is capable of sending data, it
-asks the controller for any data that's available.
+When a tunnel_driver is created, it must create the socket(s) it needs
+to communicate with the outside world, and starts polling for data - it
+is important for the tunnel driver to be in constant communication with
+a dnscat2 server, because the server can only send data to the client
+when it's polled.
+
+All communication with the rest of dnscat2 is done via the
+[controller](#controller).  When the tunnel_driver gets data, it's
+decoded and sent to the controller. When the tunnel_driver is capable of
+sending data, it asks the controller for any data that's available.
 
 The tunnel_driver is aware of the controller, but the controller isn't
 aware of the tunnel_driver.
@@ -99,9 +105,9 @@ console, an executable, etc).
 sessions can be created and destroyed over the lifetime of the client. For
 example, a "command" session might create an "exec" session.
 
-The session module is where the actual dnscat protocol (see protocol.md)
-is parsed. It's agnostic to both its back end (a tunnel_driver) and its
-front end (just a driver).
+The session module is where the actual dnscat protocol (see
+[protocol.md](protocol.md)) is parsed. It's agnostic to both its back
+end (a tunnel_driver) and its front end (just a driver).
 
 When data is received by the tunnel_driver, it's sent to the session via the
 controller. The packet is parsed as a dnscat protocol packet, and it's fed into
@@ -367,3 +373,8 @@ Some other security concerns:
   it's dnscat. It's also possible to trick a dnscat2 server into revealing
   itself (with a ping). There is no hiding.
 
+# Server
+
+TODO: Currently the server, as written, needs to be re-structured and
+changed to conform to better styles. dnscat2 0.03 beta will focus on
+converting the server to a similar style to the client.
