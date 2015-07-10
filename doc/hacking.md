@@ -44,9 +44,10 @@ give a quick overview, though.
 The actual code that touches the network is called a tunnel_driver, and
 is located in tunnel_drivers/. An example of a tunnel driver - and the
 only tunnel_driver that exists as of this writing - is the dns driver,
-which is implemented in [driver_dns.c](/tunnel_drivers/driver_dns.c). The
-protocol I invented for doing packets over DNS (sort of akin to layer 2)
-is called the "DNS Tunneling Protocol", and is discussed in detail in
+which is implemented in
+[driver_dns.c](/client/tunnel_drivers/driver_dns.c). The protocol I
+invented for doing packets over DNS (sort of akin to layer 2) is called
+the "DNS Tunneling Protocol", and is discussed in detail in
 [protocol.md](protocol.md).
 
 The tunnel_driver has no real understanding of the dnscat protocol or of
@@ -76,7 +77,7 @@ The controller is the go-between from the
 [tunnel_driver](#tunnel_driver) to the [sessions](#session). It's
 essentially a session manager - it creates, destroys, and can enumerate
 sessions as needed. It's implemented in
-[controller.c](controller/controller.c)
+[controller.c](/client/controller/controller.c)
 
 When data comes in to a tunnel_driver, it's decoded sent to the
 controller. The controller parses it just enough to get the session_id
@@ -104,7 +105,7 @@ anything about the tunnel_driver.
 Initially, a single session is created. That session, however, might
 spawn other sessions. Sessions are identified with a 16-bit id value
 that's also sent across the network. The session management code is
-implemented in [session.c](controller/session.c).
+implemented in [session.c](/client/controller/session.c).
 
 Each session has a corresponding [driver](#driver) (different from a
 [tunnel_driver](#tunnel_driver)), which is how it interacts with the
@@ -112,7 +113,7 @@ real world (the console, an executable, etc).
 
 The session module is where the actual dnscat protocol (see
 [protocol.md](protocol.md)) is parsed - the actual parsing is done in
-[packet.c](controller/packet.c). It's agnostic to both its back
+[packet.c](/client/controller/packet.c). It's agnostic to both its back
 end (a tunnel_driver) and its front end (just a driver).
 
 When data is received by the tunnel_driver, it's sent to the session via
@@ -157,18 +158,18 @@ session has exactly one driver. The driver defines how it interacts with the
 outside world (or with the program itself). There are a few types of driver
 already created:
 
-* [driver_console](drivers/driver_console.c) - simply feeds the program's
+* [/client/driver_console](drivers/driver_console.c) - simply feeds the program's
   stdin/stdout into the session.  Not terribly useful outside of testing.
   Only one / program is allowed, because stdin is a prude (will only talk to
   one driver at a time).
 
-* [driver_exec](drivers/driver_exec.c) - execute a process (like cmd.exe)
+* [/client/driver_exec](drivers/driver_exec.c) - execute a process (like cmd.exe)
   and attach the process's stdin / stdout to the session.
 
-* [driver_ping](drivers/driver_ping.c) - this is a 'special' driver that just
+* [/client/driver_ping](drivers/driver_ping.c) - this is a 'special' driver that just
   handles dnscat2 pings (it simply echoes back what is sent)
 
-* [driver_command](drivers/command/driver_command.c) - this driver has its own
+* [/client/driver_command](drivers/command/driver_command.c) - this driver has its own
   command packets, which can be used to upload files, download files,
   execute commands, etc - basically, it creates other drivers.
 
@@ -218,14 +219,14 @@ some message passing strategy, but it was horrible.
                    |
                    v
               +--------+
-              | [driver](drivers/driver.c) | (exactly one / session)
+              | [driver](#driver) | (exactly one / session)
               +--------+
 
 ## Networking
 
-All networking is done using [libs/tcp.c](libs/tcp.c),
-[libs/udp.c](libs/udp.c), and
-[libs/select_group.c](libs/select_group.c). Like all libraries that
+All networking is done using [libs/tcp.h](/client/libs/tcp.h),
+[libs/udp.h](/client/libs/udp.h), and
+[libs/select_group.h](/client/libs/select_group.h). Like all libraries that
 dnscat2 uses, all three work and are tested on Windows, Linux, OS X, and
 FreeBSD.
 
@@ -264,7 +265,7 @@ There is one place where threads are used, though: on Windows, it isn't
 possible to put the stdin handle into select(). So, transparently, the
 select_group module will create a thread that basically just reads stdin
 and shoves it into a pipe that can be selected on. You can find all the
-code for this in [select_group.c](libs/select_group.c), and this only
+code for this in [select_group.h](/client/libs/select_group.h), and this only
 affects Windows.
 
 ## Memory management
@@ -272,7 +273,7 @@ affects Windows.
 I use sorta weird memory-management techniques that came from a million
 years ago when I wrote nbtool: all memory management
 (malloc/free/realloc/strdup/etc) takes place in a module called memory,
-which can be found in [libs/memory.c](libs/memory.h).
+which can be found in [libs/memory.h](/client/libs/memory.h).
 
 Basically, as a developer, all you need to know is to use safe_malloc(),
 safe_free(), safe_strdup(), and other safe_* functions defined in
@@ -292,7 +293,7 @@ double-frees and abort automatically.
 ## Parsing
 
 All parsing (and marshalling and most kinds of string-building) should
-be done by the buffer module, found in [libs/buffer.h](libs/buffer.h).
+be done by the buffer module, found in [libs/buffer.h](/client/libs/buffer.h).
 
 The buffer module harkens back to Battle.net bot development, and is a
 safe way to build and parse arbitrary binary strings. I've used more or
@@ -349,7 +350,7 @@ Or you can allocate a string automatically:
     safe_free(str);
 
 You can also read at certain indices (buffer_read_int8_at(...), for
-example). See [libs/buffer.h](libs/buffer.h) for everything, with
+example). See [libs/buffer.h](/client/libs/buffer.h) for everything, with
 documentation.
 
 Currently the error handling consists basically of aborting and printing
@@ -364,9 +365,9 @@ I'll just say it: the error handling on the client sucks right now. In
 normal use everything's fine, but if you try messing with anything, any
 abnormality causes an abort().
 
-Right now, the majority of error handling is done by the buffer module
-(libs/buffer.c and libs/buffer.h). If there's anything wrong with the
-protocol (dnscat, dns, etc.), it simply exits.
+Right now, the majority of error handling is done by the
+[buffer](/client/libs/buffer.h) module. If there's anything wrong with
+the protocol (dnscat, dns, etc.), it simply exits.
 
 That's clearly not a great situation for stable code. I plan to go
 through and add better error handling in the future, but it's a
