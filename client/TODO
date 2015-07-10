@@ -1,5 +1,6 @@
 - Go through TODOs
 - Fix Windows
-- Update documentation, in particular with now sample outputs
+- Update documentation, in particular with new sample outputs
 - Make sure all commandline arguments still work
 - Check for memory leaks
+- Add an option that limits the maximum data of the dnscat2 packet

@@ -43,9 +43,10 @@ give a quick overview, though.
 
 The actual code that touches the network is called a tunnel_driver, and
 is located in tunnel_drivers/. An example of a tunnel driver - and the
-only tunnel_driver that exists as of this writing - is dns. The protocol
-I invented for doing packets over DNS (sort of akin to layer 2) is
-called the "DNS Tunneling Protocol", and is discussed in detail in
+only tunnel_driver that exists as of this writing - is the dns driver,
+which is implemented in [driver_dns.c](tunnel_drivers/driver_dns.c). The
+protocol I invented for doing packets over DNS (sort of akin to layer 2)
+is called the "DNS Tunneling Protocol", and is discussed in detail in
 [protocol.md](protocol.md).
 
 The tunnel_driver has no real understanding of the dnscat protocol or of
@@ -65,80 +66,88 @@ All communication with the rest of dnscat2 is done via the
 decoded and sent to the controller. When the tunnel_driver is capable of
 sending data, it asks the controller for any data that's available.
 
-The tunnel_driver is aware of the controller, but the controller isn't
-aware of the tunnel_driver.
+There is only ever a single tunnel_driver instance running. The
+tunnel_driver is aware of the controller, but the controller isn't aware
+of the tunnel_driver.
 
 ### controller
 
-The controller is the go-between from the tunnel_drivers to the
-sessions. It's essentially a session manager - it creates, destroys, and
-can enumerate sessions as needed.
+The controller is the go-between from the
+[tunnel_driver](#tunnel_driver) to the [sessions](#session). It's
+essentially a session manager - it creates, destroys, and can enumerate
+sessions as needed. It's implemented in
+[controller.c](controller/controller.c)
 
-When data comes in to a tunnel_driver, it's sent to the controller. The
-controller parses it just enough to get the session_id value, then it
-finds the session that corresponds to that id and sends the data to it.
+When data comes in to a tunnel_driver, it's decoded sent to the
+controller. The controller parses it just enough to get the session_id
+value from the header, then it finds the session that corresponds to
+that id and sends the data to it for processing. If there's no such
+session, and error is printed and it's ignored.
 
-When data needs to go out, the controller polls the sessions (in a
-circular way - it grabs one message from each session that has data
-ready on each tick) and sends it along to the tunnel_driver (the
-tunnel_driver polls the controller which polls one of the sessions).
+For data being sent out, the controller polls each session and sends it
+along to the tunnel_driver.
 
 The controller knows how to find and talk to sessions, but it doesn't know
 anything about the tunnel_driver.
 
            +---------------+
-           | tunnel_driver | (only 1)
+           | [tunnel_driver](#tunnel_driver) | (only 1)
            +---------------+
                    |
                    v
             +------------+
-            | controller | (only 1)
+            | [controller](#controller) | (only 1)
             +------------+
 
 ### session
 
-There are multiple session objects created, each with its own id value.
-Each session has a corresponding driver (not to be confused with a
-tunnel_driver), which is how it interacts with the real world (the
-console, an executable, etc).
+Initially, a single session is created. That session, however, might
+spawn other sessions. Sessions are identified with a 16-bit id value
+that's also sent across the network. The session management code is
+implemented in [session.c](controller/session.c).
 
-sessions can be created and destroyed over the lifetime of the client. For
-example, a "command" session might create an "exec" session.
+Each session has a corresponding [driver](#driver) (different from a
+[tunnel_driver](#tunnel_driver)), which is how it interacts with the
+real world (the console, an executable, etc).
 
 The session module is where the actual dnscat protocol (see
-[protocol.md](protocol.md)) is parsed. It's agnostic to both its back
+[protocol.md](protocol.md)) is parsed - the actual parsing is done in
+[packet.c](controller/packet.c). It's agnostic to both its back
 end (a tunnel_driver) and its front end (just a driver).
 
-When data is received by the tunnel_driver, it's sent to the session via the
-controller. The packet is parsed as a dnscat protocol packet, and it's fed into
-the session's state machine. If everything is okay (a good seq/ack, the right
-type in the right state, etc), the data is passed up to the driver. If it's
-bad, the driver is simply polled.
+When data is received by the tunnel_driver, it's sent to the session via
+the [controller](#controller). The packet received by the session is
+parsed as a dnscat protocol packet, and it's fed into the session's
+state machine. If everything is okay (a good seq/ack, the right type in
+the right state, etc), the data portion of the packet, if any, is passed
+up to the driver. If there's no data in the received packet, the driver
+is still polled to see if any outgoing data is waiting.
 
-When the driver gets polled, it has the opportunity to return its own data. Its
-data is wrapped in a dnscat protocol packet (with the proper session_id/seq/ack
-values).  That packet goes through the session, then the controller, then the
-tunnel_driver, where it's wrapped in a tunnel_driver packet and sent.
+Whether or not the driver had data waiting, the session generates a new
+packet in the dnscat protocol (with the proper session_id/seq/ack
+values). That packet is returned to the session, then the controller,
+then the tunnel_driver, where it's wrapped in a DNS Tunneling Protocol
+packet and sent as a response.
 
 The session knows what driver it's using, but has no knowledge of other
 sessions or the controller.
 
            +---------------+
-           | tunnel_driver | (only 1)
+           | [tunnel_driver](#tunnel_driver) | (only 1)
            +---------------+
                    |
                (has one)
                    |
                    v
             +------------+
-            | controller | (only 1)
+            | [controller](#controller) | (only 1)
             +------------+
                    |
            (has one or more)
                    |
                    v
               +---------+
-              | session | (at least one)
+              | [session](#session) | (at least one)
               +---------+
 
 ### drivers
@@ -148,120 +157,122 @@ session has exactly one driver. The driver defines how it interacts with the
 outside world (or with the program itself). There are a few types of driver
 already created:
 
-* driver_console - simply feeds the program's stdin/stdout into the session.
-  Not terribly useful outside of testing. Only one / program is allowed,
-  because stdin is a prude (will only talk to one driver at a time)
+* [driver_console](drivers/driver_console.c) - simply feeds the program's
+  stdin/stdout into the session.  Not terribly useful outside of testing.
+  Only one / program is allowed, because stdin is a prude (will only talk to
+  one driver at a time).
 
-* driver_exec - execute a process (like cmd.exe) and attach the process's stdin
-  / stdout to the session
+* [driver_exec](drivers/driver_exec.c) - execute a process (like cmd.exe)
+  and attach the process's stdin / stdout to the session.
 
-* driver_ping - this is a 'special' driver that just handles dnscat2 pings (it
-  simply echoes back what is sent)
+* [driver_ping](drivers/driver_ping.c) - this is a 'special' driver that just
+  handles dnscat2 pings (it simply echoes back what is sent)
 
-* driver_command - this driver has its own command packets, which can be used
-  to upload files, download files, execute commands, etc - basically, it creates
-  other drivers.
+* [driver_command](drivers/command/driver_command.c) - this driver has its own
+  command packets, which can be used to upload files, download files,
+  execute commands, etc - basically, it creates other drivers.
 
-It's pretty trivial to add more, from a programming perspective. But it's
-important for the server to recognize how to handle the special connections
-(that is, the if it's a command session, the server needs to know it's a
-command session). A driver like driver_exec that simply send/receive data
-doesn't require anything special, though.
+It's pretty trivial to add more, from a programming perspective. But if
+the connection is "special" (ie, the data isn't meant to be parsed by
+humans, like driver_command, which has its own protocol), it's important
+for the server to understand how to handle the connections (that is, the
+if it's a command session, the server needs to show the user a menu and
+wait for commands). That's done by using flags in the SYN packet.
 
-The driver runs in a vacuum - it knows it gets data and gets polled for data,
-but it doesn't know about sessions or controllers or tunnel_drivers (though
-there are cases, such as driver_command, where a driver has to access other
-sessions (for example, to kill one).
+A driver meant for direct human consumption - like driver_exec, which
+just runs a program and sends the output over the session, doesn't
+require anything special.
+
+The driver runs in a vacuum - it doesn't know anything else about what
+dnscat2 is up to. All it knows is that it's receiving data and getting
+polled for its own data. Other than that, it's on its own. It doesn't
+know about [sessions](#session) or [controllers](#controller) or
+[tunnel_drivers](#tunnel_driver) or anything.
+
+That's the design, anyway, but it isn't a hard and fast rule. There are
+some cases where a driver will want to create another session, for
+example (which is done by driver_command). As a result, those have to
+call functions in [controller](controller), which breaks the
+architecture a bit, but there isn't really an alternative. I used to use
+some message passing strategy, but it was horrible.
 
            +---------------+
-           | tunnel_driver | (only 1)
+           | [tunnel_driver](#tunnel_driver) | (only 1)
            +---------------+
                    |
                (has one)
                    |
                    v
             +------------+
-            | controller | (only 1)
+            | [controller](#controller) | (only 1)
             +------------+
                    |
            (has one or more)
                    |
                    v
               +---------+
-              | session | (at least one)
+              | [session](#session) | (at least one)
               +---------+
                    |
            (has exactly one)
                    |
                    v
               +--------+
-              | driver | (exactly one / session)
+              | [driver](drivers/driver.c) | (exactly one / session)
               +--------+
-
-
-### Directory structure
-
-There are a few collections of functions that matter:
-
-* libs/
-* controller/
-* tunnel_drivers/
-* drivers/
-
-libs/ is pretty boring - it contains a bunch of standalone libraries,
-mostly written by me.
-
-controller/ contains session and controller code. The tunnel_drivers/
-and drivers/ directories contain exactly what you'd expect.
 
 ## Networking
 
-All networking is done using libs/tcp.c, libs/udp.c, and
-libs/select_group.c. All three work and are tested on Windows, Linux, OS
-X, and FreeBSD.
+All networking is done using [libs/tcp.c](libs/tcp.c),
+[libs/udp.c](libs/udp.c), and
+[libs/select_group.c](libs/select_group.c). Like all libraries that
+dnscat2 uses, all three work and are tested on Windows, Linux, OS X, and
+FreeBSD.
 
 The tcp and udp modules provide a simple interface to creating or
-destroying sockets without having to understand everything about them.
+destroying IPv4 sockets without having to understand everything about
+them. It also uses BSD sockets or Winsock, as appropriate.
 
 The select_group module provides a way to asynchronously handle socket
-data. Essentially, you can create as many sockets as you want and add
-them to the select_group module with a callback for receiving data or
-being closed. Then the main() function (or equivalent) calls
+communication. Essentially, you can create as many sockets as you want
+and add them to the select_group module with a callback for receiving
+data or being closed (basically, a platform-independent wrapper around
+select()). Then the main() function (or whatever) calls
 select_group_do_select() with a timeout value in an infinite loop.
 
-Each iteration of the loop, the select() syscall is used, and any
-sockets that are active have their appropriate callbacks called. From
-those callbacks, the socket can be removed from the select_group (for
-example, if they decided to close it).
+Each iteration of the loop, select() is called, and any sockets that are
+active have their appropriate callbacks called. From those callbacks,
+the socket can be removed from the select_group (for example, if the
+socket needs to be closed).
 
 stdin can also be read by select_group, meaning that special code isn't
-required to handle stdin. On Windows, a secondary thread is
+required to handle stdin input. On Windows, a secondary thread is
 automatically created to poll for activity; see the asynchronous code
 section for info.
 
 ## Asynchronous code
 
-There is as little threading as possible, and it should stay
-that way. Every socket is put into select(), as well as stdin (when
-needed), and when the socket is active an appropriate callback is called
-by the select_group module.
+There is as little threading as possible, and it should stay that way.
+Every socket is put into select() via the select_group library and when
+the socket is active an appropriate callback is called by the
+select_group module.
 
-As a result, no packet-handling function should take any longer than it
-has to. A slow function will slow down the handling of all other
-traffic, which isn't great.
+As a result, packet-handling functions must be fast. A slow function
+will slow down the handling of all other traffic, which isn't great.
 
 There is one place where threads are used, though: on Windows, it isn't
 possible to put the stdin handle into select(). So, transparently, the
 select_group module will create a thread that basically just reads stdin
 and shoves it into a pipe that can be selected on. You can find all the
-code for this in libs/select_group.c, and this only affects Windows.
+code for this in [select_group.c](libs/select_group.c), and this only
+affects Windows.
 
 ## Memory management
 
 I use sorta weird memory-management techniques that came from a million
 years ago when I wrote nbtool: all memory management
 (malloc/free/realloc/strdup/etc) takes place in a module called memory,
-which can be found in libs/memory.c and libs/memory.h.
+which can be found in [libs/memory.c](libs/memory.h).
 
 Basically, as a developer, all you need to know is to use safe_malloc(),
 safe_free(), safe_strdup(), and other safe_* functions defined in
@@ -269,29 +280,28 @@ libs/memory.h.
 
 The advantage of this is that in debug mode, these are added to a linked
 list of all memory ever allocated. When it's freed, it's marked as such.
-When the program terminates cleanly, a list of all unfreed memory
-allocations (including the file and line number where it was allocated)
-are displayed, giving a platform-independent way to find memory leaks.
+When the program terminates cleanly, a list of all currently allocated
+memory (including the file and line number where it was allocated) are
+displayed, giving a platform-independent way to find memory leaks.
 
 An additional advantage is that, for a small performance hit, the memory
-being freed is zeroed out, which makes bugs somewhat easier to find. It
-will also detect double-frees and terminate automatically.
-
-When debug mode is disabled, safe_malloc() and similar are simple
-wrappers for malloc() and friends.
+being freed is zeroed out, which makes bugs somewhat easier to find and
+stops user-after-free bugs from being exploitable. It will also detect
+double-frees and abort automatically.
 
 ## Parsing
 
-All parsing (and marshaling and most kinds of string-building) should be
-done by the buffer module, found in libs/buffer.c and libs/buffer.h.
+All parsing (and marshalling and most kinds of string-building) should
+be done by the buffer module, found in [libs/buffer.h](libs/buffer.h).
 
 The buffer module harkens back to Battle.net bot development, and is a
-safe way to build arbitrary binary strings. I've used the same module
-for 10+ years, with only minor changes (the only major change has been
-moving to 64-bit lengths all around).
+safe way to build and parse arbitrary binary strings. I've used more or
+less the same code for 10+ years, with only minor changes (the only
+major change has been moving to 64-bit lengths all around, and
+occasionally adding a datatype).
 
-Essentially, you create a buffer with your chosen byte order (little,
-big, network (aka, big) or host:
+Essentially, you create a buffer with your chosen byte order (little
+endian, big endian, network (aka, big endian) or host:
 
     buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
 
@@ -302,15 +312,17 @@ byte arrays, and other buffers to it:
     buffer_add_ntstring(buffer, "hello");
     buffer_add_bytes(buffer, (uint8_t*)"hello", 5);
 
-You can convert it to an array and destroy it at the same time (which is
-the normal situation):
+When a buffer is ready to be sent, you can convert it to a byte string
+and free it at the same time (you can also do these separately, but I
+don't think I ever have):
 
     size_t length;
     uint8_t *out = buffer_create_string_and_destroy(buffer, &length);
     [...]
     safe_free(out);
 
-You can also create a buffer containing data:
+You can also create a buffer containing data, such as data that's been
+received from a socket:
 
     buffer_t *buffer = buffer_create_with_data(BO_BIG_ENDIAN, data, length);
 
@@ -320,29 +332,39 @@ created you can read in values:
     uint8_t byte = buffer_read_next_int8(buffer);
     uint16_t word = buffer_read_next_int16(buffer);
 
+You can also read from specific offsets:
+
+    uint32_t dword = buffer_read_int32_at(buffer, 0);
+    uint64_t qword = buffer_read_int64_at(buffer, 10);
+
 You can also read an ntstring into a string you allocate:
 
     char str[128];
     buffer_read_next_ntstring(buffer, str, 128);
 
-Or you can allocate a string and read the next ntstring into it:
+Or you can allocate a string automatically:
 
     char *str = buffer_alloc_next_ntstring(buffer);
     [...]
     safe_free(str);
 
 You can also read at certain indices (buffer_read_int8_at(...), for
-example). See libs/buffer.h for all the various functions.
+example). See [libs/buffer.h](libs/buffer.h) for everything, with
+documentation.
 
-Currently the error handling consists basically of buffer.[c/h] crashing
-when attempting to read too much (it crashes in a safe way, but it still
-shouldn't). See below for more info on error handling.
+Currently the error handling consists basically of aborting and printing
+an error when attempting to read out of bounds. See below for more info
+on error handling.
+
+(I'm planning on shoring up the error handling in a future release)
 
 ## Error handling
 
-The error handling on the client sucks.
+I'll just say it: the error handling on the client sucks right now. In
+normal use everything's fine, but if you try messing with anything, any
+abnormality causes an abort().
 
-Right now, the main line for error handling is done by the buffer module
+Right now, the majority of error handling is done by the buffer module
 (libs/buffer.c and libs/buffer.h). If there's anything wrong with the
 protocol (dnscat, dns, etc.), it simply exits.
 
@@ -350,31 +372,32 @@ That's clearly not a great situation for stable code. I plan to go
 through and add better error handling in the future, but it's a
 non-trivial operation.
 
-# Security
-
-As mentioned in the client error handling section, any bad data causes the
-client to terminate.  That's obviously not ideal, but at least it's safe. On
-the server, bad data is ignored - an exception is triggered and the connection
-is closed.
-
-Some other security concerns:
-
-* Man-in-the-middle: A man-in-the-middle attack is possible, and can cause code
-  execution on the client. This has no more defense against tampering than TCP
-  has. May add some signing in the future.
-
-* Server: The server should be completely safe (ie, able to be run on trusted
-  infrastructure).
-
-* Confidentiality: There is no confidentiality requirement (all data is sent in
-  plaintext). May add some crypto in the future.
-
-* Cloaking: From a network traffic perspective, it's exceedingly obvious that
-  it's dnscat. It's also possible to trick a dnscat2 server into revealing
-  itself (with a ping). There is no hiding.
-
 # Server
 
 TODO: Currently the server, as written, needs to be re-structured and
 changed to conform to better styles. dnscat2 0.03 beta will focus on
 converting the server to a similar style to the client.
+
+# Security
+
+As mentioned in the client error handling section, any bad data causes
+the client to abort(). That's obviously not ideal, but at least it's
+safe. On the server, bad data is ignored - an exception is triggered and
+the connection is closed, if it can't recover.
+
+Some other security concerns:
+
+* Man-in-the-middle: A man-in-the-middle attack is possible, and can cause code
+  execution on the client. This has no more defense against tampering than TCP
+  has. I may add some signing in the future.
+
+* Server: The server should be completely safe (ie, able to be run on trusted
+  infrastructure). The client can't execute code, download files, or
+  anything else that would negatively affect the server.
+
+* Confidentiality: There is no confidentiality (all data is sent in
+  plaintext). I may add some crypto in the future.
+
+* Cloaking: From a network traffic perspective, it's exceedingly obvious that
+  it's dnscat. It's also possible to trick a dnscat2 server into revealing
+  itself (with a ping). There is no hiding.
