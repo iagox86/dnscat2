@@ -44,7 +44,7 @@ give a quick overview, though.
 The actual code that touches the network is called a tunnel_driver, and
 is located in tunnel_drivers/. An example of a tunnel driver - and the
 only tunnel_driver that exists as of this writing - is the dns driver,
-which is implemented in [driver_dns.c](tunnel_drivers/driver_dns.c). The
+which is implemented in [driver_dns.c](/tunnel_drivers/driver_dns.c). The
 protocol I invented for doing packets over DNS (sort of akin to layer 2)
 is called the "DNS Tunneling Protocol", and is discussed in detail in
 [protocol.md](protocol.md).
