@@ -193,7 +193,7 @@ know about [sessions](#session) or [controllers](#controller) or
 That's the design, anyway, but it isn't a hard and fast rule. There are
 some cases where a driver will want to create another session, for
 example (which is done by driver_command). As a result, those have to
-call functions in [controller](controller), which breaks the
+call functions in [controller](#controller), which breaks the
 architecture a bit, but there isn't really an alternative. I used to use
 some message passing strategy, but it was horrible.
 
@@ -265,8 +265,8 @@ There is one place where threads are used, though: on Windows, it isn't
 possible to put the stdin handle into select(). So, transparently, the
 select_group module will create a thread that basically just reads stdin
 and shoves it into a pipe that can be selected on. You can find all the
-code for this in [select_group.h](/client/libs/select_group.h), and this only
-affects Windows.
+code for this in [libs/select_group.h](/client/libs/select_group.h), and
+this only affects Windows.
 
 ## Memory management
 
