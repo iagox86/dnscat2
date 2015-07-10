@@ -92,12 +92,12 @@ The controller knows how to find and talk to sessions, but it doesn't know
 anything about the tunnel_driver.
 
            +---------------+
-           | [tunnel_driver](#tunnel_driver) | (only 1)
+           | tunnel_driver | (only 1)
            +---------------+
                    |
                    v
             +------------+
-            | [controller](#controller) | (only 1)
+            | controller | (only 1)
             +------------+
 
 ### session
@@ -134,21 +134,21 @@ The session knows what driver it's using, but has no knowledge of other
 sessions or the controller.
 
            +---------------+
-           | [tunnel_driver](#tunnel_driver) | (only 1)
+           | tunnel_driver | (only 1)
            +---------------+
                    |
                (has one)
                    |
                    v
             +------------+
-            | [controller](#controller) | (only 1)
+            | controller | (only 1)
             +------------+
                    |
            (has one or more)
                    |
                    v
               +---------+
-              | [session](#session) | (at least one)
+              | session | (at least one)
               +---------+
 
 ### drivers
@@ -158,20 +158,20 @@ session has exactly one driver. The driver defines how it interacts with the
 outside world (or with the program itself). There are a few types of driver
 already created:
 
-* [/client/driver_console](drivers/driver_console.c) - simply feeds the program's
-  stdin/stdout into the session.  Not terribly useful outside of testing.
-  Only one / program is allowed, because stdin is a prude (will only talk to
-  one driver at a time).
+* [driver_console](/client/drivers/driver_console.c) - simply feeds the
+  program's stdin/stdout into the session.  Not terribly useful outside
+  of testing.  Only one / program is allowed, because stdin is a prude
+  (will only talk to one driver at a time).
 
-* [/client/driver_exec](drivers/driver_exec.c) - execute a process (like cmd.exe)
-  and attach the process's stdin / stdout to the session.
+* [driver_exec](/client/drivers/driver_exec.c) - execute a process (like
+  cmd.exe) and attach the process's stdin / stdout to the session.
 
-* [/client/driver_ping](drivers/driver_ping.c) - this is a 'special' driver that just
-  handles dnscat2 pings (it simply echoes back what is sent)
+* [driver_ping](/client/drivers/driver_ping.c) - this is a 'special' driver
+  that just handles dnscat2 pings (it simply echoes back what is sent)
 
-* [/client/driver_command](drivers/command/driver_command.c) - this driver has its own
-  command packets, which can be used to upload files, download files,
-  execute commands, etc - basically, it creates other drivers.
+* [driver_command](/client/drivers/command/driver_command.c) - this driver has
+  its own command packets, which can be used to upload files, download
+  files, execute commands, etc - basically, it creates other drivers.
 
 It's pretty trivial to add more, from a programming perspective. But if
 the connection is "special" (ie, the data isn't meant to be parsed by
@@ -198,28 +198,28 @@ architecture a bit, but there isn't really an alternative. I used to use
 some message passing strategy, but it was horrible.
 
            +---------------+
-           | [tunnel_driver](#tunnel_driver) | (only 1)
+           | tunnel_driver | (only 1)
            +---------------+
                    |
                (has one)
                    |
                    v
             +------------+
-            | [controller](#controller) | (only 1)
+            | controller | (only 1)
             +------------+
                    |
            (has one or more)
                    |
                    v
               +---------+
-              | [session](#session) | (at least one)
+              | session | (at least one)
               +---------+
                    |
            (has exactly one)
                    |
                    v
               +--------+
-              | [driver](#driver) | (exactly one / session)
+              | driver | (exactly one / session)
               +--------+
 
 ## Networking
