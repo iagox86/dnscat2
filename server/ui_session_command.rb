@@ -223,6 +223,18 @@ class UiSessionCommand < UiInterfaceWithId
         end
       end
     )
+
+    register_command("shutdown",
+      Trollop::Parser.new do
+        banner("Shut down the remote session and any child sessions")
+      end,
+
+      Proc.new do |opts, optval|
+        packet = CommandPacket.create_shutdown_request(request_id())
+        @session.queue_outgoing(packet)
+        puts("Attempting to shut down remote session(s)...")
+      end
+    )
   end
 
   def initialize(id, session, ui)

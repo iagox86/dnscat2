@@ -29,6 +29,7 @@ typedef enum
   COMMAND_EXEC      = 0x0002,
   COMMAND_DOWNLOAD  = 0x0003,
   COMMAND_UPLOAD    = 0x0004,
+  COMMAND_SHUTDOWN  = 0x0005,
 
   COMMAND_ERROR     = 0xFFFF,
 } command_packet_type_t;
@@ -49,6 +50,7 @@ typedef struct
         struct { char *name; char *command; } exec;
         struct { char *filename; } download;
         struct { char *filename; uint8_t *data; uint32_t length; } upload;
+        struct { int dummy; } shutdown;
         struct { uint16_t status; char *reason; } error;
       } body;
     } request;
@@ -61,6 +63,7 @@ typedef struct
         struct { uint16_t session_id; } exec;
         struct { uint8_t *data; uint32_t length; } download;
         struct { int dummy; } upload;
+        struct { int dummy; } shutdown;
         struct { uint16_t status; char *reason; } error;
       } body;
     } response;
@@ -86,8 +89,11 @@ command_packet_t *command_packet_create_download_response(uint16_t request_id, u
 command_packet_t *command_packet_create_upload_request(uint16_t request_id, char *filename, uint8_t *data, uint32_t length);
 command_packet_t *command_packet_create_upload_response(uint16_t request_id);
 
+command_packet_t *command_packet_create_shutdown_response(uint16_t request_id);
+
 command_packet_t *command_packet_create_error_request(uint16_t request_id, uint16_t status, char *reason);
 command_packet_t *command_packet_create_error_response(uint16_t request_id, uint16_t status, char *reason);
+
 
 /* Free the packet data structures. */
 void command_packet_destroy(command_packet_t *packet);

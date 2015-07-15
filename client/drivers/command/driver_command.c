@@ -118,6 +118,12 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
         out = command_packet_create_upload_response(in->request_id);
       }
     }
+    else if(in->command_id == COMMAND_SHUTDOWN && in->is_request == TRUE)
+    {
+      controller_kill_all_sessions();
+
+      out = command_packet_create_shutdown_response(in->request_id);
+    }
     else
     {
       LOG_ERROR("Got a command packet that we don't know how to handle!\n");

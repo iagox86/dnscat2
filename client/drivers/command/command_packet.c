@@ -81,6 +81,9 @@ command_packet_t *command_packet_parse(uint8_t *data, uint32_t length, NBBOOL is
       }
       break;
 
+    case COMMAND_SHUTDOWN:
+      break;
+
     case COMMAND_ERROR:
       if(is_request)
       {
@@ -211,6 +214,13 @@ command_packet_t *command_packet_create_upload_request(uint16_t request_id, char
 command_packet_t *command_packet_create_upload_response(uint16_t request_id)
 {
   command_packet_t *packet = command_packet_create_response(request_id, COMMAND_UPLOAD);
+
+  return packet;
+}
+
+command_packet_t *command_packet_create_shutdown_response(uint16_t request_id)
+{
+  command_packet_t *packet = command_packet_create_response(request_id, COMMAND_SHUTDOWN);
 
   return packet;
 }
@@ -354,6 +364,13 @@ void command_packet_print(command_packet_t *packet)
         printf("COMMAND_UPLOAD [response] :: request_id: 0x%04x\n", packet->request_id);
       break;
 
+    case COMMAND_SHUTDOWN:
+      if(packet->is_request)
+        printf("COMMAND_SHUTDOWN [request] :: request_id 0x%04x\n", packet->request_id);
+      else
+        printf("COMMAND_SHUTDOWN [response] :: request_id 0x%04x\n", packet->request_id);
+      break;
+
     case COMMAND_ERROR:
       if(packet->is_request)
         printf("COMMAND_ERROR [request] :: request_id: 0x%04x :: status: 0x%04x :: reason: %s\n", packet->request_id, packet->r.request.body.error.status, packet->r.request.body.error.reason);
@@ -421,6 +438,9 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, uint32_t *length)
       else
       {
       }
+      break;
+
+    case COMMAND_SHUTDOWN:
       break;
 
     case COMMAND_ERROR:

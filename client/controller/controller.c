@@ -198,6 +198,17 @@ static void kill_ignored_sessions()
   }
 }
 
+void controller_kill_all_sessions()
+{
+  session_entry_t *entry = first_session;
+
+  while(entry)
+  {
+    session_kill(entry->session);
+    entry = entry->next;
+  }
+}
+
 /* This will be called something like every 50ms. */
 void controller_heartbeat()
 {
