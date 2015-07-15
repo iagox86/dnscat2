@@ -37,16 +37,24 @@
 #define DEFAULT_DNS_PORT 53
 
 /* Define these outside the function so they can be freed by the atexec() */
-select_group_t *group = NULL;
+select_group_t *group         = NULL;
+driver_dns_t   *tunnel_driver = NULL;
+char           *system_dns    = NULL;
 
 static void cleanup(void)
 {
   LOG_WARNING("Terminating");
 
-  /*controller_shutdown();*/
+  controller_destroy();
+
+  if(tunnel_driver)
+    driver_dns_destroy(tunnel_driver);
 
   if(group)
     select_group_destroy(group);
+
+  if(system_dns)
+    safe_free(system_dns);
 
   print_memory();
 }
@@ -116,7 +124,7 @@ void usage(char *name, char *message)
 "\n"
 "ERROR: %s\n"
 "\n"
-, name, dns_get_system(), message
+, name, system_dns, message
 );
   exit(0);
 }
@@ -124,7 +132,7 @@ void usage(char *name, char *message)
 driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
 {
   if(!server)
-    server = dns_get_system();
+    server = system_dns;
 
   if(!server)
   {
@@ -151,7 +159,7 @@ driver_dns_t *create_dns_driver(select_group_t *group, char *options)
   char     *host = "0.0.0.0";
   uint16_t  port = 53;
   char     *type = DEFAULT_TYPES;
-  char     *server = dns_get_system();
+  char     *server = system_dns;
 
   char *token = NULL;
 
@@ -251,13 +259,13 @@ int main(int argc, char *argv[])
   NBBOOL            tunnel_driver_created = FALSE;
   NBBOOL            driver_created        = FALSE;
 
-  driver_dns_t     *tunnel_driver = NULL;
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
   session_t        *session = NULL;
 
   group = select_group_create();
+  system_dns = dns_get_system();
 
   /* Seed with the current time; not great, but it'll suit our purposes. */
   srand((unsigned int)time(NULL));
@@ -393,57 +401,6 @@ int main(int argc, char *argv[])
         break;
     }
   }
-#if 0
-  if(chunk != -1 && !download)
-  {
-    LOG_FATAL("--chunk can only be used with --download");
-    exit(1);
-  }
-#endif
-
-  /* TODO: A default driver. */
-#if 0
-  switch(input_type)
-  {
-    case TYPE_CONSOLE:
-      LOG_WARNING("INPUT: Console");
-      driver_console_create(group, session);
-      break;
-    case TYPE_COMMAND:
-      LOG_WARNING("INPUT: Command");
-      driver_command_create(group, name);
-      break;
-
-    case TYPE_EXEC:
-      LOG_WARNING("INPUT: Executing %s", exec_process);
-
-      if(exec_process == NULL)
-        usage(argv[0], "--exec set without a process!");
-
-      driver_exec_create(group, exec_process, name);
-      break;
-
-    case TYPE_LISTENER:
-      LOG_WARNING("INPUT: Listening on port %d", driver_listener->port);
-      if(listen_port == 0)
-        usage(argv[0], "--listen set without a port!");
-
-      driver_listener = driver_listener_create(group, "0.0.0.0", listen_port, name);
-      break;
-
-    case TYPE_PING:
-      LOG_WARNING("INPUT: ping");
-      driver_ping = driver_ping_create(group);
-      break;
-
-    case TYPE_NOT_SET:
-      usage(argv[0], "You have to pick an input type!");
-      break;
-
-    default:
-      usage(argv[0], "Unknown type?");
-  }
-#endif
 
   /* If no output was set, use the domain, and use the last option as the
    * domain. */

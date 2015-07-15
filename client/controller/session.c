@@ -327,8 +327,17 @@ void session_kill(session_t *session)
 
 void session_destroy(session_t *session)
 {
+  if(!session->is_shutdown)
+    session_kill(session);
+
   if(session->name)
     safe_free(session->name);
+
+  if(session->driver)
+    driver_destroy(session->driver);
+
+  if(session->outgoing_buffer)
+    buffer_destroy(session->outgoing_buffer);
 
   safe_free(session);
 }

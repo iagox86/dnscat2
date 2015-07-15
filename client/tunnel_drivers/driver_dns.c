@@ -273,38 +273,41 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
     size_t    i;
 
     uint8_t   *answer = NULL;
+    uint8_t   *tmp_answer = NULL;
     size_t     answer_length = 0;
     dns_type_t type = dns->answers[0].type;
 
     if(type == _DNS_TYPE_TEXT)
     {
       /* Get the answer. */
-      answer        = dns->answers[0].answer->TEXT.text;
+      tmp_answer    = dns->answers[0].answer->TEXT.text;
       answer_length = dns->answers[0].answer->TEXT.length;
       LOG_INFO("Received a TXT response (%zu bytes)", answer_length);
 
       /* Decode it. */
-      answer = buffer_decode_hex(answer, &answer_length);
+      answer = buffer_decode_hex(tmp_answer, &answer_length);
     }
     else if(type == _DNS_TYPE_CNAME)
     {
       /* Get the answer. */
-      answer = remove_domain((char*)dns->answers[0].answer->CNAME.name, driver->domain);
-      answer_length = strlen((char*)answer);
+      tmp_answer = remove_domain((char*)dns->answers[0].answer->CNAME.name, driver->domain);
+      answer_length = strlen((char*)tmp_answer);
       LOG_INFO("Received a CNAME response (%zu bytes)", answer_length);
 
       /* Decode it. */
-      answer = buffer_decode_hex(answer, &answer_length);
+      answer = buffer_decode_hex(tmp_answer, &answer_length);
+      safe_free(tmp_answer);
     }
     else if(type == _DNS_TYPE_MX)
     {
       /* Get the answer. */
-      answer = remove_domain((char*)dns->answers[0].answer->MX.name, driver->domain);
-      answer_length = strlen((char*)answer);
+      tmp_answer = remove_domain((char*)dns->answers[0].answer->MX.name, driver->domain);
+      answer_length = strlen((char*)tmp_answer);
       LOG_INFO("Received a MX response (%zu bytes)", answer_length);
 
       /* Decode it. */
-      answer = buffer_decode_hex(answer, &answer_length);
+      answer = buffer_decode_hex(tmp_answer, &answer_length);
+      safe_free(tmp_answer);
     }
     else if(type == _DNS_TYPE_A)
     {

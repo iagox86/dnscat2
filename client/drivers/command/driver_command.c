@@ -142,6 +142,8 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
       data = command_packet_to_bytes(out, &length);
       buffer_add_bytes(driver->outgoing_data, data, length);
     }
+
+    command_packet_destroy(in);
   }
 }
 
@@ -173,6 +175,7 @@ void driver_command_destroy(driver_command_t *driver)
 
   if(driver->name)
     safe_free(driver->name);
+
   if(driver->stream)
     command_packet_stream_destroy(driver->stream);
   safe_free(driver);

@@ -204,7 +204,8 @@ void controller_kill_all_sessions()
 
   while(entry)
   {
-    session_kill(entry->session);
+    if(!entry->session->is_shutdown)
+      session_kill(entry->session);
     entry = entry->next;
   }
 }
@@ -218,4 +219,21 @@ void controller_heartbeat()
 void controller_set_max_retransmits(int retransmits)
 {
   max_retransmits = retransmits;
+}
+
+void controller_destroy()
+{
+  session_entry_t *prev_session = NULL;
+  session_entry_t *entry = first_session;
+
+  while(entry)
+  {
+    if(!entry->session->is_shutdown)
+      session_kill(entry->session);
+    session_destroy(entry->session);
+
+    prev_session = entry;
+    entry = entry->next;
+    safe_free(prev_session);
+  }
 }

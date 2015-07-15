@@ -62,5 +62,6 @@ void session_enable_packet_trace();
 void session_set_delay(int delay_ms);
 void session_set_transmit_immediately(NBBOOL transmit_immediately);
 void session_kill(session_t *session);
+void session_destroy(session_t *session);
 
 #endif
