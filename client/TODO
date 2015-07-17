@@ -1,4 +1,3 @@
-- Go through TODOs
 - Fix Windows
 - Update documentation, in particular with new sample outputs
-- Make sure all commandline arguments still work (and get rid of the TODO in dnscat.c about it)
+- Address issues on Github that I marked as blocking the release

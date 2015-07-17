@@ -110,17 +110,19 @@ void usage(char *name, char *message)
 #endif
 "\n"
 "Examples:\n"
-" --dns domain=skullseclabs.org\n"
-" --dns domain=skullseclabs.org,server=8.8.8.8,port=53\n"
-" --dns domain=skullseclabs.org,port=5353\n"
-" --dns domain=skullseclabs.org,port=53,type=A,CNAME\n"
+" ./dnscat --dns domain=skullseclabs.org\n"
+" ./dnscat --dns domain=skullseclabs.org,server=8.8.8.8,port=53\n"
+" ./dnscat --dns domain=skullseclabs.org,port=5353\n"
+" ./dnscat --dns domain=skullseclabs.org,port=53,type=A,CNAME\n"
 #if 0
 " --tcp port=1234\n"
 " --tcp port=1234,host=127.0.0.1\n"
 #endif
 "\n"
 "By default, a --dns driver on port 53 is enabled if a hostname is\n"
-"passed on the commandline.\n"
+"passed on the commandline:\n"
+"\n"
+" ./dnscat skullseclabs.org\n"
 "\n"
 "ERROR: %s\n"
 "\n"
@@ -211,19 +213,20 @@ void create_tcp_driver(char *options)
 int main(int argc, char *argv[])
 {
   /* Define the options specific to the DNS protocol. */
-  /* TODO: Get rid of the ones that are no longer being used. */
   struct option long_options[] =
   {
     /* General options */
     {"help",    no_argument,       0, 0}, /* Help */
     {"h",       no_argument,       0, 0},
     {"version", no_argument,       0, 0}, /* Version */
+#if 0
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
     {"download",required_argument, 0, 0}, /* Download */
     {"n",       required_argument, 0, 0},
     {"chunk",   required_argument, 0, 0}, /* Download chunk */
     {"isn",     required_argument, 0, 0}, /* Initial sequence number */
+#endif
 
     {"delay",              required_argument, 0, 0}, /* Retransmit delay */
     {"steady",             no_argument,       0, 0}, /* Don't transmit immediately after getting a response. */
