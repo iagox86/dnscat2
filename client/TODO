@@ -1,4 +1,0 @@
-- Fix Windows
-- Address issues on Github that I marked as blocking the release
-- File and fix a bug where using "kill <session>" on the server doesn't result in a FIN coming back, and therefore the server not knowing that the session is closed
-
