@@ -64,7 +64,7 @@ class DriverDNS
       :encoder         => Proc.new() do |name|
         i = 0
         (name.length.chr + name).chars.each_slice(3).map(&:join).map do |ip|
-          ip = ip.ljust(3, "\xFF")
+          ip = ip.force_encoding('ASCII-8BIT').ljust(3, "\xFF".force_encoding('ASCII-8BIT'))
           i += 1
           "%d.%d.%d.%d" % ([i] + ip.bytes.to_a) # Return
         end
@@ -80,7 +80,7 @@ class DriverDNS
       :encoder         => Proc.new() do |name|
         i = 0
         (name.length.chr + name).chars.each_slice(15).map(&:join).map do |ip|
-          ip = ip.ljust(15, "\xFF")
+          ip = ip.force_encoding('ASCII-8BIT').ljust(15, "\xFF".force_encoding('ASCII-8BIT'))
           i += 1
           ([i] + ip.bytes.to_a).each_slice(2).map do |octet|
             "%04x" % [octet[0] << 8 | octet[1]]
