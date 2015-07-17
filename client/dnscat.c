@@ -19,91 +19,42 @@
 #include <sys/socket.h>
 #endif
 
-#include "buffer.h"
-#include "dns.h"
-#include "log.h"
-#include "memory.h"
-#include "message.h"
-#include "select_group.h"
-#include "session.h"
-#include "udp.h"
-
-#include "driver_console.h"
-#include "driver_command.h"
-#include "driver_dns.h"
-#include "driver_exec.h"
-#include "driver_listener.h"
-#include "driver_ping.h"
+#include "controller/controller.h"
+#include "controller/session.h"
+#include "libs/buffer.h"
+#include "libs/log.h"
+#include "libs/memory.h"
+#include "libs/select_group.h"
+#include "libs/udp.h"
+#include "tunnel_drivers/driver_dns.h"
 
 /* Default options */
 #define NAME    "dnscat2"
-#define VERSION "0.01"
+#define VERSION "0.02"
 
 /* Default options */
 #define DEFAULT_DNS_HOST NULL
 #define DEFAULT_DNS_PORT 53
 
-/* Types of DNS queries we support */
-#ifndef WIN32
-#define DNS_TYPES "TXT, CNAME, MX, A, AAAA"
-#else
-#define DNS_TYPES "TXT, CNAME, MX, A"
-#endif
-
 /* Define these outside the function so they can be freed by the atexec() */
-select_group_t   *group          = NULL;
-
-/* Input drivers. */
-driver_console_t  *driver_console  = NULL;
-driver_command_t  *driver_command  = NULL;
-driver_exec_t     *driver_exec     = NULL;
-driver_listener_t *driver_listener = NULL;
-driver_ping_t     *driver_ping     = NULL;
-
-/* Output drivers. */
-driver_dns_t     *driver_dns     = NULL;
-
-typedef enum {
-  TYPE_NOT_SET,
-
-  TYPE_CONSOLE,
-  TYPE_COMMAND,
-  TYPE_EXEC,
-  TYPE_LISTENER,
-  TYPE_PING,
-
-  TYPE_DNS,
-} drivers_t;
-
-static SELECT_RESPONSE_t timeout(void *group, void *param)
-{
-  message_post_heartbeat();
-
-  return SELECT_OK;
-}
+select_group_t *group         = NULL;
+driver_dns_t   *tunnel_driver = NULL;
+char           *system_dns    = NULL;
 
 static void cleanup(void)
 {
   LOG_WARNING("Terminating");
 
-  message_post_shutdown();
-  message_cleanup();
+  controller_destroy();
+
+  if(tunnel_driver)
+    driver_dns_destroy(tunnel_driver);
 
   if(group)
     select_group_destroy(group);
 
-  if(driver_console)
-    driver_console_destroy(driver_console);
-  if(driver_command)
-    driver_command_destroy(driver_command);
-  if(driver_dns)
-    driver_dns_destroy(driver_dns);
-  if(driver_exec)
-    driver_exec_destroy(driver_exec);
-  if(driver_listener)
-    driver_listener_destroy(driver_listener);
-  if(driver_ping)
-    driver_ping_destroy(driver_ping);
+  if(system_dns)
+    safe_free(system_dns);
 
   print_memory();
 }
@@ -113,44 +64,150 @@ void usage(char *name, char *message)
   fprintf(stderr,
 "Usage: %s [args] [domain]\n"
 "\n"
-
 "General options:\n"
-" --help -h               This page\n"
-" --version               Ge the version\n"
-" --name -n <name>        Give this connection a name, which will show up in\n"
-"                         the server list\n"
-" --download <filename>   Request the given file off the server\n"
-" --chunk <n>             start at the given chunk of the --download file\n"
-" --ping                  Attempt to ping a dnscat2 server\n"
+" --help -h               This page.\n"
+" --version               Get the version.\n"
+" --delay <ms>            Set the maximum delay between packets (default: 1000).\n"
+"                         The minimum is technically 50 for technical reasons,\n"
+"                         but transmitting too quickly might make performance\n"
+"                         worse.\n"
+" --steady                If set, always wait for the delay before sending.\n"
+"                         the next message (by default, when a response is\n"
+"                         received, the next message is immediately transmitted.\n"
+" --max-retransmits <n>   Only re-transmit a message <n> times before giving up\n"
+"                         and assuming the server is dead (default: 10).\n"
+" --retransmit-forever    Set if you want the client to re-transmit forever\n"
+"                         until a server turns up. This can be helpful, but also\n"
+"                         makes the server potentially run forever.\n"
 "\n"
 "Input options:\n"
-" --console               Send/receive output to the console\n"
-" --exec -e <process>     Execute the given process and link it to the stream\n"
-" --listen -l <port>      Listen on the given port and link each connection to\n"
-"                         a new stream\n"
+" --console               Send/receive output to the console.\n"
+" --exec -e <process>     Execute the given process and link it to the stream.\n"
+/*" --listen -l <port>      Listen on the given port and link each connection to\n"
+"                         a new stream\n"*/
+" --command               Start an interactive 'command' session (default).\n"
+" --ping                  Simply check if there's a dnscat2 server listening.\n"
 "\n"
-"DNS-specific options:\n"
-" --dns <domain>          Enable DNS mode with the given domain\n"
-" --host <host>           The DNS server [default: %s]\n"
-" --port <port>           The DNS port [default: 53]\n"
-" --type <port>           The type of DNS record to use (" DNS_TYPES ")\n"
-"\n"
-
 "Debug options:\n"
-" -d                      Display more debug info (can be used multiple times)\n"
-" -q                      Display less debug info (can be used multiple times)\n"
+" -d                      Display more debug info (can be used multiple times).\n"
+" -q                      Display less debug info (can be used multiple times).\n"
 " --packet-trace          Display incoming/outgoing dnscat2 packets\n"
+"\n"
+"Driver options:\n"
+" --dns <options>         Enable DNS mode with the given domain.\n"
+"   domain=<domain>       The domain to make requests for.\n"
+"   host=<hostname>       The host to listen on (default: 0.0.0.0).\n"
+"   port=<port>           The port to listen on (default: 53).\n"
+"   type=<type>           The type of DNS requests to use, can use\n"
+"                         multiple comma-separated (options: TXT, MX,\n"
+"                         CNAME, A, AAAA) (default: "DEFAULT_TYPES").\n"
+"   server=<server>       The upstream server for making DNS requests\n"
+"                         (default: autodetected = %s).\n"
+#if 0
+" --tcp <options>         Enable TCP mode.\n"
+"   port=<port>           The port to listen on (default: 1234).\n"
+"   host=<hostname>       The host to listen on (default: 0.0.0.0).\n"
+#endif
+"\n"
+"Examples:\n"
+" ./dnscat --dns domain=skullseclabs.org\n"
+" ./dnscat --dns domain=skullseclabs.org,server=8.8.8.8,port=53\n"
+" ./dnscat --dns domain=skullseclabs.org,port=5353\n"
+" ./dnscat --dns domain=skullseclabs.org,port=53,type=A,CNAME\n"
+#if 0
+" --tcp port=1234\n"
+" --tcp port=1234,host=127.0.0.1\n"
+#endif
+"\n"
+"By default, a --dns driver on port 53 is enabled if a hostname is\n"
+"passed on the commandline:\n"
+"\n"
+" ./dnscat skullseclabs.org\n"
 "\n"
 "ERROR: %s\n"
 "\n"
-, name, dns_get_system(), message
+, name, system_dns, message
 );
   exit(0);
 }
 
-void too_many_inputs(char *name)
+driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
 {
-  usage(name, "More than one of --exec, --console, --listen, and --ping can't be set!");
+  if(!server)
+    server = system_dns;
+
+  if(!server)
+  {
+    LOG_FATAL("Couldn't determine the system DNS server! Please manually set");
+    LOG_FATAL("the dns server with --dns server=8.8.8.8");
+    LOG_FATAL("");
+    LOG_FATAL("You can also fix this by creating a proper /etc/resolv.conf\n");
+    exit(1);
+  }
+
+  printf("Creating DNS driver:\n");
+  printf(" domain = %s\n", domain);
+  printf(" host   = %s\n", host);
+  printf(" port   = %u\n", port);
+  printf(" type   = %s\n", type);
+  printf(" server = %s\n", server);
+
+  return driver_dns_create(group, domain, host, port, type, server);
+}
+
+driver_dns_t *create_dns_driver(select_group_t *group, char *options)
+{
+  char     *domain = NULL;
+  char     *host = "0.0.0.0";
+  uint16_t  port = 53;
+  char     *type = DEFAULT_TYPES;
+  char     *server = system_dns;
+
+  char *token = NULL;
+
+  for(token = strtok(options, ":,"); token && *token; token = strtok(NULL, ":,"))
+  {
+    char *name  = token;
+    char *value = strchr(token, '=');
+
+    if(value)
+    {
+      *value = '\0';
+      value++;
+
+      if(!strcmp(name, "domain"))
+        domain = value;
+      else if(!strcmp(name, "host"))
+        host = value;
+      else if(!strcmp(name, "port"))
+        port = atoi(value);
+      else if(!strcmp(name, "type"))
+        type = value;
+      else if(!strcmp(name, "server"))
+        server = value;
+      else
+      {
+        LOG_FATAL("Unknown --dns option: %s\n", name);
+        exit(1);
+      }
+    }
+    else
+    {
+      LOG_FATAL("ERROR parsing --dns: it has to be colon-separated name=value pairs!\n");
+      exit(1);
+    }
+  }
+
+  return create_dns_driver_internal(group, domain, host, port, type, server);
+}
+
+void create_tcp_driver(char *options)
+{
+  char *host = "0.0.0.0";
+  uint16_t port = 1234;
+
+  printf(" host   = %s\n", host);
+  printf(" port   = %u\n", port);
 }
 
 int main(int argc, char *argv[])
@@ -162,34 +219,32 @@ int main(int argc, char *argv[])
     {"help",    no_argument,       0, 0}, /* Help */
     {"h",       no_argument,       0, 0},
     {"version", no_argument,       0, 0}, /* Version */
+#if 0
     {"name",    required_argument, 0, 0}, /* Name */
     {"n",       required_argument, 0, 0},
     {"download",required_argument, 0, 0}, /* Download */
     {"n",       required_argument, 0, 0},
     {"chunk",   required_argument, 0, 0}, /* Download chunk */
-    {"ping",    no_argument,       0, 0}, /* Ping */
     {"isn",     required_argument, 0, 0}, /* Initial sequence number */
+#endif
 
-    /* Console options. */
-    {"console", no_argument,       0, 0}, /* Enable console (default) */
+    {"delay",              required_argument, 0, 0}, /* Retransmit delay */
+    {"steady",             no_argument,       0, 0}, /* Don't transmit immediately after getting a response. */
+    {"max-retransmits",    required_argument, 0, 0}, /* Set the max retransmissions */
+    {"retransmit-forever", no_argument,       0, 0}, /* Retransmit forever if needed */
 
-    /* Execute-specific options. */
+    /* i/o options. */
+    {"console", no_argument,       0, 0}, /* Enable console */
     {"exec",    required_argument, 0, 0}, /* Enable execute */
     {"e",       required_argument, 0, 0},
+    {"command", no_argument,       0, 0}, /* Enable command (default) */
+    {"ping",    no_argument,       0, 0}, /* Ping */
 
-    /* Listener options */
-    {"listen",  required_argument, 0, 0}, /* Enable listener */
-    {"l",       required_argument, 0, 0},
-
-    /* DNS-specific options */
+    /* Tunnel drivers */
+    {"dns",     required_argument, 0, 0}, /* Enable DNS */
 #if 0
-    {"dns",        required_argument, 0, 0}, /* Enable DNS (default) */
+    {"tcp",     optional_argument, 0, 0}, /* Enable TCP */
 #endif
-    {"dnshost",    required_argument, 0, 0}, /* DNS server */
-    {"host",       required_argument, 0, 0}, /* (alias) */
-    {"dnsport",    required_argument, 0, 0}, /* DNS port */
-    {"port",       required_argument, 0, 0}, /* (alias) */
-    {"type",       required_argument, 0, 0},
 
     /* Debug options */
     {"d",            no_argument, 0, 0}, /* More debug */
@@ -200,38 +255,20 @@ int main(int argc, char *argv[])
     {0,              0,                 0, 0}  /* End */
   };
 
-  /* Define DNS options so we can set them later. */
-  struct {
-    char     *host;
-    uint16_t  port;
-  } dns_options = { DEFAULT_DNS_HOST, DEFAULT_DNS_PORT };
-
   char              c;
   int               option_index;
   const char       *option_name;
 
-  NBBOOL            output_set = FALSE;
+  NBBOOL            tunnel_driver_created = FALSE;
+  NBBOOL            driver_created        = FALSE;
 
-  char             *name     = NULL;
-  char             *download = NULL;
-  uint32_t          chunk    = -1;
-
-  dns_type_t        dns_type = _DNS_TYPE_TEXT; /* TODO: Is this the best default? */
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
-  drivers_t input_type = TYPE_NOT_SET;
-
-  char *exec_process = NULL;
-
-  int listen_port = 0;
-
-
-  /* Initialize the modules that need initialization. */
-  log_init();
-  sessions_init();
+  session_t        *session = NULL;
 
   group = select_group_create();
+  system_dns = dns_get_system();
 
   /* Seed with the current time; not great, but it'll suit our purposes. */
   srand((unsigned int)time(NULL));
@@ -261,98 +298,80 @@ int main(int argc, char *argv[])
           printf(NAME" v"VERSION" (client)\n");
           exit(0);
         }
-        else if(!strcmp(option_name, "name") || !strcmp(option_name, "n"))
-        {
-          name = optarg;
-        }
-        else if(!strcmp(option_name, "download"))
-        {
-          download = optarg;
-        }
-        else if(!strcmp(option_name, "chunk"))
-        {
-          chunk = atoi(optarg);
-        }
-        else if(!strcmp(option_name, "ping"))
-        {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
-
-          input_type = TYPE_PING;
-
-          /* Turn off logging, since this is a simple ping. */
-          min_log_level++;
-          log_set_min_console_level(min_log_level);
-        }
         else if(!strcmp(option_name, "isn"))
         {
           uint16_t isn = (uint16_t) (atoi(optarg) & 0xFFFF);
           debug_set_isn(isn);
         }
-
-        /* Console-specific options. */
-        else if(!strcmp(option_name, "console"))
+        else if(!strcmp(option_name, "delay"))
         {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
-
-          input_type = TYPE_CONSOLE;
+          int delay = (int) atoi(optarg);
+          session_set_delay(delay);
+          LOG_INFO("Setting delay between packets to %dms", delay);
+        }
+        else if(!strcmp(option_name, "steady"))
+        {
+          session_set_transmit_immediately(FALSE);
+        }
+        else if(!strcmp(option_name, "max-retransmits"))
+        {
+          controller_set_max_retransmits(atoi(optarg));
+        }
+        else if(!strcmp(option_name, "retransmit-forever"))
+        {
+          controller_set_max_retransmits(-1);
         }
 
-        /* Execute options. */
+        /* i/o drivers */
+        else if(!strcmp(option_name, "console"))
+        {
+          driver_created = TRUE;
+
+          session = session_create_console(group, "Console session");
+          controller_add_session(session);
+        }
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
+          driver_created = TRUE;
 
-          exec_process = optarg;
-          input_type = TYPE_EXEC;
+          session = session_create_exec(group, optarg, optarg);
+          controller_add_session(session);
+        }
+        else if(!strcmp(option_name, "command"))
+        {
+          driver_created = TRUE;
+
+          session = session_create_command(group, "Command session");
+          controller_add_session(session);
+        }
+        else if(!strcmp(option_name, "ping"))
+        {
+          driver_created = TRUE;
+
+          session = session_create_ping(group, "Ping session");
+          controller_add_session(session);
         }
 
         /* Listener options. */
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
-          if(input_type != TYPE_NOT_SET)
-            too_many_inputs(argv[0]);
+          LOG_FATAL("--listen isn't implemented yet! :(\n");
+          exit(1);
+          /*listen_port = atoi(optarg);*/
 
-          listen_port = atoi(optarg);
-
-          input_type = TYPE_LISTENER;
+          /*input_type = TYPE_LISTENER;*/
         }
 
-        /* DNS-specific options */
-#if 0
+        /* Tunnel driver options */
         else if(!strcmp(option_name, "dns"))
         {
-          output_set = TRUE;
-          driver_dns = driver_dns_create(group, optarg);
+          tunnel_driver_created = TRUE;
+          tunnel_driver = create_dns_driver(group, optarg);
         }
-#endif
-        else if(!strcmp(option_name, "dnshost") || !strcmp(option_name, "host"))
+        else if(!strcmp(option_name, "tcp"))
         {
-          dns_options.host = optarg;
-        }
-        else if(!strcmp(option_name, "dnsport") || !strcmp(option_name, "port"))
-        {
-          dns_options.port = atoi(optarg);
-        }
-        else if(!strcmp(option_name, "type"))
-        {
-          if(!strcmp(optarg, "TXT") || !strcmp(optarg, "txt") || !strcmp(optarg, "TEXT") || !strcmp(optarg, "text"))
-            dns_type = _DNS_TYPE_TEXT;
-          else if(!strcmp(optarg, "CNAME") || !strcmp(optarg, "cname"))
-            dns_type = _DNS_TYPE_CNAME;
-          else if(!strcmp(optarg, "MX") || !strcmp(optarg, "mx"))
-            dns_type = _DNS_TYPE_MX;
-          else if(!strcmp(optarg, "A") || !strcmp(optarg, "a"))
-            dns_type = _DNS_TYPE_A;
-#ifndef WIN32
-          else if(!strcmp(optarg, "AAAA") || !strcmp(optarg, "aaaa"))
-            dns_type = _DNS_TYPE_AAAA;
-#endif
-          else
-            usage(argv[0], "Unknown DNS type! Valid types are: " DNS_TYPES);
-
+          tunnel_driver_created = TRUE;
+          create_tcp_driver(optarg);
         }
 
         /* Debug options */
@@ -366,6 +385,7 @@ int main(int argc, char *argv[])
         }
         else if(!strcmp(option_name, "q"))
         {
+          min_log_level++;
           log_set_min_console_level(min_log_level);
         }
         else if(!strcmp(option_name, "packet-trace"))
@@ -385,107 +405,37 @@ int main(int argc, char *argv[])
     }
   }
 
-  if(chunk != -1 && !download)
-  {
-    LOG_FATAL("--chunk can only be used with --download");
-    exit(1);
-  }
-
-  /* If no input was created, default to command. */
-  if(input_type == TYPE_NOT_SET)
-    input_type = TYPE_COMMAND;
-
-  switch(input_type)
-  {
-    case TYPE_CONSOLE:
-      LOG_WARNING("INPUT: Console");
-      driver_console_create(group, name, download, chunk);
-      break;
-
-    case TYPE_COMMAND:
-      LOG_WARNING("INPUT: Command");
-      driver_command_create(group, name);
-      break;
-
-    case TYPE_EXEC:
-      LOG_WARNING("INPUT: Executing %s", exec_process);
-
-      if(exec_process == NULL)
-        usage(argv[0], "--exec set without a process!");
-
-      driver_exec_create(group, exec_process, name);
-      break;
-
-    case TYPE_LISTENER:
-      LOG_WARNING("INPUT: Listening on port %d", driver_listener->port);
-      if(listen_port == 0)
-        usage(argv[0], "--listen set without a port!");
-
-      driver_listener = driver_listener_create(group, "0.0.0.0", listen_port, name);
-      break;
-
-    case TYPE_PING:
-      LOG_WARNING("INPUT: ping");
-      driver_ping = driver_ping_create(group);
-      break;
-
-    case TYPE_NOT_SET:
-      usage(argv[0], "You have to pick an input type!");
-      break;
-
-    default:
-      usage(argv[0], "Unknown type?");
-  }
-
   /* If no output was set, use the domain, and use the last option as the
    * domain. */
-  if(!output_set)
+  if(!tunnel_driver_created)
   {
     /* Make sure they gave a domain. */
     if(optind >= argc)
     {
-      LOG_WARNING("Starting DNS driver without a domain! You'll probably need to use --host to specify a direct connection to your server.");
-      driver_dns = driver_dns_create(group, NULL, dns_type);
+      printf("Starting DNS driver without a domain! This will only work if you\n");
+      printf("are directly connecting to the dnscat2 server.\n");
+      printf("\n");
+      printf("You'll need to use --dns server=<server> if you aren't.\n");
+      tunnel_driver = create_dns_driver_internal(group, NULL, "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
     else
     {
-      driver_dns = driver_dns_create(group, argv[optind], dns_type);
+      tunnel_driver = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
   }
 
-  if(driver_dns)
+  /* If no i/o was set, create a command session. */
+  if(!driver_created)
   {
-    if(dns_options.host == DEFAULT_DNS_HOST)
-      driver_dns->dns_host = dns_get_system();
-    else
-      driver_dns->dns_host = safe_strdup(dns_options.host);
-
-    if(!driver_dns->dns_host)
-    {
-      LOG_FATAL("Couldn't determine the system DNS server! Please use --host to set one.");
-      LOG_FATAL("You can also create a proper /etc/resolv.conf file to fix this");
-      exit(1);
-    }
-
-    driver_dns->dns_port = dns_options.port;
-    if(driver_dns->domain)
-      LOG_WARNING("OUTPUT: DNS tunnel to %s via %s:%d", driver_dns->domain, driver_dns->dns_host, driver_dns->dns_port);
-    else
-      LOG_WARNING("OUTPUT: DNS tunnel to %s:%d (no domain set! This probably needs to be the exact server where the dnscat2 server is running!)", driver_dns->dns_host, driver_dns->dns_port);
-  }
-  else
-  {
-    LOG_FATAL("OUTPUT: Ended up with an unknown output driver!");
-    exit(1);
+    session = session_create_command(group, "command (default)");
+    controller_add_session(session);
   }
 
   /* Be sure we clean up at exit. */
   atexit(cleanup);
 
-  /* Add the timeout function */
-  select_set_timeout(group, timeout, NULL);
-  while(TRUE)
-    select_group_do_select(group, 1000);
+  /* Start the driver! */
+  driver_dns_go(tunnel_driver);
 
   return 0;
 }

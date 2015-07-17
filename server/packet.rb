@@ -238,9 +238,9 @@ class Packet
     end
 
     def PingBody.parse(options, data)
-      at_least?(data, 1) || raise(DnscatException, "Packet is too short (PING)")
+      at_least?(data, 3) || raise(DnscatException, "Packet is too short (PING)")
 
-      data = data.unpack("A*").pop
+      data = data.unpack("Z*").pop
 
       return PingBody.new(options, {
         :data => data,
@@ -252,7 +252,7 @@ class Packet
     end
 
     def to_bytes()
-      [@data].pack("A*")
+      [@data].pack("Z*")
     end
   end
 

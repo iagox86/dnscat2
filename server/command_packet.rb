@@ -17,6 +17,7 @@ class CommandPacket
   COMMAND_EXEC     = 0x0002
   COMMAND_DOWNLOAD = 0x0003
   COMMAND_UPLOAD   = 0x0004
+  COMMAND_SHUTDOWN = 0x0005
   COMMAND_ERROR    = 0xFFFF
 
   attr_reader :request_id, :command_id # header
@@ -123,6 +124,18 @@ class CommandPacket
     end
   end
 
+  def parse_shutdown(data, is_request)
+    if(is_request)
+      if(data.length > 0)
+        raise(DnscatException, "Shutdown packet response has extra data on the end")
+      end
+    else
+      if(data.length > 0)
+        raise(DnscatException, "Shutdown packet response has extra data on the end")
+      end
+    end
+  end
+
   def parse_error(data, is_request)
     @status, data = data.unpack("na*")
 
@@ -161,6 +174,8 @@ class CommandPacket
       parse_download(data, is_request)
     elsif(@command_id == COMMAND_UPLOAD)
       parse_upload(data, is_request)
+    elsif(@command_id == COMMAND_SHUTDOWN)
+      parse_shutdown(data, is_request)
     elsif(@command_id == COMMAND_ERROR)
       parse_error(data, is_request)
     else
@@ -206,7 +221,14 @@ class CommandPacket
     return CommandPacket.add_header([filename, data].pack('Z*a*'), request_id, COMMAND_UPLOAD)
   end
   def CommandPacket.create_upload_response(request_id)
-    return CommandPacket.add_header('', request_id, COMMAND_DOWNLOAD)
+    return CommandPacket.add_header('', request_id, COMMAND_UPLOAD)
+  end
+
+  def CommandPacket.create_shutdown_request(request_id)
+    return CommandPacket.add_header('', request_id, COMMAND_SHUTDOWN)
+  end
+  def CommandPacket.create_shutdown_response(request_id)
+    return CommandPacket.add_header('', request_id, COMMAND_SHUTDOWN)
   end
 
   def CommandPacket.create_error(request_id, status, reason)
@@ -241,6 +263,8 @@ class CommandPacket
         return "COMMAND_DOWNLOAD :: request_id = 0x%04x, data = 0x%x bytes" % [@request_id, @data.length]
       elsif(@command_id == COMMAND_UPLOAD)
         return "COMMAND_UPLOAD   :: request_id = 0x%04x" % [@request_id]
+      elsif(@command_id == COMMAND_SHUTDOWN)
+        return "COMMAND_SHUTDOWN :: request_id = 0x%04x" % [@request_id]
       elsif(@command_id == COMMAND_ERROR)
         return "COMMAND_ERROR    :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
       else

@@ -15,6 +15,11 @@ class UiCommand < UiInterface
   include Parser
   include UiHandler
 
+  # TODO: This is used for the 'sessions' command - once I improve the tree structure, I can get rid of this
+  def id()
+    return nil
+  end
+
   def register_commands()
     register_alias('q',    'quit')
     register_alias('exit', 'quit')
@@ -73,7 +78,7 @@ class UiCommand < UiInterface
       end,
 
       Proc.new do |opts, optval|
-        display_uis(opts[:all])
+        display_uis(opts[:all], self)
       end,
     )
 
@@ -86,12 +91,12 @@ class UiCommand < UiInterface
       Proc.new do |opts, optval|
         if(opts[:i].nil?)
           puts("Known sessions:")
-          display_uis(false)
+          display_uis(false, self)
         else
           ui = @ui.get_by_id(opts[:i])
           if(ui.nil?)
             error("Session #{opts[:i]} not found!")
-            display_uis(false)
+            display_uis(false, self)
           else
             @ui.attach_session(ui)
           end
