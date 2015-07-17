@@ -14,4 +14,6 @@ commandline, like --name and --download (though --download may come back
 in another form!)
 * Changed the way a "tunnel driver" (ie, dns driver) is created on the
 commandline - it's now modeled after socat
+* The client will no longer transmit forever against a bad server - it
+will attempt to retransmit 10 times by default
 
