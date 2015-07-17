@@ -226,12 +226,13 @@ class Ui
     #end
 
     # Print to the main window and the current window
-    if(ui.parent == @command)
-      Log.PRINT(nil, "New session established: #{id}")
-    else
-      Log.PRINT(nil, "New session established: #{id}")
-      Log.PRINT(ui.parent.id, "New session established: #{id}")
-    end
+    $stdout.puts("New session established: #{id}")
+#    if(ui.parent == @command)
+#      Log.PRINT(nil, "New session established: #{id}")
+#    else
+#      Log.PRINT(nil, "New session established: #{id}")
+#      Log.PRINT(ui.parent.id, "New session established: #{id}")
+#    end
 
     # Auto-attach if necessary
     if(@settings.get("auto_attach"))

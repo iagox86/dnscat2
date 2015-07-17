@@ -111,7 +111,7 @@ Log.PRINT(nil)
 Log.PRINT(nil, "./dnscat2 --dns server=<server>")
 Log.PRINT(nil)
 Log.PRINT(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
-Log.PRINT(nil, "directly on UDP port 53.")
+Log.PRINT(nil, "directly on UDP port 53 (by default).")
 Log.PRINT(nil)
 
 settings = Settings.new()
