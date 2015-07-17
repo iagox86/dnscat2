@@ -163,7 +163,6 @@ NBBOOL controller_data_incoming(uint8_t *data, size_t length)
   return session_data_incoming(session, data, length);
 }
 
-/* TODO: Find a way to speed up when we keep getting data. */
 uint8_t *controller_get_outgoing(size_t *length, size_t max_length)
 {
   /* This needs to somehow be balanced. */

@@ -36,7 +36,7 @@ typedef struct
   time_t          last_transmit;
   int             missed_transmissions;
 
-  uint16_t       options; /* TODO: Make options work right again. */
+  uint16_t       options;
   NBBOOL         is_command;
 
   NBBOOL         is_ping;

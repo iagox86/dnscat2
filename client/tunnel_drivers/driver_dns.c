@@ -33,6 +33,8 @@
  */
 #define MAX_DNSCAT_LENGTH(domain) ((255/2) - (domain ? strlen(domain) : strlen(WILDCARD_PREFIX)) - 1 - ((MAX_DNS_LENGTH / MAX_FIELD_LENGTH) + 1))
 
+#define HEXCHAR(c) ((c) < 10 ? ((c)+'0') : (((c)-10) + 'a'))
+
 static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
 {
   LOG_FATAL("DNS socket closed!");
@@ -166,18 +168,12 @@ static void do_send(driver_dns_t *driver)
     buffer_add_int8(buffer, '.');
   }
 
+  /* Keep track of the length of the current section (the characters between two periods). */
   section_length = 0;
-  /* TODO: I don't much care for this loop... */
   for(i = 0; i < length; i++)
   {
-    char hex_buf[3];
-
-#ifdef WIN32
-    sprintf_s(hex_buf, 3, "%02x", data[i]);
-#else
-    sprintf(hex_buf, "%02x", data[i]);
-#endif
-    buffer_add_bytes(buffer, hex_buf, 2);
+    buffer_add_int8(buffer, HEXCHAR((data[i] >> 4) & 0x0F));
+    buffer_add_int8(buffer, HEXCHAR((data[i] >> 0) & 0x0F));
 
     /* Add periods when we need them. */
     section_length += 2;
@@ -232,10 +228,8 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
   LOG_INFO("DNS response received (%d bytes)", length);
 
-  /* TODO */
   if(dns->rcode != _DNS_RCODE_SUCCESS)
   {
-    /* TODO: Handle errors more gracefully */
     switch(dns->rcode)
     {
       case _DNS_RCODE_FORMAT_ERROR:

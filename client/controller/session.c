@@ -33,14 +33,6 @@ static int packet_delay = 1000;
 /* Transmit instantly when data is received. */
 static NBBOOL transmit_instantly_on_data = TRUE;
 
-/* Allow anything to go out. Call this at the start or after receiving legit data. */
-/* TODO: Get rid of this function - its purpose is unclear, and it just uglifies the code. */
-static void reset_counter(session_t *session)
-{
-  session->last_transmit = 0;
-  session->missed_transmissions = 0;
-}
-
 static double time_ms()
 {
   struct timeval tv;
@@ -135,7 +127,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
         data = buffer_read_remaining_bytes(session->outgoing_buffer, &data_length, max_length - packet_get_msg_size(session->options), FALSE);
         LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...)", session->my_seq, session->their_seq, data_length);
 
-        /* TODO: Create a FIN if we're shut down. */
         if(data_length == 0 && session->is_shutdown)
           packet = packet_create_fin(session->id, "Stream closed");
         else
@@ -204,7 +195,8 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
           session->state = SESSION_STATE_ESTABLISHED;
 
           /* Since we established a valid session, we can send stuff right away. */
-          reset_counter(session);
+          session->last_transmit = 0;
+          session->missed_transmissions = 0;
           send_right_away = TRUE;
         }
         else if(packet->packet_type == PACKET_TYPE_MSG)
@@ -254,7 +246,8 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
                  * right away. */
                 if(transmit_instantly_on_data)
                 {
-                  reset_counter(session);
+                  session->last_transmit = 0;
+                  session->missed_transmissions = 0;
                   send_right_away = TRUE;
                 }
               }
@@ -290,7 +283,8 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
         else if(packet->packet_type == PACKET_TYPE_FIN)
         {
           LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
-          reset_counter(session);
+          session->last_transmit = 0;
+          session->missed_transmissions = 0;
           session_kill(session);
         }
         else

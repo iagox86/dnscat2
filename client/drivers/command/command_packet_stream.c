@@ -60,9 +60,10 @@ NBBOOL command_packet_stream_ready(command_packet_stream_t *stream)
     exit(1);
   }
 
-  /* I realize some people hate the "if(x) return TRUE else return FALSE"
-   * paradigm, but I like it. */
-  /* TODO: Is there a sign issue here? */
+  /* Check for overflow. */
+  if(length + 4 < length)
+    return FALSE;
+
   if(buffer_get_remaining_bytes(stream->buffer) >= (size_t)(length + 4))
     return TRUE;
 
