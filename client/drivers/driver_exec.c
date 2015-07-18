@@ -201,6 +201,10 @@ void driver_exec_destroy(driver_exec_t *driver)
 void driver_exec_close(driver_exec_t *driver)
 {
   LOG_WARNING("exec driver shut down; killing process %d", driver->pid);
+#ifdef WIN32
+  TerminateProcess(driver->exec_handle, SIGINT);
+#else
   kill(driver->pid, SIGINT);
+#endif
   driver->is_shutdown = TRUE;
 }

@@ -44,14 +44,14 @@ remove:
 uninstall: remove
 
 clean:
-	rm -f *.o *.exe *.stackdump dnscat tcpcat test driver_tcp driver_dns
-	rm -f controller/*.o drivers/*.o libs/*.o tunnel_drivers/*.o tunnel_drivers/dns/*.o
-	rm -rf win32/Debug/
-	rm -rf win32/Release/
-	rm -rf win32/*.ncb
-	rm -rf win32/*.sln
-	rm -rf win32/*.suo
-	rm -rf win32/*.vcproj.*
+	-rm -f *.o *.exe *.stackdump dnscat tcpcat test driver_tcp driver_dns
+	-rm -f controller/*.o drivers/*.o libs/*.o tunnel_drivers/*.o tunnel_drivers/dns/*.o
+	-rm -rf win32/Debug/
+	-rm -rf win32/Release/
+	-rm -rf win32/*.ncb
+	-rm -rf win32/*.sln
+	-rm -rf win32/*.suo
+	-rm -rf win32/*.vcproj.*
 
 dnscat: ${DNSCAT_DNS_OBJS}
 	-${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}

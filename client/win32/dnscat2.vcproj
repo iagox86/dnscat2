@@ -41,6 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				AdditionalIncludeDirectories="..\"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -180,19 +181,23 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\buffer.c"
+				RelativePath="..\libs\buffer.c"
 				>
 			</File>
 			<File
-				RelativePath="..\command_packet.c"
+				RelativePath="..\drivers\command\command_packet.c"
 				>
 			</File>
 			<File
-				RelativePath="..\command_packet_stream.c"
+				RelativePath="..\drivers\command\command_packet_stream.c"
 				>
 			</File>
 			<File
-				RelativePath="..\dns.c"
+				RelativePath="..\controller\controller.c"
+				>
+			</File>
+			<File
+				RelativePath="..\libs\dns.c"
 				>
 			</File>
 			<File
@@ -200,67 +205,63 @@
 				>
 			</File>
 			<File
-				RelativePath="..\driver_command.c"
+				RelativePath="..\drivers\driver.c"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_console.c"
+				RelativePath="..\drivers\command\driver_command.c"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_dns.c"
+				RelativePath="..\drivers\driver_console.c"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_exec.c"
+				RelativePath="..\tunnel_drivers\driver_dns.c"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_listener.c"
+				RelativePath="..\drivers\driver_exec.c"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_ping.c"
+				RelativePath="..\drivers\driver_ping.c"
 				>
 			</File>
 			<File
-				RelativePath="..\log.c"
+				RelativePath="..\libs\log.c"
 				>
 			</File>
 			<File
-				RelativePath="..\memory.c"
+				RelativePath="..\libs\memory.c"
 				>
 			</File>
 			<File
-				RelativePath="..\message.c"
+				RelativePath="..\libs\my_getopt.c"
 				>
 			</File>
 			<File
-				RelativePath="..\my_getopt.c"
+				RelativePath="..\controller\packet.c"
 				>
 			</File>
 			<File
-				RelativePath="..\packet.c"
+				RelativePath="..\libs\select_group.c"
 				>
 			</File>
 			<File
-				RelativePath="..\select_group.c"
+				RelativePath="..\controller\session.c"
 				>
 			</File>
 			<File
-				RelativePath="..\session.c"
+				RelativePath="..\libs\tcp.c"
 				>
 			</File>
 			<File
-				RelativePath="..\tcp.c"
+				RelativePath="..\libs\types.c"
 				>
 			</File>
 			<File
-				RelativePath="..\types.c"
-				>
-			</File>
-			<File
-				RelativePath="..\udp.c"
+				RelativePath="..\libs\udp.c"
 				>
 			</File>
 		</Filter>
@@ -270,83 +271,91 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath="..\buffer.h"
+				RelativePath="..\libs\buffer.h"
 				>
 			</File>
 			<File
-				RelativePath="..\command_packet.h"
+				RelativePath="..\drivers\command\command_packet.h"
 				>
 			</File>
 			<File
-				RelativePath="..\command_packet_stream.h"
+				RelativePath="..\drivers\command\command_packet_stream.h"
 				>
 			</File>
 			<File
-				RelativePath="..\dns.h"
+				RelativePath="..\controller\controller.h"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_command.h"
+				RelativePath="..\libs\dns.h"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_console.h"
+				RelativePath="..\drivers\driver.h"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_dns.h"
+				RelativePath="..\drivers\command\driver_command.h"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_exec.h"
+				RelativePath="..\drivers\driver_console.h"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_listener.h"
+				RelativePath="..\tunnel_drivers\driver_dns.h"
 				>
 			</File>
 			<File
-				RelativePath="..\driver_ping.h"
+				RelativePath="..\drivers\driver_exec.h"
 				>
 			</File>
 			<File
-				RelativePath="..\log.h"
+				RelativePath="..\drivers\driver_ping.h"
 				>
 			</File>
 			<File
-				RelativePath="..\memory.h"
+				RelativePath="..\libs\log.h"
 				>
 			</File>
 			<File
-				RelativePath="..\my_getopt.h"
+				RelativePath="..\libs\memory.h"
 				>
 			</File>
 			<File
-				RelativePath="..\packet.h"
+				RelativePath="..\libs\my_getopt.h"
 				>
 			</File>
 			<File
-				RelativePath="..\pstdint.h"
+				RelativePath="..\controller\packet.h"
 				>
 			</File>
 			<File
-				RelativePath="..\select_group.h"
+				RelativePath="..\libs\pstdint.h"
 				>
 			</File>
 			<File
-				RelativePath="..\session.h"
+				RelativePath="..\libs\select_group.h"
 				>
 			</File>
 			<File
-				RelativePath="..\tcp.h"
+				RelativePath="..\controller\session.h"
 				>
 			</File>
 			<File
-				RelativePath="..\types.h"
+				RelativePath="..\libs\tcp.h"
 				>
 			</File>
 			<File
-				RelativePath="..\udp.h"
+				RelativePath="..\tunnel_drivers\tunnel_driver.h"
+				>
+			</File>
+			<File
+				RelativePath="..\libs\types.h"
+				>
+			</File>
+			<File
+				RelativePath="..\libs\udp.h"
 				>
 			</File>
 		</Filter>

@@ -63,6 +63,9 @@ driver_console_t *driver_console_create(select_group_t *group)
 /*, char *name, char *download, int first_chunk)*/
 {
   driver_console_t *driver = (driver_console_t*) safe_malloc(sizeof(driver_console_t));
+#ifdef WIN32
+  HANDLE stdin_handle = get_stdin_handle();
+#endif
 
   driver->group         = group;
   driver->is_shutdown   = FALSE;
@@ -70,7 +73,6 @@ driver_console_t *driver_console_create(select_group_t *group)
 
 #ifdef WIN32
   /* On Windows, the stdin_handle is quite complicated, and involves a sub-thread. */
-  HANDLE stdin_handle = get_stdin_handle();
   select_group_add_pipe(group, -1, stdin_handle, driver);
   select_set_recv(group,       -1, console_stdin_recv);
   select_set_closed(group,     -1, console_stdin_closed);
