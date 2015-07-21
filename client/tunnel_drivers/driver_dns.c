@@ -77,8 +77,6 @@ static uint8_t *buffer_decode_hex(uint8_t *str, size_t *length)
   size_t    i   = 0;
   buffer_t *out = buffer_create(BO_BIG_ENDIAN);
 
-  printf("str = %s\n", str);
-
   while(i < *length)
   {
     uint8_t c1 = 0;
