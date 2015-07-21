@@ -49,9 +49,15 @@ static uint8_t *remove_domain(char *str, char *domain)
   {
     char *fixed = NULL;
 
-    if(strlen(domain) > strlen(str))
+    if(!strstr(str, domain))
     {
-      LOG_ERROR("The string is too short to have a domain name attached: %s", str);
+      LOG_ERROR("The response didn't contain the domain name: %s", str);
+      return NULL;
+    }
+
+    if(!strcmp(str, domain))
+    {
+      LOG_ERROR("The response was just the domain name: %s", str);
       return NULL;
     }
 
@@ -70,6 +76,8 @@ static uint8_t *buffer_decode_hex(uint8_t *str, size_t *length)
 {
   size_t    i   = 0;
   buffer_t *out = buffer_create(BO_BIG_ENDIAN);
+
+  printf("str = %s\n", str);
 
   while(i < *length)
   {
@@ -273,35 +281,53 @@ static SELECT_RESPONSE_t recv_socket_callback(void *group, int s, uint8_t *data,
 
     if(type == _DNS_TYPE_TEXT)
     {
+      LOG_INFO("Received a TXT response: %s", dns->answers[0].answer->TEXT.text);
+
       /* Get the answer. */
       tmp_answer    = dns->answers[0].answer->TEXT.text;
       answer_length = dns->answers[0].answer->TEXT.length;
-      LOG_INFO("Received a TXT response (%zu bytes)", answer_length);
 
       /* Decode it. */
       answer = buffer_decode_hex(tmp_answer, &answer_length);
     }
     else if(type == _DNS_TYPE_CNAME)
     {
+      LOG_INFO("Received a CNAME response: %s", (char*)dns->answers[0].answer->CNAME.name);
+
       /* Get the answer. */
       tmp_answer = remove_domain((char*)dns->answers[0].answer->CNAME.name, driver->domain);
-      answer_length = strlen((char*)tmp_answer);
-      LOG_INFO("Received a CNAME response (%zu bytes)", answer_length);
+      if(!tmp_answer)
+      {
+        answer = NULL;
+      }
+      else
+      {
+        answer_length = strlen((char*)tmp_answer);
 
-      /* Decode it. */
-      answer = buffer_decode_hex(tmp_answer, &answer_length);
-      safe_free(tmp_answer);
+        /* Decode it. */
+        answer = buffer_decode_hex(tmp_answer, &answer_length);
+        safe_free(tmp_answer);
+      }
     }
     else if(type == _DNS_TYPE_MX)
     {
+      LOG_INFO("Received a MX response: %s", (char*)dns->answers[0].answer->MX.name);
+
       /* Get the answer. */
       tmp_answer = remove_domain((char*)dns->answers[0].answer->MX.name, driver->domain);
-      answer_length = strlen((char*)tmp_answer);
-      LOG_INFO("Received a MX response (%zu bytes)", answer_length);
+      if(!tmp_answer)
+      {
+        answer = NULL;
+      }
+      else
+      {
+        answer_length = strlen((char*)tmp_answer);
+        LOG_INFO("Received a MX response (%zu bytes)", answer_length);
 
-      /* Decode it. */
-      answer = buffer_decode_hex(tmp_answer, &answer_length);
-      safe_free(tmp_answer);
+        /* Decode it. */
+        answer = buffer_decode_hex(tmp_answer, &answer_length);
+        safe_free(tmp_answer);
+      }
     }
     else if(type == _DNS_TYPE_A)
     {
