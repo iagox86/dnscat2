@@ -43,7 +43,7 @@ driver_t *driver_create(driver_type_t type, void *real_driver)
       break;
 
     default:
-      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE! (%d in driver_create)\n", type);
       exit(1);
       break;
   }
@@ -72,7 +72,7 @@ void driver_destroy(driver_t *driver)
       break;
 
     default:
-      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE! (%d in driver_destroy)\n", driver->type);
       exit(1);
       break;
   }
@@ -101,12 +101,10 @@ void driver_close(driver_t *driver)
       break;
 
     default:
-      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE! (%d in driver_close)\n", driver->type);
       exit(1);
       break;
   }
-
-  safe_free(driver);
 }
 
 void driver_data_received(driver_t *driver, uint8_t *data, size_t length)
@@ -130,7 +128,7 @@ void driver_data_received(driver_t *driver, uint8_t *data, size_t length)
       break;
 
     default:
-      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE! (%d in driver_data_received)\n", driver->type);
       exit(1);
       break;
   }
@@ -157,7 +155,7 @@ uint8_t *driver_get_outgoing(driver_t *driver, size_t *length, size_t max_length
       break;
 
     default:
-      LOG_FATAL("UNKNOWN DRIVER TYPE!\n");
+      LOG_FATAL("UNKNOWN DRIVER TYPE! (%d in driver_get_outgoing)\n", driver->type);
       exit(1);
       break;
   }
