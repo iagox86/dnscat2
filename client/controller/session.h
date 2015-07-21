@@ -33,11 +33,7 @@ typedef struct
   NBBOOL          is_shutdown;
   char           *name;
 
-#ifdef WIN32
-  double          last_transmit;
-#else
-  time_t          last_transmit;
-#endif
+  uint64_t        last_transmit;
 
   int             missed_transmissions;
 
