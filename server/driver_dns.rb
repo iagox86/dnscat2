@@ -94,9 +94,9 @@ class DriverDNS
   def initialize(host, port, domains)
     Log::PRINT(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains.nil? || domains.length == 0) ? "n/a" : domains.join(", ")}]...")
     if(domains.nil? || domains.length == 0)
-      Log::PRINT(nil, "No domains were selected, which means this server will only respond to direct queries (using --host and --port on the client)")
+      Log::PRINT(nil, "No domains were selected, which means this server will only respond to direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)")
     else
-      Log::PRINT(nil, "Will also accept direct queries (using --host and --port on the client)")
+      Log::PRINT(nil, "Will also accept direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)")
     end
 
     @host        = host
