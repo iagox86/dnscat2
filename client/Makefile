@@ -9,7 +9,8 @@
 CC?=gcc
 COMMON_CFLAGS=--std=c89
 DEBUG_CFLAGS=-g -DTESTMEMORY -Werror
-CFLAGS?=-I. -Wall -D_DEFAULT_SOURCE -O0 -fstack-protector-all -Wformat -Wformat-security ${DEBUG_CFLAGS}
+#CFLAGS?=-I. -Wall -D_DEFAULT_SOURCE -O0 -fstack-protector-all -Wformat -Wformat-security ${DEBUG_CFLAGS}
+CFLAGS?=-I. -Wall -D_DEFAULT_SOURCE -O0 -fstack-protector-all -Wformat -Wformat-security
 LIBS=-pie -Wl,-z,relro,-z,now
 CFLAGS+=$(COMMON_CFLAGS)
 
