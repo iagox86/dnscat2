@@ -1,7 +1,12 @@
-NOTE: This is just scratch notes right now, I'll turn it into a document
-in the near future!
+This document is written more for myself than for the community. But if
+somebody else someday has to do a release (because, I dunno, I gave up
+DNS for NetBIOS), this could be helpful. :)
 
+## Make sure the version number is up to date
 
+Both client/dnscat.c and server/dnscat2.rb contain a version number at
+the top. Perhaps I should store it in a single place and include it
+automatically, but but it's not.
 * 
 * Update the version number in the client and server
 * Make sure -DMEMORYTEST is off

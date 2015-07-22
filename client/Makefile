@@ -8,11 +8,23 @@
 
 CC?=gcc
 COMMON_CFLAGS=--std=c89
-DEBUG_CFLAGS=-g -DTESTMEMORY -Werror
-#CFLAGS?=-I. -Wall -D_DEFAULT_SOURCE -O0 -fstack-protector-all -Wformat -Wformat-security ${DEBUG_CFLAGS}
-CFLAGS?=-I. -Wall -D_DEFAULT_SOURCE -O0 -fstack-protector-all -Wformat -Wformat-security
+DEBUG_CFLAGS=-g -DTESTMEMORY -Werror -O0
+RELEASE_CFLAGS=-Os
+CFLAGS?=-I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security ${DEBUG_CFLAGS}
 LIBS=-pie -Wl,-z,relro,-z,now
 CFLAGS+=$(COMMON_CFLAGS)
+
+# TODO: This should be automatically determined
+VERSION="v0.02beta"
+
+OS=$(shell uname -s)
+ARCH=$(shell if [[ `uname -p` == *"64"* ]]; then echo "x64"; else echo "x86"; fi)
+
+ifeq ($(OS), Linux)
+  RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(ARCH)"
+else
+  RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(OS)-$(ARCH)"
+endif
 
 OBJS=controller/packet.o \
 		 controller/session.o \
@@ -38,6 +50,10 @@ DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 
 all: dnscat
 	@echo Compile should be complete
+
+release: all
+	echo ${RELEASE_FILENAME}
+	@echo Release compiled
 
 remove:
 	rm -f /usr/local/bin/dnscat
