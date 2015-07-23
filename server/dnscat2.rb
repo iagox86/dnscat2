@@ -25,7 +25,7 @@ require 'trollop'
 
 # version info
 NAME = "dnscat2"
-VERSION = "0.01"
+VERSION = "0.03"
 
 # Capture log messages during start up - after creating a command session, all
 # messages go to it, instead
