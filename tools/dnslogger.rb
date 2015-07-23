@@ -1,12 +1,11 @@
 ##
-# dnscat2_server.rb
-# Created March, 2013
+# dnslogger.rb
+# Created July 22, 2015
 # By Ron Bowes
 #
 # See: LICENSE.md
 #
-# Implements basically the full Dnscat2 protocol. Doesn't care about
-# lower-level protocols.
+# Implements a stupidly simple DNS server.
 ##
 
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
