@@ -46,7 +46,7 @@ end
 puts("#{NAME} #{VERSION} is starting!")
 
 # Use upstream DNS for name resolution.
-UPSTREAM = RubyDNS::Resolver.new([[:udp, "8.8.8.8", 53]])
+UPSTREAM = RubyDNS::Resolver.new([[:udp, opts[:upstream], opts[:upstream_port]]])
 
 # Get a handle to these things
 Name = Resolv::DNS::Name
@@ -67,11 +67,8 @@ RubyDNS::run_server(:listen => interfaces) do |s|
     name = transaction.name
     type = transaction.resource_class.name.gsub(/.*::/, '')
 
-    if(opts[type.to_sym].nil?)
-      puts("Got a request for #{name.to_s} [type = #{type}], responding with NXDomain")
-      transaction.fail!(:NXDomain)
-    else
-      # MX needs to be handled specially because it has a preference in addition to the response
+    # If they provided a way to handle it, to that
+    if(opts[type.to_sym])
       if(transaction.resource_class == IN::MX)
         puts("Got a request for #{name.to_s} [type = #{type}], responding with #{opts[:MX_PREF]} #{opts[:MX]}")
         transaction.respond!(opts[:MX_PREF], Name.create(opts[:MX]))
@@ -81,7 +78,20 @@ RubyDNS::run_server(:listen => interfaces) do |s|
       elsif(transaction.resource_class == IN::CNAME)
         puts("Got a request for #{name.to_s} [type = #{type}], responding with #{opts[type.to_sym]}")
         transaction.respond!(Name.create(opts[type.to_sym]))
+      else
+        puts("Got a request for #{name.to_s} [type = #{type}], and thought I could handle it, but can't. Please report this on github.com/iagox86/dnscat2/issues")
+        transaction.fail!(:NXDomain)
       end
+
+    # If they didn't provide a response, but they requested upstream, do that
+    elsif(opts[:passthrough])
+      puts("Got a request for #{name.to_s} [type = #{type}], sending to #{opts[:upstream]}:#{opts[:upstream_port]}")
+      transaction.passthrough!(UPSTREAM)
+
+    # Otherwise, just fail the request
+    else
+      puts("Got a request for #{name.to_s} [type = #{type}], responding with NXDomain")
+      transaction.fail!(:NXDomain)
     end
 
     transaction
