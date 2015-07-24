@@ -30,7 +30,7 @@
 
 /* Default options */
 #define NAME    "dnscat2"
-#define VERSION "0.03"
+#define VERSION "v0.03"
 
 /* Default options */
 #define DEFAULT_DNS_HOST NULL
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
         }
         if(!strcmp(option_name, "version"))
         {
-          printf(NAME" v"VERSION" (client)\n");
+          printf(NAME" "VERSION" (client)\n");
           exit(0);
         }
         else if(!strcmp(option_name, "isn"))

@@ -12,8 +12,8 @@ RELEASE_CFLAGS?=-Os
 CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security
 LIBS=-pie -Wl,-z,relro,-z,now
 
-# TODO: This should be automatically determined
-VERSION="v0.02beta"
+# Can't use a '#' in the shell command
+VERSION=$(shell egrep '^.define VERSION' dnscat.c | head -n1 | cut -d\" -f2)
 
 OS=$(shell uname -s)
 ARCH=$(shell if [[ `uname -p` == *"64"* ]]; then echo "x64"; else echo "x86"; fi)
@@ -48,12 +48,13 @@ DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 
 debug: CFLAGS += $(DEBUG_CFLAGS)
 debug: dnscat
-	@echo "Debug build complete"
+	@echo "*** Debug build complete"
 
 release: CFLAGS += ${RELEASE_CFLAGS}
-release: dnscat
-	tar -cvvjf ${RELEASE_FILENAME}.tar.bz2 dnscat
-	@echo Release compiled: ${RELEASE_FILENAME}
+release: clean dnscat
+	tar -cjf ${RELEASE_FILENAME}.tar.bz2 dnscat
+	@echo "*** Release compiled: `pwd`/${RELEASE_FILENAME}"
+	@echo "*** By the way, did you update the version number in the server?"
 
 # At some point, maybe should default to making the release version
 all: debug
@@ -74,4 +75,5 @@ clean:
 	-rm -rf win32/*.vcproj.*
 
 dnscat: ${DNSCAT_DNS_OBJS}
-	-${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
+	${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
+	@echo "*** dnscat successfully compiled"
