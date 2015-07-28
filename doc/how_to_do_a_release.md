@@ -2,71 +2,94 @@ This document is written more for myself than for the community. But if
 somebody else someday has to do a release (because, I dunno, I gave up
 DNS for NetBIOS), this could be helpful. :)
 
-## Make sure the version number is up to date
+## Make sure the version number and docs are up to date
 
 Both client/dnscat.c and server/dnscat2.rb contain a version number at
 the top. Perhaps I should store it in a single place and include it
-automatically, but but it's not.
-* 
-* Update the version number in the client and server
-* Make sure -DMEMORYTEST is off
-* Make sure it compiles and runs on Windows (on release mode) + Linux
+automatically, but at the moment it's not.
 
-* Create a signed tag:
+Things in the tools/ directory also have their own independent version
+numbers. They should be updated if and only if the tool itself was
+updated in some way.
 
-git tag -s "v0.02" -m "Beta release 2"
+Make sure other documentation is up to date, such as usage and output.
 
-* Push the tag:
+And finally, make sure docs/changelog.md is up to date.
 
-git push origin v0.02
+## Make sure it compiles on all platforms
 
-* Add release notes: https://github.com/iagox86/dnscat2/tags
-* Publish the release: https://github.com/iagox86/dnscat2/releases
+Compile and give it a cursory test on all supported platforms:
 
-* Compile the client on 32- and 64-bit linux
-* dnscat-linux-x86 dnscat-linux-x64 dnscat-windows-
+* Linux (32- and 64-bit)
+* FreeBSD
+* Mac OS X
+* Windows (via Visual Studio)
 
-* Compile on Windows on *release* mode
-* dnscat-win32
+Be sure to compile in release mode, "make release", which enables
+optimizations and disables some debug flags.
 
-Zip the files:
+On Windows, you will also need to set the build profile to "Release".
 
-The Linux clients should be made into a .tar.bz2 without a folder
+It's especially important to make sure that Windows works, because
+Visual Studio is so different from the rest of the platforms.
 
-The server should be .tar.bz2 and .zip in dnscat2-server/
+## Compile and upload the distribution files
 
-mv server dnscat2-server
-tar -cvvjf dnscat2-v0.02beta-server.tar.bz2 dnscat2-server/
-zip -r dnscat2-v0.02beta-server.zip dnscat2-server/
-mv dnscat2-server server
+Release versions on Linux can be compiled using:
 
+    make release
 
-The client source should be .tar.bz2 and .zip in dnscat2-client-source/
+It even zips them for you! Releases on other platforms (like Windows)
+require some manual work at the moment. Please try to follow my naming
+scheme:
 
-mv client dnscat2-client
-tar -cvvjf dnscat2-v0.02beta-client-source.tar.bz2 dnscat2-client-source/
-zip -r dnscat2-v0.02beta-client-source.zip dnscat2-client-source/
-mv dnscat2-client client
+* dnscat2-v0.02beta-client-win32.zip
+* dnscat2-v0.02beta-client-x64.tar.bz2
+* dnscat2-v0.02beta-client-x86.tar.bz2
+* dnscat2-v0.02beta-client-source.tar.bz2
+* dnscat2-v0.02beta-client-source.zip
+* dnscat2-v0.02beta-server.tar.bz2
+* dnscat2-v0.02beta-server.zip
 
-The filenames should be something like:
+For binaries, the binaries in the archive should be simply "dnscat".
 
-dnscat2-v0.02beta-client-win32.zip
-dnscat2-v0.02beta-client-x64.tar.bz2
-dnscat2-v0.02beta-client-x86.tar.bz2
-dnscat2-v0.02beta-client-source.tar.bz2
-dnscat2-v0.02beta-client-source.zip
-dnscat2-v0.02beta-server.tar.bz2
-dnscat2-v0.02beta-server.zip
+For source, the full client or server directory should be named
+"dnscat2-client" or "dnscat2-server" and zipped:
 
-Sign them:
+    mv client dnscat2-client
+    tar -cvvjf dnscat2-v0.02beta-client-source.tar.bz2 dnscat2-client-source/
+    zip -r dnscat2-v0.02beta-client-source.zip dnscat2-client-source/
+    mv dnscat2-client client
 
-rm *.sig; for i in *; do gpg --armor --detach-sig --output $i.sig $i; done
+I don't provide a zip of the client and server source together because
+that's just what you get on github. :)
 
+## Sign and upload the release files
 
+First, create signatures for all the files:
 
-Deleting a tag:
+    rm *.sig; for i in *; do gpg --armor --detach-sig --output $i.sig $i; done
 
-git tag -d 12345
-git push origin :refs/tags/12345
+Then upload them to https://downloads.skullsecurity.org/dnscat2/
 
+## Create and push a signed tag:
 
+Create a signed tag with a comment like this one:
+
+    git tag -s "v0.02" -m "Beta release 2"
+
+Then push it upstream:
+
+    git push origin v0.02
+
+Once that's done, to publish the release:
+
+* Add release notes on https://github.com/iagox86/dnscat2/tags
+* Publish it on: https://github.com/iagox86/dnscat2/releases
+
+## In case you need to delete a tag
+
+If you screw up, which I always do, here's the process to delete a tag:
+
+    git tag -d v0.02
+    git push origin :refs/tags/v0.02
