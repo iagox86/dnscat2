@@ -9,7 +9,7 @@
 CC?=gcc
 DEBUG_CFLAGS?=-g -DTESTMEMORY -Werror -O0
 RELEASE_CFLAGS?=-Os
-CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security
+CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security -D_POSIX_SOURCE
 LIBS=-pie -Wl,-z,relro,-z,now
 
 # Can't use a '#' in the shell command
