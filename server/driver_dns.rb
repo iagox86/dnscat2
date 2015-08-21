@@ -129,14 +129,14 @@ class DriverDNS
   def DriverDNS.figure_out_name(name, domains)
     # Check if it's one of our domains
     domains.each do |domain|
-      if(name =~ /^(.*)\.(#{domain})/)
+      if(name =~ /^(.*)\.(#{domain})/i)
         return $1, $2
       end
     end
 
     # Check if it starts with dnscat, which is used when
     # the server is unknown
-    if(name =~ /^dnscat\.(.*)$/)
+    if(name =~ /^dnscat\.(.*)$/i)
       return $1, nil
     end
 
@@ -168,7 +168,7 @@ class DriverDNS
       domain_regex = "(^dnscat\\.|" + (domains.map { |x| "\\.#{x}$" }).join("|") + ")"
 
       # Only match proper domains with proper record types
-      match(/#{domain_regex}/, RECORD_TYPES.keys) do |transaction|
+      match(/#{domain_regex}/i, RECORD_TYPES.keys) do |transaction|
         begin
           # Determine the type
           type = transaction.resource_class
