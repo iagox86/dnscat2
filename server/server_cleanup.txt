@@ -1,0 +1,23 @@
+Some goals (these will be deleted as I complete them):
+- Get rid of the ugly message-passing nonsense
+  - Refactor similar to the client
+  - I have a diagram of what I want, but it's on paper: see refactor.jpg
+- Get rid of the stupid session IDs, those suck
+- Clean up the UI, especially nested sessions
+- Allow drivers to be created and destroyed while running
+- Add a bunch of extra settings
+- Commands that the current Ui can't understand should be passed up to its parents
+  (Could be tricky!)
+- Settings also inherit from their parents if they aren't set
+- Create a better Ui
+  - Currently created the "SWindow" class as a first attempt
+  - May try doing an Ncurses one in addition to it
+  - Would like to leave the door open for a Web UI some day
+- Implement the actual commands in the Session, hopefully with a mixin or something
+  - Ui will parse out commands, but that's it
+
+Add settings that can:
+- Execute an arbitrary command (or send data?) when the session starts
+- Pass one or more sessions to an executable rather than interacting with them directly
+- Send a command to multiple sessions (all parents, all children, etc)
+- Log to a file (per-session or global)
