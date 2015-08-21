@@ -57,7 +57,11 @@ Any periods in the domain name must be ignored. Therefore, "41.4141",
 "414.141", and "414141" are exactly equivalent.
 
 Additionally, the protocol is not case sensitive, so "5b" and "5B" are
-also equivalent.
+also equivalent. It's important for clients and servers to handle case
+insensitivity, because [Fox0x01](https://github.com/Fox0x01) on github
+[reported that](https://github.com/iagox86/dnscat2/pull/62#issuecomment-133471089)
+some software [actively mangles](https://developers.google.com/speed/public-dns/docs/security?hl=en#randomize_case)
+the case of requests!
 
 ## Send / receive
 
