@@ -8,7 +8,7 @@
 # Builds and parses dnscat2 packets.
 ##
 
-require 'dnscat_exception'
+require 'libs/dnscat_exception'
 
 module PacketHelper
   def at_least?(data, needed)

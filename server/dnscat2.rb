@@ -11,14 +11,14 @@
 
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
-require 'driver_dns'
-require 'driver_tcp'
+require 'tunnel_drivers/driver_dns'
+require 'tunnel_drivers/driver_tcp'
 
-require 'log'
-require 'packet'
-require 'session_manager'
-require 'settings'
-require 'ui'
+require 'libs/log'
+require 'libs/packet'
+require 'controller/session_manager'
+require 'libs/settings'
+require 'ui/ui'
 
 # Option parsing
 require 'trollop'

@@ -6,7 +6,7 @@
 # See LICENSE.md
 ##
 
-require 'log'
+require 'libs/log'
 
 class UiInterfaceWithId < UiInterface
   attr_accessor :parent, :id

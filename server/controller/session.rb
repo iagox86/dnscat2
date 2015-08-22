@@ -7,10 +7,10 @@
 #
 ##
 
-require 'dnscat_exception'
-require 'log'
-require 'packet'
-require 'subscribable'
+require 'libs/dnscat_exception'
+require 'libs/log'
+require 'libs/packet'
+require 'libs/subscribable'
 
 class Session
   include Subscribable

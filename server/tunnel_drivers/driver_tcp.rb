@@ -8,8 +8,9 @@
 # A TCP wrapper for the dnscat2 protocol (mostly for testing)
 ##
 
-require 'log'
 require 'socket'
+
+require 'libs/log'
 
 class DriverTCP
   def initialize(s)

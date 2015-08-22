@@ -4,7 +4,7 @@
 #
 # See LICENSE.md
 
-require 'ui_interface_with_id'
+require 'ui/ui_interface_with_id'
 
 class UiSessionInteractive < UiInterfaceWithId
   attr_accessor :id

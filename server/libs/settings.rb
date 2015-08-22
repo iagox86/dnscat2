@@ -4,7 +4,7 @@
 #
 # See LICENSE.md
 
-require 'log'
+require 'libs/log'
 
 class Settings
   def initialize(settings = {})

@@ -6,11 +6,11 @@
 # See LICENSE.md
 ##
 
-require 'command_packet_stream'
-require 'command_packet'
-require 'parser'
-require 'ui_handler'
-require 'ui_interface_with_id'
+require 'ui/command_packet_stream'
+require 'ui/command_packet'
+require 'ui/parser'
+require 'ui/ui_handler'
+require 'ui/ui_interface_with_id'
 
 class UiSessionCommand < UiInterfaceWithId
   attr_reader :session

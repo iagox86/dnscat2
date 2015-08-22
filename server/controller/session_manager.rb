@@ -8,11 +8,11 @@
 # This keeps track of all the currently active sessions.
 ##
 
-require 'dnscat_exception'
-require 'log'
-require 'packet'
-require 'subscribable'
-require 'session'
+require 'libs/dnscat_exception'
+require 'libs/log'
+require 'libs/packet'
+require 'libs/subscribable'
+require 'controller/session'
 
 class SessionManager
   @@subscribers = []

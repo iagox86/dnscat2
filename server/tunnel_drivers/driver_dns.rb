@@ -10,8 +10,7 @@
 
 require 'rubydns'
 
-require 'log'
-require 'pp' # TODO: Debug
+require 'libs/log'
 
 class DriverDNS
   # Use upstream DNS for name resolution.

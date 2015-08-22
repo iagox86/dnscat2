@@ -9,11 +9,11 @@
 require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
 
-require 'log'
-require 'subscribable'
-require 'ui_command'
-require 'ui_session_command'
-require 'ui_session_interactive'
+require 'libs/log'
+require 'libs/subscribable'
+require 'ui/ui_command'
+require 'ui/ui_session_command'
+require 'ui/ui_session_interactive'
 
 class Ui
   include Subscribable

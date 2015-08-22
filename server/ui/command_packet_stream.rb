@@ -7,7 +7,7 @@
 #
 ##
 
-require 'dnscat_exception'
+require 'libs/dnscat_exception'
 
 class CommandPacketStream
   def initialize()

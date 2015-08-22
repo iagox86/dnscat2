@@ -7,9 +7,8 @@
 #
 ##
 
-require 'dnscat_exception'
-
-require 'command_packet_stream'
+require 'libs/dnscat_exception'
+require 'ui/command_packet_stream'
 
 class CommandPacket
   COMMAND_PING     = 0x0000

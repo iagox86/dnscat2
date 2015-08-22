@@ -6,10 +6,10 @@
 
 require 'readline'
 
-require 'log'
-require 'parser'
-require 'ui_handler'
-require 'ui_interface'
+require 'libs/log'
+require 'ui/parser'
+require 'ui/ui_handler'
+require 'ui/ui_interface'
 
 class UiCommand < UiInterface
   include Parser
