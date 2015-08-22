@@ -16,7 +16,7 @@ require 'tunnel_drivers/driver_tcp'
 
 require 'libs/log'
 require 'libs/packet'
-require 'controller/session_manager'
+require 'controller/controller'
 require 'libs/settings'
 require 'ui/ui'
 
@@ -196,7 +196,7 @@ if(opts[:dns])
     begin
       Log.PRINT(nil, "Starting DNS server...")
       driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
-      SessionManager.go(driver, settings)
+      Controller.go(driver, settings)
     rescue DnscatException => e
       Log.FATAL(nil, "Protocol exception caught in DNS module:")
       Log.FATAL(nil, e)
@@ -222,7 +222,7 @@ sleep(0.01)
 ui = Ui.new(settings)
 
 # Subscribe the Ui to the important notifications
-SessionManager.subscribe(ui)
+Controller.subscribe(ui)
 
 # Turn off the 'main' logger
 Log.reset()

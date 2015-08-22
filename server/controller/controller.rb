@@ -14,11 +14,11 @@ require 'libs/packet'
 require 'libs/subscribable'
 require 'controller/session'
 
-class SessionManager
+class Controller
   @@subscribers = []
   @@sessions = {}
 
-  def SessionManager.create_session(id)
+  def Controller.create_session(id)
     session = Session.new(id)
     session.subscribe(@@subscribers)
     @@sessions[id] = session
@@ -26,19 +26,19 @@ class SessionManager
     return session
   end
 
-  def SessionManager.subscribe(cls)
+  def Controller.subscribe(cls)
     @@subscribers << cls
   end
 
-  def SessionManager.exists?(id)
+  def Controller.exists?(id)
     return !@@sessions[id].nil?
   end
 
-  def SessionManager.find(id)
+  def Controller.find(id)
     return @@sessions[id]
   end
 
-  def SessionManager.kill_session(id)
+  def Controller.kill_session(id)
     # Notify subscribers before deleting it, in case they want to do something with
     # it first
     session = find(id)
@@ -49,15 +49,15 @@ class SessionManager
     end
   end
 
-  def SessionManager.list()
+  def Controller.list()
     return @@sessions
   end
 
-  def SessionManager.destroy()
+  def Controller.destroy()
     Log.FATAL(nil, "TODO: Implement destroy()")
   end
 
-  def SessionManager.handle_syn(packet)
+  def Controller.handle_syn(packet)
     session = find(packet.session_id)
 
     if(session.nil?)
@@ -68,7 +68,7 @@ class SessionManager
     return session.handle_syn(packet)
   end
 
-  def SessionManager.handle_msg(packet, max_length)
+  def Controller.handle_msg(packet, max_length)
     session = find(packet.session_id)
     if(session.nil?)
       err = "MSG received in non-existent session: %d" % packet.session_id
@@ -83,7 +83,7 @@ class SessionManager
     return session.handle_msg(packet, max_length)
   end
 
-  def SessionManager.handle_fin(packet)
+  def Controller.handle_fin(packet)
     session = find(packet.session_id)
 
     if(session.nil?)
@@ -99,11 +99,11 @@ class SessionManager
     return session.handle_fin(packet)
   end
 
-  def SessionManager.handle_ping(packet)
+  def Controller.handle_ping(packet)
     return packet
   end
 
-  def SessionManager.go(pipe, settings)
+  def Controller.go(pipe, settings)
     pipe.recv() do |data, max_length|
       session_id = nil
 
