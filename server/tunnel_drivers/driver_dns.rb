@@ -14,6 +14,7 @@ require 'libs/log'
 
 class DriverDNS
   # Use upstream DNS for name resolution.
+  # TODO: Make this configurable
   UPSTREAM = RubyDNS::Resolver.new([[:udp, "8.8.8.8", 53]])
 
   # Get a handle to these things
