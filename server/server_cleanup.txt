@@ -15,6 +15,7 @@ Some goals (these will be deleted as I complete them):
   - Would like to leave the door open for a Web UI some day
 - Implement the actual commands in the Session, hopefully with a mixin or something
   - Ui will parse out commands, but that's it
+- Make sure a good error is still displayed when the user doesn't run it as root
 
 Add settings that can:
 - Execute an arbitrary command (or send data?) when the session starts

@@ -190,43 +190,6 @@ if(opts[:isn])
   settings.set("isn",          opts[:isn])
 end
 
-threads = []
-if(opts[:dns])
-  threads << Thread.new do
-    begin
-      Log.PRINT(nil, "Starting DNS server...")
-      driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
-      Controller.go(driver, settings)
-    rescue DnscatException => e
-      Log.FATAL(nil, "Protocol exception caught in DNS module:")
-      Log.FATAL(nil, e)
-    rescue Exception => e
-      Log.FATAL(nil, "Exception starting the driver:")
-      Log.FATAL(nil, e)
-
-      if(e.to_s =~ /no datagram socket/)
-        Log.PRINT(nil, "")
-        Log.PRINT(nil, "Translation: Couldn't listen on #{opts[:dnshost]}:#{opts[:dnsport]}")
-        Log.PRINT(nil, "(if you're on Linux, you might need to use sudo or rvmsudo)")
-      end
-
-      exit
-    end
-  end
-end
-
-# This is simply to give up the thread's timeslice, allowing the driver threads
-# a small amount of time to initialize themselves
-sleep(0.01)
-
-ui = Ui.new(settings)
-
-# Subscribe the Ui to the important notifications
-Controller.subscribe(ui)
-
-# Turn off the 'main' logger
-Log.reset()
-
-# Get the UI going
-ui.go()
-
+Log.PRINT(nil, "Starting DNS server...")
+driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
+driver.recv()

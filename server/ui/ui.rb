@@ -10,14 +10,11 @@ require 'trollop' # We use this to parse commands
 require 'readline' # For i/o operations
 
 require 'libs/log'
-require 'libs/subscribable'
 require 'ui/ui_command'
 require 'ui/ui_session_command'
 require 'ui/ui_session_interactive'
 
 class Ui
-  include Subscribable
-
   attr_reader :settings
 
   def initialize(settings)
@@ -35,8 +32,6 @@ class Ui
 
     # Lets us have multiple 'attached' sessions
     @ui_history = []
-
-    initialize_subscribables()
   end
 
   class UiWakeup < Exception
@@ -205,13 +200,9 @@ class Ui
     else
       ui = UiSessionInteractive.new(id, session, self)
     end
-    self.subscribe(ui)
 
     # Save it in both important lists
     @uis[id] = ui
-
-    # Let all the other sessions know that this one was created
-    notify_subscribers(:ui_created, [ui, id])
 
     # If nobody else has claimed it, bequeath it to the root (command) ui
     # TODO: I don't really have a good way of nesting sessions right now, so just don't

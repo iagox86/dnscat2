@@ -223,7 +223,7 @@ class DriverDNS
             end
 
             # Get the response
-            response = yield(name, max_length)
+            response = Controller.feed(name, max_length)
 
             # Sanity check the response
             if(response.nil?)

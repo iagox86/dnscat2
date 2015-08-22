@@ -11,7 +11,6 @@
 require 'libs/dnscat_exception'
 require 'libs/log'
 require 'libs/packet'
-require 'libs/subscribable'
 require 'controller/session'
 
 class Controller
@@ -30,8 +29,6 @@ class Controller
   end
 
   def Controller.kill_session(id)
-    # Notify subscribers before deleting it, in case they want to do something with
-    # it first
     session = find(id)
 
     if(!session.nil?)
@@ -43,12 +40,12 @@ class Controller
     return @@sessions
   end
 
-  def Controller.feed(data)
+  def Controller.feed(data, max_length)
     begin
       session_id = Packet.peek_session_id(data)
 
       session = find(session_id)
-      response = session.feed(data)
+      response = session.feed(data, max_length)
 
       return response
     rescue DnscatException => e
