@@ -29,7 +29,7 @@ class Packet
   # OPT_TUNNEL              = 0x0002 # Deprecated
   # OPT_DATAGRAM            = 0x0004 # Deprecated
   OPT_DOWNLOAD            = 0x0008
-  OPT_CHUNKED_DOWNLOAD    = 0x0010
+  # OPT_CHUNKED_DOWNLOAD    = 0x0010 # Deprecated for now
   OPT_COMMAND             = 0x0020
 
   attr_reader :packet_id, :type, :session_id, :body
@@ -97,10 +97,6 @@ class Packet
     def to_s()
       result = "[[SYN]] :: isn = %04x, options = %04x" % [@seq, @options]
 
-      if((options & OPT_DOWNLOAD) == OPT_DOWNLOAD || (options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        result += ", download = %s" % @download
-      end
-
       return result
     end
 
@@ -112,34 +108,22 @@ class Packet
   class MsgBody
     extend PacketHelper
 
-    attr_reader :chunk, :seq, :ack, :data
+    attr_reader :seq, :ack, :data
 
     def initialize(options, params = {})
       @options = options
-      if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        @chunk = params[:chunk] || raise(DnscatException, "params[:chunk] can't be nil when OPT_CHUNKED_DOWNLOAD is set!")
-      else
-        @seq = params[:seq] || raise(DnscatException, "params[:seq] can't be nil unless OPT_CHUNKED_DOWNLOAD is set!")
-        @ack = params[:ack] || raise(DnscatException, "params[:ack] can't be nil unless OPT_CHUNKED_DOWNLOAD is set!")
-      end
+      @seq = params[:seq] || raise(DnscatException, "params[:seq] can't be nil!")
+      @ack = params[:ack] || raise(DnscatException, "params[:ack] can't be nil!")
       @data = params[:data] || raise(DnscatException, "params[:data] can't be nil!")
     end
 
     def MsgBody.parse(options, data)
-      if((options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG d/l)")
+      at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG norm)")
 
-        chunk = data.unpack("N").pop
-        data = data[4..-1] # Remove the first eight bytes
-      else
-        at_least?(data, 4) || raise(DnscatException, "Packet is too short (MSG norm)")
-
-        seq, ack = data.unpack("nn")
-        data = data[4..-1] # Remove the first four bytes
-      end
+      seq, ack = data.unpack("nn")
+      data = data[4..-1] # Remove the first four bytes
 
       return MsgBody.new(options, {
-        :chunk => chunk,
         :data  => data,
         :seq   => seq,
         :ack   => ack,
@@ -149,7 +133,6 @@ class Packet
 
     def MsgBody.header_size(options)
       return MsgBody.new(options, {
-        :chunk => 0,
         :seq   => 0,
         :ack   => 0,
         :data  => '',
@@ -171,23 +154,15 @@ class Packet
 
     def to_s()
       data = @data.gsub(/\n/, '\n')
-      if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        return "[[MSG]] :: chunk = %d, data = 0x%x bytes" % [@chunk, data.length]
-      else
-        return "[[MSG]] :: seq = %04x, ack = %04x, data = 0x%x bytes" % [@seq, @ack, data.length]
-      end
+
+      return "[[MSG]] :: seq = %04x, ack = %04x, data = 0x%x bytes" % [@seq, @ack, data.length]
     end
 
     def to_bytes()
       result = ""
-      if((@options & OPT_CHUNKED_DOWNLOAD) == OPT_CHUNKED_DOWNLOAD)
-        chunk = @chunk || 0
-        result += [chunk, @data].pack("NA*")
-      else
-        seq = @seq || 0
-        ack = @ack || 0
-        result += [seq, ack, @data].pack("nnA*")
-      end
+      seq = @seq || 0
+      ack = @ack || 0
+      result += [seq, ack, @data].pack("nnA*")
 
       return result
     end
@@ -341,3 +316,4 @@ class Packet
     return result
   end
 end
+

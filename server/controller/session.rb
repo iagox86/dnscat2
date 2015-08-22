@@ -24,6 +24,12 @@ class Session
   STATE_ESTABLISHED = 0x01
   STATE_KILLED      = 0xFF
 
+  HANDLERS = {
+    Packet::MESSAGE_TYPE_SYN => :_handle_syn,
+    Packet::MESSAGE_TYPE_MSG => :_handle_msg,
+    Packet::MESSAGE_TYPE_FIN => :_handle_fin,
+  }
+
   def initialize()
     @state = STATE_NEW
     @their_seq = 0
@@ -107,19 +113,6 @@ class Session
     @name      = packet.body.name
     @options   = packet.body.options
 
-    # Make sure options are sane
-    if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD &&
-       (@options & Packet::OPT_DOWNLOAD) == 0)
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason     => "ERROR: OPT_CHUNKED_DOWNLOAD set without OPT_DOWNLOAD",
-      })
-    end
-
-    if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
-      @is_command = true
-    end
-
     # TODO: Allowing any arbitrary file is a security risk
     if(!packet.body.download.nil?)
       begin
@@ -201,8 +194,7 @@ class Session
 
   def _handle_msg(packet, max_length)
     if(!msg_valid?())
-      # Kill the session as well - in case it exists
-      SessionManager.kill_session(@id)
+      kill()
 
       return Packet.create_fin(@options, {
         :session_id => @id,
@@ -217,11 +209,7 @@ class Session
       })
     end
 
-    if((@options & Packet::OPT_CHUNKED_DOWNLOAD) == Packet::OPT_CHUNKED_DOWNLOAD)
-      return handle_msg_chunked(packet, max_length)
-    else
-      return handle_msg_normal(packet, max_length)
-    end
+    return handle_msg_normal(packet, max_length)
   end
 
   def _handle_fin(packet)
@@ -242,6 +230,8 @@ class Session
   end
 
   def feed(data, max_length)
+    packet = Packet.parse(data, @options)
 
+    return send(HANDLERS[packet.type], packet)
   end
 end
