@@ -8,6 +8,7 @@
 ##
 
 require 'controller/packet'
+require 'drivers/driver_command'
 require 'drivers/driver_console'
 require 'libs/commander'
 require 'libs/dnscat_exception'
@@ -126,7 +127,12 @@ class Session
     @window.puts_ex("New session established: %d" % @id, true, true)
 
     # TODO: We're going to need different driver types
-    @driver = DriverConsole.new(@window)
+    if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
+      @driver = DriverCommand.new(@window)
+    else
+      @driver = DriverConsole.new(@window)
+    end
+
     @window.prompt = "%s %d> " % [@name, @id]
 
     # TODO: Check if auto_attach is set
