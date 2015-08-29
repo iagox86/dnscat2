@@ -7,17 +7,17 @@
 #
 ##
 
+require 'controller/packet'
+require 'libs/commander'
 require 'libs/dnscat_exception'
 require 'libs/log'
-require 'libs/packet'
+require 'libs/swindow'
 
 class Session
   @@isn = nil # nil = random
 
-  attr_reader :id, :state, :their_seq, :my_seq
-  attr_reader :name
-  attr_reader :options
-  attr_reader :is_command
+  attr_reader :id, :name, :options
+  attr_reader :swindow, :commander
 
   # Session states
   STATE_NEW         = 0x00
@@ -30,12 +30,13 @@ class Session
     Packet::MESSAGE_TYPE_FIN => :_handle_fin,
   }
 
-  def initialize()
+  def initialize(parent_swindow, parent_commander)
     @state = STATE_NEW
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
     @options = 0
-    @is_command = false
+    @window = SWindow.new("Waiting for SYN...", "%d>" % id, parent_swindow, true)
+    @commander = Commander.new(swindow, parent_commander)
 
     @incoming_data = ''
     @outgoing_data = ''
@@ -114,22 +115,22 @@ class Session
     @options   = packet.body.options
 
     # TODO: Allowing any arbitrary file is a security risk
-    if(!packet.body.download.nil?)
-      begin
-        @filename = packet.body.download
-        File.open(@filename, 'rb') do |f|
-          queue_outgoing(f.read())
-        end
-      rescue Exception => e
-        Log.ERROR(@id, "Client requested a bad file: #{packet.body.download}")
-        Log.ERROR(@id, e.to_s())
-
-        return Packet.create_fin(@options, {
-          :session_id => @id,
-          :reason     => "ERROR: File couldn't be read: #{e.inspect}",
-        })
-      end
-    end
+#    if(!packet.body.download.nil?)
+#      begin
+#        @filename = packet.body.download
+#        File.open(@filename, 'rb') do |f|
+#          queue_outgoing(f.read())
+#        end
+#      rescue Exception => e
+#        Log.ERROR(@id, "Client requested a bad file: #{packet.body.download}")
+#        Log.ERROR(@id, e.to_s())
+#
+#        return Packet.create_fin(@options, {
+#          :session_id => @id,
+#          :reason     => "ERROR: File couldn't be read: #{e.inspect}",
+#        })
+#      end
+#    end
 
     # Establish the session officially
     @state = STATE_ESTABLISHED
@@ -137,7 +138,7 @@ class Session
     return Packet.create_syn(0, {
       :session_id => @id,
       :seq        => @my_seq,
-      :options    => 0, # TODO: I haven't paid much attention to what the server puts in its options field
+      :options    => 0, # TODO: I haven't paid much attention to what the server puts in its options field, should I?
     })
   end
 
@@ -145,7 +146,23 @@ class Session
     return max_data_length - (Packet.header_size(@options) + Packet::MsgBody.header_size(@options))
   end
 
-  def _handle_msg_normal(packet, max_length)
+  def _handle_msg(packet, max_length)
+    if(!msg_valid?())
+      kill()
+
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason     => "MSG received in invalid state",
+      })
+    end
+
+    if(@state == STATE_KILLED)
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => "Session was killed",
+      })
+    end
+
     # Validate the sequence number
     if(@their_seq != packet.body.seq)
       # Re-send the last packet
@@ -172,9 +189,11 @@ class Session
 
     # Acknowledge the data that has been received so far
     # Note: this is where @my_seq is updated
-    ack_outgoing(packet.body.ack)
+    _ack_outgoing(packet.body.ack)
 
     # Write the incoming data to the session
+    # TODO
+
     # Increment the expected sequence number
     @their_seq = (@their_seq + packet.body.data.length) & 0xFFFF;
 
@@ -190,26 +209,6 @@ class Session
     })
 
     return packet
-  end
-
-  def _handle_msg(packet, max_length)
-    if(!msg_valid?())
-      kill()
-
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason     => "MSG received in invalid state",
-      })
-    end
-
-    if(@state == STATE_KILLED)
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason => "Session was killed",
-      })
-    end
-
-    return handle_msg_normal(packet, max_length)
   end
 
   def _handle_fin(packet)
@@ -232,6 +231,8 @@ class Session
   def feed(data, max_length)
     packet = Packet.parse(data, @options)
 
-    return send(HANDLERS[packet.type], packet)
+    response_packet = send(HANDLERS[packet.type], packet)
+
+    return response_packet.to_bytes()
   end
 end
