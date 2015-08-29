@@ -56,7 +56,7 @@ class SWindow
     @prompt = prompt || "%s %d>" % [@name, @id]
     @parent = parent
     @children = []
-    @callback = proc
+    @callback = nil
     @history = [""] * 100
     @typed_history = []
 
@@ -68,6 +68,10 @@ class SWindow
     if(@@active.nil? || activate)
       self.activate(false)
     end
+  end
+
+  def on_input()
+    @callback = proc
   end
 
   def spawn(name = nil, prompt = nil)
@@ -134,77 +138,16 @@ class SWindow
   def _incoming(str)
     @history << str
     @typed_history << str
+
+    if(@callback.nil?)
+      puts("Input received, but nothing has registered to receive it")
+      puts("Please wait and try again in a bit!")
+      return
+    end
     @callback.call(str)
   end
+
+  def SWindow.wait()
+    @@input_thread.join()
+  end
 end
-
-def myfunc(str)
-
-end
-
-
-windows = {}
-
-windows['A'] = SWindow.new("A") do |str|
-  windows['A'].puts("A: #{str}")
-  windows[str].activate if windows[str]
-end
-
-windows['child1'] = windows['A'].spawn("child1") do |str|
-  windows['child1'].puts("child1: #{str}")
-  windows[str].activate if windows[str]
-end
-windows['child2'] = windows['A'].spawn("child2") do |str|
-  windows['child2'].puts("child2: #{str}")
-  windows[str].activate if windows[str]
-end
-windows['child3'] = windows['A'].spawn("child3") do |str|
-  windows['child3'].puts("child3: #{str}")
-  windows[str].activate if windows[str]
-end
-
-windows['child1_child1'] = windows['child1'].spawn("child1_child1") do |str|
-  windows['child1_child1'].puts("child1_child1: #{str}")
-  windows[str].activate if windows[str]
-end
-windows['child1_child2'] = windows['child1'].spawn("child1_child2") do |str|
-  windows['child1_child2'].puts("child1_child2: #{str}")
-  windows[str].activate if windows[str]
-end
-
-windows['child3_child1'] = windows['child3'].spawn("child3_child1") do |str|
-  windows['child3_child1'].puts("child3_child1: #{str}")
-  windows[str].activate if windows[str]
-end
-
-windows['child1_child1_child1'] = windows['child1_child1'].spawn("child1_child1_child1") do |str|
-  windows['child1_child1_child1'].puts("child1_child1_child1: #{str}")
-  windows[str].activate if windows[str]
-end
-
-windows['child1_child1_child1_child1'] = windows['child1_child1_child1'].spawn("child1_child1_child1_child1") do |str|
-  windows['child1_child1_child1_child1'].puts("child1_child1_child1_child1: #{str}")
-  windows[str].activate if windows[str]
-end
-
-windows['B'] = SWindow.new("B") do |str|
-  windows['B'].puts("Received something from B: #{str}")
-  windows[str].activate if windows[str]
-end
-
-windows['A'].puts_ex("This should just go to 'A'")
-windows['A'].puts_ex("This should go to A and its children", false, false, true, false)
-windows['A'].puts_ex("This should go to A and all of its children/grandchildren [1]", false, false, true, true)
-windows['A'].puts_ex("This should go to A and all of its children/grandchildren [2]", true,  false, true, true)
-windows['A'].puts_ex("This should go to A and all of its children/grandchildren [3]", false, true, true, true)
-windows['child1_child1_child1_child1'].puts_ex("This should go to the deepest grandchild and nothing else", false, false, false, false)
-windows['child1_child1_child1_child1'].puts_ex("This should go to the deepest grandchild and nothing else", false, false, true, false)
-windows['child1_child1_child1_child1'].puts_ex("This should go to the deepest grandchild and nothing else", false, false, true, true)
-windows['child1_child1_child1_child1'].puts_ex("This should go to the deepest grandchild and its parent", true, false, false, false)
-windows['child1_child1_child1_child1'].puts_ex("This should go to the deepest grandchild and all of its parents/grandparents", true, true, false, false)
-
-
-#def puts_ex(str, to_parent = false, to_grandparents = false, to_children = false, to_grandchildren = false)
-sleep(1000)
-
-

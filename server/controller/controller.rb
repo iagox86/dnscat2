@@ -8,10 +8,13 @@
 # This keeps track of all the currently active sessions.
 ##
 
+require 'controller/packet'
+require 'controller/session'
+require 'libs/commander'
 require 'libs/dnscat_exception'
 require 'libs/log'
-require 'libs/packet'
-require 'controller/session'
+
+require 'trollop'
 
 class Controller
   @@sessions = {}
@@ -44,10 +47,13 @@ class Controller
     begin
       session_id = Packet.peek_session_id(data)
 
-      session = find(session_id)
-      response = session.feed(data, max_length)
+      session = Controller.find_session(session_id)
+      if(session.nil?)
+        Log.WARNING(nil, "Data came for unknown session: #{session_id}")
+        return nil
+      end
 
-      return response
+      return session.feed(data, max_length)
     rescue DnscatException => e
       Log.ERROR(session_id, e)
 

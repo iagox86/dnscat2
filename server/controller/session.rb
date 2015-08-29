@@ -17,7 +17,7 @@ class Session
   @@isn = nil # nil = random
 
   attr_reader :id, :name, :options
-  attr_reader :swindow, :commander
+  attr_reader :swindow
 
   # Session states
   STATE_NEW         = 0x00
@@ -30,17 +30,17 @@ class Session
     Packet::MESSAGE_TYPE_FIN => :_handle_fin,
   }
 
-  def initialize(parent_swindow, parent_commander)
+  def initialize(main_window)
     @state = STATE_NEW
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
     @options = 0
-    @window = SWindow.new("Waiting for SYN...", "%d>" % id, parent_swindow, true)
-    @commander = Commander.new(swindow, parent_commander)
 
     @incoming_data = ''
     @outgoing_data = ''
-    @name = ''
+    @name = 'unnamed'
+
+    @main_window = main_window
   end
 
   def kill()
@@ -113,27 +113,16 @@ class Session
     @their_seq = packet.body.seq
     @name      = packet.body.name
     @options   = packet.body.options
+    @state     = STATE_ESTABLISHED
 
-    # TODO: Allowing any arbitrary file is a security risk
-#    if(!packet.body.download.nil?)
-#      begin
-#        @filename = packet.body.download
-#        File.open(@filename, 'rb') do |f|
-#          queue_outgoing(f.read())
-#        end
-#      rescue Exception => e
-#        Log.ERROR(@id, "Client requested a bad file: #{packet.body.download}")
-#        Log.ERROR(@id, e.to_s())
-#
-#        return Packet.create_fin(@options, {
-#          :session_id => @id,
-#          :reason     => "ERROR: File couldn't be read: #{e.inspect}",
-#        })
-#      end
-#    end
+    # TODO: Somewhere in here, I need the concept of a 'parent' session
+    @window = SWindow.new(@name, "%s %d>" % [@name, @id], @main_window, true)
 
-    # Establish the session officially
-    @state = STATE_ESTABLISHED
+    # TODO: Determine the type of session and register commands
+    @window.on_input() do |data|
+      @outgoing_data += data
+    end
+
 
     return Packet.create_syn(0, {
       :session_id => @id,

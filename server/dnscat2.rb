@@ -15,10 +15,8 @@ require 'tunnel_drivers/driver_dns'
 require 'tunnel_drivers/driver_tcp'
 
 require 'libs/log'
-require 'libs/packet'
 require 'controller/controller'
 require 'libs/settings'
-require 'ui/ui'
 
 # Option parsing
 require 'trollop'
@@ -27,10 +25,13 @@ require 'trollop'
 NAME = "dnscat2"
 VERSION = "0.03"
 
+window = SWindow.new("main", "dnscat2>", nil, true)
+window.puts("Welcome to dnscat2! Some documentation may be out of date")
+
 # Capture log messages during start up - after creating a command session, all
 # messages go to it, instead
 Log.logging(nil) do |msg|
-  $stdout.puts(msg)
+  window.puts(msg)
 end
 
 # Options
@@ -114,82 +115,103 @@ Log.PRINT(nil, "Of course, you have to figure out <server> yourself! Clients wil
 Log.PRINT(nil, "directly on UDP port 53 (by default).")
 Log.PRINT(nil)
 
-settings = Settings.new()
 
-settings.verify("packet_trace") do |value|
-  if(!(value == true || value == false))
-    "'packet_trace' has to be either 'true' or 'false'!"
-  else
-    nil
-  end
-end
+commander = Commander.new()
 
-settings.watch("debug") do |old_val, new_val|
-  if(Log::LEVELS.index(new_val.upcase).nil?)
-    # return
-    "Possible values for 'debug': " + Log::LEVELS.join(", ")
-  else
-    if(old_val.nil?)
-      Log.PRINT(nil, "Set debug level to #{new_val}")
-    else
-      puts("Changed debug from #{old_val} to #{new_val}")
+commander.register_command('echo',
+    Trollop::Parser.new do
+      banner("Print stuff to the terminal")
+    end,
+
+    Proc.new do |opts, optval|
+      window.puts(optval)
     end
-    Log.set_min_level(new_val)
+)
 
-    # return
-    nil
-  end
+window.on_input() do |data|
+  commander.feed(data)
 end
 
-settings.watch("passthrough") do |old_val, new_val|
-  if(!(new_val == true || new_val == false))
-    "'passthrough' has to be either 'true' or 'false'!"
-  else
-    # return
-    if(!old_val.nil?)
-      puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
-    end
-    DriverDNS.passthrough = new_val
-
-    # return
-    nil
-  end
-end
-
-settings.watch("isn") do |old_val, new_val|
-  Session.debug_set_isn(new_val.to_i)
-
-  puts("Changed the initial sequence number to 0x%04x (note: you probably shouldn't do this unless you're debugging something!)" % new_val)
-
-  nil
-end
-
-settings.verify("auto_command") do |value|
-  if(value.is_a?(String) || value.is?(nil))
-    nil
-  else
-    "'auto_command' has to be a string!"
-  end
-end
-
-settings.verify("auto_attach") do |value|
-  if(value == true || value == false)
-    nil
-  else
-    "'auto_attach' has to be true or false!"
-  end
-end
-
-settings.set("auto_command", opts[:auto_command])
-settings.set("auto_attach",  opts[:auto_attach])
-settings.set("passthrough",  opts[:passthrough])
-settings.set("debug",        opts[:debug])
-settings.set("packet_trace", opts[:packet_trace])
-
-if(opts[:isn])
-  settings.set("isn",          opts[:isn])
-end
+#settings = Settings.new()
+#
+#settings.verify("packet_trace") do |value|
+#  if(!(value == true || value == false))
+#    "'packet_trace' has to be either 'true' or 'false'!"
+#  else
+#    nil
+#  end
+#end
+#
+#settings.watch("debug") do |old_val, new_val|
+#  if(Log::LEVELS.index(new_val.upcase).nil?)
+#    # return
+#    "Possible values for 'debug': " + Log::LEVELS.join(", ")
+#  else
+#    if(old_val.nil?)
+#      Log.PRINT(nil, "Set debug level to #{new_val}")
+#    else
+#      puts("Changed debug from #{old_val} to #{new_val}")
+#    end
+#    Log.set_min_level(new_val)
+#
+#    # return
+#    nil
+#  end
+#end
+#
+#settings.watch("passthrough") do |old_val, new_val|
+#  if(!(new_val == true || new_val == false))
+#    "'passthrough' has to be either 'true' or 'false'!"
+#  else
+#    # return
+#    if(!old_val.nil?)
+#      puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
+#    end
+#    DriverDNS.passthrough = new_val
+#
+#    # return
+#    nil
+#  end
+#end
+#
+#settings.watch("isn") do |old_val, new_val|
+#  Session.debug_set_isn(new_val.to_i)
+#
+#  puts("Changed the initial sequence number to 0x%04x (note: you probably shouldn't do this unless you're debugging something!)" % new_val)
+#
+#  nil
+#end
+#
+#settings.verify("auto_command") do |value|
+#  if(value.is_a?(String) || value.is?(nil))
+#    nil
+#  else
+#    "'auto_command' has to be a string!"
+#  end
+#end
+#
+#settings.verify("auto_attach") do |value|
+#  if(value == true || value == false)
+#    nil
+#  else
+#    "'auto_attach' has to be true or false!"
+#  end
+#end
+#
+#settings.set("auto_command", opts[:auto_command])
+#settings.set("auto_attach",  opts[:auto_attach])
+#settings.set("passthrough",  opts[:passthrough])
+#settings.set("debug",        opts[:debug])
+#settings.set("packet_trace", opts[:packet_trace])
+#
+#if(opts[:isn])
+#  settings.set("isn",          opts[:isn])
+#end
 
 Log.PRINT(nil, "Starting DNS server...")
 driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
 driver.recv()
+
+puts("driver.recv() returned")
+
+SWindow.wait()
