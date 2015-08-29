@@ -1,7 +1,7 @@
 require 'readline'
 
 class SWindow
-  attr_reader :prompt
+  attr_accessor :prompt
   @@id = 0
   @@active = nil
 
@@ -64,7 +64,6 @@ class SWindow
       @parent._add_child(self)
     end
 
-    puts("New session created: #{@name}")
     if(@@active.nil? || activate)
       self.activate(false)
     end
@@ -112,15 +111,15 @@ class SWindow
     end
   end
 
-  def redraw()
+  def _redraw()
     $stdout.puts(@history.join(""))
-    $stdout.puts(@prompt)
+    #$stdout.puts(@prompt)
   end
 
   def activate(redraw = true)
     @@active = self
     if(redraw)
-      self.redraw()
+      self._redraw()
     end
 
     Readline::HISTORY.clear()
@@ -142,8 +141,8 @@ class SWindow
     @typed_history << str
 
     if(@callback.nil?)
-      puts("Input received, but nothing has registered to receive it")
-      puts("Please wait and try again in a bit!")
+      self.puts("Input received, but nothing has registered to receive it")
+      self.puts("Please wait and try again in a bit!")
       return
     end
     @callback.call(str)

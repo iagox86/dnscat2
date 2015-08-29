@@ -25,9 +25,9 @@ require 'trollop'
 NAME = "dnscat2"
 VERSION = "0.03"
 
+puts("Welcome to dnscat2! Some documentation may be out of date")
+puts()
 window = SWindow.new("main", "dnscat2> ", nil, true)
-window.puts("Welcome to dnscat2! Some documentation may be out of date")
-window.redraw()
 
 controller = Controller.new(window)
 

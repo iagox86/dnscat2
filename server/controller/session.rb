@@ -43,7 +43,7 @@ class Session
     @name = 'unnamed'
 
     # TODO: Somewhere in here, I need the concept of a 'parent' session
-    @window = SWindow.new(@name, "%s %d>" % [@name, @id], main_window, false)
+    @window = SWindow.new(@name, "", main_window, false)
   end
 
   def activate()
@@ -127,7 +127,9 @@ class Session
 
     # TODO: We're going to need different driver types
     @driver = DriverConsole.new(@window)
+    @window.prompt = "%s %d> " % [@name, @id]
 
+    # TODO: Check if auto_attach is set
     return Packet.create_syn(0, {
       :session_id => @id,
       :seq        => @my_seq,
