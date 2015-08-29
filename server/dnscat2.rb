@@ -25,8 +25,11 @@ require 'trollop'
 NAME = "dnscat2"
 VERSION = "0.03"
 
-window = SWindow.new("main", "dnscat2>", nil, true)
+window = SWindow.new("main", "dnscat2> ", nil, true)
 window.puts("Welcome to dnscat2! Some documentation may be out of date")
+window.redraw()
+
+controller = Controller.new(window)
 
 # Capture log messages during start up - after creating a command session, all
 # messages go to it, instead
@@ -116,22 +119,6 @@ Log.PRINT(nil, "directly on UDP port 53 (by default).")
 Log.PRINT(nil)
 
 
-commander = Commander.new()
-
-commander.register_command('echo',
-    Trollop::Parser.new do
-      banner("Print stuff to the terminal")
-    end,
-
-    Proc.new do |opts, optval|
-      window.puts(optval)
-    end
-)
-
-window.on_input() do |data|
-  commander.feed(data)
-end
-
 #settings = Settings.new()
 #
 #settings.verify("packet_trace") do |value|
@@ -210,7 +197,9 @@ end
 
 Log.PRINT(nil, "Starting DNS server...")
 driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
-driver.recv()
+driver.recv() do |data, max_length|
+  controller.feed(data, max_length)
+end
 
 puts("driver.recv() returned")
 

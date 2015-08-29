@@ -1,5 +1,5 @@
 ##
-# session_manager.rb
+# controller.rb
 # Created April, 2014
 # By Ron Bowes
 #
@@ -8,6 +8,7 @@
 # This keeps track of all the currently active sessions.
 ##
 
+require 'controller/controller_commands'
 require 'controller/packet'
 require 'controller/session'
 require 'libs/commander'
@@ -17,21 +18,38 @@ require 'libs/log'
 require 'trollop'
 
 class Controller
-  @@sessions = {}
 
-  def Controller.create_session(id)
-    @@sessions[id] = Session.new()
+  include ControllerCommands
+
+  def initialize(window)
+    @window = window
+    @commander = Commander.new()
+    @sessions = {}
+
+    _register_commands()
+
+    @window.on_input() do |data|
+      @commander.feed(data)
+    end
   end
 
-  def Controller.session_exists?(id)
-    return !@@sessions[id].nil?
+  def _get_or_create_session(id)
+    if(@sessions[id])
+      return @sessions[id]
+    end
+
+    return (@sessions[id] = Session.new(id, @window))
   end
 
-  def Controller.find_session(id)
-    return @@sessions[id]
+  def session_exists?(id)
+    return !@sessions[id].nil?
   end
 
-  def Controller.kill_session(id)
+  def find_session(id)
+    return @sessions[id]
+  end
+
+  def kill_session(id)
     session = find(id)
 
     if(!session.nil?)
@@ -39,19 +57,15 @@ class Controller
     end
   end
 
-  def Controller.list()
-    return @@sessions
+  def list()
+    return @sessions
   end
 
-  def Controller.feed(data, max_length)
+  def feed(data, max_length)
     begin
       session_id = Packet.peek_session_id(data)
 
-      session = Controller.find_session(session_id)
-      if(session.nil?)
-        Log.WARNING(nil, "Data came for unknown session: #{session_id}")
-        return nil
-      end
+      session = _get_or_create_session(session_id)
 
       return session.feed(data, max_length)
     rescue DnscatException => e

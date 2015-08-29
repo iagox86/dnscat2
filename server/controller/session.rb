@@ -16,8 +16,8 @@ require 'libs/swindow'
 class Session
   @@isn = nil # nil = random
 
-  attr_reader :id, :name, :options
-  attr_reader :swindow
+  attr_reader :id, :name, :options, :state
+  attr_reader :window
 
   # Session states
   STATE_NEW         = 0x00
@@ -30,12 +30,13 @@ class Session
     Packet::MESSAGE_TYPE_FIN => :_handle_fin,
   }
 
-  def initialize(main_window)
+  def initialize(id, main_window)
     @state = STATE_NEW
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
     @options = 0
 
+    @id = id
     @incoming_data = ''
     @outgoing_data = ''
     @name = 'unnamed'
@@ -96,10 +97,10 @@ class Session
     return "id: 0x%04x, state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
-  def _handle_syn(packet)
+  def _handle_syn(packet, max_length)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
-    if(!syn_valid?())
-      return nil
+    if(!_syn_valid?())
+      raise(DnscatException, "SYN received in invalid state")
     end
 
     if(@state == STATE_KILLED)
@@ -116,13 +117,13 @@ class Session
     @state     = STATE_ESTABLISHED
 
     # TODO: Somewhere in here, I need the concept of a 'parent' session
-    @window = SWindow.new(@name, "%s %d>" % [@name, @id], @main_window, true)
+    @window = SWindow.new(@name, "%s %d>" % [@name, @id], @main_window, false)
+    @main_window.puts("New session established: %d" % @id)
 
     # TODO: Determine the type of session and register commands
     @window.on_input() do |data|
       @outgoing_data += data
     end
-
 
     return Packet.create_syn(0, {
       :session_id => @id,
@@ -136,7 +137,7 @@ class Session
   end
 
   def _handle_msg(packet, max_length)
-    if(!msg_valid?())
+    if(!_msg_valid?())
       kill()
 
       return Packet.create_fin(@options, {
@@ -155,7 +156,7 @@ class Session
     # Validate the sequence number
     if(@their_seq != packet.body.seq)
       # Re-send the last packet
-      old_data = next_outgoing(actual_msg_max_length(max_length))
+      old_data = _next_outgoing(_actual_msg_max_length(max_length))
       return Packet.create_msg(@options, {
         :session_id => @id,
         :data       => old_data,
@@ -165,9 +166,9 @@ class Session
     end
 
     # Validate the acknowledgement number
-    if(!valid_ack?(packet.body.ack))
+    if(!_valid_ack?(packet.body.ack))
       # Re-send the last packet
-      old_data = next_outgoing(actual_msg_max_length(max_length))
+      old_data = _next_outgoing(_actual_msg_max_length(max_length))
       return Packet.create_msg(@options, {
         :session_id => @id,
         :data       => old_data,
@@ -187,7 +188,7 @@ class Session
     @their_seq = (@their_seq + packet.body.data.length) & 0xFFFF;
 
     # Read the next piece of data
-    new_data = next_outgoing(actual_msg_max_length(max_length))
+    new_data = _next_outgoing(_actual_msg_max_length(max_length))
 
     # Create a packet out of it
     packet = Packet.create_msg(@options, {
@@ -200,16 +201,16 @@ class Session
     return packet
   end
 
-  def _handle_fin(packet)
+  def _handle_fin(packet, max_length)
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
-    if(!fin_valid?())
+    if(!_fin_valid?())
       return Packet.create_fin(@options, {
         :session_id => @id,
         :reason => "FIN not expected",
       })
     end
 
-    SessionManager.kill_session(@id)
+    kill()
 
     return Packet.create_fin(@options, {
       :session_id => @id,
@@ -220,8 +221,19 @@ class Session
   def feed(data, max_length)
     packet = Packet.parse(data, @options)
 
-    response_packet = send(HANDLERS[packet.type], packet)
+    begin
+      response_packet = send(HANDLERS[packet.type], packet, max_length)
+    rescue DnscatException => e
+      @window.puts("Protocol exception occurred: %s" % e)
+      kill()
+
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => "An unhandled exception killed the session",
+      })
+    end
 
     return response_packet.to_bytes()
+
   end
 end

@@ -223,7 +223,7 @@ class DriverDNS
             end
 
             # Get the response
-            response = Controller.feed(name, max_length)
+            response = proc.call(name, max_length)
 
             # Sanity check the response
             if(response.nil?)
