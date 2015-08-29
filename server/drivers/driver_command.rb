@@ -31,7 +31,7 @@ class DriverCommand
     @commander.register_command("ping",
       Trollop::Parser.new do
         banner("Sends a 'ping' to the remote host to make sure it's still alive)")
-        opt :length, "length", :type => :integer, :required => false, :default => 1024
+        opt :length, "length", :type => :integer, :required => false, :default => 256
       end,
       Proc.new do |opts|
         data = (0...opts[:length]).map { ('A'.ord + rand(26)).chr }.join
