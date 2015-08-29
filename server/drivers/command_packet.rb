@@ -1,5 +1,5 @@
 ##
-# command_packet_stream.rb
+# command_packet.rb
 # Created May, 2014
 # By Ron Bowes
 #
@@ -8,7 +8,6 @@
 ##
 
 require 'libs/dnscat_exception'
-require 'ui/command_packet_stream'
 
 class CommandPacket
   COMMAND_PING     = 0x0000

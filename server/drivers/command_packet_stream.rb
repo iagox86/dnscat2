@@ -24,7 +24,7 @@ class CommandPacketStream
     loop do
       # If we don't have enough data, return immediately
       if(@data.length < 4)
-        return
+        return nil
       end
 
       # Try to read a length + packet
@@ -32,14 +32,14 @@ class CommandPacketStream
 
       # If there isn't enough data, give up
       if(data.length < length)
-        return
+        return nil
       end
 
       # Otherwise, remove what we have from @data
       length, data, @data = @data.unpack("Na#{length}a*")
 
       # And that's it!
-      yield(CommandPacket.new(data, is_request))
+      return CommandPacket.new(data, is_request)
     end
   end
 end
