@@ -7,6 +7,17 @@
 ##
 
 module ControllerCommands
+  def _display_sessions(all = false)
+    @sessions.keys.sort.each do |id|
+      session = @sessions[id]
+
+      if(all || session.state == Session::STATE_ESTABLISHED)
+        # TODO: Implement session.to_s() properly so it can be used here
+        @window.puts("Session %5d: %s" % [id, session.name()])
+      end
+    end
+  end
+
   def _register_commands()
     @commander.register_command('echo',
       Trollop::Parser.new do
@@ -24,16 +35,30 @@ module ControllerCommands
         opt :all, "Show dead sessions", :type => :boolean, :required => false
       end,
 
-      # TODO: We can do much prettier output for 'sessions'
       Proc.new do |opts, optval|
-        @sessions.keys.sort.each do |id|
-          session = @sessions[id]
+        _display_sessions(opts[:all])
+      end,
+    )
 
-          if(opts[:all] || session.state == Session::STATE_ESTABLISHED)
-            @window.puts("Session %5d: %s" % [id, session.name()])
+    @commander.register_command("session",
+      Trollop::Parser.new do
+        banner("Interact with a session")
+        opt :i, "Interact with the chosen session", :type => :integer, :required => false
+      end,
+
+      Proc.new do |opts, optval|
+        if(opts[:i].nil?)
+          _display_sessions(opts[:all])
+        else
+          session = @sessions[opts[:i]]
+          if(session.nil?)
+            @window.puts("Session #{opts[:i]} not found!")
+            _display_sessions(false)
+          else
+            session.activate()
           end
         end
-      end,
+      end
     )
   end
 end

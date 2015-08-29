@@ -57,7 +57,7 @@ class SWindow
     @parent = parent
     @children = []
     @callback = nil
-    @history = [""] * 100
+    @history = []
     @typed_history = []
 
     if(@parent)
@@ -74,13 +74,16 @@ class SWindow
     @callback = proc
   end
 
-  def spawn(name = nil, prompt = nil)
-    return SWindow.new(name, prompt, self, &proc)
-  end
-
-  def puts(str)
+  def puts(str = "")
     if(@@active == self)
       $stdout.puts(str)
+    end
+    @history << (str + "\n")
+  end
+
+  def print(str = "")
+    if(@@active == self)
+      $stdout.print(str)
     end
     @history << str
   end
@@ -110,8 +113,7 @@ class SWindow
   end
 
   def redraw()
-    $stdout.puts("Hi?")
-    $stdout.puts(@history.join("\n"))
+    $stdout.puts(@history.join(""))
     $stdout.puts(@prompt)
   end
 
@@ -131,7 +133,7 @@ class SWindow
     if(@parent)
       @parent.activate()
     else
-      $stdout.puts("No parent to activate")
+      $stdout.puts("Can't close: no parent to take over")
     end
   end
 

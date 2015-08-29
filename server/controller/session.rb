@@ -46,10 +46,22 @@ class Session
     @window = SWindow.new(@name, "%s %d>" % [@name, @id], main_window, false)
   end
 
+  def activate()
+    @window.activate()
+  end
+
+  def deactivate()
+    @window.deactivate()
+  end
+
   def kill()
     if(@state != STATE_KILLED)
       @state = STATE_KILLED
+      @window.puts_ex("Session #{@id} has been killed")
+    else
+      @window.puts_ex("Session #{@id} has been killed (again)")
     end
+    deactivate()
   end
 
   def _syn_valid?()
@@ -111,12 +123,10 @@ class Session
     @options   = packet.body.options
     @state     = STATE_ESTABLISHED
 
-    # TODO: Make this a puts_ex to itself and grandchildren once I get parents working
     @window.puts_ex("New session established: %d" % @id, true, true)
 
     # TODO: We're going to need different driver types
     @driver = DriverConsole.new(@window)
-    puts(@driver.class)
 
     return Packet.create_syn(0, {
       :session_id => @id,
@@ -208,7 +218,7 @@ class Session
       @window.puts("Protocol exception occurred: %s" % e.to_s())
       kill()
 
-      return Packet.create_fin(@options, {
+      response_packet = Packet.create_fin(@options, {
         :session_id => @id,
         :reason => "An unhandled exception killed the session: %s" % e.to_s(),
       })

@@ -16,6 +16,9 @@ Some goals (these will be deleted as I complete them):
 - Implement the actual commands in the Session, hopefully with a mixin or something
   - Ui will parse out commands, but that's it
 - Make sure a good error is still displayed when the user doesn't run it as root
+- Make @window.puts_ex use named parameters everywhere
+- Make sure 'command -h' still works
+- Take care of all TODOs that are possible
 
 Add settings that can:
 - Execute an arbitrary command (or send data?) when the session starts

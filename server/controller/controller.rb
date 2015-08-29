@@ -5,7 +5,7 @@
 #
 # See: LICENSE.md
 #
-# This keeps track of all the currently active sessions.
+# This keeps track of all sessions.
 ##
 
 require 'controller/controller_commands'
@@ -62,20 +62,8 @@ class Controller
   end
 
   def feed(data, max_length)
-    begin
-      session_id = Packet.peek_session_id(data)
-
-      session = _get_or_create_session(session_id)
-
-      return session.feed(data, max_length)
-    rescue DnscatException => e
-      Log.ERROR(session_id, e)
-
-      if(!session.nil?)
-        Log.ERROR(session_id, "DnscatException caught; closing session #{session_id}...")
-        kill_session(session_id)
-      end
-    end
+    session_id = Packet.peek_session_id(data)
+    session = _get_or_create_session(session_id)
+    return session.feed(data, max_length)
   end
 end
-
