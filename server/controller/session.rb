@@ -8,6 +8,7 @@
 ##
 
 require 'controller/packet'
+require 'drivers/driver_console'
 require 'libs/commander'
 require 'libs/dnscat_exception'
 require 'libs/log'
@@ -41,7 +42,8 @@ class Session
     @outgoing_data = ''
     @name = 'unnamed'
 
-    @main_window = main_window
+    # TODO: Somewhere in here, I need the concept of a 'parent' session
+    @window = SWindow.new(@name, "%s %d>" % [@name, @id], main_window, false)
   end
 
   def kill()
@@ -103,27 +105,18 @@ class Session
       raise(DnscatException, "SYN received in invalid state")
     end
 
-    if(@state == STATE_KILLED)
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason => "Session was killed",
-      })
-    end
-
     # Save some of their options
     @their_seq = packet.body.seq
     @name      = packet.body.name
     @options   = packet.body.options
     @state     = STATE_ESTABLISHED
 
-    # TODO: Somewhere in here, I need the concept of a 'parent' session
-    @window = SWindow.new(@name, "%s %d>" % [@name, @id], @main_window, false)
-    @main_window.puts("New session established: %d" % @id)
+    # TODO: Make this a puts_ex to itself and grandchildren once I get parents working
+    @window.puts_ex("New session established: %d" % @id, true, true)
 
-    # TODO: Determine the type of session and register commands
-    @window.on_input() do |data|
-      @outgoing_data += data
-    end
+    # TODO: We're going to need different driver types
+    @driver = DriverConsole.new(@window)
+    puts(@driver.class)
 
     return Packet.create_syn(0, {
       :session_id => @id,
@@ -138,25 +131,14 @@ class Session
 
   def _handle_msg(packet, max_length)
     if(!_msg_valid?())
-      kill()
-
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason     => "MSG received in invalid state",
-      })
-    end
-
-    if(@state == STATE_KILLED)
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason => "Session was killed",
-      })
+      raise(DnscatException, "MSG received in invalid state!")
     end
 
     # Validate the sequence number
     if(@their_seq != packet.body.seq)
       # Re-send the last packet
       old_data = _next_outgoing(_actual_msg_max_length(max_length))
+
       return Packet.create_msg(@options, {
         :session_id => @id,
         :data       => old_data,
@@ -169,6 +151,7 @@ class Session
     if(!_valid_ack?(packet.body.ack))
       # Re-send the last packet
       old_data = _next_outgoing(_actual_msg_max_length(max_length))
+
       return Packet.create_msg(@options, {
         :session_id => @id,
         :data       => old_data,
@@ -182,7 +165,7 @@ class Session
     _ack_outgoing(packet.body.ack)
 
     # Write the incoming data to the session
-    # TODO
+    @outgoing_data += @driver.feed(packet.body.data)
 
     # Increment the expected sequence number
     @their_seq = (@their_seq + packet.body.data.length) & 0xFFFF;
@@ -204,12 +187,10 @@ class Session
   def _handle_fin(packet, max_length)
     # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
     if(!_fin_valid?())
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason => "FIN not expected",
-      })
+      raise(DnscatException, "FIN received in invalid state")
     end
 
+    # End the session
     kill()
 
     return Packet.create_fin(@options, {
@@ -224,16 +205,15 @@ class Session
     begin
       response_packet = send(HANDLERS[packet.type], packet, max_length)
     rescue DnscatException => e
-      @window.puts("Protocol exception occurred: %s" % e)
+      @window.puts("Protocol exception occurred: %s" % e.to_s())
       kill()
 
       return Packet.create_fin(@options, {
         :session_id => @id,
-        :reason => "An unhandled exception killed the session",
+        :reason => "An unhandled exception killed the session: %s" % e.to_s(),
       })
     end
 
     return response_packet.to_bytes()
-
   end
 end
