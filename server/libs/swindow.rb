@@ -132,12 +132,12 @@ class SWindow
     if(@parent)
       @parent.activate()
     else
-      $stdout.puts("Can't close: no parent to take over")
+      $stdout.puts("Can't close the main window!")
     end
   end
 
   def _incoming(str)
-    @history << str
+    @history << @prompt + str + "\n"
     @typed_history << str
 
     if(@callback.nil?)
