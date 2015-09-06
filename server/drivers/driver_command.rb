@@ -20,6 +20,21 @@ class DriverCommand
     @request_id += 1
     return id
   end
+
+  def _send_request(packet)
+    # TODO(ron): This is pretty ugly: because CommandPacket.create_*
+    # returns a string, we have to convert it back into a
+    # CommandPacket after removing the length from the front.
+    # CommandPacket.create_* should be refactored to create an actual
+    # packet.
+    request = CommandPacket.new(packet[4..-1], true)
+
+    @handlers[request.request_id] = {
+      :request => request,
+      :proc => proc
+    }
+    @outgoing += packet
+  end
   
   def register_commands()
     @commander.register_command('echo',
@@ -39,11 +54,18 @@ class DriverCommand
       end,
       Proc.new do |opts|
         data = (0...opts[:length]).map { ('A'.ord + rand(26)).chr }.join
-        id = request_id()
-        @pings[id] = data
-        @outgoing += CommandPacket.create_ping_request(id, data)
 
-        @window.puts("Ping request 0x%x sent! (0x%x bytes)" % [id, opts[:length]])
+        _send_request(CommandPacket.create_ping_request(request_id(), data)) do |request, response|
+          if(request.data != response.data)
+            @window.puts("The server didn't return the same ping data we sent!")
+            @window.puts("Expected: #{data}")
+            @window.puts("Received: #{command_packet.data}")
+          else
+            @window.puts("Pong!")
+          end
+        end
+
+        @window.puts("Ping!")
       end,
     )
 
@@ -56,6 +78,7 @@ class DriverCommand
       end,
     )
 
+
     @commander.register_command("shell",
       Trollop::Parser.new do
         banner("Spawn a shell on the remote host")
@@ -65,7 +88,10 @@ class DriverCommand
       Proc.new do |opts|
         name = opts[:name] || "executing a shell"
 
-        @outgoing += CommandPacket.create_shell_request(request_id(), name)
+        _send_request(CommandPacket.create_shell_request(request_id(), name)) do |request, response|
+          @window.puts("Shell session created: #{response.session_id}")
+        end
+
         @window.puts("Sent request to execute a shell")
       end,
     )
@@ -83,10 +109,15 @@ class DriverCommand
 
         if(command == "")
           @window.puts("No command given!")
-        else
-          @outgoing += CommandPacket.create_exec_request(request_id(), name, command)
-          @window.puts("Sent request to execute #{opts[:command]}")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
         end
+
+        _send_request(CommandPacket.create_exec_request(request_id(), name, command)) do |request, response|
+          @window.puts("Command executed: #{command_packet.session_id}")
+        end
+
+        @window.puts("Sent request to execute #{opts[:command]}")
       end,
     )
 
@@ -119,9 +150,9 @@ class DriverCommand
             local_file = File.basename(remote_file)
           end
 
-          id = request_id()
-          @downloads[id] = local_file
-          @outgoing += CommandPacket.create_download_request(id, remote_file)
+          _send_request(CommandPacket.create_download_request(request_id(), remote_file)) do |request, response|
+            @window.puts("TODO: handle download() response")
+          end
 
           @window.puts("Attempting to download #{remote_file} to #{local_file}")
         end
@@ -143,9 +174,9 @@ class DriverCommand
         else
           data = IO.read(local_file)
 
-          id = request_id()
-          @uploads[id] = local_file
-          @outgoing += CommandPacket.create_upload_request(id, remote_file, data)
+          _send_request(CommandPacket.create_upload_request(request_id(), remote_file, data)) do |request, response|
+            @window.puts("TODO: handle upload() response")
+          end
 
           @window.puts("Attempting to upload #{local_file} to #{remote_file}")
         end
@@ -158,7 +189,9 @@ class DriverCommand
       end,
 
       Proc.new do |opts, optval|
-        outgoing += CommandPacket.create_shutdown_request(request_id())
+        _send_request(CommandPacket.create_shutdown_request(request_id())) do |request, response|
+          @window.puts("TODO: handle shutdown() response")
+        end
         @window.puts("Attempting to shut down remote session(s)...")
       end
     )
@@ -173,9 +206,7 @@ class DriverCommand
     @commander = Commander.new()
     register_commands()
 
-    @pings = {}
-    @uploads = {}
-    @downloads = {}
+    @handlers = {}
 
     @window.on_input() do |data|
       @commander.feed(data)
@@ -193,33 +224,33 @@ class DriverCommand
     @window.puts("Received: #{command_packet}")
 
     if(!command_packet.is_response?())
-      @window.puts("The client sent us a request packet! We don't accept client requests (although in the future we might, so this may be a version mismatch problem)")
+      @window.puts("ERROR: The client sent us a request! That's not valid (but")
+      @window.puts("it may be in the future, so this may be a version mismatch")
+      @window.puts("problem)")
       return
     end
 
+    if(@handlers[command_packet.request_id].nil?)
+      @window.puts("Received a response that we have no record of sending:")
+      @window.puts("#{command_packet}")
+      @window.puts()
+      @window.puts("Here are the responses we're waiting for:")
+      @handlers.each_pair do |request_id, handler|
+        puts("#{request_id}: #{handler[:request]}")
+      end
+
+      return
+    end
+
+    handler = @handlers.delete(command_packet.request_id)
+    handler[:proc].call(handler[:request], command_packet)
+
+    return
+
     case command_packet.command_id
     when CommandPacket::COMMAND_PING
-      pp @pings
-      ping = @pings.delete(command_packet.request_id)
-
-      if(ping.nil?)
-        @window.puts("Received a response to a ping we didn't request")
-        return
-      end
-
-      if(command_packet.data != ping)
-        @window.puts("The server didn't return the same ping data we sent!")
-        @window.puts("Expected: #{ping.data}")
-        @window.puts("Received: #{command_packet.data}")
-        return
-      end
-
-      @window.puts("Ping response successfully received!")
-    when CommandPacket::COMMAND_SHELL
-      @window.puts("Shell session created: #{command_packet.session_id}")
     when CommandPacket::COMMAND_EXEC
-      @window.puts("Command executed in session: #{command_packet.session_id}")
-    when CommandPacket::COMMAND_DONWLOAD
+    when CommandPacket::COMMAND_DOWNLOAD
       # TODO
     when CommandPacket::COMMAND_UPLOAD
     when CommandPacket::COMMAND_SHUTDOWN
