@@ -39,7 +39,7 @@ class CommandPacketStream
       length, data, @data = @data.unpack("Na#{length}a*")
 
       # And that's it!
-      return CommandPacket.new(data, is_request)
+      yield CommandPacket.parse(data, is_request)
     end
   end
 end

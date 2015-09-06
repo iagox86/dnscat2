@@ -229,7 +229,7 @@ class DriverDNS
             if(response.nil?)
               response = ''
             elsif(response.length > max_length)
-              raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report")
+              raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
             end
 
             # Encode the response as needed
@@ -275,6 +275,9 @@ class DriverDNS
         rescue DnscatException => e
           Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
           Log.ERROR(nil, e.inspect)
+          e.backtrace.each do |bt|
+            Log.ERROR(nil, bt)
+          end
           transaction.fail!(:NXDomain)
         rescue Exception => e
           Log.ERROR(nil, "Error caught:")

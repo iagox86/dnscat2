@@ -78,7 +78,7 @@ class Session
   end
 
   def _next_outgoing(n)
-    ret = @outgoing_data[0,n]
+    ret = @outgoing_data[0,n-1]
     return ret
   end
 
@@ -224,12 +224,22 @@ class Session
       response_packet = send(HANDLERS[packet.type], packet, max_length)
     rescue DnscatException => e
       @window.puts("Protocol exception occurred: %s" % e.to_s())
+      @window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+      @window.puts(e.inspect)
+      e.backtrace.each do |bt|
+        @window.puts(bt)
+      end
       kill()
 
       response_packet = Packet.create_fin(@options, {
         :session_id => @id,
         :reason => "An unhandled exception killed the session: %s" % e.to_s(),
       })
+    end
+
+    if(response_packet.to_bytes().length() > max_length)
+      @window.puts("The session tried to return a packet that's too long!")
+      @window.puts("#{response_packet}")
     end
 
     return response_packet.to_bytes()

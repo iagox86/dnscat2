@@ -18,256 +18,228 @@ class CommandPacket
   COMMAND_SHUTDOWN = 0x0005
   COMMAND_ERROR    = 0xFFFF
 
-  attr_reader :request_id, :command_id # header
-  attr_reader :data # ping
-  attr_reader :name, :session_id # shell
-  attr_reader :command # command
-  attr_reader :filename, :data # download
-  attr_reader :filename, :data # upload
+  COMMAND_NAMES = {
+    0x0000 => "COMMAND_PING",
+    0x0001 => "COMMAND_SHELL",
+    0x0002 => "COMMAND_EXEC",
+    0x0003 => "COMMAND_DOWNLOAD",
+    0x0004 => "COMMAND_UPLOAD",
+    0x0005 => "COMMAND_SHUTDOWN",
+    0xFFFF => "COMMAND_ERROR",
+  }
 
-  attr_reader :status, :reason # errors
+  # These are used in initialize() to make sure the caller is passing in the right fields
+  VALIDATORS = {
+    COMMAND_PING => {
+      :request  => [ :data ],
+      :response => [ :data ],
+    },
+    COMMAND_SHELL => {
+      :request  => [ :name ],
+      :response => [ :session_id ],
+    },
+    COMMAND_EXEC => {
+      :request  => [ :command ],
+      :response => [ :session_id ],
+    },
+    COMMAND_DOWNLOAD => {
+      :request  => [ :filename ],
+      :response => [ :data ],
+    },
+    COMMAND_UPLOAD => {
+      :request  => [ :filename, :data ],
+      :response => [],
+    },
+    COMMAND_SHUTDOWN => {
+      :request  => [],
+      :response => [],
+    },
+    COMMAND_ERROR => {
+      :request  => [ :status, :reason ],
+      :response => [ :status, :reason ],
+    }
+  }
 
-  def at_least?(data, needed)
-    return (data.length >= needed)
+  def CommandPacket._at_least?(data, needed)
+    if(data.length < needed)
+      raise(DnscatException, "Command packet validation failed: data wasn't long enough (needed at least #{needed}, only had #{data.length}).")
+    end
   end
 
-  def is_error?()
-    return @command_id == COMMAND_ERROR
-  end
-
-  def is_request?()
-    return @is_request
-  end
-
-  def is_response?()
-    return !@is_request
-  end
-
-  def parse_ping(data, is_request)
+  def CommandPacket._null_terminated?(data)
     if(data.index("\0").nil?)
-      raise(DnscatException, "Ping packet doesn't end in a NUL byte")
+      raise(DnscatException, "Command packet validation failed: data wasn't NUL terminated.")
     end
+  end
 
-    @data, data = data.unpack("Z*a*")
+  def CommandPacket._done?(data)
     if(data.length > 0)
-      raise(DnscatException, "Ping packet has extra data on the end")
+      raise(DnscatException, "Command packet validation failed: there was extra data on the end of the packet")
     end
   end
 
-  def parse_shell(data, is_request)
-    if(is_request)
-      if(data.index("\0").nil?)
-        raise(DnscatException, "Shell packet request doesn't have a NUL byte")
-      end
-      @name, data = data.unpack("Z*a*")
-    else
-      if(data.length < 2)
-        raise(DnscatException, "Shell packet response doesn't have a SessionID")
-      end
-      @session_id, data = data.unpack("na*")
-    end
-
-    if(data.length > 0)
-      raise(DnscatException, "Shell packet has extra data on the end")
-    end
+  def set(name, value)
+    @data[name] = value
   end
 
-  def parse_exec(data, is_request)
-    if(is_request)
-      if(data.index("\0").nil?)
-        raise(DnscatException, "Exec packet request doesn't have a NUL byte after name")
-      end
-      @command, data = data.unpack("Z*a*")
-      if(data.index("\0").nil?)
-        raise(DnscatException, "Exec packet request doesn't have a NUL byte after command")
-      end
-      @command, data = data.unpack("Z*a*")
-    else
-      if(data.length < 2)
-        raise(DnscatException, "Exec packet response doesn't have a SessionID")
-      end
-      @session_id, data = data.unpack("na*")
-    end
-
-    if(data.length > 0)
-      raise(DnscatException, "Exec packet has extra data on the end")
-    end
+  def get(name)
+    return @data[name]
   end
 
-  def parse_download(data, is_request)
-    if(is_request)
-      if(data.index("\0").nil?)
-        raise(DnscatException, "Download packet request doesn't have a NUL byte after name")
-      end
-      @filename, data = data.unpack("Z*a*")
-
-      if(data.length > 0)
-        raise(DnscatException, "Download request packet has extra data on the end")
-      end
-    else
-      @data = data.unpack("a*").pop
+  def CommandPacket.ready?(packet)
+    if(packet.length < 4)
+      return false
     end
+
+    length, packet = packet.unpack("Na*")
+    return (packet.length >= length)
   end
 
-  def parse_upload(data, is_request)
-    if(is_request)
-      if(data.index("\0").nil?)
-        raise(DnscatException, "Upload packet request doesn't have a NUL byte after name")
+  def CommandPacket.parse(packet, is_request)
+    _at_least?(packet, 4)
+    data = {
+      :is_request => is_request
+    }
+
+    data[:request_id], data[:command_id], packet = packet.unpack("nna*")
+
+    case data[:command_id]
+    when COMMAND_PING
+      _null_terminated?(packet)
+      data[:data], packet = packet.unpack("Z*a*")
+
+    when COMMAND_SHELL
+      if(data[:is_request])
+        _null_terminated?(packet)
+        data[:name], packet = packet.unpack("Z*a*")
+      else
+        _at_least?(packet, 2)
+        data[:session_id], packet = packet.unpack("na*")
       end
-      @filename, @data = data.unpack("Z*a*")
-    else
-      if(data.length > 0)
-        raise(DnscatException, "Upload packet response has extra data on the end")
+
+    when COMMAND_EXEC
+      if(data[:is_request])
+        _null_terminated?(packet)
+        data[:command], packet = packet.unpack("Z*a*")
+      else
+        _at_least?(packet, 2)
+        data[:session_id], packet = packet.unpack("na*")
       end
+
+    when COMMAND_DOWNLOAD
+      if(data[:is_request])
+        _null_terminated?(packet)
+        data[:filename], packet = packet.unpack("Z*a*")
+      else
+        data[:data] = packet.unpack("a*").pop()
+      end
+
+    when COMMAND_UPLOAD
+      if(data[:is_request])
+        _null_terminated?(packet)
+        data[:filename], packet = packet.unpack("Z*a*")
+        data[:data], packet = packet.unpack("a*")
+      else
+        # n/a
+      end
+    when COMMAND_SHUTDOWN
+      # n/a - there's no data in either direction
+
+    when COMMAND_ERROR
+      _at_least?(packet, 2)
+      data[:status], packet = packet.unpack("na*")
+
+      _null_terminated?(packet)
+      data[:reason], packet = packet.unpack("Z*a*")
     end
+
+    _done?(packet)
+
+    return CommandPacket.new(data)
   end
 
-  def parse_shutdown(data, is_request)
-    if(is_request)
-      if(data.length > 0)
-        raise(DnscatException, "Shutdown packet response has extra data on the end")
+  def validate(data)
+    # Make sure they passed in a command_id and request_id
+    if(data[:command_id].nil?)
+      raise(DnscatException, "Required field missing: :command_id")
+    end
+    if(data[:request_id].nil?)
+      raise(DnscatException, "Required field missing: :request_id")
+    end
+
+    # Find a validator for this
+    validator = VALIDATORS[data[:command_id]]
+    if(validator.nil?)
+      raise(DnscatException, "Unknown command_id (#{data[:command_id]}) or missing validator")
+    end
+
+    # Make sure they set is_request and get the appropriate validator
+    if(data[:is_request].nil?)
+      raise(DnscatException, "Required field missing: :is_request")
+    end
+    validator = data[:is_request] ? validator[:request] : validator[:response]
+
+    # Make sure all the fields in the validator are present
+    validator.each do |f|
+      if(data[f].nil?)
+        raise(DnscatException, "Required field missing: #{f}")
       end
-    else
-      if(data.length > 0)
-        raise(DnscatException, "Shutdown packet response has extra data on the end")
-      end
-    end
-  end
-
-  def parse_error(data, is_request)
-    @status, data = data.unpack("na*")
-
-    if(data.index("\0").nil?)
-      raise(DnscatException, "Error packet doesn't have a NUL byte after name")
-    end
-
-    @reason, data = data.unpack("Z*a*")
-
-    if(data.length > 0)
-      raise(DnscatException, "Error packet has extra data on the end")
-    end
-  end
-
-  def initialize(data, is_request)
-    # The length is already handled by command_packet_stream
-    # This is the length of the header
-    at_least?(data, 4) || raise(DnscatException, "Command packet is too short (header)")
-
-    # Store whether or not it's a request
-    @is_request = is_request
-
-    # (uint16_t) request_id
-    @request_id, data = data.unpack("na*")
-
-    # (uint16_t) command_id
-    @command_id, data = data.unpack("na*")
-
-    if(@command_id == COMMAND_PING)
-      parse_ping(data, is_request)
-    elsif(@command_id == COMMAND_SHELL)
-      parse_shell(data, is_request)
-    elsif(@command_id == COMMAND_EXEC)
-      parse_exec(data, is_request)
-    elsif(@command_id == COMMAND_DOWNLOAD)
-      parse_download(data, is_request)
-    elsif(@command_id == COMMAND_UPLOAD)
-      parse_upload(data, is_request)
-    elsif(@command_id == COMMAND_SHUTDOWN)
-      parse_shutdown(data, is_request)
-    elsif(@command_id == COMMAND_ERROR)
-      parse_error(data, is_request)
-    else
-      raise(DnscatException, "Unknown command: 0x%04x" % @command_id)
     end
   end
 
-  def CommandPacket.add_header(packet, request_id, command_id)
-    packet = [request_id, command_id, packet].pack("nna*")
-
-    return [packet.length, packet].pack('Na*')
+  def initialize(data)
+    validate(data)
+    @data = data.clone()
   end
 
-  def CommandPacket.create_ping_request(request_id, data)
-    return CommandPacket.add_header([data].pack('Z*'), request_id, COMMAND_PING)
-  end
-  def CommandPacket.create_ping_response(request_id, data)
-    return CommandPacket.add_header([data].pack('Z*'), request_id, COMMAND_PING)
-  end
+  def serialize()
+    validate(@data)
 
-  def CommandPacket.create_shell_request(request_id, name)
-    return CommandPacket.add_header([name].pack('Z*'), request_id, COMMAND_SHELL)
-  end
-  def CommandPacket.create_shell_response(request_id, session_id)
-    return CommandPacket.add_header([session_id].pack('n'), request_id, COMMAND_SHELL)
-  end
+    packet = ""
+    packet += [@data[:request_id], @data[:command_id]].pack("nn")
 
-  def CommandPacket.create_exec_request(request_id, name, command)
-    return CommandPacket.add_header([name, command].pack('Z*Z*'), request_id, COMMAND_EXEC)
-  end
-  def CommandPacket.create_exec_response(request_id, session_id)
-    return CommandPacket.add_header([session_id].pack('n'), request_id, COMMAND_EXEC)
-  end
+    case @data[:command_id]
+    when COMMAND_PING
+      packet += [@data[:data]].pack("Z*")
 
-  def CommandPacket.create_download_request(request_id, filename)
-    return CommandPacket.add_header([filename].pack('Z*'), request_id, COMMAND_DOWNLOAD)
-  end
-  def CommandPacket.create_download_response(request_id, data)
-    return CommandPacket.add_header([data].pack('a*'), request_id, COMMAND_DOWNLOAD)
-  end
+    when COMMAND_SHELL
+      if(@data[:is_request])
+        packet += [@data[:name]].pack("Z*")
+      else
+        packet += [@data[:session_id]].pack("n")
+      end
 
-  def CommandPacket.create_upload_request(request_id, filename, data)
-    return CommandPacket.add_header([filename, data].pack('Z*a*'), request_id, COMMAND_UPLOAD)
-  end
-  def CommandPacket.create_upload_response(request_id)
-    return CommandPacket.add_header('', request_id, COMMAND_UPLOAD)
-  end
+    when COMMAND_EXEC
+      if(@data[:is_request])
+        packet += [@data[:command]].pack("Z*")
+      else
+        packet += [@data[:session_id]].pack("n")
+      end
 
-  def CommandPacket.create_shutdown_request(request_id)
-    return CommandPacket.add_header('', request_id, COMMAND_SHUTDOWN)
-  end
-  def CommandPacket.create_shutdown_response(request_id)
-    return CommandPacket.add_header('', request_id, COMMAND_SHUTDOWN)
-  end
+    when COMMAND_DOWNLOAD
+      if(@data[:is_request])
+        packet += [@data[:filename]].pack("Z*")
+      else
+        packet += [@data[:data]].pack("a*").pop()
+      end
 
-  def CommandPacket.create_error(request_id, status, reason)
-    return CommandPacket.add_header([status, reason].pack("nZ*"), request_id)
+    when COMMAND_UPLOAD
+      if(@data[:is_request])
+        packet += [@data[:filename], @data[:data]].pack("Z*a*")
+      else
+        # n/a
+      end
+    when COMMAND_SHUTDOWN
+      # n/a - there's no data in either direction
+
+    when COMMAND_ERROR
+      packet += [@data[:status], @data[:reason]].pack("nZ*")
+    end
+
+    return packet
   end
 
   def to_s()
-    if(is_request?())
-      if(@command_id == COMMAND_PING)
-        return "COMMAND_PING      :: request_id = 0x%04x, data = %s" % [@request_id, @data]
-      elsif(@command_id == COMMAND_SHELL)
-        return "COMMAND_SHELL     :: request_id = 0x%04x, name = %s" % [@request_id, @name]
-      elsif(@command_id == COMMAND_EXEC)
-        return "COMMAND_EXEC      :: request_id = 0x%04x, name = %s, command = %s" % [@request_id, @name, @command]
-      elsif(@command_id == COMMAND_DOWNLOAD)
-        return "COMMAND_DOWNLOAD  :: request_id = 0x%04x, filename = %s" % [@request_id, @filename]
-      elsif(@command_id == COMMAND_UPLOAD)
-        return "COMMAND_UPLOAD    :: request_id = 0x%04x, filename = %s, data = 0x%x bytes" % [@request_id, @filename, @data.length]
-      elsif(@command_id == COMMAND_ERROR)
-        return "COMMAND_ERROR     :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
-      else
-        raise(DnscatException, "Unknown command_id: 0x%04x" % @command_id)
-      end
-    else
-      if(@command_id == COMMAND_PING)
-        return "COMMAND_PING     :: request_id = 0x%04x, data = %s" % [@request_id, @data]
-      elsif(@command_id == COMMAND_SHELL)
-        return "COMMAND_SHELL    :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
-      elsif(@command_id == COMMAND_EXEC)
-        return "COMMAND_EXEC     :: request_id = 0x%04x, session_id = 0x%04x" % [@request_id, @session_id]
-      elsif(@command_id == COMMAND_DOWNLOAD)
-        return "COMMAND_DOWNLOAD :: request_id = 0x%04x, data = 0x%x bytes" % [@request_id, @data.length]
-      elsif(@command_id == COMMAND_UPLOAD)
-        return "COMMAND_UPLOAD   :: request_id = 0x%04x" % [@request_id]
-      elsif(@command_id == COMMAND_SHUTDOWN)
-        return "COMMAND_SHUTDOWN :: request_id = 0x%04x" % [@request_id]
-      elsif(@command_id == COMMAND_ERROR)
-        return "COMMAND_ERROR    :: request_id = 0x%04x, status = 0x%04x, reason = %s" % [@request_id, @status, @reason]
-      else
-        raise(DnscatException, "Unknown command_id: 0x%04x" % @command_id)
-      end
-    end
+    return "%s :: %s" % [COMMAND_NAMES[@data[:command_id]], @data.to_s()]
   end
 end

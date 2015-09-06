@@ -112,7 +112,8 @@ class SWindow
   end
 
   def _redraw()
-    $stdout.puts(@history.join(""))
+    # TODO: Have a flag that can turn this off
+    #$stdout.puts(@history.join(""))
     #$stdout.puts(@prompt)
   end
 

@@ -21,25 +21,21 @@ class DriverCommand
     return id
   end
 
-  def _send_request(packet)
-    # TODO(ron): This is pretty ugly: because CommandPacket.create_*
-    # returns a string, we have to convert it back into a
-    # CommandPacket after removing the length from the front.
-    # CommandPacket.create_* should be refactored to create an actual
-    # packet.
-    request = CommandPacket.new(packet[4..-1], true)
-
-    @handlers[request.request_id] = {
+  def _send_request(request)
+    @handlers[request.get(:request_id)] = {
       :request => request,
       :proc => proc
     }
-    @outgoing += packet
+
+    out = request.serialize()
+    out = [out.length, out].pack("Na*")
+    @outgoing += out
   end
   
   def register_commands()
     @commander.register_command('echo',
       Trollop::Parser.new do
-        banner("Print stuff to the terminal")
+        banner("Print stuff to the terminal, including $variables")
       end,
 
       Proc.new do |opts, optval|
@@ -53,13 +49,18 @@ class DriverCommand
         opt :length, "length", :type => :integer, :required => false, :default => 256
       end,
       Proc.new do |opts|
-        data = (0...opts[:length]).map { ('A'.ord + rand(26)).chr }.join
+        ping = CommandPacket.new({
+          :is_request => true,
+          :request_id => request_id(),
+          :command_id => CommandPacket::COMMAND_PING,
+          :data       => (0...opts[:length]).map { ('A'.ord + rand(26)).chr }.join()
+        })
 
-        _send_request(CommandPacket.create_ping_request(request_id(), data)) do |request, response|
-          if(request.data != response.data)
+        _send_request(ping) do |request, response|
+          if(request.get(:data) != response.get(:data))
             @window.puts("The server didn't return the same ping data we sent!")
-            @window.puts("Expected: #{data}")
-            @window.puts("Received: #{command_packet.data}")
+            @window.puts("Expected: #{request.get(:data)}")
+            @window.puts("Received: #{response.get(:data)}")
           else
             @window.puts("Pong!")
           end
@@ -86,10 +87,15 @@ class DriverCommand
       end,
 
       Proc.new do |opts|
-        name = opts[:name] || "executing a shell"
+        shell = CommandPacket.new({
+          :is_request => true,
+          :request_id => request_id(),
+          :command_id => CommandPacket::COMMAND_SHELL,
+          :name       => opts[:name] || "shell"
+        })
 
-        _send_request(CommandPacket.create_shell_request(request_id(), name)) do |request, response|
-          @window.puts("Shell session created: #{response.session_id}")
+        _send_request(shell) do |request, response|
+          @window.puts("Shell session created: #{response.get(:session_id)}")
         end
 
         @window.puts("Sent request to execute a shell")
@@ -107,17 +113,26 @@ class DriverCommand
         command = opts[:command] || optarg
         name    = opts[:name]    || command
 
-        if(command == "")
+        if(name == "")
           @window.puts("No command given!")
           @window.puts()
           raise(Trollop::HelpNeeded)
         end
 
-        _send_request(CommandPacket.create_exec_request(request_id(), name, command)) do |request, response|
-          @window.puts("Command executed: #{command_packet.session_id}")
+        puts("command = #{command} #{command.class}")
+        exec = CommandPacket.new({
+          :is_request => true,
+          :request_id => request_id(),
+          :command_id => CommandPacket::COMMAND_EXEC,
+          :command => command,
+          :name => name,
+        })
+
+        _send_request(exec) do |request, response|
+          @window.puts("Executed \"#{request.get(:command)}\": #{response.get(:session_id)}")
         end
 
-        @window.puts("Sent request to execute #{opts[:command]}")
+        @window.puts("Sent request to execute \"#{command}\"")
       end,
     )
 
@@ -223,14 +238,15 @@ class DriverCommand
     # TODO: This isn't necessary
     @window.puts("Received: #{command_packet}")
 
-    if(!command_packet.is_response?())
+    if(command_packet.get(:is_request))
       @window.puts("ERROR: The client sent us a request! That's not valid (but")
       @window.puts("it may be in the future, so this may be a version mismatch")
       @window.puts("problem)")
+
       return
     end
 
-    if(@handlers[command_packet.request_id].nil?)
+    if(@handlers[command_packet.get(:request_id)].nil?)
       @window.puts("Received a response that we have no record of sending:")
       @window.puts("#{command_packet}")
       @window.puts()
@@ -242,40 +258,31 @@ class DriverCommand
       return
     end
 
-    handler = @handlers.delete(command_packet.request_id)
+    handler = @handlers.delete(command_packet.get(:request_id))
     handler[:proc].call(handler[:request], command_packet)
-
-    return
-
-    case command_packet.command_id
-    when CommandPacket::COMMAND_PING
-    when CommandPacket::COMMAND_EXEC
-    when CommandPacket::COMMAND_DOWNLOAD
-      # TODO
-    when CommandPacket::COMMAND_UPLOAD
-    when CommandPacket::COMMAND_SHUTDOWN
-    when CommandPacket::COMMAND_ERROR
-    end
   end
 
   def feed(data)
     @incoming += data
-
     loop do
       if(@incoming.length < 4)
         break
       end
 
+      # Try to read a length + packet
       length, data = @incoming.unpack("Na*")
+
+      # If there isn't enough data, give up
       if(data.length < length)
-        return ''
+        break
       end
 
-      _, @incoming = data.unpack("a#{length}a*")
-
-      _handle_incoming(CommandPacket.new(data, false))
+      # Otherwise, remove what we have from @data
+      length, data, @incoming = @incoming.unpack("Na#{length}a*")
+      _handle_incoming(CommandPacket.parse(data, false))
     end
 
+    # Return the queue and clear it out
     result = @outgoing
     @outgoing = ''
     return result
