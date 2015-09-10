@@ -197,8 +197,16 @@ class DriverCommand
         else
           data = IO.read(local_file)
 
-          _send_request(CommandPacket.create_upload_request(request_id(), remote_file, data)) do |request, response|
-            @window.puts("TODO: handle upload() response")
+          upload = CommandPacket.new({
+            :is_request => true,
+            :request_id => request_id(),
+            :command_id => CommandPacket::COMMAND_UPLOAD,
+            :filename => remote_file,
+            :data => data,
+          })
+
+          _send_request(upload) do |request, response|
+            @window.puts("#{data.length} bytes uploaded from #{local_file} to #{remote_file}")
           end
 
           @window.puts("Attempting to upload #{local_file} to #{remote_file}")
