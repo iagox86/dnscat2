@@ -131,14 +131,14 @@ class CommandPacket
         _null_terminated?(packet)
         data[:filename], packet = packet.unpack("Z*a*")
       else
-        data[:data] = packet.unpack("a*").pop()
+        data[:data], packet = packet.unpack("a*a0")
       end
 
     when COMMAND_UPLOAD
       if(data[:is_request])
         _null_terminated?(packet)
         data[:filename], packet = packet.unpack("Z*a*")
-        data[:data], packet = packet.unpack("a*")
+        data[:data], packet = packet.unpack("a*a0")
       else
         # n/a
       end

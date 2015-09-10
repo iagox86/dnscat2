@@ -163,8 +163,18 @@ class DriverCommand
             local_file = File.basename(remote_file)
           end
 
-          _send_request(CommandPacket.create_download_request(request_id(), remote_file)) do |request, response|
-            @window.puts("TODO: handle download() response")
+          download = CommandPacket.new({
+            :is_request => true,
+            :request_id => request_id(),
+            :command_id => CommandPacket::COMMAND_DOWNLOAD,
+            :filename => remote_file,
+          })
+
+          _send_request(download) do |request, response|
+            File.open(local_file, "wb") do |f|
+              f.write(response.get(:data))
+              @window.puts("Wrote #{response.get(:data).length} bytes from #{request.get(:filename)} to #{local_file}!")
+            end
           end
 
           @window.puts("Attempting to download #{remote_file} to #{local_file}")
