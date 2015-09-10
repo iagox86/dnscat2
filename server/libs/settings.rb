@@ -7,8 +7,11 @@
 require 'libs/log'
 
 class Settings
-  def initialize(settings = {})
+  GLOBAL = Settings.new()
+
+  def initialize(parent = nil, settings = {})
     @settings = settings
+    @parent = parent
     @watchers = {}
     @verifiers = {}
   end
@@ -39,8 +42,13 @@ class Settings
     return nil
   end
 
-  def get(name)
+  def get(name, allow_recursion = true)
     name = name.to_s()
+
+    if(allow_recursion && @settings[name].nil? && !@parent.nil?)
+      return @parent.get(name)
+    end
+
     return @settings[name]
   end
 
@@ -54,16 +62,16 @@ class Settings
     end
   end
 
-  def watch(name)
+  def on_change(name, watcher = nil, verifier = nil)
     name = name.to_s()
-    @watchers[name] ||= []
-    @watchers[name] << proc
-  end
 
-  def verify(name)
-    name = name.to_s()
+    @watchers[name] ||= []
+    @watchers[name] << watcher
+
     @verifiers[name] ||= []
-    @verifiers[name] << proc
+    if(!verifier.nil?)
+      @verifiers[name] << verifier
+    end
   end
 
   def print()

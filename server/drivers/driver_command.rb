@@ -226,7 +226,6 @@ class DriverCommand
         @window.puts("Attempting to shut down remote session(s)...")
       end
     )
-
   end
 
   def initialize(window)

@@ -118,16 +118,18 @@ Log.PRINT(nil, "Of course, you have to figure out <server> yourself! Clients wil
 Log.PRINT(nil, "directly on UDP port 53 (by default).")
 Log.PRINT(nil)
 
+puts Settings::GLOBAL
 
-#settings = Settings.new()
-#
-#settings.verify("packet_trace") do |value|
-#  if(!(value == true || value == false))
-#    "'packet_trace' has to be either 'true' or 'false'!"
-#  else
-#    nil
-#  end
-#end
+settings.on_change("packet_trace", Proc.new() do |value|
+  puts("Set packet_trace to #{value}")
+end, Proc.new() do |value|
+  if(!(value == true || value == false))
+    "'packet_trace' has to be either 'true' or 'false'!"
+  else
+    nil
+  end
+end)
+
 #
 #settings.watch("debug") do |old_val, new_val|
 #  if(Log::LEVELS.index(new_val.upcase).nil?)
