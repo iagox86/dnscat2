@@ -10,7 +10,7 @@
 require 'shellwords'
 require 'pp'
 
-require 'drivers/command_packet'
+require 'libs/command_packet'
 
 class DriverCommand
   def request_id()
