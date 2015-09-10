@@ -11,8 +11,6 @@ require 'shellwords'
 require 'pp'
 
 require 'drivers/command_packet'
-require 'drivers/command_packet_stream'
-
 
 class DriverCommand
   def request_id()
@@ -31,7 +29,7 @@ class DriverCommand
     out = [out.length, out].pack("Na*")
     @outgoing += out
   end
-  
+
   def register_commands()
     @commander.register_command('echo',
       Trollop::Parser.new do
