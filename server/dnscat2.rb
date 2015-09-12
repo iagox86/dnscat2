@@ -25,16 +25,17 @@ require 'trollop'
 NAME = "dnscat2"
 VERSION = "0.03"
 
-puts("Welcome to dnscat2! Some documentation may be out of date")
-puts()
 window = SWindow.new("main", "dnscat2> ", nil, true)
+
+window.puts("Welcome to dnscat2! Some documentation may be out of date")
+window.puts()
 
 controller = Controller.new(window)
 
 # Capture log messages during start up - after creating a command session, all
 # messages go to it, instead
 Log.logging(nil) do |msg|
-  window.puts(msg)
+  window.puts("(old-style logging) " + msg.to_s())
 end
 
 # Options
@@ -75,10 +76,10 @@ end
 
 # Note: This is no longer strictly required, but it gives the user better feedback if
 # they use a bad debug level, so I'm keeping it
-Log.PRINT(nil, "Setting debug level to: #{opts[:debug].upcase()}")
-if(!Log.set_min_level(opts[:debug].upcase()))
-   Trollop::die :debug, "level values are: #{Log::LEVELS}"
-end
+#window.puts("Setting debug level to: #{opts[:debug].upcase()}")
+#if(!Log.set_min_level(opts[:debug].upcase()))
+#   Trollop::die :debug, "level values are: #{Log::LEVELS}"
+#end
 
 if(opts[:dnsport] < 0 || opts[:dnsport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
@@ -103,66 +104,51 @@ if(domains.length > 0)
     puts("./dnscat2 #{domain}")
   end
 
-  Log.PRINT(nil)
-  Log.PRINT(nil, "You can also run a directly-connected client:")
+  window.puts()
+  window.puts("You can also run a directly-connected client:")
 else
-  Log.PRINT(nil, "It looks like you didn't give me any domains to recognize!")
-  Log.PRINT(nil, "That's cool, though, you can still use a direct connection.")
-  Log.PRINT(nil, "Try running this on your client:")
+  window.puts("It looks like you didn't give me any domains to recognize!")
+  window.puts("That's cool, though, you can still use a direct connection.")
+  window.puts("Try running this on your client:")
 end
 
-Log.PRINT(nil)
-Log.PRINT(nil, "./dnscat2 --dns server=<server>")
-Log.PRINT(nil)
-Log.PRINT(nil, "Of course, you have to figure out <server> yourself! Clients will connect")
-Log.PRINT(nil, "directly on UDP port 53 (by default).")
-Log.PRINT(nil)
+window.puts()
+window.puts("./dnscat2 --dns server=<server>")
+window.puts()
+window.puts("Of course, you have to figure out <server> yourself! Clients will connect")
+window.puts("directly on UDP port 53 (by default).")
+window.puts()
 
-puts Settings::GLOBAL
+begin
+  Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s(), Proc.new() do |old_val, new_val|
+    # We don't have any callbacks
+  end)
 
-settings.on_change("packet_trace", Proc.new() do |value|
-  puts("Set packet_trace to #{value}")
-end, Proc.new() do |value|
-  if(!(value == true || value == false))
-    "'packet_trace' has to be either 'true' or 'false'!"
-  else
-    nil
-  end
-end)
+  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug], Proc.new() do |old_val, new_val|
+    if(Log::LEVELS.index(new_val.upcase).nil?)
+      raise(Settings::ValidationError, "Bad debug value; possible values for 'debug': " + Log::LEVELS.join(", "))
+    end
 
-#
-#settings.watch("debug") do |old_val, new_val|
-#  if(Log::LEVELS.index(new_val.upcase).nil?)
-#    # return
-#    "Possible values for 'debug': " + Log::LEVELS.join(", ")
-#  else
-#    if(old_val.nil?)
-#      Log.PRINT(nil, "Set debug level to #{new_val}")
-#    else
-#      puts("Changed debug from #{old_val} to #{new_val}")
-#    end
-#    Log.set_min_level(new_val)
-#
-#    # return
-#    nil
-#  end
-#end
-#
-#settings.watch("passthrough") do |old_val, new_val|
-#  if(!(new_val == true || new_val == false))
-#    "'passthrough' has to be either 'true' or 'false'!"
-#  else
-#    # return
-#    if(!old_val.nil?)
-#      puts("Changed 'passthrough' from " + old_val.to_s() + " to " + new_val.to_s() + "!")
-#    end
-#    DriverDNS.passthrough = new_val
-#
-#    # return
-#    nil
-#  end
-#end
-#
+    if(old_val.nil?)
+      window.puts("Set debug level to #{new_val}")
+    else
+      window.puts("Changed debug from #{old_val} to #{new_val}")
+    end
+
+    Log.set_min_level(new_val)
+  end)
+
+  Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s(), Proc.new() do |old_val, new_val|
+    DriverDNS.passthrough = new_val
+  end)
+rescue Settings::ValidationError => e
+  window.puts("There was an error with one of your commandline arguments:")
+  window.puts(e)
+  window.puts()
+
+  Trollop::die("Check your command-line arguments")
+end
+
 #settings.watch("isn") do |old_val, new_val|
 #  Session.debug_set_isn(new_val.to_i)
 #
@@ -197,7 +183,7 @@ end)
 #  settings.set("isn",          opts[:isn])
 #end
 
-Log.PRINT(nil, "Starting DNS server...")
+window.puts("Starting DNS server...")
 driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
 driver.recv() do |data, max_length|
   controller.feed(data, max_length)

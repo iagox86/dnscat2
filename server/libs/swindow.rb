@@ -74,6 +74,7 @@ class SWindow
   end
 
   def puts(str = "")
+    str = str.to_s()
     if(@@active == self)
       $stdout.puts(str)
     end
@@ -81,6 +82,7 @@ class SWindow
   end
 
   def print(str = "")
+    str = str.to_s()
     if(@@active == self)
       $stdout.print(str)
     end

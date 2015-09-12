@@ -60,5 +60,44 @@ module ControllerCommands
         end
       end
     )
+
+    @commander.register_command("set",
+      Trollop::Parser.new do
+        banner("set <name>=<value>")
+      end,
+
+      Proc.new do |opts, optarg|
+        if(optarg.length == 0)
+          @window.puts("Usage: set <name>=<value>")
+          @window.puts()
+          @window.puts("Global options:")
+          Settings::GLOBAL.each_pair() do |k, v|
+            @window.puts(" %s=%s" % [k, v.to_s()])
+          end
+
+          next
+        end
+
+        # Split at the '=' sign
+        namevalue = optarg.split("=", 2)
+
+        if(namevalue.length != 2)
+          namevalue = optarg.split(" ", 2)
+        end
+
+        if(namevalue.length != 2)
+          @window.puts("Bad argument! Expected: 'set <name>=<value>' or 'set name value'!")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
+        end
+
+        begin
+          Settings::GLOBAL.set(namevalue[0], namevalue[1], false)
+        rescue Settings::ValidationError => e
+          @window.puts("Failed to set the new value: #{e}")
+        end
+      end
+    )
+
   end
 end

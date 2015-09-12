@@ -20,6 +20,8 @@ Some goals (these will be deleted as I complete them):
 - Make sure 'command -h' still works
 - Take care of all TODOs that are possible
 - Make sure all of the commands from the original version are present in the cleaned up version
+- Give "windows" to more things, since creating a new SWindow is easy
+- Get rid of the terrible session numbering
 
 Add settings that can:
 - Execute an arbitrary command (or send data?) when the session starts
