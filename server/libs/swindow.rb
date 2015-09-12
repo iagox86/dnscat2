@@ -53,7 +53,7 @@ class SWindow
   def initialize(name = nil, prompt = nil, parent = nil, activate = false)
     @id = (@@id += 1)
     @name = name || "unnamed"
-    @prompt = prompt || "%s %d>" % [@name, @id]
+    @prompt = prompt || "%s %d> " % [@name, @id]
     @parent = parent
     @children = []
     @callback = nil

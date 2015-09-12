@@ -8,8 +8,9 @@
 ##
 
 class DriverConsole
-  def initialize(window)
+  def initialize(window, settings)
     @window = window
+    @settings = settings
     @outgoing = ""
 
     @window.on_input() do |data|

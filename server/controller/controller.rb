@@ -18,7 +18,6 @@ require 'libs/log'
 require 'trollop'
 
 class Controller
-
   include ControllerCommands
 
   def initialize(window)

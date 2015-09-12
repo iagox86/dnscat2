@@ -8,7 +8,6 @@
 ##
 
 require 'shellwords'
-require 'pp'
 
 require 'libs/command_packet'
 
@@ -30,7 +29,7 @@ class DriverCommand
     @outgoing += out
   end
 
-  def register_commands()
+  def _register_commands()
     @commander.register_command('echo',
       Trollop::Parser.new do
         banner("Print stuff to the terminal, including $variables")
@@ -226,15 +225,63 @@ class DriverCommand
         @window.puts("Attempting to shut down remote session(s)...")
       end
     )
+
+    # This is almost the same as 'set' from 'controller', except it uses the
+    # local settings and recurses into global if necessary
+    @commander.register_command("set",
+      Trollop::Parser.new do
+        banner("set <name>=<value>")
+      end,
+
+      Proc.new do |opts, optarg|
+        if(optarg.length == 0)
+          @window.puts("Usage: set <name>=<value>")
+          @window.puts()
+          @window.puts("Global options:")
+          Settings::GLOBAL.each_pair() do |k, v|
+            @window.puts(" %s=%s" % [k, v.to_s()])
+          end
+
+          @window.puts()
+          @window.puts("Session options:")
+          @settings.each_pair() do |k, v|
+            @window.puts(" %s=%s" % [k, v.to_s()])
+          end
+
+          next
+        end
+
+        # Split at the '=' sign
+        namevalue = optarg.split("=", 2)
+
+        if(namevalue.length != 2)
+          namevalue = optarg.split(" ", 2)
+        end
+
+        if(namevalue.length != 2)
+          @window.puts("Bad argument! Expected: 'set <name>=<value>' or 'set name value'!")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
+        end
+
+        begin
+          @settings.set(namevalue[0], namevalue[1], true)
+        rescue Settings::ValidationError => e
+          @window.puts("Failed to set the new value: #{e}")
+        end
+      end
+    )
   end
 
-  def initialize(window)
+  def initialize(window, settings)
     @window = window
+    @settings = settings
     @outgoing = ""
     @incoming = ""
     @request_id = 0x0001
     @commander = Commander.new()
-    register_commands()
+
+    _register_commands()
 
     @handlers = {}
 
@@ -247,6 +294,7 @@ class DriverCommand
     @window.puts("That means you can enter a dnscat2 command such as")
     @window.puts("'ping'! For a full list of clients, try 'help'.")
     @window.puts()
+
   end
 
   def _handle_incoming(command_packet)

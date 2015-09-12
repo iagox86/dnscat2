@@ -44,7 +44,13 @@ class Session
     @name = 'unnamed'
 
     # TODO: Somewhere in here, I need the concept of a 'parent' session
+    @settings = Settings.new()
     @window = SWindow.new(@name, "", main_window, false)
+
+    @settings.create("prompt", Settings::TYPE_NO_STRIP, "", Proc.new() do |old_val, new_val|
+      # We don't have any callbacks
+      @window.prompt = new_val
+    end)
   end
 
   def activate()
@@ -126,14 +132,15 @@ class Session
 
     @window.puts_ex("New session established: %d" % @id, true, true)
 
+
     # TODO: We're going to need different driver types
     if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
-      @driver = DriverCommand.new(@window)
+      @driver = DriverCommand.new(@window, @settings)
     else
-      @driver = DriverConsole.new(@window)
+      @driver = DriverConsole.new(@window, @settings)
     end
 
-    @window.prompt = "%s %d> " % [@name, @id]
+    @settings.set("prompt", "%s %d> " % [@name, @id])
 
     # TODO: Check if auto_attach is set
     return Packet.create_syn(0, {
