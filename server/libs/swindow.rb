@@ -213,6 +213,14 @@ class SWindow
     return @pending
   end
 
+  def SWindow.exists?(id)
+    return !@@windows[id.to_s()].nil?
+  end
+
+  def SWindow.get(id)
+    return @@windows[id.to_s()]
+  end
+
   def close()
     @closed = true
     deactivate()

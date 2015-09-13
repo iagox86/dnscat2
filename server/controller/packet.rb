@@ -9,6 +9,7 @@
 ##
 
 require 'libs/dnscat_exception'
+require 'libs/hex'
 
 module PacketHelper
   def at_least?(data, needed)
@@ -95,9 +96,7 @@ class Packet
     end
 
     def to_s()
-      result = "[[SYN]] :: isn = %04x, options = %04x" % [@seq, @options]
-
-      return result
+      return "[[SYN]] :: isn = %04x, options = %04x" % [@seq, @options]
     end
 
     def to_bytes()
@@ -153,8 +152,6 @@ class Packet
 #    end
 
     def to_s()
-      data = @data.gsub(/\n/, '\n')
-
       return "[[MSG]] :: seq = %04x, ack = %04x, data = 0x%x bytes" % [@seq, @ack, data.length]
     end
 
@@ -302,7 +299,9 @@ class Packet
   end
 
   def to_s()
-    return "[0x%04x] session = %04x :: %s" % [@packet_id, @session_id, @body.to_s]
+    result = "[0x%04x] session = %04x :: %s\n" % [@packet_id, @session_id, @body.to_s]
+    result += Hex.to_s(to_bytes(), 2)
+    return result
   end
 
   def to_bytes()

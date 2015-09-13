@@ -152,14 +152,6 @@ rescue Settings::ValidationError => e
   Trollop::die("Check your command-line arguments")
 end
 
-#settings.watch("isn") do |old_val, new_val|
-#  Session.debug_set_isn(new_val.to_i)
-#
-#  puts("Changed the initial sequence number to 0x%04x (note: you probably shouldn't do this unless you're debugging something!)" % new_val)
-#
-#  nil
-#end
-#
 #settings.verify("auto_command") do |value|
 #  if(value.is_a?(String) || value.is?(nil))
 #    nil
@@ -172,8 +164,6 @@ end
 #settings.set("auto_command", opts[:auto_command])
 #settings.set("auto_attach",  opts[:auto_attach])
 #settings.set("passthrough",  opts[:passthrough])
-#settings.set("debug",        opts[:debug])
-#settings.set("packet_trace", opts[:packet_trace])
 #
 #if(opts[:isn])
 #  settings.set("isn",          opts[:isn])

@@ -219,8 +219,27 @@ class Session
     })
   end
 
+  def _get_pcap_window()
+    id = "pcap#{@window.id}"
+
+    if(SWindow.exists?(id))
+      return SWindow.get(id)
+    end
+
+    return SWindow.new(@window, false, {
+      :id => id,
+      :name => "PCAP window for session #{@window.id}",
+      :noinput => true,
+    })
+  end
+
   def feed(data, max_length)
     packet = Packet.parse(data, @options)
+
+    if(Settings::GLOBAL.get("packet_trace"))
+      window = _get_pcap_window()
+      window.puts("IN:  #{packet}")
+    end
 
     begin
       response_packet = send(HANDLERS[packet.type], packet, max_length)
@@ -246,6 +265,11 @@ class Session
     if(response_packet.to_bytes().length() > max_length)
       @window.puts("The session tried to return a packet that's too long!")
       @window.puts("#{response_packet}")
+    end
+
+    if(Settings::GLOBAL.get("packet_trace"))
+      window = _get_pcap_window()
+      window.puts("OUT: #{response_packet}")
     end
 
     return response_packet.to_bytes()
