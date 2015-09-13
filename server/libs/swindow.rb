@@ -63,13 +63,14 @@ class SWindow
     @history = []
     @typed_history = []
     @closed = false
+    @pending = false
 
     if(@parent)
       @parent._add_child(self)
     end
 
     if(@@active.nil? || activate)
-      self.activate(false)
+      self.activate()
     end
 
     if(params[:quiet] != true)
@@ -77,6 +78,14 @@ class SWindow
     end
 
     @@windows[@id.to_s()] = self
+  end
+
+  def _we_just_got_data()
+    if(@@active == self)
+      return
+    end
+
+    @pending = true
   end
 
   def children()
@@ -90,6 +99,8 @@ class SWindow
   end
 
   def puts(str = "")
+    _we_just_got_data()
+
     str = str.to_s()
     if(@@active == self)
       $stdout.puts(str)
@@ -98,6 +109,8 @@ class SWindow
   end
 
   def print(str = "")
+    _we_just_got_data()
+
     str = str.to_s()
     if(@@active == self)
       $stdout.print(str)
@@ -129,17 +142,12 @@ class SWindow
     end
   end
 
-  def _redraw()
-    # TODO: Have a flag that can turn this off
+  def activate()
+    @pending = false
+
+    @@active = self
     $stdout.puts(@history.join(""))
     $stdout.puts(@prompt)
-  end
-
-  def activate(redraw = true)
-    @@active = self
-    if(redraw)
-      self._redraw()
-    end
 
     Readline::HISTORY.clear()
     @typed_history.each do |i|
@@ -147,14 +155,13 @@ class SWindow
     end
   end
 
-  def SWindow.activate(id, redraw = true)
-    puts("Param: '#{id}' #{id.class}")
+  def SWindow.activate(id)
     window = @@windows[id.to_s()]
     if(window.nil?)
       return false
     end
 
-    window.activate(redraw)
+    window.activate()
     return true
   end
 
@@ -212,6 +219,15 @@ class SWindow
   end
 
   def to_s()
-    return "%s :: %s" % [@id.to_s(), @name]
+    s = "%s :: %s" % [@id.to_s(), @name]
+    if(@@active == self)
+      s += " [active]"
+    end
+
+    if(@pending)
+      s += " [*]"
+    end
+
+    return s
   end
 end

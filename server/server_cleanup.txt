@@ -20,12 +20,11 @@ Some goals (these will be deleted as I complete them):
 - Make sure 'command -h' still works
 - Take care of all TODOs that are possible
 - Make sure all of the commands from the original version are present in the cleaned up version
-- Give "windows" to more things, since creating a new SWindow is easy
-- Get rid of the terrible session numbering
+- Give "windows" to more things, like tunnel drivers, since creating a new SWindow is easy
 - Make it possible to create/destroy tunnel drivers
 - At the end of dnscat.rb, do SWindow.wait(), and when it returns (the input thread ends), the process should be cleanly terminated
-- Implement 'help' command and '-h' argumetns everywhere
-- Add 'active' and 'closed' notifications to the 'sessions' command
+- Implement 'help' command and '-h' arguments everywhere
+- Audit all uses of "puts()" throughout the program to ensure none of them are supposed to be window.puts()
 
 Add settings that can:
 - Execute an arbitrary command (or send data?) when the session starts
