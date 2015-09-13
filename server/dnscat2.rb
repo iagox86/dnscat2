@@ -141,6 +141,9 @@ begin
   Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s()) do |old_val, new_val|
     DriverDNS.passthrough = new_val
   end
+
+  Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach].to_s()) do |old_val, new_val|
+  end
 rescue Settings::ValidationError => e
   window.puts("There was an error with one of your commandline arguments:")
   window.puts(e)
@@ -165,13 +168,6 @@ end
 #  end
 #end
 #
-#settings.verify("auto_attach") do |value|
-#  if(value == true || value == false)
-#    nil
-#  else
-#    "'auto_attach' has to be true or false!"
-#  end
-#end
 #
 #settings.set("auto_command", opts[:auto_command])
 #settings.set("auto_attach",  opts[:auto_attach])

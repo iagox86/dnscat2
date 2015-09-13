@@ -134,7 +134,10 @@ class Session
 
     @settings.set("name", packet.body.name)
 
-    # TODO: Check if auto_attach is set
+    if(Settings::GLOBAL.get("auto_attach"))
+      @window.activate()
+    end
+
     return Packet.create_syn(0, {
       :session_id => @id,
       :seq        => @my_seq,
