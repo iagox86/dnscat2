@@ -8,6 +8,7 @@
 ##
 
 require 'libs/dnscat_exception'
+require 'libs/hex'
 
 class CommandPacket
   COMMAND_PING     = 0x0000
@@ -240,6 +241,9 @@ class CommandPacket
   end
 
   def to_s()
-    return "%s :: %s" % [COMMAND_NAMES[@data[:command_id]], @data.to_s()]
+    response = "%s :: %s\n" % [COMMAND_NAMES[@data[:command_id]], @data.to_s()]
+    response += Hex.to_s(self.serialize())
+
+    return response
   end
 end

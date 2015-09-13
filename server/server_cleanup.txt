@@ -9,6 +9,9 @@ Some goals (these will be deleted as I complete them):
 - Implement 'help' command and '-h' arguments everywhere
 - Audit all uses of "puts()" throughout the program to ensure none of them are supposed to be window.puts()
 - Make sure all the settings and commands from pre-refactor are present
+- Comment APIs really well, especially stuff in the /libs folder
+- Make sure everything works over normal DNS
+- Fix the id: Shell session created: 3171
 
 Add settings that can:
 - Execute an arbitrary command (or send data?) when the session starts

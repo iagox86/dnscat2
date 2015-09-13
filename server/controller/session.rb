@@ -228,7 +228,7 @@ class Session
 
     return SWindow.new(@window, false, {
       :id => id,
-      :name => "PCAP window for session #{@window.id}",
+      :name => "dnscat2 protocol window for session #{@window.id}",
       :noinput => true,
     })
   end
