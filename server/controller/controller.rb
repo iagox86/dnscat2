@@ -48,6 +48,17 @@ class Controller
     return @sessions[id]
   end
 
+  def find_session_by_window(id)
+    id = id.to_s()
+    @sessions.each_value do |session|
+      if(session.window.id.to_s() == id)
+        return session
+      end
+    end
+
+    return nil
+  end
+
   def kill_session(id)
     session = find(id)
 

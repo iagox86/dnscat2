@@ -154,6 +154,14 @@ class Session
       raise(DnscatException, "MSG received in invalid state!")
     end
 
+    # We can send a FIN and close right away if the session is dead
+    if(@state == STATE_KILLED)
+      return Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => "The user killed the session!",
+      })
+    end
+
     # Validate the sequence number
     if(@their_seq != packet.body.seq)
       # Re-send the last packet

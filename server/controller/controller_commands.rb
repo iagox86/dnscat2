@@ -33,8 +33,8 @@ module ControllerCommands
         banner("Print stuff to the terminal")
       end,
 
-      Proc.new do |opts, optval|
-        @window.puts(optval)
+      Proc.new do |opts, optarg|
+        @window.puts(optarg)
       end
     )
 
@@ -44,7 +44,7 @@ module ControllerCommands
         opt :all, "Show closed windows", :type => :boolean, :required => false
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         _display_windows(opts[:all])
       end,
     )
@@ -55,7 +55,7 @@ module ControllerCommands
         opt :i, "Interact with the chosen window", :type => :string, :required => false
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         if(opts[:i].nil?)
           _display_windows(opts[:all])
           next
@@ -113,9 +113,27 @@ module ControllerCommands
         banner("Close all sessions and exit dnscat2")
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         exit(0)
       end
     )
+
+    @commander.register_command("kill",
+      Trollop::Parser.new do
+        banner("Kill the specified session")
+      end,
+
+      Proc.new do |opts, optarg|
+        session = find_session_by_window(optarg)
+        if(!session)
+          @window.puts("Couldn't find window with id = #{optarg}")
+          next
+        end
+
+        session.kill()
+        @window.puts("Session #{optarg} has been sent the kill signal!")
+      end
+    )
+
   end
 end

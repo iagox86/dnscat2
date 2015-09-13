@@ -33,8 +33,8 @@ module DriverCommandCommands
         banner("Print stuff to the terminal, including $variables")
       end,
 
-      Proc.new do |opts, optval|
-        @window.puts(optval)
+      Proc.new do |opts, optarg|
+        @window.puts(optarg)
       end
     )
 
@@ -146,9 +146,9 @@ module DriverCommandCommands
         banner("Download a file off the remote host. Usage: download <from> [to]")
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         # Get the two files
-        remote_file, local_file = Shellwords.shellwords(optval)
+        remote_file, local_file = Shellwords.shellwords(optarg)
 
         # Sanity check
         if(remote_file.nil? || remote_file == "")
@@ -184,9 +184,9 @@ module DriverCommandCommands
         banner("Upload a file off the remote host. Usage: upload <from> <to>")
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         # Get the two files
-        local_file, remote_file = Shellwords.shellwords(optval)
+        local_file, remote_file = Shellwords.shellwords(optarg)
 
         # Sanity check
         if(local_file.nil? || local_file == "" || remote_file.nil? || remote_file == "")
@@ -216,7 +216,7 @@ module DriverCommandCommands
         banner("Shut down the remote session")
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         _send_request(CommandPacket.create_shutdown_request(request_id())) do |request, response|
           @window.puts("TODO: handle shutdown() response")
         end
@@ -276,7 +276,7 @@ module DriverCommandCommands
         opt :all, "Show closed windows", :type => :boolean, :required => false
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         _display_windows(opts[:all])
       end,
     )
@@ -287,7 +287,7 @@ module DriverCommandCommands
         opt :i, "Interact with the chosen window", :type => :string, :required => false
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         if(opts[:i].nil?)
           _display_windows(opts[:all])
           next
@@ -307,7 +307,7 @@ module DriverCommandCommands
         banner("Close all sessions and exit dnscat2")
       end,
 
-      Proc.new do |opts, optval|
+      Proc.new do |opts, optarg|
         exit(0)
       end
     )
