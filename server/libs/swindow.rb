@@ -35,7 +35,7 @@ class SWindow
               break
             end
             if(@@active.nil?)
-              $stderr.puts("WARNING: there is no active session! Input's going nowhere")
+              $stderr.puts("WARNING: there is no active window! Input's going nowhere")
               next
             end
 
@@ -74,7 +74,7 @@ class SWindow
     end
 
     if(params[:quiet] != true)
-      self.puts_ex("New session created: %s" % @id.to_s(), true, true, false, false)
+      self.puts_ex("New window created: %s" % @id.to_s(), true, true, false, false)
     end
 
     @@windows[@id.to_s()] = self
@@ -189,7 +189,9 @@ class SWindow
 
     if(@callback.nil?)
       self.puts("Input received, but nothing has registered to receive it")
-      self.puts("Please wait and try again in a bit!")
+      self.puts("Use ctrl-z to escape if this is a dead window!")
+      self.puts()
+      self.puts("If you're seeing this in a real window, please report a bug!")
       return
     end
     @callback.call(str)
@@ -197,6 +199,10 @@ class SWindow
 
   def closed?()
     return @closed
+  end
+
+  def pending?()
+    return @pending
   end
 
   def close()

@@ -8,11 +8,11 @@
 
 module ControllerCommands
   def _display_window(window, all, indent = 0)
-    if(!all && window.closed?())
+    if(!all && !window.pending?() && window.closed?())
       return
     end
 
-    puts(('  ' * indent) + window.to_s())
+    @window.puts(('  ' * indent) + window.to_s())
     window.children() do |c|
       _display_window(c, all, indent + 1)
     end

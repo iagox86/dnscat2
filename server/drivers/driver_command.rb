@@ -29,6 +29,21 @@ class DriverCommand
     @outgoing += out
   end
 
+  def _display_window(window, all, indent = 0)
+    if(!all && window.closed?())
+      return
+    end
+
+    @window.puts(('  ' * indent) + window.to_s())
+    window.children() do |c|
+      _display_window(c, all, indent + 1)
+    end
+  end
+
+  def _display_windows(all)
+    _display_window(@window, all)
+  end
+
   def _register_commands()
     @commander.register_command('echo',
       Trollop::Parser.new do
@@ -268,6 +283,38 @@ class DriverCommand
           @settings.set(namevalue[0], namevalue[1], true)
         rescue Settings::ValidationError => e
           @window.puts("Failed to set the new value: #{e}")
+        end
+      end
+    )
+
+    @commander.register_command('sessions',
+      Trollop::Parser.new do
+        banner("Lists the current active sessions")
+        opt :all, "Show dead sessions", :type => :boolean, :required => false
+      end,
+
+      Proc.new do |opts, optval|
+        _display_windows(opts[:all])
+      end,
+    )
+
+    @commander.register_command("session",
+      Trollop::Parser.new do
+        banner("Interact with a session")
+        opt :i, "Interact with the chosen session", :type => :string, :required => false
+      end,
+
+      Proc.new do |opts, optval|
+        if(opts[:i].nil?)
+          _display_windows(opts[:all])
+          next
+        end
+
+        if(!SWindow.activate(opts[:i]))
+          @window.puts("Session #{opts[:i]} not found!")
+          @window.puts()
+          _display_windows(false)
+          next
         end
       end
     )
