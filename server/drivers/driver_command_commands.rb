@@ -29,6 +29,11 @@ module DriverCommandCommands
     @commander.register_alias('exit',     'quit')
     @commander.register_alias('h',        'help')
     @commander.register_alias('?',        'help')
+    @commander.register_alias('up',       'suspend')
+    @commander.register_alias('back',     'suspend')
+    @commander.register_alias('pause',    'suspend')
+    @commander.register_alias('run',      'exec')
+    @commander.register_alias('execute',  'exec')
 
     @commander.register_command('help',
       Trollop::Parser.new do

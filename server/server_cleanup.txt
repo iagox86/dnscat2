@@ -15,6 +15,7 @@ Some goals (these will be deleted as I complete them):
 - Implement what I wrote in the server-exec branch
 - Explore whether or not I can replace @window with stream in certain places, so less stuff has to understand what a window is
 - Add $settings back
+- Bring back the "session last heard from [X] minutes ago" message
 
 Add settings that can:
 - Pass one or more sessions to an executable rather than interacting with them directly
