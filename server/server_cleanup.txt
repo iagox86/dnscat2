@@ -25,6 +25,7 @@ Some goals (these will be deleted as I complete them):
 - At the end of dnscat.rb, do SWindow.wait(), and when it returns (the input thread ends), the process should be cleanly terminated
 - Implement 'help' command and '-h' arguments everywhere
 - Audit all uses of "puts()" throughout the program to ensure none of them are supposed to be window.puts()
+- Make sure all the settings and commands from pre-refactor are present
 
 Add settings that can:
 - Execute an arbitrary command (or send data?) when the session starts

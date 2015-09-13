@@ -45,6 +45,9 @@ class DriverCommand
   end
 
   def _register_commands()
+    @commander.register_alias('sessions', 'windows')
+    @commander.register_alias('session', 'window')
+
     @commander.register_command('echo',
       Trollop::Parser.new do
         banner("Print stuff to the terminal, including $variables")
@@ -287,10 +290,10 @@ class DriverCommand
       end
     )
 
-    @commander.register_command('sessions',
+    @commander.register_command('windows',
       Trollop::Parser.new do
-        banner("Lists the current active sessions")
-        opt :all, "Show dead sessions", :type => :boolean, :required => false
+        banner("Lists the current active windows")
+        opt :all, "Show closed windows", :type => :boolean, :required => false
       end,
 
       Proc.new do |opts, optval|
@@ -298,10 +301,10 @@ class DriverCommand
       end,
     )
 
-    @commander.register_command("session",
+    @commander.register_command("window",
       Trollop::Parser.new do
-        banner("Interact with a session")
-        opt :i, "Interact with the chosen session", :type => :string, :required => false
+        banner("Interact with a window")
+        opt :i, "Interact with the chosen window", :type => :string, :required => false
       end,
 
       Proc.new do |opts, optval|
@@ -311,7 +314,7 @@ class DriverCommand
         end
 
         if(!SWindow.activate(opts[:i]))
-          @window.puts("Session #{opts[:i]} not found!")
+          @window.puts("Window #{opts[:i]} not found!")
           @window.puts()
           _display_windows(false)
           next
