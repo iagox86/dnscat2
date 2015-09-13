@@ -153,10 +153,6 @@ class SWindow
     @@active = self
     $stdout.puts(@history.join(""))
 
-    if(@noinput != true)
-      $stdout.puts(@prompt)
-    end
-
     Readline::HISTORY.clear()
     @typed_history.each do |i|
       Readline::HISTORY << i
