@@ -11,12 +11,11 @@ Some goals (these will be deleted as I complete them):
 - Make sure all the settings and commands from pre-refactor are present
 - Comment APIs really well, especially stuff in the /libs folder
 - Make sure everything works over normal DNS
-- Fix the id: Shell session created: 3171
 - Limit history so we don't quickly run out of memory when logging packets and stuff
 - Implement what I wrote in the server-exec branch
+- Investigate (and probably kill) @parent in commander.rb
+- Explore whether or not I can replace @window with stream in certain places, so less stuff has to understand what a window is
 
 Add settings that can:
-- Execute an arbitrary command (or send data?) when the session starts
 - Pass one or more sessions to an executable rather than interacting with them directly
-- Send a command to multiple sessions (all parents, all children, etc)
 - Log to a file (per-session or global)

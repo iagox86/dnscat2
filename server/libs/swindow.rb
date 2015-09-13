@@ -40,10 +40,19 @@ class SWindow
             end
             if(@@active.nil?)
               $stderr.puts("WARNING: there is no active window! Input's going nowhere")
+              $stderr.puts("If you think this might be a bug, please report to")
+              $stderr.puts("https://github.com/iagox86/dnscat2/issues")
               next
             end
 
             @@active._incoming(str)
+          rescue SystemExit
+            exit(0)
+          rescue Exception => e
+            $stderr.puts("Something bad just happened! You will likely want to report this to")
+            $stderr.puts("https://github.com/iagox86/dnscat2/issues")
+            $stderr.puts(e.inspect)
+            $stderr.puts(e.backtrace.join("\n"))
           end
         end
       end
@@ -106,11 +115,10 @@ class SWindow
   def puts(str = "")
     _we_just_got_data()
 
-    str = str.to_s()
     if(@@active == self)
       $stdout.puts(str)
     end
-    @history << (str + "\n")
+    @history << (str.to_s() + "\n")
   end
 
   def print(str = "")
@@ -120,7 +128,11 @@ class SWindow
     if(@@active == self)
       $stdout.print(str)
     end
-    @history << str
+    @history << str.to_s()
+  end
+
+  def printf(*args)
+    print(sprintf(*args))
   end
 
   def _add_child(child)

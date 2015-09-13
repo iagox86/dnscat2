@@ -24,12 +24,19 @@ class Commander
     @aliases[name] = points_to
   end
 
-  def feed(data)
+  def _resolve_alias(command)
+    while(!@aliases[command].nil?)
+      command = @aliases[command]
+    end
+
+    return command
+  end
+
+  def educate(data, stream)
     begin
       args = Shellwords.shellwords(data)
-    rescue ArgumentError => e
-      # TODO: How do I handle an ArgumentError right?
-      return false
+    rescue ArgumentError
+      return
     end
 
     if(args.length == 0)
@@ -37,10 +44,36 @@ class Commander
     end
 
     command = args.shift()
-
-    while(!@aliases[command].nil?)
-      command = @aliases[command]
+    if(command.nil?)
+      return
     end
+
+    command = _resolve_alias(command)
+
+    command = @commands[command]
+    if(command.nil?)
+      return
+    end
+
+    command[:parser].educate(stream)
+  end
+
+  def help(stream)
+    stream.puts()
+    stream.puts("Here is a list of commands (use -h on any of them for additional help):")
+    @commands.keys.sort.each do |command|
+      stream.puts("* #{command}")
+    end
+  end
+
+  # Can throw an ArgumentError for various reasons
+  def feed(data)
+    args = Shellwords.shellwords(data)
+
+    if(args.length == 0)
+      return
+    end
+    command = _resolve_alias(args.shift())
 
     if(@commands[command].nil?)
       # TODO: Somehow pass to parent (probably in session.rb)
@@ -48,8 +81,7 @@ class Commander
         return @parent.feed(data)
       end
 
-      puts("Unknown command: #{command}")
-      return false
+      raise(ArgumentError, "Unknown command: #{command}")
     end
 
     begin
@@ -66,14 +98,9 @@ class Commander
       end
       command[:func].call(opts, optval)
     rescue Trollop::CommandlineError => e
-      puts("ERROR: #{e}")
-      return false
+      raise(ArgumentError, e.message)
     rescue Trollop::HelpNeeded => e
-      puts("Help needed")
-      #command[:parser].educate
-      return false
+      raise(ArgumentError, "The user requested help")
     end
-
-    return true
   end
 end

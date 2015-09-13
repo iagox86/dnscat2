@@ -27,6 +27,18 @@ module ControllerCommands
     @commander.register_alias('session',  'window')
     @commander.register_alias('q',        'quit')
     @commander.register_alias('exit',     'quit')
+    @commander.register_alias('h',        'help')
+    @commander.register_alias('?',        'help')
+
+    @commander.register_command('help',
+      Trollop::Parser.new do
+        banner("Shows a help menu")
+      end,
+
+      Proc.new do |opts, optval|
+        @commander.help(@window)
+      end,
+    )
 
     @commander.register_command('echo',
       Trollop::Parser.new do

@@ -28,7 +28,12 @@ class Controller
     _register_commands()
 
     @window.on_input() do |data|
-      @commander.feed(data)
+      begin
+        @commander.feed(data)
+      rescue ArgumentError => e
+        @window.puts("Error: #{e}")
+        @commander.educate(data, @window)
+      end
     end
   end
 

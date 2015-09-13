@@ -62,7 +62,12 @@ class DriverCommand
     _register_commands()
 
     @window.on_input() do |data|
-      @commander.feed(data)
+      begin
+        @commander.feed(data)
+      rescue ArgumentError => e
+        @window.puts("Error: #{e}")
+        @commander.educate(data, @window)
+      end
     end
 
     @window.puts("This is a command session!")

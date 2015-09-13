@@ -27,6 +27,18 @@ module DriverCommandCommands
     @commander.register_alias('session',  'window')
     @commander.register_alias('q',        'quit')
     @commander.register_alias('exit',     'quit')
+    @commander.register_alias('h',        'help')
+    @commander.register_alias('?',        'help')
+
+    @commander.register_command('help',
+      Trollop::Parser.new do
+        banner("Shows a help menu")
+      end,
+
+      Proc.new do |opts, optval|
+        @commander.help(@window)
+      end,
+    )
 
     @commander.register_command('echo',
       Trollop::Parser.new do
@@ -90,7 +102,8 @@ module DriverCommandCommands
         })
 
         _send_request(shell) do |request, response|
-          @window.puts("Shell session created: #{response.get(:session_id)}")
+          # TODO: This may be unnecessary once I get nesting right
+          @window.puts("Shell session created!")
         end
 
         @window.puts("Sent request to execute a shell")
@@ -124,7 +137,7 @@ module DriverCommandCommands
         })
 
         _send_request(exec) do |request, response|
-          @window.puts("Executed \"#{request.get(:command)}\": #{response.get(:session_id)}")
+          @window.puts("Executed \"#{request.get(:command)}\"")
         end
 
         @window.puts("Sent request to execute \"#{command}\"")
