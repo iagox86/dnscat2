@@ -49,7 +49,7 @@ class SWindow
       end
 
       $stderr.puts("Input thread is over")
-    rescue Exception => e
+    rescue StandardError => e
       $stderr.puts(e)
       $stderr.puts(e.backtrace.join("\n"))
     end

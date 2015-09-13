@@ -155,10 +155,6 @@ rescue Settings::ValidationError => e
   Trollop::die("Check your command-line arguments")
 end
 
-#if(opts[:isn])
-#  settings.set("isn",          opts[:isn])
-#end
-
 driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window)
 driver.recv() do |data, max_length|
   controller.feed(data, max_length)

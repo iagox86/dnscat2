@@ -24,7 +24,9 @@ module DriverCommandCommands
 
   def _register_commands()
     @commander.register_alias('sessions', 'windows')
-    @commander.register_alias('session', 'window')
+    @commander.register_alias('session',  'window')
+    @commander.register_alias('q',        'quit')
+    @commander.register_alias('exit',     'quit')
 
     @commander.register_command('echo',
       Trollop::Parser.new do
@@ -297,6 +299,16 @@ module DriverCommandCommands
           _display_windows(false)
           next
         end
+      end
+    )
+
+    @commander.register_command("quit",
+      Trollop::Parser.new do
+        banner("Close all sessions and exit dnscat2")
+      end,
+
+      Proc.new do |opts, optval|
+        exit(0)
       end
     )
   end
