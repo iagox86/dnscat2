@@ -25,7 +25,7 @@ require 'trollop'
 NAME = "dnscat2"
 VERSION = "0.03"
 
-window = SWindow.new("main", "dnscat2> ", nil, true)
+window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
 
 window.puts("Welcome to dnscat2! Some documentation may be out of date")
 window.puts()
@@ -120,11 +120,11 @@ window.puts("directly on UDP port 53 (by default).")
 window.puts()
 
 begin
-  Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s(), Proc.new() do |old_val, new_val|
+  Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s()) do |old_val, new_val|
     # We don't have any callbacks
-  end)
+  end
 
-  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug], Proc.new() do |old_val, new_val|
+  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug]) do |old_val, new_val|
     if(Log::LEVELS.index(new_val.upcase).nil?)
       raise(Settings::ValidationError, "Bad debug value; possible values for 'debug': " + Log::LEVELS.join(", "))
     end
@@ -136,11 +136,11 @@ begin
     end
 
     Log.set_min_level(new_val)
-  end)
+  end
 
-  Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s(), Proc.new() do |old_val, new_val|
+  Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s()) do |old_val, new_val|
     DriverDNS.passthrough = new_val
-  end)
+  end
 rescue Settings::ValidationError => e
   window.puts("There was an error with one of your commandline arguments:")
   window.puts(e)

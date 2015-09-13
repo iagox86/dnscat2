@@ -7,15 +7,19 @@
 ##
 
 module ControllerCommands
-  def _display_sessions(all = false)
-    @sessions.keys.sort.each do |id|
-      session = @sessions[id]
-
-      if(all || session.state == Session::STATE_ESTABLISHED)
-        # TODO: Implement session.to_s() properly so it can be used here
-        @window.puts("Session %5d: %s" % [id, session.name()])
-      end
+  def _display_window(window, all, indent = 0)
+    if(!all && window.closed?())
+      return
     end
+
+    puts(('  ' * indent) + window.to_s())
+    window.children() do |c|
+      _display_window(c, all, indent + 1)
+    end
+  end
+
+  def _display_windows(all)
+    _display_window(@window, all)
   end
 
   def _register_commands()
@@ -36,27 +40,27 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optval|
-        _display_sessions(opts[:all])
+        _display_windows(opts[:all])
       end,
     )
 
     @commander.register_command("session",
       Trollop::Parser.new do
         banner("Interact with a session")
-        opt :i, "Interact with the chosen session", :type => :integer, :required => false
+        opt :i, "Interact with the chosen session", :type => :string, :required => false
       end,
 
       Proc.new do |opts, optval|
         if(opts[:i].nil?)
-          _display_sessions(opts[:all])
-        else
-          session = @sessions[opts[:i]]
-          if(session.nil?)
-            @window.puts("Session #{opts[:i]} not found!")
-            _display_sessions(false)
-          else
-            session.activate()
-          end
+          _display_windows(opts[:all])
+          next
+        end
+
+        if(!SWindow.activate(opts[:i]))
+          @window.puts("Session #{opts[:i]} not found!")
+          @window.puts()
+          _display_windows(false)
+          next
         end
       end
     )

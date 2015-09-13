@@ -41,34 +41,30 @@ class Session
     @id = id
     @incoming_data = ''
     @outgoing_data = ''
-    @name = 'unnamed'
 
     # TODO: Somewhere in here, I need the concept of a 'parent' session
     @settings = Settings.new()
-    @window = SWindow.new(@name, "", main_window, false)
+    @window = SWindow.new(main_window, false)
 
-    @settings.create("prompt", Settings::TYPE_NO_STRIP, "", Proc.new() do |old_val, new_val|
-      # We don't have any callbacks
+    @settings.create("prompt", Settings::TYPE_NO_STRIP, "") do |old_val, new_val|
       @window.prompt = new_val
-    end)
-  end
+    end
 
-  def activate()
-    @window.activate()
-  end
-
-  def deactivate()
-    @window.deactivate()
+    @settings.create("name", Settings::TYPE_NO_STRIP, "") do |old_val, new_val|
+      @window.name = new_val
+      @window.prompt = "%s %d> " % [new_val, @window.id]
+    end
   end
 
   def kill()
     if(@state != STATE_KILLED)
       @state = STATE_KILLED
-      @window.puts_ex("Session #{@id} has been killed")
+      @window.puts_ex("Session #{@window.id} has been killed")
     else
-      @window.puts_ex("Session #{@id} has been killed (again)")
+      @window.puts_ex("Session #{@window.id} has been killed (again)")
     end
-    deactivate()
+
+    @window.close()
   end
 
   def _syn_valid?()
@@ -115,7 +111,7 @@ class Session
   end
 
   def to_s()
-    return "id: 0x%04x, state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
+    return "id: 0x%04x [internal: %d], state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @window.id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
   def _handle_syn(packet, max_length)
@@ -126,12 +122,8 @@ class Session
 
     # Save some of their options
     @their_seq = packet.body.seq
-    @name      = packet.body.name
     @options   = packet.body.options
     @state     = STATE_ESTABLISHED
-
-    @window.puts_ex("New session established: %d" % @id, true, true)
-
 
     # TODO: We're going to need different driver types
     if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
@@ -140,7 +132,7 @@ class Session
       @driver = DriverConsole.new(@window, @settings)
     end
 
-    @settings.set("prompt", "%s %d> " % [@name, @id])
+    @settings.set("name", packet.body.name)
 
     # TODO: Check if auto_attach is set
     return Packet.create_syn(0, {
@@ -231,11 +223,15 @@ class Session
       response_packet = send(HANDLERS[packet.type], packet, max_length)
     rescue DnscatException => e
       @window.puts("Protocol exception occurred: %s" % e.to_s())
-      @window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+      @window.puts()
+      @window.puts("If you think this might be a bug, please report with the")
+      @window.puts("following stacktrace:")
       @window.puts(e.inspect)
       e.backtrace.each do |bt|
         @window.puts(bt)
       end
+
+      @window.puts("Killing the session and responding with a FIN packet")
       kill()
 
       response_packet = Packet.create_fin(@options, {

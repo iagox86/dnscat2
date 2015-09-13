@@ -112,13 +112,13 @@ class Settings
     end
   end
 
-  def create(name, type, default_value, watcher)
+  def create(name, type, default_value)
     name = name.to_s()
 
     @settings[name] = @settings[name] || {}
 
     @settings[name][:type]    = type
-    @settings[name][:watcher] = watcher
+    @settings[name][:watcher] = proc
 
     set(name, default_value, false)
   end
