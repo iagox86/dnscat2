@@ -13,8 +13,8 @@ Some goals (these will be deleted as I complete them):
 - Make sure everything works over normal DNS
 - Limit history so we don't quickly run out of memory when logging packets and stuff
 - Implement what I wrote in the server-exec branch
-- Investigate (and probably kill) @parent in commander.rb
 - Explore whether or not I can replace @window with stream in certain places, so less stuff has to understand what a window is
+- Add $settings back
 
 Add settings that can:
 - Pass one or more sessions to an executable rather than interacting with them directly

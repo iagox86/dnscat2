@@ -7,8 +7,7 @@
 class Commander
   # TODO: Handle settings (replacing $var with a name)
   # TODO: Handle shell escapes ('!command')
-  def initialize(parent = nil)
-    @parent = parent
+  def initialize()
     @commands = {}
     @aliases = {}
   end
@@ -76,11 +75,6 @@ class Commander
     command = _resolve_alias(args.shift())
 
     if(@commands[command].nil?)
-      # TODO: Somehow pass to parent (probably in session.rb)
-      if(!@parent.nil?)
-        return @parent.feed(data)
-      end
-
       raise(ArgumentError, "Unknown command: #{command}")
     end
 
