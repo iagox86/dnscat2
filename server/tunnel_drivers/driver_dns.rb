@@ -25,6 +25,7 @@ class DriverDNS
   MAX_AAAA_RECORDS = 5
 
   @@passthrough = false
+  @@id = 0
 
   RECORD_TYPES = {
     IN::TXT => {
@@ -91,12 +92,19 @@ class DriverDNS
 
   }
 
-  def initialize(host, port, domains)
-    Log::PRINT(nil, "Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains.nil? || domains.length == 0) ? "n/a" : domains.join(", ")}]...")
+  def initialize(host, port, domains, parent_window)
+    @window = SWindow.new(parent_window, false, {
+      :id => ('td' + (@@id+=1).to_s()),
+      :name => "DNS Tunnel Driver status window for #{host}:#{port} [domains = #{(domains.nil? || domains.length == 0) ? "n/a" : domains.join(", ")}]",
+      :noinput => true,
+    })
+
+    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains.nil? || domains.length == 0) ? "n/a" : domains.join(", ")}]...", true)
+
     if(domains.nil? || domains.length == 0)
-      Log::PRINT(nil, "No domains were selected, which means this server will only respond to direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)")
+      @window.puts_ex("No domains were selected, which means this server will only respond to direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", true)
     else
-      Log::PRINT(nil, "Will also accept direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)")
+      @window.puts_ex("Will also accept direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", true)
     end
 
     @host        = host
@@ -153,7 +161,8 @@ class DriverDNS
 
   def recv()
     # Save the domains locally so the block can see it
-    domains     = @domains
+    domains = @domains
+    window  = @window
 
     interfaces = [
       [:udp, @host, @port],
@@ -175,22 +184,22 @@ class DriverDNS
           type_info = RECORD_TYPES[type]
 
           # Log what's going on
-          Log.INFO(nil, "Received:  #{transaction.name} (#{type})")
+          window.puts("Received:  #{transaction.name} (#{type})")
 
           # Determine the actual name, without the extra cruft
           name, domain = DriverDNS.figure_out_name(transaction.name, domains)
           if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
             if(DriverDNS.passthrough)
               if(!@shown_pt)
-                Log.INFO(nil, "Unable to handle request, passing upstream: #{transaction.name}")
-                Log.INFO(nil, "(This will only be shown once)")
+                window.puts("Unable to handle request, passing upstream: #{transaction.name}")
+                window.puts("(This will only be shown once)")
               end
               transaction.passthrough!(UPSTREAM)
             elsif(!@shown_pt)
-              Log.INFO(nil, "Unable to handle request, returning an error: #{transaction.name}")
-              Log.INFO(nil, "(If you want to pass to upstream DNS servers, use --passthrough")
-              Log.INFO(nil, "or run \"set passthrough=true\")")
-              Log.INFO(nil, "(This will only be shown once)")
+              window.puts("Unable to handle request, returning an error: #{transaction.name}")
+              window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
+              window.puts("or run \"set passthrough=true\")")
+              window.puts("(This will only be shown once)")
               @shown_pt = true
 
               transaction.fail!(:NXDomain)
@@ -255,7 +264,7 @@ class DriverDNS
             end
 
             # Log the response
-            Log.INFO(nil, "Sending:  #{response}")
+            window.puts("Sending:  #{response}")
 
             # Make sure response is an array (certain types require an array, and it's easier to assume everything is one)
             if(!response.is_a?(Array))
@@ -273,15 +282,16 @@ class DriverDNS
             end
           end
         rescue DnscatException => e
-          Log.ERROR(nil, "Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-          Log.ERROR(nil, e.inspect)
+          window.puts_ex("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):", true)
+          window.puts_ex(e.inspect, true)
           e.backtrace.each do |bt|
-            Log.ERROR(nil, bt)
+            window.puts_ex(bt, true)
           end
           transaction.fail!(:NXDomain)
         rescue Exception => e
-          Log.ERROR(nil, "Error caught:")
-          Log.ERROR(nil, e)
+          window.puts_ex("Error caught:")
+          window.puts_ex(e)
+
           transaction.fail!(:NXDomain)
         end
 
@@ -292,14 +302,14 @@ class DriverDNS
       otherwise do |transaction|
         if(DriverDNS.passthrough)
           if(!@shown_pt)
-            Log.INFO(nil, "Unable to handle request, passing upstream: #{transaction.name}")
-            Log.INFO(nil, "(This will only be shown once)")
+            window.puts("Unable to handle request, passing upstream: #{transaction.name}")
+            window.puts("(This will only be shown once)")
           end
           transaction.passthrough!(UPSTREAM)
         elsif(!@shown_pt)
-          Log.INFO(nil, "Unable to handle request, returning an error: #{transaction.name}")
-          Log.INFO(nil, "(If you want to pass to upstream DNS servers, use --passthrough)")
-          Log.INFO(nil, "(This will only be shown once)")
+          window.puts("Unable to handle request, returning an error: #{transaction.name}")
+          window.puts("(If you want to pass to upstream DNS servers, use --passthrough)")
+          window.puts("(This will only be shown once)")
           @shown_pt = true
 
           transaction.fail!(:NXDomain)

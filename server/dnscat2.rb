@@ -183,8 +183,7 @@ end
 #  settings.set("isn",          opts[:isn])
 #end
 
-window.puts("Starting DNS server...")
-driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains)
+driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window)
 driver.recv() do |data, max_length|
   controller.feed(data, max_length)
 end

@@ -2,7 +2,7 @@ require 'readline'
 
 class SWindow
   attr_accessor :prompt, :name
-  attr_reader :id
+  attr_reader :id, :noinput
 
   @@id = -1
   @@active = nil
@@ -29,7 +29,11 @@ class SWindow
             while @@active.nil? do
             end
 
-            str = Readline::readline(@@active.prompt, true)
+            if(@@active.noinput)
+              str = Readline::readline()
+            else
+              str = Readline::readline(@@active.prompt, true)
+            end
 
             if(str.nil?)
               break
@@ -57,7 +61,8 @@ class SWindow
 
     @id = params[:id] || (@@id += 1)
     @name = params[:name] || "unnamed"
-    @prompt = params[:prompt] || ("%s %d> " % [@name, @id])
+    @prompt = params[:prompt] || ("%s %s> " % [@name, @id.to_s()])
+    @noinput = params[:noinput] || false
 
     @callback = nil
     @history = []
@@ -147,7 +152,10 @@ class SWindow
 
     @@active = self
     $stdout.puts(@history.join(""))
-    $stdout.puts(@prompt)
+
+    if(@noinput != true)
+      $stdout.puts(@prompt)
+    end
 
     Readline::HISTORY.clear()
     @typed_history.each do |i|
@@ -184,12 +192,16 @@ class SWindow
   end
 
   def _incoming(str)
+    if(@noinput)
+      return
+    end
+
     @history << @prompt + str + "\n"
     @typed_history << str
 
     if(@callback.nil?)
       self.puts("Input received, but nothing has registered to receive it")
-      self.puts("Use ctrl-z to escape if this is a dead window!")
+      self.puts("Use ctrl-z to escape if this window isn't taking input!")
       self.puts()
       self.puts("If you're seeing this in a real window, please report a bug!")
       return
