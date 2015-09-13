@@ -58,6 +58,11 @@ class DriverCommand
     @request_id = 0x0001
     @commander = Commander.new()
 
+    # This creates the window early for a slightly better UX (it doesn't pop up after their first command)
+    if(Settings::GLOBAL.get("packet_trace"))
+      window = _get_pcap_window()
+    end
+
     _register_commands()
 
     @handlers = {}
