@@ -48,7 +48,7 @@ class Commander
         return @parent.feed(data)
       end
 
-      puts("Unknown command")
+      puts("Unknown command: #{command}")
       return false
     end
 

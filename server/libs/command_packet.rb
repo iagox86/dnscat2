@@ -221,7 +221,7 @@ class CommandPacket
       if(@data[:is_request])
         packet += [@data[:filename]].pack("Z*")
       else
-        packet += [@data[:data]].pack("a*").pop()
+        packet += [@data[:data]].pack("a*")
       end
 
     when COMMAND_UPLOAD

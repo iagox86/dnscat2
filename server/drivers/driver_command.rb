@@ -57,15 +57,9 @@ class DriverCommand
     @incoming = ""
     @request_id = 0x0001
     @commander = Commander.new()
-
-    # This creates the window early for a slightly better UX (it doesn't pop up after their first command)
-    if(Settings::GLOBAL.get("packet_trace"))
-      window = _get_pcap_window()
-    end
+    @handlers = {}
 
     _register_commands()
-
-    @handlers = {}
 
     @window.on_input() do |data|
       @commander.feed(data)
@@ -77,6 +71,18 @@ class DriverCommand
     @window.puts("'ping'! For a full list of clients, try 'help'.")
     @window.puts()
 
+    # This creates the window early for a slightly better UX (it doesn't pop up after their first command)
+    if(Settings::GLOBAL.get("packet_trace"))
+      window = _get_pcap_window()
+    end
+
+    # Sideload the auto-command if one is set (this should happen at the end of initialize())
+    if(auto_command = Settings::GLOBAL.get("auto_command"))
+      auto_command.split(";").each do |command|
+        command = command.strip()
+        @commander.feed(command + "\n")
+      end
+    end
   end
 
   def _handle_incoming(command_packet)

@@ -16,11 +16,11 @@ class Settings
   class ValidationError < StandardError
   end
 
-  TYPE_STRING = 0
-  TYPE_INTEGER = 1
-  TYPE_BOOLEAN = 2
+  TYPE_STRING       = 0
+  TYPE_INTEGER      = 1
+  TYPE_BOOLEAN      = 2
   TYPE_BLANK_IS_NIL = 3
-  TYPE_NO_STRIP = 4
+  TYPE_NO_STRIP     = 4
 
   @@mutators = {
     TYPE_STRING => Proc.new() do |value|

@@ -144,6 +144,9 @@ begin
 
   Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach].to_s()) do |old_val, new_val|
   end
+
+  Settings::GLOBAL.create("auto_command", Settings::TYPE_BLANK_IS_NIL, opts[:auto_command]) do |value|
+  end
 rescue Settings::ValidationError => e
   window.puts("There was an error with one of your commandline arguments:")
   window.puts(e)
@@ -152,19 +155,6 @@ rescue Settings::ValidationError => e
   Trollop::die("Check your command-line arguments")
 end
 
-#settings.verify("auto_command") do |value|
-#  if(value.is_a?(String) || value.is?(nil))
-#    nil
-#  else
-#    "'auto_command' has to be a string!"
-#  end
-#end
-#
-#
-#settings.set("auto_command", opts[:auto_command])
-#settings.set("auto_attach",  opts[:auto_attach])
-#settings.set("passthrough",  opts[:passthrough])
-#
 #if(opts[:isn])
 #  settings.set("isn",          opts[:isn])
 #end
