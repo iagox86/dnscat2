@@ -32,6 +32,7 @@ class Controller
         @commander.feed(data)
       rescue ArgumentError => e
         @window.puts("Error: #{e}")
+        @window.puts()
         @commander.educate(data, @window)
       end
     end

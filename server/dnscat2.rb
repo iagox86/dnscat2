@@ -11,12 +11,12 @@
 
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
+require 'controller/controller'
+require 'libs/log'
+require 'libs/settings'
 require 'tunnel_drivers/driver_dns'
 require 'tunnel_drivers/driver_tcp'
-
-require 'libs/log'
-require 'controller/controller'
-require 'libs/settings'
+require 'tunnel_drivers/tunnel_drivers'
 
 # Option parsing
 require 'trollop'
@@ -155,11 +155,7 @@ rescue Settings::ValidationError => e
   Trollop::die("Check your command-line arguments")
 end
 
-driver = DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window)
-driver.recv() do |data, max_length|
-  controller.feed(data, max_length)
-end
+TunnelDrivers.start(controller, DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window))
 
-puts("driver.recv() returned")
-
+# Wait for the input window to finish its thing
 SWindow.wait()

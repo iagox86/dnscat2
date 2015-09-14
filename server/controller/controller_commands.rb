@@ -6,6 +6,8 @@
 # See: LICENSE.md
 ##
 
+require 'tunnel_drivers/tunnel_drivers'
+
 module ControllerCommands
   def _display_window(window, all, indent = 0)
     if(!all && !window.pending?() && window.closed?())
@@ -132,10 +134,16 @@ module ControllerCommands
 
     @commander.register_command("kill",
       Trollop::Parser.new do
-        banner("Kill the specified session")
+        banner("Kill the specified session or tunnel driver")
       end,
 
       Proc.new do |opts, optarg|
+        if(TunnelDrivers.exists?(optarg))
+          @window.puts("Attempting to stop the tunnel driver: #{optarg}")
+          TunnelDrivers.stop(optarg)
+          next
+        end
+
         session = find_session_by_window(optarg)
         if(!session)
           @window.puts("Couldn't find window with id = #{optarg}")
@@ -147,5 +155,75 @@ module ControllerCommands
       end
     )
 
+    @commander.register_command("start",
+      Trollop::Parser.new do
+        banner("Start a new tunnel_driver - currently, this just means another\n" +
+               "DNS driver. The 'startdns' command can also be used for simpler\n" +
+               "syntax.\n" +
+               "\n" +
+               "The protocol (--dns) must be specified, and all information\n" +
+               "about the DNS server should be passed as name=value pairs, where\n" +
+               "the following names are possible:\n" +
+               "\n" +
+               "domain=<domain>       The domain to listen for requests on\n" +
+               "                      (optional)\n" +
+               "host=<hostname>       The host to listen on (default: 0.0.0.0).\n" +
+               "port=<port>           The port to listen on (default: 53).\n" +
+               "\n" +
+               " Examples:\n" +
+               "  start --dns domain=skullseclabs.org\n" +
+               "  start --dns domain=skullseclabs.org,port=53\n" +
+               "  start --dns domain=skullseclabs.org,port=5353\n" +
+               "\n" +
+               "To stop a driver, simply use the 'kill' command on the window\n" +
+               "it created (td1, td2, etc)\n" +
+               "\n")
+
+        opt :dns, "Start a DNS instance", :type => :string, :required => false
+      end,
+
+      Proc.new do |opts, optarg|
+        if(opts[:dns].nil?)
+          @window.puts("No --dns argument was passed!")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
+        end
+
+        args = {
+          :domain => nil,
+          :host => "0.0.0.0",
+          :port => "53",
+        }
+
+        opts[:dns].split(/[,;]/).each do |arg|
+          name, value = arg.split(/=/, 2)
+          name = name.strip().to_sym()
+          value = value.strip()
+
+          if(value.nil?)
+            @window.puts("The --dns argument requires name=value pairs,")
+            @window.puts("separated by commas. See examples below.")
+            @window.puts()
+            raise(Trollop::HelpNeeded)
+          end
+
+          if(!args.has_key?(name))
+            @window.puts("The --dns argument requires certain name=value pairs,")
+            @window.puts("separated by commas, but this one isn't valid:")
+            @window.puts("#{name}")
+            @window.puts()
+            raise(Trollop::HelpNeeded)
+          end
+
+          args[name] = value
+        end
+
+        if(!args[:domain].nil?)
+          args[:domain] = [args[:domain]]
+        end
+
+        TunnelDrivers.start(self, DriverDNS.new(args[:host], args[:port], args[:domain], @window))
+      end
+    )
   end
 end

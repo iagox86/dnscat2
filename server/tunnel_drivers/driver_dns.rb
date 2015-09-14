@@ -13,6 +13,8 @@ require 'rubydns'
 require 'libs/log'
 
 class DriverDNS
+  attr_reader :window
+
   # Use upstream DNS for name resolution.
   # TODO: Make this configurable
   UPSTREAM = RubyDNS::Resolver.new([[:udp, "8.8.8.8", 53]])
@@ -93,13 +95,17 @@ class DriverDNS
   }
 
   def initialize(host, port, domains, parent_window)
+    if(domains.nil?)
+      domains = []
+    end
+
     @window = SWindow.new(parent_window, false, {
       :id => ('td' + (@@id+=1).to_s()),
-      :name => "DNS Tunnel Driver status window for #{host}:#{port} [domains = #{(domains.nil? || domains.length == 0) ? "n/a" : domains.join(", ")}]",
+      :name => "DNS Tunnel Driver status window for #{host}:#{port} [domains = #{(domains == []) ? "n/a" : domains.join(", ")}]",
       :noinput => true,
     })
 
-    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains.nil? || domains.length == 0) ? "n/a" : domains.join(", ")}]...", true)
+    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...", true)
 
     if(domains.nil? || domains.length == 0)
       @window.puts_ex("No domains were selected, which means this server will only respond to direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", true)
@@ -157,6 +163,10 @@ class DriverDNS
   end
   def DriverDNS.passthrough()
     return @@passthrough
+  end
+
+  def id()
+    return @window.id
   end
 
   def recv()
@@ -282,15 +292,18 @@ class DriverDNS
             end
           end
         rescue DnscatException => e
-          window.puts_ex("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):", true)
-          window.puts_ex(e.inspect, true)
+          window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+          window.puts(e.inspect)
           e.backtrace.each do |bt|
-            window.puts_ex(bt, true)
+            window.puts(bt)
           end
           transaction.fail!(:NXDomain)
-        rescue Exception => e
-          window.puts_ex("Error caught:")
-          window.puts_ex(e)
+        rescue StandardError => e
+          window.puts("Error caught:")
+          window.puts(e.inspect)
+          e.backtrace.each do |bt|
+            window.puts(bt)
+          end
 
           transaction.fail!(:NXDomain)
         end
@@ -320,7 +333,7 @@ class DriverDNS
     end
   end
 
-  def close()
-    @s.close
+  def stop()
+    @window.close()
   end
 end
