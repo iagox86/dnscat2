@@ -30,6 +30,13 @@ typedef _W64 unsigned int   ssize_t;
 #define _SSIZE_T_DEFINED
 #endif
 
+/* OS X doesn't seem to have INADDR_NONE defined in all cases. */
+/* If this causes a compile error on some system, try putting "#ifdef __APPLE__"
+ * around it. */
+#ifndef INADDR_NONE
+#define INADDR_NONE ((in_addr_t) -1)
+#endif
+
 #else
 #include <stdint.h>
 #endif
