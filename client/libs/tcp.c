@@ -22,6 +22,10 @@
 
 #include "tcp.h"
 
+#ifndef INADDR_NONE
+#define INADDR_NONE ((in_addr_t) -1)
+#endif
+ 
 void winsock_initialize()
 {
 #ifdef WIN32

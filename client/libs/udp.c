@@ -22,6 +22,10 @@
 
 #include "udp.h"
 
+#ifndef INADDR_NONE
+#define INADDR_NONE ((in_addr_t) -1)
+#endif
+ 
 int udp_create_socket(uint16_t port, char *local_address)
 {
   int    s;
