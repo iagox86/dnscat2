@@ -25,7 +25,7 @@ class DriverConsole
     @window.puts("screen! If the client is executing a command and you don't")
     @window.puts("see a prompt, try typing 'pwd' or something!")
     @window.puts()
-    @window.puts("To exit, type ctrl-z.")
+    @window.puts("To go back, type ctrl-z.")
     @window.puts()
   end
 

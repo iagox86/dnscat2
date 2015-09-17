@@ -54,12 +54,12 @@ opts = Trollop::options do
   opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
     :type => :boolean, :default => false
 
-  opt :tcp,       "Start a TCP server",
-    :type => :boolean, :default => true
-  opt :tcphost,   "The TCP ip address to listen on",
-    :type => :string,  :default => "0.0.0.0"
-  opt :tcpport,    "The port to listen on",
-    :type => :integer, :default => 4444
+#  opt :tcp,       "Start a TCP server",
+#    :type => :boolean, :default => true
+#  opt :tcphost,   "The TCP ip address to listen on",
+#    :type => :string,  :default => "0.0.0.0"
+#  opt :tcpport,    "The port to listen on",
+#    :type => :integer, :default => 4444
 
   opt :debug,     "Min debug level [info, warning, error, fatal]",
     :type => :string,  :default => "warning"
@@ -70,8 +70,8 @@ opts = Trollop::options do
     :type => :boolean, :default => false
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
     :type => :boolean,  :default => false
-  opt :isn,            "Set the initial sequence number",
-    :type => :integer,  :default => nil
+  opt :process,        "If set, the given process is run for every incoming console/exec session and given stdin/stdout. This has security implications.",
+    :type => :string,   :default => nil
 end
 
 # Note: This is no longer strictly required, but it gives the user better feedback if
@@ -82,10 +82,6 @@ end
 #end
 
 if(opts[:dnsport] < 0 || opts[:dnsport] > 65535)
-  Trollop::die :dnsport, "must be a valid port"
-end
-
-if(opts[:tcpport] < 0 || opts[:tcpport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
 end
 
@@ -143,9 +139,15 @@ begin
   end
 
   Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach].to_s()) do |old_val, new_val|
+    window.puts("auto_attach => #{new_val}")
   end
 
-  Settings::GLOBAL.create("auto_command", Settings::TYPE_BLANK_IS_NIL, opts[:auto_command]) do |value|
+  Settings::GLOBAL.create("auto_command", Settings::TYPE_BLANK_IS_NIL, opts[:auto_command]) do |old_val, new_val|
+    window.puts("auto_command => #{new_val}")
+  end
+
+  Settings::GLOBAL.create("process", Settings::TYPE_BLANK_IS_NIL, opts[:process]) do |old_val, new_val|
+    window.puts("process => #{new_val}")
   end
 rescue Settings::ValidationError => e
   window.puts("There was an error with one of your commandline arguments:")

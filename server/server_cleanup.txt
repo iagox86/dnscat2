@@ -3,20 +3,23 @@ Some goals (these will be deleted as I complete them):
 - Make sure a good error is still displayed when the user doesn't run it as root
 - Make @window.puts_ex use named parameters everywhere
 - Take care of all TODOs that are possible
-- Make sure all of the commands from the original version are present in the cleaned up version
-- Make it possible to create/destroy tunnel drivers
-- At the end of dnscat.rb, do SWindow.wait(), and when it returns (the input thread ends), the process should be cleanly terminated
-- Implement 'help' command and '-h' arguments everywhere
 - Audit all uses of "puts()" throughout the program to ensure none of them are supposed to be window.puts()
 - Make sure all the settings and commands from pre-refactor are present
 - Comment APIs really well, especially stuff in the /libs folder
-- Make sure everything works over normal DNS
 - Limit history so we don't quickly run out of memory when logging packets and stuff
-- Implement what I wrote in the server-exec branch
 - Explore whether or not I can replace @window with stream in certain places, so less stuff has to understand what a window is
 - Add $settings back
 - Bring back the "session last heard from [X] minutes ago" message
+- Add documentation to settings when they're created
+- Change the commandline arguments to match the client's
+- Stop a tunnel driver
 
 Add settings that can:
-- Pass one or more sessions to an executable rather than interacting with them directly
 - Log to a file (per-session or global)
+
+Before release, make sure:
+- Test passthrough
+- Make sure everything works over normal DNS
+
+Out of scope things that I'd like to do eventually (so I'll file them as github issues):
+- Add a command to command sessions to spawn a console, if that's possible

@@ -10,6 +10,7 @@
 require 'controller/packet'
 require 'drivers/driver_command'
 require 'drivers/driver_console'
+require 'drivers/driver_process'
 require 'libs/commander'
 require 'libs/dnscat_exception'
 require 'libs/log'
@@ -129,7 +130,12 @@ class Session
     if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
       @driver = DriverCommand.new(@window, @settings)
     else
-      @driver = DriverConsole.new(@window, @settings)
+      process = @settings.get("process")
+      if(process.nil?)
+        @driver = DriverConsole.new(@window, @settings)
+      else
+        @driver = DriverProcess.new(@window, @settings, process)
+      end
     end
 
     @settings.set("name", packet.body.name)

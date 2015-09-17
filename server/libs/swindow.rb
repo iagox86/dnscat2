@@ -1,8 +1,8 @@
 require 'readline'
 
 class SWindow
-  attr_accessor :prompt, :name
-  attr_reader :id, :noinput
+  attr_accessor :prompt, :name, :noinput
+  attr_reader :id
 
   @@id = -1
   @@active = nil
