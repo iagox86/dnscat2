@@ -12,6 +12,7 @@ Some goals (these will be deleted as I complete them):
 - Bring back the "session last heard from [X] minutes ago" message
 - Add documentation to settings when they're created
 - Change the commandline arguments to match the client's
+- Figure out what's wrong with history and fix it
 
 Add settings that can:
 - Log to a file (per-session or global)

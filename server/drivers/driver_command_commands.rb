@@ -281,6 +281,16 @@ module DriverCommandCommands
       end
     )
 
+    @commander.register_command("unset",
+      Trollop::Parser.new do
+        banner("unset <name>")
+      end,
+
+      Proc.new do |opts, optarg|
+        @settings.unset(optarg)
+      end
+    )
+
     @commander.register_command('windows',
       Trollop::Parser.new do
         banner("Lists the current active windows")

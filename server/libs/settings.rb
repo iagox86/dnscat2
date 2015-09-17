@@ -67,7 +67,7 @@ class Settings
     end,
   }
 
-  def set(name, new_value, allow_recursion = true)
+  def set(name, new_value, allow_recursion=true)
     name = name.to_s()
 
     if(@settings[name].nil?)
@@ -90,7 +90,19 @@ class Settings
     return old_value
   end
 
-  def get(name, allow_recursion = true)
+  def unset(name, allow_recursion=true)
+    if(@settings[name].nil?)
+      if(!allow_recursion)
+        raise(Settings::ValidationError, "No such setting!")
+      end
+
+      return Settings::GLOBAL.unset(name)
+    end
+
+    set(name, @settings[name][:default].to_s(), allow_recursion)
+  end
+
+  def get(name, allow_recursion=true)
     name = name.to_s()
 
     if(@settings[name].nil?)
@@ -122,6 +134,7 @@ class Settings
     @settings[name][:docs]    = docs
     @settings[name][:default] = @@mutators[type].call(default_value)
 
-    set(name, default_value, false)
+    # This sets it to the default value
+    unset(name, false)
   end
 end

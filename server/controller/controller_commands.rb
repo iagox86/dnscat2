@@ -111,6 +111,16 @@ module ControllerCommands
       end
     )
 
+    @commander.register_command("unset",
+      Trollop::Parser.new do
+        banner("unset <name>")
+      end,
+
+      Proc.new do |opts, optarg|
+        Settings::GLOBAL.unset(optarg)
+      end
+    )
+
     @commander.register_command("quit",
       Trollop::Parser.new do
         banner("Close all sessions and exit dnscat2")
