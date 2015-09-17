@@ -1,7 +1,6 @@
 Some goals (these will be deleted as I complete them):
 - Nested sessions
 - Make sure a good error is still displayed when the user doesn't run it as root
-- Make @window.puts_ex use named parameters everywhere
 - Take care of all TODOs that are possible
 - Audit all uses of "puts()" throughout the program to ensure none of them are supposed to be window.puts()
 - Make sure all the settings and commands from pre-refactor are present

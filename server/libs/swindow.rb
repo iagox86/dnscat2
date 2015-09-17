@@ -88,7 +88,7 @@ class SWindow
     end
 
     if(params[:quiet] != true)
-      self.puts_ex("New window created: %s" % @id.to_s(), true, true, false, false)
+      self.puts_ex("New window created: %s" % @id.to_s(), {:to_ancestors=>true})
     end
 
     @@windows[@id.to_s()] = self
@@ -139,22 +139,40 @@ class SWindow
     @children << child
   end
 
-  def puts_ex(str, to_parent = false, to_grandparents = false, to_children = false, to_grandchildren = false)
-    puts(str)
-
-    if(to_grandparents)
-      @parent.puts_ex(str, false, true, false, false) if(@parent)
-    elsif(to_parent)
-      @parent.puts_ex(str, false, false, false, false) if(@parent)
+  # Possible arguments:
+  #  :to_parent
+  #  :to_ancestors
+  #  :to_children
+  #  :to_descendants
+  def puts_ex(str, params = {})
+    # I keep using these by accident, so just handle them
+    params.each_key do |k|
+      if(![:to_parent, :to_ancestors, :to_children, :to_descendants].index(k))
+        puts("oops: #{k} doesn't exist!")
+      end
     end
 
-    if(to_grandchildren)
-      @children.each do |child|
-        child.puts_ex(str, false, false, false, true)
+    puts(str)
+
+    if(params[:to_parent] || params[:to_ancestors])
+      parent_params = params.clone()
+      parent_params[:to_parent] = false
+      parent_params[:to_children] = false
+      parent_params[:to_descendants] = false
+
+      if(@parent)
+        @parent.puts_ex(str, parent_params)
       end
-    elsif(to_children)
+    end
+
+    if(params[:to_children] || params[:to_descendants])
+      child_params = params.clone()
+      child_params[:to_child] = false
+      child_params[:to_parent] = false
+      child_params[:to_ancestors] = false
+
       @children.each do |child|
-        child.puts_ex(str, false, false, false, false)
+        child.puts_ex(str, child_params)
       end
     end
   end

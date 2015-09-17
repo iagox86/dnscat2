@@ -149,8 +149,8 @@ module ControllerCommands
           next
         end
 
-        session.kill()
         @window.puts("Session #{optarg} has been sent the kill signal!")
+        session.kill()
       end
     )
 

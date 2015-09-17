@@ -105,12 +105,12 @@ class DriverDNS
       :noinput => true,
     })
 
-    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...", true)
+    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...", {:to_parent=>true})
 
     if(domains.nil? || domains.length == 0)
-      @window.puts_ex("No domains were selected, which means this server will only respond to direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", true)
+      @window.puts_ex("No domains were selected, which means this server will only respond to direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", {:to_parent=>true})
     else
-      @window.puts_ex("Will also accept direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", true)
+      @window.puts_ex("Will also accept direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", {:to_parent=>true})
     end
 
     @host        = host
