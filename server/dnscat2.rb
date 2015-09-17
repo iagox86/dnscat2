@@ -116,11 +116,11 @@ window.puts("directly on UDP port 53 (by default).")
 window.puts()
 
 begin
-  Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s()) do |old_val, new_val|
+  Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s(), "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
     # We don't have any callbacks
   end
 
-  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug]) do |old_val, new_val|
+  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug], "Enable more or less debugging; legal values = #{Log::LEVELS.join(", ")}") do |old_val, new_val|
     if(Log::LEVELS.index(new_val.upcase).nil?)
       raise(Settings::ValidationError, "Bad debug value; possible values for 'debug': " + Log::LEVELS.join(", "))
     end
@@ -134,19 +134,19 @@ begin
     Log.set_min_level(new_val)
   end
 
-  Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s()) do |old_val, new_val|
+  Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s(), "If set to true, will forward unhandled DNS packets to an upstream server (8.8.8.8:53) instead of responding with an error.") do |old_val, new_val|
     DriverDNS.passthrough = new_val
   end
 
-  Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach].to_s()) do |old_val, new_val|
+  Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach].to_s(), "If true, the UI will automatically open new sessions") do |old_val, new_val|
     window.puts("auto_attach => #{new_val}")
   end
 
-  Settings::GLOBAL.create("auto_command", Settings::TYPE_BLANK_IS_NIL, opts[:auto_command]) do |old_val, new_val|
+  Settings::GLOBAL.create("auto_command", Settings::TYPE_BLANK_IS_NIL, opts[:auto_command], "The command (or semicolon-separated list of commands) will automatically be executed for each new session as if they were typed at the keyboard.") do |old_val, new_val|
     window.puts("auto_command => #{new_val}")
   end
 
-  Settings::GLOBAL.create("process", Settings::TYPE_BLANK_IS_NIL, opts[:process]) do |old_val, new_val|
+  Settings::GLOBAL.create("process", Settings::TYPE_BLANK_IS_NIL, opts[:process] || "", "If set, this process is spawned for each new console session ('--console' on the client), and it handles the session instead of getting the i/o from the keyboard.") do |old_val, new_val|
     window.puts("process => #{new_val}")
   end
 rescue Settings::ValidationError => e

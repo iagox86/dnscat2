@@ -6,22 +6,9 @@
 # See: LICENSE.md
 ##
 
+require 'libs/command_helpers'
+
 module DriverCommandCommands
-  def _display_window(window, all, indent = 0)
-    if(!all && window.closed?())
-      return
-    end
-
-    @window.puts(('  ' * indent) + window.to_s())
-    window.children() do |c|
-      _display_window(c, all, indent + 1)
-    end
-  end
-
-  def _display_windows(all)
-    _display_window(@window, all)
-  end
-
   def _register_commands()
     @commander.register_alias('sessions', 'windows')
     @commander.register_alias('session',  'window')
@@ -253,15 +240,21 @@ module DriverCommandCommands
         if(optarg.length == 0)
           @window.puts("Usage: set <name>=<value>")
           @window.puts()
-          @window.puts("Global options:")
-          Settings::GLOBAL.each_pair() do |k, v|
-            @window.puts(" %s=%s" % [k, v.to_s()])
+          @window.puts("** Global options:")
+          @window.puts()
+          Settings::GLOBAL.each_setting() do |name, value, docs, default|
+            @window.puts("%s => %s [default = %s]" % [name, CommandHelpers.format_field(value), CommandHelpers.format_field(default)])
+            @window.puts(CommandHelpers.wrap(docs, 72, 4))
+            @window.puts()
           end
 
           @window.puts()
-          @window.puts("Session options:")
-          @settings.each_pair() do |k, v|
-            @window.puts(" %s=%s" % [k, v.to_s()])
+          @window.puts("** Session options:")
+          @window.puts()
+          @settings.each_setting() do |name, value, docs, default|
+            @window.puts("%s => %s [default = %s]" % [name, CommandHelpers.format_field(value), CommandHelpers.format_field(default)])
+            @window.puts(CommandHelpers.wrap(docs, 72, 4))
+            @window.puts()
           end
 
           next
@@ -295,7 +288,7 @@ module DriverCommandCommands
       end,
 
       Proc.new do |opts, optarg|
-        _display_windows(opts[:all])
+        CommandHelpers.display_windows(opts[:all])
       end,
     )
 
@@ -307,14 +300,14 @@ module DriverCommandCommands
 
       Proc.new do |opts, optarg|
         if(opts[:i].nil?)
-          _display_windows(opts[:all])
+          CommandHelpers.display_windows(opts[:all])
           next
         end
 
         if(!SWindow.activate(opts[:i]))
           @window.puts("Window #{opts[:i]} not found!")
           @window.puts()
-          _display_windows(false)
+          CommandHelpers.display_windows(false)
           next
         end
       end

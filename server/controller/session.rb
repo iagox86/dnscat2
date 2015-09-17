@@ -47,13 +47,13 @@ class Session
     @settings = Settings.new()
     @window = SWindow.new(main_window, false)
 
-    @settings.create("prompt", Settings::TYPE_NO_STRIP, "") do |old_val, new_val|
+    @settings.create("prompt", Settings::TYPE_NO_STRIP, "not set> ", "Change the prompt (if you want a space, use quotes; 'set prompt=\"a> \"'.") do |old_val, new_val|
       @window.prompt = new_val
     end
 
-    @settings.create("name", Settings::TYPE_NO_STRIP, "") do |old_val, new_val|
+    @settings.create("name", Settings::TYPE_NO_STRIP, "(not set)", "Change the name of the window, and how it's displayed on the 'windows' list; this implicitly changes the prompt as well.") do |old_val, new_val|
       @window.name = new_val
-      @window.prompt = "%s %d> " % [new_val, @window.id]
+      @settings.set("prompt", "%s %d> " % [new_val, @window.id])
     end
   end
 

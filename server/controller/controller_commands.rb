@@ -9,20 +9,6 @@
 require 'tunnel_drivers/tunnel_drivers'
 
 module ControllerCommands
-  def _display_window(window, all, indent = 0)
-    if(!all && !window.pending?() && window.closed?())
-      return
-    end
-
-    @window.puts(('  ' * indent) + window.to_s())
-    window.children() do |c|
-      _display_window(c, all, indent + 1)
-    end
-  end
-
-  def _display_windows(all)
-    _display_window(@window, all)
-  end
 
   def _register_commands()
     @commander.register_alias('sessions', 'windows')
@@ -59,7 +45,7 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optarg|
-        _display_windows(opts[:all])
+        CommandHelpers.display_windows(opts[:all])
       end,
     )
 
@@ -71,14 +57,14 @@ module ControllerCommands
 
       Proc.new do |opts, optarg|
         if(opts[:i].nil?)
-          _display_windows(opts[:all])
+          CommandHelpers.display_windows(opts[:all])
           next
         end
 
         if(!SWindow.activate(opts[:i]))
           @window.puts("Windown #{opts[:i]} not found!")
           @window.puts()
-          _display_windows(false)
+          CommandHelpers.display_windows(false)
           next
         end
       end
@@ -93,9 +79,12 @@ module ControllerCommands
         if(optarg.length == 0)
           @window.puts("Usage: set <name>=<value>")
           @window.puts()
-          @window.puts("Global options:")
-          Settings::GLOBAL.each_pair() do |k, v|
-            @window.puts(" %s=%s" % [k, v.to_s()])
+          @window.puts("** Global options:")
+          @window.puts()
+          Settings::GLOBAL.each_setting() do |name, value, docs, default|
+            @window.puts("%s => %s [default = %s]" % [name, CommandHelpers.format_field(value), CommandHelpers.format_field(default)])
+            @window.puts(CommandHelpers.wrap(docs, 72, 4))
+            @window.puts()
           end
 
           next

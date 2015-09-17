@@ -106,19 +106,21 @@ class Settings
     return @settings.keys
   end
 
-  def each_pair()
+  def each_setting()
     @settings.each_pair do |k, v|
-      yield(k, v[:value])
+      yield(k, v[:value], v[:docs], v[:default])
     end
   end
 
-  def create(name, type, default_value)
+  def create(name, type, default_value, docs)
     name = name.to_s()
 
     @settings[name] = @settings[name] || {}
 
     @settings[name][:type]    = type
     @settings[name][:watcher] = proc
+    @settings[name][:docs]    = docs
+    @settings[name][:default] = @@mutators[type].call(default_value)
 
     set(name, default_value, false)
   end
