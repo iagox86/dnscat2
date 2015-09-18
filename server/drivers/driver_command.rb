@@ -110,7 +110,7 @@ class DriverCommand
       @window.puts()
       @window.puts("Here are the responses we're waiting for:")
       @handlers.each_pair do |request_id, handler|
-        puts("#{request_id}: #{handler[:request]}")
+        @window.puts("#{request_id}: #{handler[:request]}")
       end
 
       return

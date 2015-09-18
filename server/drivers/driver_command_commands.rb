@@ -119,7 +119,7 @@ module DriverCommandCommands
           raise(Trollop::HelpNeeded)
         end
 
-        puts("command = #{command} #{command.class}")
+        @window.puts("command = #{command} #{command.class}")
         exec = CommandPacket.new({
           :is_request => true,
           :request_id => request_id(),

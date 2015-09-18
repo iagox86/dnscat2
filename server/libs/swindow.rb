@@ -219,6 +219,8 @@ class SWindow
 
   def _incoming(str)
     if(@noinput)
+      self.puts("Input is disabled for this window! But you can use ctrl-z to")
+      self.puts("get out if that's what you're trying to do!")
       return
     end
 

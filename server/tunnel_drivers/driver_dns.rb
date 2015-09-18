@@ -105,13 +105,31 @@ class DriverDNS
       :noinput => true,
     })
 
-    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port} [domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...", {:to_parent=>true})
+    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port}", {:to_parent => true})
+    @window.puts_ex("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...", {:to_parent=>true})
+    @window.puts_ex("", {:to_parent => true})
 
     if(domains.nil? || domains.length == 0)
-      @window.puts_ex("No domains were selected, which means this server will only respond to direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", {:to_parent=>true})
+      @window.puts_ex("It looks like you didn't give me any domains to recognize!", {:to_parent => true})
+      @window.puts_ex("That's cool, though, you can still use direct queries,", {:to_parent => true})
+      @window.puts_ex("although those are less stealthy.", {:to_parent => true})
+      @window.puts_ex("", {:to_parent => true})
     else
-      @window.puts_ex("Will also accept direct queries (using \"--dns server=x.x.x.x,port=yyy\" on the client)", {:to_parent=>true})
+      @window.puts_ex("Assuming you have an authoritative DNS server, you can run", {:to_parent => true})
+      @window.puts_ex("the client anywhere with the following:", {:to_parent => true})
+      domains.each do |domain|
+        @window.puts_ex("  ./dnscat2 #{domain}", {:to_parent => true})
+      end
+      @window.puts_ex("", {:to_parent => true})
     end
+
+    @window.puts_ex("To talk directly to the server without a domain name, run:", {:to_parent => true})
+    @window.puts_ex("  ./dnscat2 --dns server=x.x.x.x,port=yyy", {:to_parent => true})
+    @window.puts_ex("", {:to_parent => true})
+    @window.puts_ex("Of course, you have to figure out <server> yourself! Clients", {:to_parent => true})
+    @window.puts_ex("will connect directly on UDP port 53 (by default).", {:to_parent => true})
+    @window.puts_ex("", {:to_parent => true})
+
 
     @host        = host
     @port        = port

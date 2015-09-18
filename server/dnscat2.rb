@@ -89,32 +89,6 @@ DriverDNS.passthrough = opts[:passthrough]
 # Make a copy of ARGV
 domains = [].replace(ARGV)
 
-if(domains.length > 0)
-  puts("Handling requests for the following domain(s):")
-  puts(domains.join(", "))
-
-  puts()
-  puts("Assuming you are the authority, you can run clients like this:")
-  puts()
-  domains.each do |domain|
-    puts("./dnscat2 #{domain}")
-  end
-
-  window.puts()
-  window.puts("You can also run a directly-connected client:")
-else
-  window.puts("It looks like you didn't give me any domains to recognize!")
-  window.puts("That's cool, though, you can still use a direct connection.")
-  window.puts("Try running this on your client:")
-end
-
-window.puts()
-window.puts("./dnscat2 --dns server=<server>")
-window.puts()
-window.puts("Of course, you have to figure out <server> yourself! Clients will connect")
-window.puts("directly on UDP port 53 (by default).")
-window.puts()
-
 begin
   Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s(), "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
     # We don't have any callbacks
