@@ -3,7 +3,6 @@ Some goals (these will be deleted as I complete them):
 - Make sure a good error is still displayed when the user doesn't run it as root
 - Take care of all TODOs that are possible
 - Audit all uses of "puts()" throughout the program to ensure none of them are supposed to be window.puts()
-- Make sure all the settings and commands from pre-refactor are present
 - Comment APIs really well, especially stuff in the /libs folder
 - Limit history so we don't quickly run out of memory when logging packets and stuff
 - Explore whether or not I can replace @window with stream in certain places, so less stuff has to understand what a window is
@@ -12,6 +11,7 @@ Some goals (these will be deleted as I complete them):
 - Add documentation to settings when they're created
 - Change the commandline arguments to match the client's
 - Figure out what's wrong with history and fix it
+- Either get rid of - or refactor - log.rb
 
 Add settings that can:
 - Log to a file (per-session or global)

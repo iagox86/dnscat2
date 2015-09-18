@@ -4,12 +4,20 @@
 # By Ron Bowes
 #
 # See: LICENSE.md
-#
 ##
 
 require 'libs/dnscat_exception'
 require 'libs/hex'
 
+##
+# Defines a packet in the "command protocol". There's a document in the docs/
+# folder that describes the command protocol, but essentially it's a protocol
+# that runs on top of the dnscat2 protocol and provides functionality like
+# uploading/downloading files, spawning a shell, etc.
+#
+# By default, when a new session is created, it's a "command session", where
+# on the server, a Meterpreter-like menu is given.
+##
 class CommandPacket
   COMMAND_PING     = 0x0000
   COMMAND_SHELL    = 0x0001
@@ -29,7 +37,8 @@ class CommandPacket
     0xFFFF => "COMMAND_ERROR",
   }
 
-  # These are used in initialize() to make sure the caller is passing in the right fields
+  # These are used in initialize() to make sure the caller is passing in the
+  # right fields
   VALIDATORS = {
     COMMAND_PING => {
       :request  => [ :data ],
@@ -159,6 +168,8 @@ class CommandPacket
     return CommandPacket.new(data)
   end
 
+  # Verifies that all required fields for the type are present.
+  # :command_id, :request_id, and :is_request are all required.
   def validate(data)
     # Make sure they passed in a command_id and request_id
     if(data[:command_id].nil?)
@@ -188,11 +199,14 @@ class CommandPacket
     end
   end
 
+  # Data is simply a hash of the required fields (see the VALIDATORS variable
+  # for which fields are required for each message type).
   def initialize(data)
     validate(data)
     @data = data.clone()
   end
 
+  # Convert to a byte string
   def serialize()
     validate(@data)
 
@@ -240,6 +254,7 @@ class CommandPacket
     return packet
   end
 
+  # Convert to a user-readable string
   def to_s()
     response = "%s :: %s\n" % [COMMAND_NAMES[@data[:command_id]], @data.to_s()]
     response += Hex.to_s(self.serialize())

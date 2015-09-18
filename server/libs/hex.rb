@@ -4,6 +4,9 @@
 # By Ron Bowes
 #
 # See: LICENSE.md
+#
+# This is a simple utility class that converts an arbitrary binary string into
+# a user-readable string.
 ##
 
 class Hex
@@ -12,6 +15,7 @@ class Hex
   SPACES_BEFORE_ASCII = 2
   LINE_LENGTH         = 16
 
+  # Convert the arbitrary binary data, 'data', into a user-readable string.
   def Hex.to_s(data, indent = 0)
     length = data.length
     out = (' ' * indent)

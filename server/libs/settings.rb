@@ -1,8 +1,32 @@
+##
 # settings.rb
 # By Ron Bowes
 # February 8, 2014
 #
 # See LICENSE.md
+#
+# This is a class for managing ephemeral settings for a project.
+#
+# When the program starts, any number of settings can be registered either for
+# individually created instances of this class, or for a global instances - 
+# Settings::GLOBAL - that is automatically created (and that is used for
+# getting/setting settings that don't exist).
+#
+# What makes this more useful than a hash is two things:
+#
+# 1. Mutators - Each setting can have a mutator (which is built-in and related
+# to the type) that can alter it. For example, TYPE_BOOLEAN has a mutator that
+# changes 't', 'true', 'y', 'yes', etc to true. TYPE_INTEGER converts to a
+# proper number (or throws an error if it's not a number), and so on.
+#
+# 2. Validators/callbacks - When a setting is defined, it's given a block that
+# executes whenever the value changes. That block can either prevent the change
+# by raising a Settings::ValidationError (which the program has to catch), or
+# can process the change in some way (by, for example, changing a global
+# variable).
+#
+# Together, those features make this class fairly flexible and useful!
+##
 
 require 'libs/log'
 
@@ -67,6 +91,11 @@ class Settings
     end,
   }
 
+  # Set the name to the new value. The name has to have previously been defined
+  # by calling the create() function.
+  #
+  # If this isn't Settings::GLOBAL and allow_recursion is set, unrecognized
+  # variables will be retrieved, if possible, from Settings::GLOBAL.
   def set(name, new_value, allow_recursion=true)
     name = name.to_s()
 
@@ -90,6 +119,7 @@ class Settings
     return old_value
   end
 
+  # Set a variable back to the default value.
   def unset(name, allow_recursion=true)
     if(@settings[name].nil?)
       if(!allow_recursion)
@@ -102,6 +132,7 @@ class Settings
     set(name, @settings[name][:default].to_s(), allow_recursion)
   end
 
+  # Get the current value of a variable.
   def get(name, allow_recursion=true)
     name = name.to_s()
 
@@ -114,16 +145,16 @@ class Settings
     return @settings[name][:value]
   end
 
-  def keys()
-    return @settings.keys
-  end
-
+  # Yields for each setting. Each setting has a name, a value, a documentation
+  # string, and a default value.
   def each_setting()
     @settings.each_pair do |k, v|
       yield(k, v[:value], v[:docs], v[:default])
     end
   end
 
+  # Create a new setting, or replace an old one. This must be done before a
+  # setting is used.
   def create(name, type, default_value, docs)
     name = name.to_s()
 
