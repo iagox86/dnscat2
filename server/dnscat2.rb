@@ -12,7 +12,6 @@
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'controller/controller'
-require 'libs/log'
 require 'libs/settings'
 require 'tunnel_drivers/driver_dns'
 require 'tunnel_drivers/driver_tcp'
@@ -31,12 +30,6 @@ window.puts("Welcome to dnscat2! Some documentation may be out of date")
 window.puts()
 
 controller = Controller.new(window)
-
-# Capture log messages during start up - after creating a command session, all
-# messages go to it, instead
-Log.logging(nil) do |msg|
-  window.puts("(old-style logging) " + msg.to_s())
-end
 
 # Options
 opts = Trollop::options do
@@ -74,13 +67,6 @@ opts = Trollop::options do
     :type => :string,   :default => nil
 end
 
-# Note: This is no longer strictly required, but it gives the user better feedback if
-# they use a bad debug level, so I'm keeping it
-#window.puts("Setting debug level to: #{opts[:debug].upcase()}")
-#if(!Log.set_min_level(opts[:debug].upcase()))
-#   Trollop::die :debug, "level values are: #{Log::LEVELS}"
-#end
-
 if(opts[:dnsport] < 0 || opts[:dnsport] > 65535)
   Trollop::die :dnsport, "must be a valid port"
 end
@@ -94,19 +80,19 @@ begin
     # We don't have any callbacks
   end
 
-  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug], "Enable more or less debugging; legal values = #{Log::LEVELS.join(", ")}") do |old_val, new_val|
-    if(Log::LEVELS.index(new_val.upcase).nil?)
-      raise(Settings::ValidationError, "Bad debug value; possible values for 'debug': " + Log::LEVELS.join(", "))
-    end
-
-    if(old_val.nil?)
-      window.puts("Set debug level to #{new_val}")
-    else
-      window.puts("Changed debug from #{old_val} to #{new_val}")
-    end
-
-    Log.set_min_level(new_val)
-  end
+#  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug], "Enable more or less debugging; legal values = #{Log::LEVELS.join(", ")}") do |old_val, new_val|
+#    if(Log::LEVELS.index(new_val.upcase).nil?)
+#      raise(Settings::ValidationError, "Bad debug value; possible values for 'debug': " + Log::LEVELS.join(", "))
+#    end
+#
+#    if(old_val.nil?)
+#      window.puts("Set debug level to #{new_val}")
+#    else
+#      window.puts("Changed debug from #{old_val} to #{new_val}")
+#    end
+#
+#    Log.set_min_level(new_val)
+#  end
 
   Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s(), "If set to true, will forward unhandled DNS packets to an upstream server (8.8.8.8:53) instead of responding with an error.") do |old_val, new_val|
     DriverDNS.passthrough = new_val

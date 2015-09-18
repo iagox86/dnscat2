@@ -28,8 +28,6 @@
 # Together, those features make this class fairly flexible and useful!
 ##
 
-require 'libs/log'
-
 class Settings
   def initialize()
     @settings = {}

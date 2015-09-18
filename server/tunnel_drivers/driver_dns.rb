@@ -10,8 +10,6 @@
 
 require 'rubydns'
 
-require 'libs/log'
-
 class DriverDNS
   attr_reader :window
 

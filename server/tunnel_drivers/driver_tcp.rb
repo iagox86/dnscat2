@@ -10,8 +10,6 @@
 
 require 'socket'
 
-require 'libs/log'
-
 class DriverTCP
   def initialize(s)
     @s = s

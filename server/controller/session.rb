@@ -13,7 +13,6 @@ require 'drivers/driver_console'
 require 'drivers/driver_process'
 require 'libs/commander'
 require 'libs/dnscat_exception'
-require 'libs/log'
 require 'libs/swindow'
 
 class Session

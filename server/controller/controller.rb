@@ -13,7 +13,6 @@ require 'controller/packet'
 require 'controller/session'
 require 'libs/commander'
 require 'libs/dnscat_exception'
-require 'libs/log'
 
 require 'trollop'
 
