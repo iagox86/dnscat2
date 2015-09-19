@@ -17,7 +17,6 @@ Add settings that can:
 - Log to a file (per-session or global)
 
 Before release, make sure:
-- Test passthrough
 - Make sure everything works over normal DNS
 
 Out of scope things that I'd like to do eventually (so I'll file them as github issues):

@@ -25,8 +25,7 @@ NAME = "dnscat2"
 VERSION = "0.03"
 
 window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
-
-window.puts("Welcome to dnscat2! Some documentation may be out of date")
+window.puts("Welcome to dnscat2! Some documentation may be out of date.")
 window.puts()
 
 controller = Controller.new(window)
@@ -45,7 +44,7 @@ opts = Trollop::options do
   opt :dnsport,   "The DNS port to listen on",
     :type => :integer, :default => 53
   opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
-    :type => :boolean, :default => false
+    :type => :string, :default => ""
 
 #  opt :tcp,       "Start a TCP server",
 #    :type => :boolean, :default => true
@@ -67,35 +66,26 @@ opts = Trollop::options do
     :type => :string,   :default => nil
 end
 
-if(opts[:dnsport] < 0 || opts[:dnsport] > 65535)
-  Trollop::die :dnsport, "must be a valid port"
-end
-
-DriverDNS.passthrough = opts[:passthrough]
-# Make a copy of ARGV
-domains = [].replace(ARGV)
+domains = ARGV.clone()
 
 begin
   Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s(), "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
     # We don't have any callbacks
   end
 
-#  Settings::GLOBAL.create("debug", Settings::TYPE_STRING, opts[:debug], "Enable more or less debugging; legal values = #{Log::LEVELS.join(", ")}") do |old_val, new_val|
-#    if(Log::LEVELS.index(new_val.upcase).nil?)
-#      raise(Settings::ValidationError, "Bad debug value; possible values for 'debug': " + Log::LEVELS.join(", "))
-#    end
-#
-#    if(old_val.nil?)
-#      window.puts("Set debug level to #{new_val}")
-#    else
-#      window.puts("Changed debug from #{old_val} to #{new_val}")
-#    end
-#
-#    Log.set_min_level(new_val)
-#  end
+  Settings::GLOBAL.create("passthrough", Settings::TYPE_BLANK_IS_NIL, opts[:passthrough].to_s(), "Send queries to the given upstream host (note: this can cause weird recursion problems). Expected: 'set passthrough host:port'. Set to blank to disable.") do |old_val, new_val|
+    if(new_val.nil?)
+      window.puts("passthrough => disabled")
 
-  Settings::GLOBAL.create("passthrough", Settings::TYPE_BOOLEAN, opts[:passthrough].to_s(), "If set to true, will forward unhandled DNS packets to an upstream server (8.8.8.8:53) instead of responding with an error.") do |old_val, new_val|
-    DriverDNS.passthrough = new_val
+      DriverDNS.set_passthrough(nil, nil)
+      next
+    end
+
+    host, port = new_val.split(/:/, 2)
+    port = port || 53
+
+    DriverDNS.set_passthrough(host, port)
+    window.puts("passthrough => #{host}:#{port}")
   end
 
   Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach].to_s(), "If true, the UI will automatically open new sessions") do |old_val, new_val|

@@ -34,7 +34,7 @@ class CommandHelpers
 
   def CommandHelpers.format_field(s)
     if(s.nil?)
-      return "(nil)"
+      return "(n/a)"
     elsif(s.is_a?(String))
       return "'" + s + "'"
     else

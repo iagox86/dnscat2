@@ -13,9 +13,8 @@ require 'rubydns'
 class DriverDNS
   attr_reader :window
 
-  # Use upstream DNS for name resolution.
-  # TODO: Make this configurable
-  UPSTREAM = RubyDNS::Resolver.new([[:udp, "8.8.8.8", 53]])
+  # This is upstream dns
+  @@passthrough = nil
 
   # Get a handle to these things
   Name = Resolv::DNS::Name
@@ -24,7 +23,6 @@ class DriverDNS
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
   MAX_AAAA_RECORDS = 5
 
-  @@passthrough = false
   @@id = 0
 
   RECORD_TYPES = {
@@ -174,11 +172,13 @@ class DriverDNS
     return nil
   end
 
-  def DriverDNS.passthrough=(value)
-    @@passthrough = value
-  end
-  def DriverDNS.passthrough()
-    return @@passthrough
+  def DriverDNS.set_passthrough(host, port)
+    if(host.nil?)
+      @@passthrough = nil
+      return
+    end
+    @@passthrough = RubyDNS::Resolver.new([[:udp, host, port]])
+    @shown_pt = false
   end
 
   def id()
@@ -215,12 +215,14 @@ class DriverDNS
           # Determine the actual name, without the extra cruft
           name, domain = DriverDNS.figure_out_name(transaction.name, domains)
           if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
-            if(DriverDNS.passthrough)
+            if(@@passthrough)
               if(!@shown_pt)
-                window.puts("Unable to handle request, passing upstream: #{transaction.name}")
+                window.puts("Unable to handle request: #{transaction.name}")
+                window.puts("Passing upstream to: #{@@passthrough}")
                 window.puts("(This will only be shown once)")
+                @shown_pt = true
               end
-              transaction.passthrough!(UPSTREAM)
+              transaction.passthrough!(@@passthrough)
             elsif(!@shown_pt)
               window.puts("Unable to handle request, returning an error: #{transaction.name}")
               window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
@@ -329,12 +331,14 @@ class DriverDNS
 
       # Default DNS handler
       otherwise do |transaction|
-        if(DriverDNS.passthrough)
+        if(@@passthrough)
           if(!@shown_pt)
-            window.puts("Unable to handle request, passing upstream: #{transaction.name}")
+            window.puts("Unable to handle request: #{transaction.name}")
+            window.puts("Passing upstream to: #{@@passthrough}")
             window.puts("(This will only be shown once)")
+            @shown_pt = true
           end
-          transaction.passthrough!(UPSTREAM)
+          transaction.passthrough!(@@passthrough)
         elsif(!@shown_pt)
           window.puts("Unable to handle request, returning an error: #{transaction.name}")
           window.puts("(If you want to pass to upstream DNS servers, use --passthrough)")
