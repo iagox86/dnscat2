@@ -1,4 +1,14 @@
+##
+# swindow.rb
+# By Ron Bowes
+# September, 2015
+#
+# See LICENSE.md
+##
+
 require 'readline'
+
+require 'libs/ring_buffer'
 
 class SWindow
   attr_accessor :prompt, :name, :noinput
@@ -7,6 +17,7 @@ class SWindow
   @@id = -1
   @@active = nil
   @@windows = {}
+  @@history_size = 1000
 
   def SWindow._catch_suspend()
     # Trap ctrl-z, just like Metasploit
@@ -74,7 +85,7 @@ class SWindow
     @noinput = params[:noinput] || false
 
     @callback = nil
-    @history = []
+    @history = RingBuffer.new(5)
     @typed_history = []
     @closed = false
     @pending = false
@@ -223,16 +234,28 @@ class SWindow
     end
 
     @history << @prompt + str + "\n"
-    @typed_history << str
+    if(str != '')
+      @typed_history << str
+    end
 
     if(@callback.nil?)
       self.puts("Input received, but nothing has registered to receive it")
       self.puts("Use ctrl-z to escape if this window isn't taking input!")
-      self.puts()
-      self.puts("If you're seeing this in a real window, please report a bug!")
       return
     end
     @callback.call(str)
+  end
+
+  def history_size=(size)
+    @history.max_size = size
+  end
+
+  def SWindow.history_size=(size)
+    @@history_size = size
+  end
+
+  def SWindow.history_size()
+    return @@history_Size
   end
 
   def closed?()

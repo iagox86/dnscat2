@@ -3,14 +3,11 @@ Some goals (these will be deleted as I complete them):
 - Make sure a good error is still displayed when the user doesn't run it as root
 - Take care of all TODOs that are possible
 - Comment APIs really well, especially stuff in the /libs folder
-- Limit history so we don't quickly run out of memory when logging packets and stuff
 - Explore whether or not I can replace @window with stream in certain places, so less stuff has to understand what a window is
 - Add $settings back
 - Bring back the "session last heard from [X] minutes ago" message
 - Add documentation to settings when they're created
 - Change the commandline arguments to match the client's
-- Figure out what's wrong with history and fix it
-- Either get rid of - or refactor - log.rb
 - Update documentation / output / etc.
 
 Add settings that can:

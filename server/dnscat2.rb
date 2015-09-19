@@ -61,19 +61,21 @@ opts = Trollop::options do
   opt :auto_attach,    "Automatically attach to new sessions",
     :type => :boolean, :default => false
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
-    :type => :boolean,  :default => false
+    :type => :boolean, :default => false
   opt :process,        "If set, the given process is run for every incoming console/exec session and given stdin/stdout. This has security implications.",
-    :type => :string,   :default => nil
+    :type => :string,  :default => nil
+  opt :history_size,   "The number of lines of history that windows will maintain",
+    :type => :integer, :default => 1000
 end
 
 domains = ARGV.clone()
 
 begin
-  Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace].to_s(), "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
+  Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace], "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
     # We don't have any callbacks
   end
 
-  Settings::GLOBAL.create("passthrough", Settings::TYPE_BLANK_IS_NIL, opts[:passthrough].to_s(), "Send queries to the given upstream host (note: this can cause weird recursion problems). Expected: 'set passthrough host:port'. Set to blank to disable.") do |old_val, new_val|
+  Settings::GLOBAL.create("passthrough", Settings::TYPE_BLANK_IS_NIL, opts[:passthrough], "Send queries to the given upstream host (note: this can cause weird recursion problems). Expected: 'set passthrough host:port'. Set to blank to disable.") do |old_val, new_val|
     if(new_val.nil?)
       window.puts("passthrough => disabled")
 
@@ -88,7 +90,7 @@ begin
     window.puts("passthrough => #{host}:#{port}")
   end
 
-  Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach].to_s(), "If true, the UI will automatically open new sessions") do |old_val, new_val|
+  Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach], "If true, the UI will automatically open new sessions") do |old_val, new_val|
     window.puts("auto_attach => #{new_val}")
   end
 
@@ -98,6 +100,11 @@ begin
 
   Settings::GLOBAL.create("process", Settings::TYPE_BLANK_IS_NIL, opts[:process] || "", "If set, this process is spawned for each new console session ('--console' on the client), and it handles the session instead of getting the i/o from the keyboard.") do |old_val, new_val|
     window.puts("process => #{new_val}")
+  end
+
+  Settings::GLOBAL.create("history_size", Settings::TYPE_INTEGER, opts[:history_size], "Change the number of lines to store in the new windows' histories") do |old_val, new_val|
+    SWindow.history_size = new_val
+    window.puts("history_size (for new windows) => #{new_val}")
   end
 rescue Settings::ValidationError => e
   window.puts("There was an error with one of your commandline arguments:")

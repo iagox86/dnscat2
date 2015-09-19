@@ -54,6 +54,11 @@ class Session
       @window.name = new_val
       @settings.set("prompt", "%s %d> " % [new_val, @window.id])
     end
+
+    @settings.create("history_size", Settings::TYPE_INTEGER, @window.history_size, "Change the number of lines to store in the window's history") do |old_val, new_val|
+      @window.history_size = new_val
+      @window.puts("history_size (session) => #{new_val}")
+    end
   end
 
   def kill()

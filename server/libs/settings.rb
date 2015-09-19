@@ -50,6 +50,9 @@ class Settings
     end,
 
     TYPE_INTEGER => Proc.new() do |value|
+      if(value.nil?)
+        raise(Settings::ValidationError, "Can't be nil!")
+      end
       if(value.start_with?('0x'))
         if(value[2..-1] !~ /^[\h]+$/)
           raise(Settings::ValidationError, "Not a value hex string: #{value}")
@@ -161,7 +164,7 @@ class Settings
     @settings[name][:type]    = type
     @settings[name][:watcher] = proc
     @settings[name][:docs]    = docs
-    @settings[name][:default] = @@mutators[type].call(default_value)
+    @settings[name][:default] = @@mutators[type].call(default_value.to_s())
 
     # This sets it to the default value
     unset(name, false)
