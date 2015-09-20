@@ -326,10 +326,10 @@ module DriverCommandCommands
         if(window.nil?)
           @window.puts("Window #{opts[:i]} not found!")
           @window.puts()
-          CommandHelpers.display_windows(@window, false, @window)
           @window.puts("Windows active in this session (to see all windows, go to")
           @window.puts("the main window by pressing ctrl-z):")
           @window.puts()
+          CommandHelpers.display_windows(@window, false, @window)
           next
         end
 
