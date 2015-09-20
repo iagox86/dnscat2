@@ -17,6 +17,13 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
+/* OS X doesn't seem to have INADDR_NONE defined in all cases. */
+/* If this causes a compile error on some system, try putting "#ifdef __APPLE__"
+ * around it. */
+#ifndef INADDR_NONE
+#define INADDR_NONE ((in_addr_t) -1)
+#endif
+
 #ifdef WIN32
 #include "pstdint.h"
 

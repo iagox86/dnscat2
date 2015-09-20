@@ -1,15 +1,28 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    eventmachine (1.0.3)
-    rubydns (0.7.3)
-      eventmachine (~> 1.0.0)
-      rexec (~> 1.6.2)
-    trollop (2.0)
+    celluloid (0.16.0)
+      timers (~> 4.0.0)
+    celluloid-io (0.16.2)
+      celluloid (>= 0.16.0)
+      nio4r (>= 1.1.0)
+    hitimes (1.2.3)
+    nio4r (1.1.1)
+    rainbow (2.0.0)
+    rexec (1.6.3)
+      rainbow
+    rubydns (1.0.2)
+      celluloid (= 0.16.0)
+      celluloid-io (= 0.16.2)
+      timers (~> 4.0.1)
+    timers (4.0.4)
+      hitimes
+    trollop (2.1.2)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  rexec
   rubydns
   trollop
