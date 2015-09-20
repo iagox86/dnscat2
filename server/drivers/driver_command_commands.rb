@@ -293,12 +293,16 @@ module DriverCommandCommands
 
     @commander.register_command('windows',
       Trollop::Parser.new do
-        banner("Lists the current active windows")
+        banner("Lists the current active windows under the current window")
         opt :all, "Show closed windows", :type => :boolean, :required => false
       end,
 
       Proc.new do |opts, optarg|
-        CommandHelpers.display_windows(opts[:all])
+        @window.puts()
+        @window.puts("Windows active in this session (to see all windows, go to")
+        @window.puts("the main window by pressing ctrl-z):")
+        @window.puts()
+        CommandHelpers.display_windows(@window, opts[:all], @window)
       end,
     )
 
@@ -310,16 +314,26 @@ module DriverCommandCommands
 
       Proc.new do |opts, optarg|
         if(opts[:i].nil?)
-          CommandHelpers.display_windows(opts[:all])
+          @window.puts()
+          @window.puts("Windows active in this session (to see all windows, go to")
+          @window.puts("the main window by pressing ctrl-z):")
+          @window.puts()
+          CommandHelpers.display_windows(@window, opts[:all], @window)
           next
         end
 
-        if(!SWindow.activate(opts[:i]))
+        window = SWindow.get(opts[:i])
+        if(window.nil?)
           @window.puts("Window #{opts[:i]} not found!")
           @window.puts()
-          CommandHelpers.display_windows(false)
+          CommandHelpers.display_windows(@window, false, @window)
+          @window.puts("Windows active in this session (to see all windows, go to")
+          @window.puts("the main window by pressing ctrl-z):")
+          @window.puts()
           next
         end
+
+        window.activate()
       end
     )
 

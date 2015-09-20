@@ -45,7 +45,7 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optarg|
-        CommandHelpers.display_windows(opts[:all])
+        CommandHelpers.display_windows(@window, opts[:all], @window)
       end,
     )
 
@@ -57,16 +57,19 @@ module ControllerCommands
 
       Proc.new do |opts, optarg|
         if(opts[:i].nil?)
-          CommandHelpers.display_windows(opts[:all])
+          CommandHelpers.display_windows(@window, opts[:all], @window)
           next
         end
 
-        if(!SWindow.activate(opts[:i]))
+        window = SWindow.get(opts[:i])
+        if(window.nil?)
           @window.puts("Windown #{opts[:i]} not found!")
           @window.puts()
-          CommandHelpers.display_windows(false)
+          CommandHelpers.display_windows(@window, false, @window)
           next
         end
+
+        window.activate()
       end
     )
 

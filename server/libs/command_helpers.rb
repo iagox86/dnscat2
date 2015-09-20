@@ -13,19 +13,19 @@
 
 class CommandHelpers
   # Displays the name and children of a window
-  def CommandHelpers._display_window(window, all, indent = 0)
+  def CommandHelpers._display_window(window, all, stream, indent = 0)
     if(!all && window.closed?())
       return
     end
 
-    @window.puts(('  ' * indent) + window.to_s())
+    stream.puts(('  ' * indent) + window.to_s())
     window.children() do |c|
-      _display_window(c, all, indent + 1)
+      _display_window(c, all, stream, indent + 1)
     end
   end
 
-  def CommandHelpers.display_windows(all)
-    _display_window(@window, all)
+  def CommandHelpers.display_windows(base_window, all, stream)
+    _display_window(base_window, all, stream)
   end
 
   def CommandHelpers.wrap(s, width=72, indent=0)
