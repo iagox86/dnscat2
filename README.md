@@ -38,7 +38,7 @@ obvious in a packet log (all domains are prefixed with "dnscat.", unless
 you hack the source). This mode will frequently be blocked by firewalls.
 
 The server is designed to be run on an [authoritative DNS
-server](authoritative_dns_setup.md). It's in ruby, and depends on
+server](doc/authoritative_dns_setup.md). It's in ruby, and depends on
 several different gems. When you run it, much like the client, you
 specify which domain(s) it should listen for in addition to listening
 for messages sent directly to it on UDP/53. When it receives traffic for
