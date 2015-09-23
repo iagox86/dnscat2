@@ -5,4 +5,5 @@
 
 source 'https://rubygems.org'
 
-gem 'rubydns'  # dns
+gem 'rubydns' # dns
+gem 'trollop' # parsing commandline options
