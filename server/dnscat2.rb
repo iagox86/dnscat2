@@ -30,6 +30,26 @@ window.puts()
 
 controller = Controller.new(window)
 
+def parse_setting_string(str, defaults = nil)
+  response = (defaults || {}).clone()
+
+  str.split(/,/).each do |segment|
+    name, value = segment.split(/=/, 2)
+    if(value.nil?)
+      raise(Settings::ValidationError, "Invalid settings string; a comma-separated list of name=value pairs is required. ('#{str}')")
+    end
+
+    name = name.to_sym()
+    if(defaults && !defaults.has_key?(name))
+      raise(Settings::ValidationError, "Invalid setting: #{name}; allowed settings are #{defaults.keys.join(', ')}. ('#{str}')")
+    end
+
+    response[name] = value
+  end
+
+  return response
+end
+
 # Options
 opts = Trollop::options do
   version(NAME + " v" + VERSION + " (server)")
@@ -37,11 +57,11 @@ opts = Trollop::options do
   opt :version,   "Get the dnscat version",
     :type => :boolean, :default => false
 
-  opt :dns,       "Start a DNS server",
-    :type => :boolean, :default => true
-  opt :dnshost,   "The DNS ip address to listen on",
+  opt :dns,       "Start a DNS server. Can optionally pass a number of comma-separated name=value pairs (host, port, domain). Eg, '--dns host=0.0.0.0,port=53531,domain=skullseclabs.org'",
+    :type => :string, :default => nil
+  opt :dnshost,   "The DNS ip address to listen on [deprecated]",
     :type => :string,  :default => "0.0.0.0"
-  opt :dnsport,   "The DNS port to listen on",
+  opt :dnsport,   "The DNS port to listen on [deprecated]",
     :type => :integer, :default => 53
   opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
     :type => :string, :default => ""
@@ -67,8 +87,6 @@ opts = Trollop::options do
   opt :history_size,   "The number of lines of history that windows will maintain",
     :type => :integer, :default => 1000
 end
-
-domains = ARGV.clone()
 
 begin
   Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace], "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
@@ -112,6 +130,23 @@ rescue Settings::ValidationError => e
   window.puts()
 
   Trollop::die("Check your command-line arguments")
+end
+
+# The domains can be passed on the commandline
+domains = ARGV.clone()
+
+if(opts[:dns])
+  dns_settings = parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domain => nil })
+  if(dns_settings[:domain].nil?)
+    dns_settings[:domain] = domains
+  else
+    dns_settings[:domain] = [dns_settings[:domain]]
+  end
+
+  TunnelDrivers.start(controller, DriverDNS.new(dns_settings[:host], dns_settings[:port], dns_settings[:domains], window))
+elsif(opts[:dnsport] || opts[:dnshost])
+  # This way of starting a server is deprecated, technically
+  TunnelDrivers.start(controller, DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window))
 end
 
 TunnelDrivers.start(controller, DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window))
