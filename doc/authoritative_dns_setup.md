@@ -4,32 +4,40 @@ dnscat2 runs in two modes — through a direct connection to your server, and th
 
 # Setup on Namecheap
 
-Before you start, you will need a server that is running dnscat2 and a domain name that you own.  For our example, let's suppose our dnscat2 server has an IP address of 42.42.42.42 and our domain name is example.com
+Before you start, you will need a server that is running dnscat2 and a domain name that you own.  For our example, let's suppose our dnscat2 server has an IP address of 42.42.42.42 and our domain name is "company"
 
 We will go through setting up an authoritative DNS server on Namecheap, a popular domain registrar.  Other services such as GoDaddy have a similar setup process.
 
-### Step 1: Sign in and click on "Manage Domains"
+### Step 1: Sign in
 
-![Manage Domains Image](http://i.imgur.com/FVhxTX3l.png)
+![Sign in](http://i.imgur.com/LILdHvC.png)
 
-### Step 2: Click on your domain name
+### Step 2: Click on the "manage" button for your domain
 
-In this case, we click on example.com
+![Manage button](http://i.imgur.com/MqviES4.png)
 
-![Cick on your domain name](http://i.imgur.com/m5lmfnIh.png)
+### Step 3: Click "Advanced DNS" on the left site of the domain navbar
 
-### Step 3: Click "Transfer DNS to Webhost" on the left navbar, and specify the subdomains for your DNS server.
+![Advanced DNS](http://i.imgur.com/dLxn3oe.png)
 
-Make sure "Specify Custom DNS Servers" is selected.  Add whichever subdomains you'd like your DNS servers to be.  Note that two such subdomains need to be specified.  If you are unsure, add the `ns1` and `ns2` subdomains, as we have in the example.  Click on "Save Changes"
+### Step 4: Click the "EDIT" button on the right of "Domain Nameserver Type"
 
-![Specify subdomain](http://i.imgur.com/M6RSIG9h.png)
+Remember to set this to Custom!
 
-### Step 4: Click "Nameserver Registration", and specify the IP address of your DNS server.
+![Domain Nameserver Type](http://i.imgur.com/TNSKC8V.png)
 
-Add the IP address of your dnscat2 server to the corresponding subdomains that you specified earlier.  Note that one IP address can serve multiple subdomains.
+### Step 5: After seting the Server Type to custom fill in the details of your nameservers
 
-![Nameserver registration](http://i.imgur.com/iyXFKNuh.png)
+![Custom Server Type](http://i.imgur.com/FiL8dtM.png)
 
-### Step 5: Done!  Wait at least 48 hours to allow the changes to come into effect.
+### Step 6: Now it is time to add your personal DNS servers so click the button "ADD NEW" to the right
+
+![Adding personal DNS servers](http://i.imgur.com/nKhautV.png)
+
+### Step 7: Click the custom button twice and fill in your DNS details
+
+Don't forget to click on the "Save Changes" button
+
+![Adding personal DNS servers](http://i.imgur.com/pBZ5lrU.png)
 
 You may verify that your authoritative DNS server is correctly setup by running `sudo nc -vv -l -u -p53` on your dnscat2 server, and then sending a DNS query for your domain name. If your server detects a UDP packet, then you have successfully setup your authoritative DNS server!
