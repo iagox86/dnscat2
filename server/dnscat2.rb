@@ -149,7 +149,5 @@ elsif(opts[:dnsport] || opts[:dnshost])
   TunnelDrivers.start(controller, DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window))
 end
 
-TunnelDrivers.start(controller, DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window))
-
 # Wait for the input window to finish its thing
 SWindow.wait()

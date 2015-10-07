@@ -5,6 +5,7 @@
 
 source 'https://rubygems.org'
 
-gem 'rubydns'  # dns
-gem 'trollop'  # commandline parsing
-gem 'rexec'    # this appears to be required sometimes; see https://github.com/iagox86/dnscat2/issues/65
+gem 'celluloid'     # hm
+gem 'celluloid-dns' # dns
+gem 'trollop'       # commandline parsing
+gem 'rexec'         # this appears to be required sometimes; see https://github.com/iagox86/dnscat2/issues/65

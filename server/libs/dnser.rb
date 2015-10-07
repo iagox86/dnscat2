@@ -35,6 +35,7 @@ class Dnser
     attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
 
     OPCODE_QUERY          = 0x0000
+    OPCODE_RESPONSE       = 0x0001
 
     RCODE_SUCCESS         = 0x0000
     RCODE_FORMAT_ERROR    = 0x0001
@@ -234,7 +235,7 @@ class Dnser
       end
 
       def to_s()
-        return "#{@data.unpack('H*')} [TXT]"
+        return "#{@data} [TXT]"
       end
     end
 
@@ -407,7 +408,7 @@ class Dnser
     end
 
     def to_s()
-      results = ["id=#{@trn_id}, opcode=#{@opcode}, flags=#{@flags}, rcode=#{@rcode}, qdcount=#{@questions.length}, ancount=#{@answers.length}"]
+      results = ["DNS #{@qr == 0 ? 'request' : 'response'}: id=#{@trn_id}, opcode=#{@opcode}, flags=#{@flags}, rcode=#{@rcode}, qdcount=#{@questions.length}, ancount=#{@answers.length}"]
 
       @questions.each do |q|
         results << "    Question: #{q}"

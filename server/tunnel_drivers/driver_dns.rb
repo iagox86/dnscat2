@@ -8,9 +8,11 @@
 # The DNS dnscat server.
 ##
 
-require 'rubydns'
+require 'celluloid/current'
+require 'celluloid/io'
+require 'celluloid/dns'
 
-class DriverDNS
+class DriverDNS < Celluloid::DNS::Server
   attr_reader :window
 
   # This is upstream dns
@@ -131,6 +133,8 @@ class DriverDNS
     @port        = port
     @domains     = domains
     @shown_pt    = false
+
+    super(@host, @port)
   end
 
   # If domain is non-nil, match /(.*)\.domain/
@@ -185,152 +189,22 @@ class DriverDNS
     return @window.id
   end
 
-  def recv()
-    # Save the domains locally so the block can see it
-    domains = @domains
-    window  = @window
+  def process(name, resource_class, transaction)
+    #s.logger.level = Logger::WARN
+    puts("Okay...")
+    exit
 
-    interfaces = [
-      [:udp, @host, @port],
-    ]
+    begin
+      # Determine the type
+      type = transaction.resource_class
+      type_info = RECORD_TYPES[type]
 
-    RubyDNS::run_server(:listen => interfaces) do |s|
-      # Turn off DNS logging
-      s.logger.level = Logger::WARN
+      # Log what's going on
+      window.puts("Received:  #{transaction.name} (#{type})")
 
-      # This ugly line basically joins the domains together in a string that looks like:
-      # (^dnscat\.|\.skullseclabs.org$)
-      domain_regex = "(^dnscat\\.|" + (domains.map { |x| "\\.#{x}$" }).join("|") + ")"
-
-      # Only match proper domains with proper record types
-      match(/#{domain_regex}/i, RECORD_TYPES.keys) do |transaction|
-        begin
-          # Determine the type
-          type = transaction.resource_class
-          type_info = RECORD_TYPES[type]
-
-          # Log what's going on
-          window.puts("Received:  #{transaction.name} (#{type})")
-
-          # Determine the actual name, without the extra cruft
-          name, domain = DriverDNS.figure_out_name(transaction.name, domains)
-          if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
-            if(@@passthrough)
-              if(!@shown_pt)
-                window.puts("Unable to handle request: #{transaction.name}")
-                window.puts("Passing upstream to: #{@@passthrough}")
-                window.puts("(This will only be shown once)")
-                @shown_pt = true
-              end
-              transaction.passthrough!(@@passthrough)
-            elsif(!@shown_pt)
-              window.puts("Unable to handle request, returning an error: #{transaction.name}")
-              window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
-              window.puts("or run \"set passthrough=true\")")
-              window.puts("(This will only be shown once)")
-              @shown_pt = true
-
-              transaction.fail!(:NXDomain)
-            end
-          else
-            if(type.nil? || type_info.nil?)
-              raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
-            end
-
-            # Get rid of periods in the incoming name
-            name = name.gsub(/\./, '')
-            name = [name].pack("H*")
-
-            # Figure out the length of the domain based on the record type
-            if(type_info[:requires_domain])
-              if(domain.nil?)
-                domain_length = ("dnscat.").length
-              else
-                domain_length = domain.length + 1 # +1 for the dot
-              end
-            else
-              domain_length = 0
-            end
-
-            # Figure out the max length of data we can handle
-            if(type_info[:requires_hex])
-              max_length = (type_info[:max_length] / 2) - domain_length
-            else
-              max_length = (type_info[:max_length]) - domain_length
-            end
-
-            # Get the response
-            response = proc.call(name, max_length)
-
-            # Sanity check the response
-            if(response.nil?)
-              response = ''
-            elsif(response.length > max_length)
-              raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
-            end
-
-            # Encode the response as needed
-            response = type_info[:encoder].call(response)
-
-            # Append domain, if needed
-            if(type_info[:requires_domain])
-              if(domain.nil?)
-                response = "dnscat." + response
-              else
-                response = response + "." + domain
-              end
-            end
-
-            # Do another length sanity check (with the *actual* max length, since everything is encoded now)
-            if(response.length > type_info[:max_length])
-              raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report")
-            end
-
-            # Translate it into a name, if needed
-            if(type_info[:requires_name])
-              response = Name.create(response)
-            end
-
-            # Log the response
-            window.puts("Sending:  #{response}")
-
-            # Make sure response is an array (certain types require an array, and it's easier to assume everything is one)
-            if(!response.is_a?(Array))
-              response = [response]
-            end
-
-            # Allow multiple response records
-            response.each do |r|
-              # MX requires a special response
-              if(type == IN::MX)
-                transaction.respond!(rand(5) * 10, r)
-              else
-                transaction.respond!(r)
-              end
-            end
-          end
-        rescue DnscatException => e
-          window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-          window.puts(e.inspect)
-          e.backtrace.each do |bt|
-            window.puts(bt)
-          end
-          transaction.fail!(:NXDomain)
-        rescue StandardError => e
-          window.puts("Error caught:")
-          window.puts(e.inspect)
-          e.backtrace.each do |bt|
-            window.puts(bt)
-          end
-
-          transaction.fail!(:NXDomain)
-        end
-
-        transaction # Return this, effectively
-      end
-
-      # Default DNS handler
-      otherwise do |transaction|
+      # Determine the actual name, without the extra cruft
+      name, domain = DriverDNS.figure_out_name(transaction.name, domains)
+      if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
         if(@@passthrough)
           if(!@shown_pt)
             window.puts("Unable to handle request: #{transaction.name}")
@@ -341,19 +215,136 @@ class DriverDNS
           transaction.passthrough!(@@passthrough)
         elsif(!@shown_pt)
           window.puts("Unable to handle request, returning an error: #{transaction.name}")
-          window.puts("(If you want to pass to upstream DNS servers, use --passthrough)")
+          window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
+          window.puts("or run \"set passthrough=true\")")
           window.puts("(This will only be shown once)")
           @shown_pt = true
 
           transaction.fail!(:NXDomain)
         end
+      else
+        if(type.nil? || type_info.nil?)
+          raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
+        end
 
-        transaction
+        # Get rid of periods in the incoming name
+        name = name.gsub(/\./, '')
+        name = [name].pack("H*")
+
+        # Figure out the length of the domain based on the record type
+        if(type_info[:requires_domain])
+          if(domain.nil?)
+            domain_length = ("dnscat.").length
+          else
+            domain_length = domain.length + 1 # +1 for the dot
+          end
+        else
+          domain_length = 0
+        end
+
+        # Figure out the max length of data we can handle
+        if(type_info[:requires_hex])
+          max_length = (type_info[:max_length] / 2) - domain_length
+        else
+          max_length = (type_info[:max_length]) - domain_length
+        end
+
+        # Get the response
+        response = proc.call(name, max_length)
+
+        # Sanity check the response
+        if(response.nil?)
+          response = ''
+        elsif(response.length > max_length)
+          raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
+        end
+
+        # Encode the response as needed
+        response = type_info[:encoder].call(response)
+
+        # Append domain, if needed
+        if(type_info[:requires_domain])
+          if(domain.nil?)
+            response = "dnscat." + response
+          else
+            response = response + "." + domain
+          end
+        end
+
+        # Do another length sanity check (with the *actual* max length, since everything is encoded now)
+        if(response.length > type_info[:max_length])
+          raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report")
+        end
+
+        # Translate it into a name, if needed
+        if(type_info[:requires_name])
+          response = Name.create(response)
+        end
+
+        # Log the response
+        window.puts("Sending:  #{response}")
+
+        # Make sure response is an array (certain types require an array, and it's easier to assume everything is one)
+        if(!response.is_a?(Array))
+          response = [response]
+        end
+
+        # Allow multiple response records
+        response.each do |r|
+          # MX requires a special response
+          if(type == IN::MX)
+            transaction.respond!(rand(5) * 10, r)
+          else
+            transaction.respond!(r)
+          end
+        end
       end
+    rescue DnscatException => e
+      window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+      window.puts(e.inspect)
+      e.backtrace.each do |bt|
+        window.puts(bt)
+      end
+      transaction.fail!(:NXDomain)
+    rescue StandardError => e
+      window.puts("Error caught:")
+      window.puts(e.inspect)
+      e.backtrace.each do |bt|
+        window.puts(bt)
+      end
+
+      transaction.fail!(:NXDomain)
     end
+
+    # Default DNS handler
+#    otherwise do |transaction|
+#      if(@@passthrough)
+#        if(!@shown_pt)
+#          window.puts("Unable to handle request: #{transaction.name}")
+#          window.puts("Passing upstream to: #{@@passthrough}")
+#          window.puts("(This will only be shown once)")
+#          @shown_pt = true
+#        end
+#        transaction.passthrough!(@@passthrough)
+#      elsif(!@shown_pt)
+#        window.puts("Unable to handle request, returning an error: #{transaction.name}")
+#        window.puts("(If you want to pass to upstream DNS servers, use --passthrough)")
+#        window.puts("(This will only be shown once)")
+#        @shown_pt = true
+#
+#        transaction.fail!(:NXDomain)
+#      end
+#
+#      transaction
+#    end
+  end
+
+  def start()
+    self.run()
   end
 
   def stop()
+    self.stop()
     @window.close()
   end
 end
