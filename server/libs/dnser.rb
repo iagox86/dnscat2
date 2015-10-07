@@ -20,16 +20,109 @@ class Dnser
     class FormatException < StandardError
     end
 
-    def Packet.unpack(data, format)
-      results = data.unpack(format)
+    class DnsUnpacker
+      def initialize(data)
+        @data = data
+        @offset = 0
+        @saved_offset = nil
+      end
 
-      results.each do |r|
-        if(r.nil?)
-          raise(FormatException, "Packet ended prematurely!")
+      def reset
+        @offset = 0
+      end
+
+      def save()
+        if(@saved_offset.nil?)
+          @saved_offset = @offset
         end
       end
 
-      return *results
+      def restore()
+        @offset = @saved_offset
+        @saved_offset = nil
+      end
+
+      def move(i)
+        @offset = i
+      end
+
+      def unpack(format, offset = nil)
+        # If there's an offset, unpack starting there
+        if(!offset.nil?)
+          results = @data[offset..-1].unpack(format)
+        else
+          results = @data[@offset..-1].unpack(format + "a*")
+          remaining = results.pop
+          @offset = @data.length - remaining.length
+        end
+
+        if(!results.index(nil).nil?)
+          raise(Dnser::Packet::FormatException, "DNS packet was truncated (or we messed up parsing it)!")
+        end
+
+        return *results
+      end
+
+      def move_offset(offset)
+        old_offset = @offset
+        @offset = offset
+        yield
+        @offset = old_offset
+      end
+
+      def unpack_name(depth = 0)
+        segments = []
+
+        if(depth > 16)
+          raise(Dnser::Packet::FormatException, "It looks like this packet contains recursive pointers!")
+        end
+
+        loop do
+          # If no offset is given, just eat data from the normal source
+          len = unpack("C").pop()
+
+          # Stop at the null terminator
+          if(len == 0)
+            break
+          end
+
+          # Handle "pointer" records by updating the offset
+          if(len == 0xc0)
+            save()
+            offset = unpack("C").pop()
+
+            move_offset(offset) do
+              segments << unpack_name().split(/\./)
+            end
+
+            break
+          end
+
+          # It's normal, just unpack what we need to!
+          segments << unpack("a#{len}")
+        end
+
+        return segments.join('.')
+      end
+
+      def DnsUnpacker.pack_name(name)
+        result = ''
+
+        name.split(/\./).each do |segment|
+          result += [segment.length(), segment].pack("Ca*")
+        end
+
+        result += "\0"
+        return result
+      end
+
+      def to_s()
+        if(@offset == 0)
+          return @data.unpack("H*").pop
+        else
+          return "#{@data[0..@offset-1].unpack("H*")}|#{@data[@offset..-1].unpack("H*")}"
+        end
+      end
     end
 
     attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
@@ -54,39 +147,6 @@ class Dnser
 
     CLS_IN                = 0x0001
 
-    def Packet.encode_name(name)
-      result = ''
-
-      name.split(/\./).each do |segment|
-        result += [segment.length(), segment].pack("CA*")
-      end
-
-      result += "\0"
-      return result
-    end
-
-    def Packet.decode_name(data)
-      segments = []
-
-      loop do
-        len, data = Dnser::Packet.unpack(data, "CA*")
-        if(len == 0)
-          break
-        end
-
-        # Just ignore pointers and such (TODO: Improve this)
-        if(len == 0xc0)
-          ptr, data = Dnser::Packet.unpack(data, "CA*")
-          segments << "(see question @ 0x%x)" % ptr
-          break
-        end
-
-        segment, data = Dnser::Packet.unpack(data, "A#{len}A*")
-        segments << segment
-      end
-
-      return segments.join('.'), data
-    end
 
     class A
       attr_accessor :address
@@ -100,8 +160,8 @@ class Dnser
       end
 
       def A.parse(data)
-        address, data = Dnser::Packet.unpack(data, "A4A*")
-        return A.new(IPAddr.ntop(address)), data
+        address = data.unpack("A4").pop()
+        return A.new(IPAddr.ntop(address))
       end
 
       def serialize()
@@ -121,11 +181,11 @@ class Dnser
       end
 
       def NS.parse(data)
-        return Dnser::Packet.decode_name(data)
+        return data.unpack_name()
       end
 
       def serialize()
-        return Dnser::Packet.encode_name(@name)
+        return Dnser::DnsUnpacker.pack_name(@name)
       end
 
       def to_s()
@@ -141,11 +201,11 @@ class Dnser
       end
 
       def CNAME.parse(data)
-        return Dnser::Packet.decode_name(data)
+        return data.unpack_name()
       end
 
       def serialize()
-        return Dnser::Packet.encode_name(@name)
+        return Dnser::DnsUnpacker.pack_name(@name)
       end
 
       def to_s()
@@ -167,23 +227,23 @@ class Dnser
       end
 
       def SOA.parse(data)
-        primary, data = Dnser::Packet.decode_name(data)
-        responsible, data = Dnser::Packet.decode_name(data)
-        serial, refresh, retry_interval, expire, ttl, data = Dnser::Packet.unpack(data, "NNNNNA*")
+        primary = data.unpack_name()
+        responsible = data.unpack_name()
+        serial, refresh, retry_interval, expire, ttl = data.unpack("NNNNN")
 
-        return SOA.new(primary, responsible, serial, refresh, retry_interval, expire, ttl), data
+        return SOA.new(primary, responsible, serial, refresh, retry_interval, expire, ttl)
       end
 
       def serialize()
         return [
-          Dnser::Packet.encode_name(@primary),
-          Dnser::Packet.encode_name(@responsible),
+          Dnser::DnsUnpacker.pack_name(@primary),
+          Dnser::DnsUnpacker.pack_name(@responsible),
           @serial,
           @refresh,
           @retry_interval,
           @expire,
           @ttl
-        ].pack("A*A*NNNNN")
+        ].pack("a*a*NNNNN")
       end
 
       def to_s()
@@ -200,15 +260,15 @@ class Dnser
       end
 
       def MX.parse(data)
-        preference, data = Dnser::Packet.unpack(data, "nA*")
-        name, data = Dnser::Packet.decode_name(data)
+        preference = data.unpack("n").pop()
+        name = data.unpack_name()
 
-        return MX.new(preference, name), data
+        return MX.new(preference, name)
       end
 
       def serialize()
-        name = Dnser::Packet.encode_name(@name)
-        return [@preference, name].pack("nA*")
+        name = Dnser::DnsUnpacker.pack_name(@name)
+        return [@preference, name].pack("na*")
       end
 
       def to_s()
@@ -224,14 +284,14 @@ class Dnser
       end
 
       def TXT.parse(data)
-        len, data = Dnser::Packet.unpack(data, "CA*")
-        bytes, data = Dnser::Packet.unpack(data, "A#{len}A*")
+        len = data.unpack("C").pop()
+        bytes = data.unpack("A#{len}").pop()
 
-        return TXT.new(bytes), data
+        return TXT.new(bytes)
       end
 
       def serialize()
-        return [@data.length, data].pack("CA*")
+        return [@data.length, data].pack("Ca*")
       end
 
       def to_s()
@@ -251,8 +311,8 @@ class Dnser
       end
 
       def AAAA.parse(data)
-        address, data = Dnser::Packet.unpack(data, "A16A*")
-        return AAAA.new(IPAddr.ntop(address)), data
+        address = data.unpack("A16").pop()
+        return AAAA.new(IPAddr.ntop(address))
       end
 
       def serialize()
@@ -274,14 +334,14 @@ class Dnser
       end
 
       def Question.parse(data)
-        name, data = Dnser::Packet.decode_name(data)
-        type, cls, data = Dnser::Packet.unpack(data, "nnA*")
+        name = data.unpack_name()
+        type, cls = data.unpack("nn")
 
-        return Question.new(name, type, cls), data
+        return Question.new(name, type, cls)
       end
 
       def serialize()
-        return [Dnser::Packet.encode_name(@name), type, cls].pack("A*nn")
+        return [Dnser::DnsUnpacker.pack_name(@name), type, cls].pack("a*nn")
       end
 
       def to_s()
@@ -305,36 +365,36 @@ class Dnser
       end
 
       def Answer.parse(data)
-        name, data = Dnser::Packet.decode_name(data)
-        type, cls, ttl, rr_length, data = Dnser::Packet.unpack(data, "nnNnA*")
+        name = data.unpack_name()
+        type, cls, ttl, rr_length = data.unpack("nnNn")
 
         case type
         when TYPE_A
-          rr, data = A.parse(data)
+          rr = A.parse(data)
         when TYPE_NS
-          rr, data = NS.parse(data)
+          rr = NS.parse(data)
         when TYPE_CNAME
-          rr, data = CNAME.parse(data)
+          rr = CNAME.parse(data)
         when TYPE_SOA
-          rr, data = SOA.parse(data)
+          rr = SOA.parse(data)
         when TYPE_MX
-          rr, data = MX.parse(data)
+          rr = MX.parse(data)
         when TYPE_TEXT
-          rr, data = TXT.parse(data)
+          rr = TXT.parse(data)
         when TYPE_AAAA
-          rr, data = AAAA.parse(data)
+          rr = AAAA.parse(data)
         else
           puts("Warning: Unknown record type: #{type}")
-          _, data = Dnser::Packet.unpack(data, "A#{rr_length}A*")
+          data.unpack("A#{rr_length}").pop()
         end
 
-        return Answer.new(name, type, cls, ttl, rr), data
+        return Answer.new(name, type, cls, ttl, rr)
       end
 
       def serialize()
         # Hardcoding 0xc00c is kind of ugly, but it always works
         rr = @rr.serialize()
-        return [0xc00c, @type, @cls, @ttl, rr.length(), rr].pack("nnnNnA*")
+        return [0xc00c, @type, @cls, @ttl, rr.length(), rr].pack("nnnNna*")
       end
     end
 
@@ -357,7 +417,8 @@ class Dnser
     end
 
     def Packet.parse(data)
-      trn_id, full_flags, qdcount, ancount, _, _, data = Dnser::Packet.unpack(data, "nnnnnnA*")
+      data = DnsUnpacker.new(data)
+      trn_id, full_flags, qdcount, ancount, _, _ = data.unpack("nnnnnn")
 
       qr     = (full_flags >> 15) & 0x0001
       opcode = (full_flags >> 11) & 0x000F
@@ -367,12 +428,12 @@ class Dnser
       packet = Packet.new(trn_id, qr, opcode, flags, rcode)
 
       0.upto(qdcount - 1) do
-        question, data = Question.parse(data)
+        question = Question.parse(data)
         packet.add_question(question)
       end
 
       0.upto(ancount - 1) do
-        answer, data = Answer.parse(data)
+        answer = Answer.parse(data)
         packet.add_answer(answer)
       end
 
