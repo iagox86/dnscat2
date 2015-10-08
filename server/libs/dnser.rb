@@ -602,8 +602,6 @@ class Dnser
   end
 end
 
-Thread.abort_on_exception = true
-
 #p = Dnser::Packet.parse("\x48\x05\x01\x20\x00\x01\x00\x00\x00\x00\x00\x01\x06\x67\x6f\x6f\x67\x6c\x65\x03\x63\x6f\x6d\x00\x00\x01\x00\x01\x00\x00\x29\x10\x00\x00\x00\x00\x00\x00\x00")
 #puts(p.to_s)
 #
@@ -625,38 +623,36 @@ Thread.abort_on_exception = true
 #  puts response
 #  exit
 #end
-
-Dnser.new('localhost', 53531) do |request, reply|
-  question = request.questions[0]
-
-  record = Dnser::Packet::A.new("1.2.3.4")
-  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_A, question.cls, 60, record)
-  reply.add_answer(answer)
-
-  record = Dnser::Packet::AAAA.new("::1")
-  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_AAAA, question.cls, 60, record)
-  reply.add_answer(answer)
-
-  record = Dnser::Packet::CNAME.new("cname.com")
-  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_CNAME, question.cls, 60, record)
-  reply.add_answer(answer)
-
-  record = Dnser::Packet::MX.new(1, "javaop.com")
-  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_MX, question.cls, 60, record)
-  reply.add_answer(answer)
-
-  record = Dnser::Packet::NS.new("ns.com")
-  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_NS, question.cls, 60, record)
-  reply.add_answer(answer)
-
-  record = Dnser::Packet::TXT.new("A" * 64)
-  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_TXT, question.cls, 60, record)
-  reply.add_answer(answer)
-
-  puts request
-  puts reply
-
-  reply
-end
-
-sleep(1000)
+#
+#Dnser.new('localhost', 53531) do |request, reply|
+#  question = request.questions[0]
+#
+#  record = Dnser::Packet::A.new("1.2.3.4")
+#  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_A, question.cls, 60, record)
+#  reply.add_answer(answer)
+#
+#  record = Dnser::Packet::AAAA.new("::1")
+#  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_AAAA, question.cls, 60, record)
+#  reply.add_answer(answer)
+#
+#  record = Dnser::Packet::CNAME.new("cname.com")
+#  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_CNAME, question.cls, 60, record)
+#  reply.add_answer(answer)
+#
+#  record = Dnser::Packet::MX.new(1, "javaop.com")
+#  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_MX, question.cls, 60, record)
+#  reply.add_answer(answer)
+#
+#  record = Dnser::Packet::NS.new("ns.com")
+#  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_NS, question.cls, 60, record)
+#  reply.add_answer(answer)
+#
+#  record = Dnser::Packet::TXT.new("A" * 64)
+#  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_TXT, question.cls, 60, record)
+#  reply.add_answer(answer)
+#
+#  puts request
+#  puts reply
+#
+#  reply
+#end
