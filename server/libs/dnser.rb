@@ -132,8 +132,13 @@ class Dnser
 
     attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
 
-    OPCODE_QUERY          = 0x0000
-    OPCODE_RESPONSE       = 0x0001
+    QR_QUERY          = 0x0000
+    QR_RESPONSE       = 0x0001
+
+    QRS = {
+      QR_QUERY    => "QUERY",
+      QR_RESPONSE => "RESPONSE",
+    }
 
     RCODE_SUCCESS         = 0x0000
     RCODE_FORMAT_ERROR    = 0x0001
@@ -141,6 +146,15 @@ class Dnser
     RCODE_NAME_ERROR      = 0x0003
     RCODE_NOT_IMPLEMENTED = 0x0004
     RCODE_REFUSED         = 0x0005
+
+    RCODES = {
+      RCODE_SUCCESS         => "RCODE_SUCCESS",
+      RCODE_FORMAT_ERROR    => "RCODE_FORMAT_ERROR",
+      RCODE_SERVER_FAILURE  => "RCODE_SERVER_FAILURE",
+      RCODE_NAME_ERROR      => "RCODE_NAME_ERROR",
+      RCODE_NOT_IMPLEMENTED => "RCODE_NOT_IMPLEMENTED",
+      RCODE_REFUSED         => "RCODE_REFUSED",
+    }
 
     TYPE_A                = 0x0001
     TYPE_NS               = 0x0002
@@ -151,12 +165,27 @@ class Dnser
     TYPE_AAAA             = 0x001c
     TYPE_ANY              = 0x00FF
 
+    TYPES = {
+      TYPE_A                => "A",
+      TYPE_NS               => "NS",
+      TYPE_CNAME            => "CNAME",
+      TYPE_SOA              => "SOA",
+      TYPE_MX               => "MX",
+      TYPE_TEXT             => "TXT",
+      TYPE_AAAA             => "AAAA",
+      TYPE_ANY              => "ANY",
+    }
+
     FLAG_AA               = 0x0008 # Authoritative answer
     FLAG_TC               = 0x0004 # Truncated
     FLAG_RD               = 0x0002 # Recursion desired
     FLAG_RA               = 0x0001 # Recursion available
 
     CLS_IN                = 0x0001 # Internet
+
+    CLSES = {
+      CLS_IN => "IN",
+    }
 
     class A
       attr_accessor :address
@@ -479,7 +508,7 @@ class Dnser
     end
 
     def to_s()
-      results = ["DNS #{@qr == 0 ? 'request' : 'response'}: id=#{@trn_id}, opcode=#{@opcode}, flags=#{@flags}, rcode=#{@rcode}, qdcount=#{@questions.length}, ancount=#{@answers.length}"]
+      results = ["DNS #{QRS[@qr] || "unknown"}: id=#{@trn_id}, opcode=#{@opcode}, flags=#{@flags}, rcode=#{RCODES[@rcode] || "unknown"}, qdcount=#{@questions.length}, ancount=#{@answers.length}"]
 
       @questions.each do |q|
         results << "    Question: #{q}"
