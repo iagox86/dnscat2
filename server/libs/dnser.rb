@@ -132,8 +132,8 @@ class Dnser
 
     attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
 
-    QR_QUERY          = 0x0000
-    QR_RESPONSE       = 0x0001
+    QR_QUERY    = 0x0000
+    QR_RESPONSE = 0x0001
 
     QRS = {
       QR_QUERY    => "QUERY",
@@ -156,30 +156,58 @@ class Dnser
       RCODE_REFUSED         => "RCODE_REFUSED",
     }
 
-    TYPE_A                = 0x0001
-    TYPE_NS               = 0x0002
-    TYPE_CNAME            = 0x0005
-    TYPE_SOA              = 0x0006
-    TYPE_MX               = 0x000f
-    TYPE_TEXT             = 0x0010
-    TYPE_AAAA             = 0x001c
-    TYPE_ANY              = 0x00FF
+    OPCODE_QUERY  = 0x0000
+    OPCODE_IQUERY = 0x0800
+    OPCODE_STATUS = 0x1000
 
-    TYPES = {
-      TYPE_A                => "A",
-      TYPE_NS               => "NS",
-      TYPE_CNAME            => "CNAME",
-      TYPE_SOA              => "SOA",
-      TYPE_MX               => "MX",
-      TYPE_TEXT             => "TXT",
-      TYPE_AAAA             => "AAAA",
-      TYPE_ANY              => "ANY",
+    OPCODES = {
+      OPCODE_QUERY  => "OPCODE_QUERY",
+      OPCODE_IQUERY => "OPCODE_IQUERY",
+      OPCODE_STATUS => "OPCODE_STATUS",
     }
 
-    FLAG_AA               = 0x0008 # Authoritative answer
-    FLAG_TC               = 0x0004 # Truncated
-    FLAG_RD               = 0x0002 # Recursion desired
-    FLAG_RA               = 0x0001 # Recursion available
+    TYPE_A     = 0x0001
+    TYPE_NS    = 0x0002
+    TYPE_CNAME = 0x0005
+    TYPE_SOA   = 0x0006
+    TYPE_MX    = 0x000f
+    TYPE_TXT   = 0x0010
+    TYPE_AAAA  = 0x001c
+    TYPE_ANY   = 0x00FF
+
+    TYPES = {
+      TYPE_A     => "A",
+      TYPE_NS    => "NS",
+      TYPE_CNAME => "CNAME",
+      TYPE_SOA   => "SOA",
+      TYPE_MX    => "MX",
+      TYPE_TXT   => "TXT",
+      TYPE_AAAA  => "AAAA",
+      TYPE_ANY   => "ANY",
+    }
+
+    FLAG_AA = 0x0008 # Authoritative answer
+    FLAG_TC = 0x0004 # Truncated
+    FLAG_RD = 0x0002 # Recursion desired
+    FLAG_RA = 0x0001 # Recursion available
+
+    def Packet.FLAGS(flags)
+      result = []
+      if((flags & FLAG_AA) == FLAG_AA)
+        result << "AA"
+      end
+      if((flags & FLAG_TC) == FLAG_TC)
+        result << "TC"
+      end
+      if((flags & FLAG_RD) == FLAG_RD)
+        result << "RD"
+      end
+      if((flags & FLAG_RA) == FLAG_RA)
+        result << "RA"
+      end
+
+      return result.join("|")
+    end
 
     CLS_IN                = 0x0001 # Internet
 
@@ -418,7 +446,7 @@ class Dnser
           rr = SOA.parse(data)
         when TYPE_MX
           rr = MX.parse(data)
-        when TYPE_TEXT
+        when TYPE_TXT
           rr = TXT.parse(data)
         when TYPE_AAAA
           rr = AAAA.parse(data)
@@ -508,7 +536,7 @@ class Dnser
     end
 
     def to_s()
-      results = ["DNS #{QRS[@qr] || "unknown"}: id=#{@trn_id}, opcode=#{@opcode}, flags=#{@flags}, rcode=#{RCODES[@rcode] || "unknown"}, qdcount=#{@questions.length}, ancount=#{@answers.length}"]
+      results = ["DNS #{QRS[@qr] || "unknown"}: id=#{@trn_id}, opcode=#{OPCODES[@opcode]}, flags=#{Packet.FLAGS(@flags)}, rcode=#{RCODES[@rcode] || "unknown"}, qdcount=#{@questions.length}, ancount=#{@answers.length}"]
 
       @questions.each do |q|
         results << "    Question: #{q}"
@@ -522,37 +550,53 @@ class Dnser
     end
   end
 
-  def initialize(host, port, regex = nil)
-    @host = host
-    @port = port
-    @proc = proc
+  def initialize(host, port)
     @thread = Thread.new() do |t|
-      puts host
-      puts @host
+      s = UDPSocket.new()
+      s.bind(host, port)
+
+      begin
+        loop do
+          data = s.recvfrom(1024)
+          packet_request = Dnser::Packet.parse(data[0])
+
+          packet_reply = Dnser::Packet.new(packet_request.trn_id, Dnser::Packet::QR_RESPONSE, packet_request.opcode, Dnser::Packet::FLAG_RD | Dnser::Packet::FLAG_RA, Dnser::Packet::RCODE_SUCCESS)
+          packet_reply.add_question(packet_request.questions[0])
+
+          response = proc.call(packet_request, packet_reply)
+          if(response)
+            s.send(response.serialize(), 0, data[1][3], data[1][1])
+          end
+        end
+      ensure
+        s.close
+      end
     end
   end
 
   def stop()
-    # TODO: Close the socket
     @thread.kill()
   end
 
   def Dnser.query(hostname, server = "8.8.8.8", port = 53, type = Dnser::Packet::TYPE_ANY, cls = Dnser::Packet::CLS_IN, timeout_seconds = 3)
-    packet = Dnser::Packet.new(rand(65535), 0, 0, Dnser::Packet::FLAG_RD, 0)
+    packet = Dnser::Packet.new(rand(65535), Dnser::Packet::QR_QUERY, Dnser::Packet::OPCODE_QUERY, Dnser::Packet::FLAG_RD, Dnser::Packet::RCODE_SUCCESS)
     packet.add_question(Dnser::Packet::Question.new(hostname, type, cls))
 
     Thread.new() do
       begin
-        timeout(timeout_seconds) do
-          s = UDPSocket.new()
-          s.send(packet.serialize(), 0, server, port)
-          response = s.recv(1024) # Max length of a DNS packet is 512 bytes, so this should be safe
-          s.close()
+        s = UDPSocket.new()
+        s.send(packet.serialize(), 0, server, port)
 
+        timeout(timeout_seconds) do
+          response = s.recv(1024) # Max length of a DNS packet is 512 bytes, so this should be safe
           proc.call(Dnser::Packet.parse(response))
         end
       rescue Timeout::Error
         proc.call(nil)
+      ensure
+        if(s)
+          s.close()
+        end
       end
     end
   end
@@ -571,15 +615,48 @@ Thread.abort_on_exception = true
 #
 #p = Dnser::Packet.parse("\x6c\xba\x81\x80\x00\x01\x00\x0c\x00\x00\x00\x00\x0d\x73\x6b\x75\x6c\x6c\x73\x65\x63\x75\x72\x69\x74\x79\x03\x6f\x72\x67\x00\x00\xff\x00\x01\xc0\x0c\x00\x0f\x00\x01\x00\x00\x0e\x0f\x00\x19\x00\x0a\x06\x41\x53\x50\x4d\x58\x32\x0a\x47\x4f\x4f\x47\x4c\x45\x4d\x41\x49\x4c\x03\x63\x6f\x6d\x00\xc0\x0c\x00\x0f\x00\x01\x00\x00\x0e\x0f\x00\x0b\x00\x0a\x06\x41\x53\x50\x4d\x58\x33\xc0\x38\xc0\x0c\x00\x1c\x00\x01\x00\x00\x0e\x0f\x00\x10\x26\x00\x3c\x01\x00\x00\x00\x00\xf0\x3c\x91\xff\xfe\xc8\xb8\x32\xc0\x0c\x00\x0f\x00\x01\x00\x00\x0e\x0f\x00\x13\x00\x01\x05\x41\x53\x50\x4d\x58\x01\x4c\x06\x47\x4f\x4f\x47\x4c\x45\xc0\x43\xc0\x0c\x00\x10\x00\x01\x00\x00\x0e\x0f\x00\x45\x44\x67\x6f\x6f\x67\x6c\x65\x2d\x73\x69\x74\x65\x2d\x76\x65\x72\x69\x66\x69\x63\x61\x74\x69\x6f\x6e\x3d\x75\x49\x63\x42\x46\x76\x4e\x58\x53\x53\x61\x41\x45\x49\x6b\x67\x36\x6b\x5a\x33\x5f\x5a\x4c\x41\x56\x70\x43\x6e\x41\x6d\x49\x33\x50\x49\x75\x49\x7a\x77\x72\x62\x70\x76\x38\xc0\x0c\x00\x02\x00\x01\x00\x00\x0e\x0f\x00\x15\x04\x6e\x73\x31\x39\x0d\x64\x6f\x6d\x61\x69\x6e\x63\x6f\x6e\x74\x72\x6f\x6c\xc0\x43\xc0\x0c\x00\x06\x00\x01\x00\x00\x0e\x0f\x00\x25\xc0\xf7\x03\x64\x6e\x73\x05\x6a\x6f\x6d\x61\x78\x03\x6e\x65\x74\x00\x78\x1b\xb6\xdb\x00\x00\x70\x80\x00\x00\x1c\x20\x00\x09\x3a\x80\x00\x00\x0e\x10\xc0\x0c\x00\x10\x00\x01\x00\x00\x0e\x0f\x00\x0b\x0a\x6f\x68\x20\x68\x61\x69\x20\x4e\x53\x41\xc0\x0c\x00\x02\x00\x01\x00\x00\x0e\x0f\x00\x07\x04\x6e\x73\x32\x30\xc0\xfc\xc0\x0c\x00\x0f\x00\x01\x00\x00\x0e\x0f\x00\x09\x00\x05\x04\x41\x4c\x54\x31\xc0\x89\xc0\x0c\x00\x0f\x00\x01\x00\x00\x0e\x0f\x00\x09\x00\x05\x04\x41\x4c\x54\x32\xc0\x89\xc0\x0c\x00\x01\x00\x01\x00\x00\x0e\x0f\x00\x04\xc0\x9b\x51\x56")
 #puts(p.to_s)
+#
+#Dnser.query('skullsecurity.org', '4.2.2.1') do |response|
+#  if(response.nil?)
+#    puts "Timeout!"
+#    next
+#  end
+#
+#  puts response
+#  exit
+#end
 
-Dnser.query('skullsecadsfurity.org', '4.2.2.1') do |response|
-  if(response.nil?)
-    puts "Timeout!"
-    next
-  end
+Dnser.new('localhost', 53531) do |request, reply|
+  question = request.questions[0]
 
-  puts response
-  exit
+  record = Dnser::Packet::A.new("1.2.3.4")
+  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_A, question.cls, 60, record)
+  reply.add_answer(answer)
+
+  record = Dnser::Packet::AAAA.new("::1")
+  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_AAAA, question.cls, 60, record)
+  reply.add_answer(answer)
+
+  record = Dnser::Packet::CNAME.new("cname.com")
+  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_CNAME, question.cls, 60, record)
+  reply.add_answer(answer)
+
+  record = Dnser::Packet::MX.new(1, "javaop.com")
+  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_MX, question.cls, 60, record)
+  reply.add_answer(answer)
+
+  record = Dnser::Packet::NS.new("ns.com")
+  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_NS, question.cls, 60, record)
+  reply.add_answer(answer)
+
+  record = Dnser::Packet::TXT.new("A" * 64)
+  answer = Dnser::Packet::Answer.new(question.name, Dnser::Packet::TYPE_TXT, question.cls, 60, record)
+  reply.add_answer(answer)
+
+  puts request
+  puts reply
+
+  reply
 end
 
-sleep(5)
+sleep(1000)
