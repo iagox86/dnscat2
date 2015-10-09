@@ -256,12 +256,7 @@ class DriverDNS
         # Get the response
         response = proc.call(name, max_length)
 
-        # A nil response happens when the client sends an invalid packet and the server doesn't
-        # want to return any actual dnscat2 protocol packet. We just send out a blank packet
-        # when that happens to keep DNS happy
-        if(response.nil?)
-          response = ''
-        elsif(response.length > max_length)
+        if(response.length > max_length)
           raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
         end
 

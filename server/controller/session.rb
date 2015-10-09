@@ -119,11 +119,23 @@ class Session
     return "id: 0x%04x [internal: %d], state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @window.id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
+  def Session._create_syn(session_id, my_sequence, options)
+    return Packet.create_syn(0, {
+      :session_id => session_id,
+      :seq        => my_sequence,
+      :options    => options, # TODO: I haven't paid much attention to what the server puts in its options field, should I?
+    })
+  end
+
   def _handle_syn(packet, max_length)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!_syn_valid?())
-      @window.puts("[WARNING] SYN received in invalid state (ignoring)")
-      return nil
+      if(@their_seq == packet.body.seq && @options == packet.body.options)
+        @window.puts("[WARNING] Duplicate SYN received!")
+        return Session._create_syn(@id, @my_seq, 0)
+      else
+        raise(DnscatException, "Illegal SYN received")
+      end
     end
 
     # Save some of their options
@@ -149,11 +161,7 @@ class Session
       @window.activate()
     end
 
-    return Packet.create_syn(0, {
-      :session_id => @id,
-      :seq        => @my_seq,
-      :options    => 0, # TODO: I haven't paid much attention to what the server puts in its options field, should I?
-    })
+    return Session._create_syn(@id, @my_seq, 0)
   end
 
   def _actual_msg_max_length(max_data_length)
@@ -281,8 +289,11 @@ class Session
       })
     end
 
+    # If the program needs to ignore the packet, then it returns nil, and we
+    # return a bunch of nothing
     if(response_packet.nil?)
-      return nil
+      window.puts("OUT: <no data>")
+      return ''
     end
 
     if(response_packet.to_bytes().length() > max_length)

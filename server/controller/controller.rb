@@ -76,7 +76,6 @@ class Controller
     return @sessions
   end
 
-  # This can return nil if no response should be sent
   def feed(data, max_length)
     session_id = Packet.peek_session_id(data)
     session = _get_or_create_session(session_id)
