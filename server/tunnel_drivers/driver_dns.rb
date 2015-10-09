@@ -5,61 +5,54 @@
 #
 # See: LICENSE.md
 #
-# The DNS dnscat server.
+# This is a driver that will listen on a DNS port (using lib/dnser.rb) and
+# will decode the "DNS tunnel protocol" and pass the resulting data to the
+# controller.
 ##
 
-require 'celluloid/current'
-require 'celluloid/io'
-require 'celluloid/dns'
+require 'libs/dnser.rb'
 
-class DriverDNS < Celluloid::DNS::Server
+class DriverDNS
   attr_reader :window
 
   # This is upstream dns
   @@passthrough = nil
 
-  # Get a handle to these things
-  Name = Resolv::DNS::Name
-  IN = Resolv::DNS::Resource::IN
-
   MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
   MAX_AAAA_RECORDS = 5
 
+  # This is only used to ensure each packet is unique to avoid caching
   @@id = 0
 
   RECORD_TYPES = {
-    IN::TXT => {
+    Dnser::Packet::TYPE_TXT => {
       :requires_domain => false,
       :max_length      => 241, # Carefully chosen
       :requires_hex    => true,
-      :requires_name   => false,
       :encoder         => Proc.new() do |name|
          name.unpack("H*").pop
       end,
     },
-    IN::MX => {
+    Dnser::Packet::TYPE_MX => {
       :requires_domain => true,
       :max_length      => 241,
       :requires_hex    => true,
-      :requires_name   => true,
       :encoder         => Proc.new() do |name|
          name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
       end,
     },
-    IN::CNAME => {
+    Dnser::Packet::TYPE_CNAME => {
       :requires_domain => true,
       :max_length      => 241,
       :requires_hex    => true,
-      :requires_name   => true,
       :encoder         => Proc.new() do |name|
          name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
       end,
     },
-    IN::A => {
+    Dnser::Packet::TYPE_A => {
       :requires_domain => false,
       :max_length      => (MAX_A_RECORDS * 4) - 1, # Length-prefixed, since we only have DWORD granularity
       :requires_hex    => false,
-      :requires_name   => false,
 
       # Encode in length-prefixed dotted-decimal notation
       :encoder         => Proc.new() do |name|
@@ -71,11 +64,10 @@ class DriverDNS < Celluloid::DNS::Server
         end
       end,
     },
-    IN::AAAA => {
+    Dnser::Packet::TYPE_AAAA => {
       :requires_domain => false,
       :max_length      => (MAX_AAAA_RECORDS * 16) - 1, # Length-prefixed, because low granularity
       :requires_hex    => false,
-      :requires_name   => false,
 
       # Encode in length-prefixed IPv6 notation
       :encoder         => Proc.new() do |name|
@@ -133,8 +125,6 @@ class DriverDNS < Celluloid::DNS::Server
     @port        = port
     @domains     = domains
     @shown_pt    = false
-
-    super(@host, @port)
   end
 
   # If domain is non-nil, match /(.*)\.domain/
@@ -181,7 +171,11 @@ class DriverDNS < Celluloid::DNS::Server
       @@passthrough = nil
       return
     end
-    @@passthrough = RubyDNS::Resolver.new([[:udp, host, port]])
+
+    @@passthrough = {
+      :host => host,
+      :port => port,
+    }
     @shown_pt = false
   end
 
@@ -189,47 +183,53 @@ class DriverDNS < Celluloid::DNS::Server
     return @window.id
   end
 
-  def process(name, resource_class, transaction)
-    #s.logger.level = Logger::WARN
-    puts("Okay...")
-    exit
+  def do_passthrough(request)
+    if(@@passthrough)
+      if(!@shown_pt)
+        window.puts("Unable to handle request: #{transaction.name}")
+        window.puts("Passing upstream to: #{@@passthrough}")
+        window.puts("(This will only be shown once)")
+        @shown_pt = true
+      end
+      transaction.passthrough!(@@passthrough)
+    elsif(!@shown_pt)
+      window.puts("Unable to handle request, returning an error: #{transaction.name}")
+      window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
+      window.puts("or run \"set passthrough=true\")")
+      window.puts("(This will only be shown once)")
+      @shown_pt = true
 
-    begin
-      # Determine the type
-      type = transaction.resource_class
-      type_info = RECORD_TYPES[type]
+      transaction.fail!(:NXDomain)
+    end
+  end
 
-      # Log what's going on
-      window.puts("Received:  #{transaction.name} (#{type})")
-
-      # Determine the actual name, without the extra cruft
-      name, domain = DriverDNS.figure_out_name(transaction.name, domains)
-      if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
-        if(@@passthrough)
-          if(!@shown_pt)
-            window.puts("Unable to handle request: #{transaction.name}")
-            window.puts("Passing upstream to: #{@@passthrough}")
-            window.puts("(This will only be shown once)")
-            @shown_pt = true
-          end
-          transaction.passthrough!(@@passthrough)
-        elsif(!@shown_pt)
-          window.puts("Unable to handle request, returning an error: #{transaction.name}")
-          window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
-          window.puts("or run \"set passthrough=true\")")
-          window.puts("(This will only be shown once)")
-          @shown_pt = true
-
-          transaction.fail!(:NXDomain)
+  def start()
+    Dnser.new(@host, @port) do |request, reply|
+      begin
+        if(request.questions.length < 1)
+          raise(DnscatException, "Received a packet with no questions")
         end
-      else
-        if(type.nil? || type_info.nil?)
-          raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
+
+        question = request.questions[0]
+
+        # Log what's going on
+        window.puts("Received:  #{question.name} (#{question.type_s})")
+
+        # Determine the actual name, without the extra cruft
+        name, domain = DriverDNS.figure_out_name(question.name, @domains)
+        if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
+          do_passthrough()
+          next
         end
 
         # Get rid of periods in the incoming name
         name = name.gsub(/\./, '')
         name = [name].pack("H*")
+
+        type_info = RECORD_TYPES[question.type]
+        if(type_info.nil?)
+          raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
+        end
 
         # Figure out the length of the domain based on the record type
         if(type_info[:requires_domain])
@@ -254,7 +254,7 @@ class DriverDNS < Celluloid::DNS::Server
 
         # Sanity check the response
         if(response.nil?)
-          response = ''
+          response = '' # TODO(iagox86): When does this happen, and why? Can we handle it better?
         elsif(response.length > max_length)
           raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
         end
@@ -272,79 +272,52 @@ class DriverDNS < Celluloid::DNS::Server
         end
 
         # Do another length sanity check (with the *actual* max length, since everything is encoded now)
-        if(response.length > type_info[:max_length])
-          raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report")
-        end
-
-        # Translate it into a name, if needed
-        if(type_info[:requires_name])
-          response = Name.create(response)
+        if(response.is_a?(String) && response.length > type_info[:max_length])
+          raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report.")
         end
 
         # Log the response
         window.puts("Sending:  #{response}")
 
-        # Make sure response is an array (certain types require an array, and it's easier to assume everything is one)
-        if(!response.is_a?(Array))
-          response = [response]
-        end
-
         # Allow multiple response records
-        response.each do |r|
-          # MX requires a special response
-          if(type == IN::MX)
-            transaction.respond!(rand(5) * 10, r)
-          else
-            transaction.respond!(r)
+        if(response.is_a?(String))
+          reply.add_answer(question.answer(60, response))
+        else
+          response.each do |r|
+            reply.add_answer(question.answer(60, r))
           end
         end
-      end
-    rescue DnscatException => e
-      window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-      window.puts(e.inspect)
-      e.backtrace.each do |bt|
-        window.puts(bt)
-      end
-      transaction.fail!(:NXDomain)
-    rescue StandardError => e
-      window.puts("Error caught:")
-      window.puts(e.inspect)
-      e.backtrace.each do |bt|
-        window.puts(bt)
+      rescue Dnser::DnsException => e
+        window.puts("There was a problem parsing the incoming packet!")
+        window.puts(e.inspect)
+        e.backtrace.each do |bt|
+          window.puts(bt)
+        end
+
+        reply = question.get_error(Dnser::Packet::RCODE_NAME_ERROR)
+      rescue DnscatException => e
+        window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
+        window.puts(e.inspect)
+        e.backtrace.each do |bt|
+          window.puts(bt)
+        end
+        reply = question.get_error(Dnser::Packet::RCODE_NAME_ERROR)
+      rescue StandardError => e
+        window.puts("Error caught:")
+        window.puts(e.inspect)
+        e.backtrace.each do |bt|
+          window.puts(bt)
+        end
+        reply = question.get_error(Dnser::Packet::RCODE_NAME_ERROR)
       end
 
-      transaction.fail!(:NXDomain)
+      reply
     end
-
-    # Default DNS handler
-#    otherwise do |transaction|
-#      if(@@passthrough)
-#        if(!@shown_pt)
-#          window.puts("Unable to handle request: #{transaction.name}")
-#          window.puts("Passing upstream to: #{@@passthrough}")
-#          window.puts("(This will only be shown once)")
-#          @shown_pt = true
-#        end
-#        transaction.passthrough!(@@passthrough)
-#      elsif(!@shown_pt)
-#        window.puts("Unable to handle request, returning an error: #{transaction.name}")
-#        window.puts("(If you want to pass to upstream DNS servers, use --passthrough)")
-#        window.puts("(This will only be shown once)")
-#        @shown_pt = true
-#
-#        transaction.fail!(:NXDomain)
-#      end
-#
-#      transaction
-#    end
-  end
-
-  def start()
-    self.run()
   end
 
   def stop()
-    self.stop()
+    # TODO
+    exit
     @window.close()
   end
 end

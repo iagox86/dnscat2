@@ -1,44 +1,10 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    celluloid (0.17.2)
-      celluloid-essentials
-      celluloid-extras
-      celluloid-fsm
-      celluloid-pool
-      celluloid-supervision
-      timers (>= 4.1.1)
-    celluloid-dns (0.0.1)
-      celluloid (>= 0.11.0)
-      celluloid-io (>= 0.11.0)
-    celluloid-essentials (0.20.5)
-      timers (>= 4.1.1)
-    celluloid-extras (0.20.5)
-      timers (>= 4.1.1)
-    celluloid-fsm (0.20.5)
-      timers (>= 4.1.1)
-    celluloid-io (0.17.2)
-      celluloid (>= 0.17.2)
-      nio4r (>= 1.1)
-      timers (>= 4.1.1)
-    celluloid-pool (0.20.5)
-      timers (>= 4.1.1)
-    celluloid-supervision (0.20.5)
-      timers (>= 4.1.1)
-    hitimes (1.2.3)
-    nio4r (1.1.1)
-    rainbow (2.0.0)
-    rexec (1.6.3)
-      rainbow
-    timers (4.1.1)
-      hitimes
     trollop (2.1.2)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  celluloid
-  celluloid-dns
-  rexec
   trollop

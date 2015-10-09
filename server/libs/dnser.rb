@@ -22,6 +22,91 @@ class Dnser
   end
 
   class Packet
+    attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
+
+    QR_QUERY    = 0x0000
+    QR_RESPONSE = 0x0001
+
+    QRS = {
+      QR_QUERY    => "QUERY",
+      QR_RESPONSE => "RESPONSE",
+    }
+
+    RCODE_SUCCESS         = 0x0000
+    RCODE_FORMAT_ERROR    = 0x0001
+    RCODE_SERVER_FAILURE  = 0x0002
+    RCODE_NAME_ERROR      = 0x0003
+    RCODE_NOT_IMPLEMENTED = 0x0004
+    RCODE_REFUSED         = 0x0005
+
+    RCODES = {
+      RCODE_SUCCESS         => "RCODE_SUCCESS",
+      RCODE_FORMAT_ERROR    => "RCODE_FORMAT_ERROR",
+      RCODE_SERVER_FAILURE  => "RCODE_SERVER_FAILURE",
+      RCODE_NAME_ERROR      => "RCODE_NAME_ERROR",
+      RCODE_NOT_IMPLEMENTED => "RCODE_NOT_IMPLEMENTED",
+      RCODE_REFUSED         => "RCODE_REFUSED",
+    }
+
+    OPCODE_QUERY  = 0x0000
+    OPCODE_IQUERY = 0x0800
+    OPCODE_STATUS = 0x1000
+
+    OPCODES = {
+      OPCODE_QUERY  => "OPCODE_QUERY",
+      OPCODE_IQUERY => "OPCODE_IQUERY",
+      OPCODE_STATUS => "OPCODE_STATUS",
+    }
+
+    TYPE_A     = 0x0001
+    TYPE_NS    = 0x0002
+    TYPE_CNAME = 0x0005
+    TYPE_SOA   = 0x0006
+    TYPE_MX    = 0x000f
+    TYPE_TXT   = 0x0010
+    TYPE_AAAA  = 0x001c
+    TYPE_ANY   = 0x00FF
+
+    TYPES = {
+      TYPE_A     => "A",
+      TYPE_NS    => "NS",
+      TYPE_CNAME => "CNAME",
+      TYPE_SOA   => "SOA",
+      TYPE_MX    => "MX",
+      TYPE_TXT   => "TXT",
+      TYPE_AAAA  => "AAAA",
+      TYPE_ANY   => "ANY",
+    }
+
+    FLAG_AA = 0x0008 # Authoritative answer
+    FLAG_TC = 0x0004 # Truncated
+    FLAG_RD = 0x0002 # Recursion desired
+    FLAG_RA = 0x0001 # Recursion available
+
+    def Packet.FLAGS(flags)
+      result = []
+      if((flags & FLAG_AA) == FLAG_AA)
+        result << "AA"
+      end
+      if((flags & FLAG_TC) == FLAG_TC)
+        result << "TC"
+      end
+      if((flags & FLAG_RD) == FLAG_RD)
+        result << "RD"
+      end
+      if((flags & FLAG_RA) == FLAG_RA)
+        result << "RA"
+      end
+
+      return result.join("|")
+    end
+
+    CLS_IN                = 0x0001 # Internet
+
+    CLSES = {
+      CLS_IN => "IN",
+    }
+
     class FormatException < StandardError
     end
 
@@ -130,91 +215,6 @@ class Dnser
       end
     end
 
-    attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
-
-    QR_QUERY    = 0x0000
-    QR_RESPONSE = 0x0001
-
-    QRS = {
-      QR_QUERY    => "QUERY",
-      QR_RESPONSE => "RESPONSE",
-    }
-
-    RCODE_SUCCESS         = 0x0000
-    RCODE_FORMAT_ERROR    = 0x0001
-    RCODE_SERVER_FAILURE  = 0x0002
-    RCODE_NAME_ERROR      = 0x0003
-    RCODE_NOT_IMPLEMENTED = 0x0004
-    RCODE_REFUSED         = 0x0005
-
-    RCODES = {
-      RCODE_SUCCESS         => "RCODE_SUCCESS",
-      RCODE_FORMAT_ERROR    => "RCODE_FORMAT_ERROR",
-      RCODE_SERVER_FAILURE  => "RCODE_SERVER_FAILURE",
-      RCODE_NAME_ERROR      => "RCODE_NAME_ERROR",
-      RCODE_NOT_IMPLEMENTED => "RCODE_NOT_IMPLEMENTED",
-      RCODE_REFUSED         => "RCODE_REFUSED",
-    }
-
-    OPCODE_QUERY  = 0x0000
-    OPCODE_IQUERY = 0x0800
-    OPCODE_STATUS = 0x1000
-
-    OPCODES = {
-      OPCODE_QUERY  => "OPCODE_QUERY",
-      OPCODE_IQUERY => "OPCODE_IQUERY",
-      OPCODE_STATUS => "OPCODE_STATUS",
-    }
-
-    TYPE_A     = 0x0001
-    TYPE_NS    = 0x0002
-    TYPE_CNAME = 0x0005
-    TYPE_SOA   = 0x0006
-    TYPE_MX    = 0x000f
-    TYPE_TXT   = 0x0010
-    TYPE_AAAA  = 0x001c
-    TYPE_ANY   = 0x00FF
-
-    TYPES = {
-      TYPE_A     => "A",
-      TYPE_NS    => "NS",
-      TYPE_CNAME => "CNAME",
-      TYPE_SOA   => "SOA",
-      TYPE_MX    => "MX",
-      TYPE_TXT   => "TXT",
-      TYPE_AAAA  => "AAAA",
-      TYPE_ANY   => "ANY",
-    }
-
-    FLAG_AA = 0x0008 # Authoritative answer
-    FLAG_TC = 0x0004 # Truncated
-    FLAG_RD = 0x0002 # Recursion desired
-    FLAG_RA = 0x0001 # Recursion available
-
-    def Packet.FLAGS(flags)
-      result = []
-      if((flags & FLAG_AA) == FLAG_AA)
-        result << "AA"
-      end
-      if((flags & FLAG_TC) == FLAG_TC)
-        result << "TC"
-      end
-      if((flags & FLAG_RD) == FLAG_RD)
-        result << "RD"
-      end
-      if((flags & FLAG_RA) == FLAG_RA)
-        result << "RA"
-      end
-
-      return result.join("|")
-    end
-
-    CLS_IN                = 0x0001 # Internet
-
-    CLSES = {
-      CLS_IN => "IN",
-    }
-
     class A
       attr_accessor :address
 
@@ -321,9 +321,9 @@ class Dnser
     class MX
       attr_accessor :preference, :name
 
-      def initialize(preference, name)
-        @preference = preference
+      def initialize(name, preference = 10)
         @name = name
+        @preference = preference
       end
 
       def MX.parse(data)
@@ -411,8 +411,39 @@ class Dnser
         return [Dnser::Packet::DnsUnpacker.pack_name(@name), type, cls].pack("a*nn")
       end
 
+      def type_s()
+        return Dnser::Packet::TYPES[@type]
+      end
+
+      def class_s()
+        return Dnser::Packet::CLSES[@cls]
+      end
+
       def to_s()
-        return "#{name} [#{type} #{cls}]"
+        return "#{name} [#{type_s()} #{cls_s()}]"
+      end
+
+      def answer(ttl, *args)
+        case @type
+        when Dnser::Packet::TYPE_A
+          record = Dnser::Packet::A.new(*args)
+        when Dnser::Packet::TYPE_NS
+          record = Dnser::Packet::NS.new(*args)
+        when Dnser::Packet::TYPE_CNAME
+          record = Dnser::Packet::CNAME.new(*args)
+        when Dnser::Packet::TYPE_MX
+          record = Dnser::Packet::MX.new(*args)
+        when Dnser::Packet::TYPE_TXT
+          record = Dnser::Packet::TXT.new(*args)
+        when Dnser::Packet::TYPE_AAAA
+          record = Dnser::Packet::AAAA.new(*args)
+        when Dnser::Packet::TYPE_ANY
+          raise(Dnser::Packet::FormatException, "We can't automatically create a response for an 'ANY' request :(")
+        else
+          raise(Dnser::Packet::FormatException, "We don't know how to answer that type of request!")
+        end
+
+        return Answer.new(@name, @type, @cls, ttl, record)
       end
     end
 
@@ -505,6 +536,10 @@ class Dnser
       end
 
       return packet
+    end
+
+    def get_error(rcode)
+      return Packet.new(@trn_id, Dnser::Packet::QR_RESPONSE, Dnser::Packet::OPCODE_QUERY, Dnser::Packet::FLAG_RD | Dnser::Packet::FLAG_RA, rcode)
     end
 
     def serialize()

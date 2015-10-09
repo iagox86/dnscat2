@@ -14,23 +14,26 @@ class TunnelDrivers
   end
 
   def TunnelDrivers.start(controller, driver)
-    @@drivers[driver.id] = {
-      :driver => driver,
-      :thread => Thread.new do |t|
-        begin
-          driver.recv() do |data, max_length|
-            controller.feed(data, max_length)
-          end
-        rescue TunnelDrivers::StopDriver => e
-          driver.window.puts("Stopping this tunnel: #{e}")
-        rescue Exception => e
-          driver.window.puts("Error in the TunnelDriver: #{e.inspect}")
-          e.backtrace.each do |b|
-            driver.window.puts("#{b}")
-          end
-        end
-      end
-    }
+    driver.start() do |data, max_length|
+      controller.feed(data, max_length)
+    end
+#    @@drivers[driver.id] = {
+#      :driver => driver,
+#      :thread => Thread.new do |t|
+#        begin
+#          driver.recv() do |data, max_length|
+#            controller.feed(data, max_length)
+#          end
+#        rescue TunnelDrivers::StopDriver => e
+#          driver.window.puts("Stopping this tunnel: #{e}")
+#        rescue Exception => e
+#          driver.window.puts("Error in the TunnelDriver: #{e.inspect}")
+#          e.backtrace.each do |b|
+#            driver.window.puts("#{b}")
+#          end
+#        end
+#      end
+#    }
   end
 
   def TunnelDrivers.exists?(id)
