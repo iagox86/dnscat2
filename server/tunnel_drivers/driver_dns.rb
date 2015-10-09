@@ -289,27 +289,27 @@ class DriverDNS
           end
         end
       rescue DNSer::DnsException => e
-        window.puts("There was a problem parsing the incoming packet!")
-        window.puts(e.inspect)
+        window.puts_ex("There was a problem parsing the incoming packet! (for more information, check window '#{window.id}')", {:to_ancestors=>true})
+        window.puts_ex(e.inspect, {:to_ancestors=>true})
         e.backtrace.each do |bt|
-          window.puts(bt)
+          window.puts_ex(bt)
         end
 
-        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue DnscatException => e
-        window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-        window.puts(e.inspect)
+        window.puts_ex("Protocol exception caught in dnscat DNS module (for more information, check window '#{window.id}'):", {:to_ancestors=>true})
+        window.puts_ex(e.inspect, {:to_ancestors=>true})
         e.backtrace.each do |bt|
-          window.puts(bt)
+          window.puts_ex(bt)
         end
-        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue StandardError => e
-        window.puts("Error caught:")
-        window.puts(e.inspect)
+        window.puts_ex("Error caught (for more information, check window '#{window.id}'):", {:to_ancestors=>true})
+        window.puts_ex(e.inspect, {:to_ancestors=>true})
         e.backtrace.each do |bt|
-          window.puts(bt)
+          window.puts_ex(bt)
         end
-        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       end
 
       reply

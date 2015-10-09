@@ -1,10 +1,10 @@
 Some goals (these will be deleted as I complete them):
-- Make sure a good error is still displayed when the user doesn't run it as root
 - Take care of all TODOs that are possible
 - Bring back the "session last heard from [X] minutes ago" message
 - Update documentation / output / etc.
 - Figure out if I actually need to include the domain name
 - Improve the logging so I don't need 2 logging windows per session
+- Make it possible to start/stop tunnel drivers again
 
 Before release, make sure:
 - Make sure everything works over normal DNS
