@@ -4,6 +4,8 @@ Some goals (these will be deleted as I complete them):
 - Bring back the "session last heard from [X] minutes ago" message
 - Change the commandline arguments to match the client's
 - Update documentation / output / etc.
+- Figure out if I actually need to include the domain name
+- Improve the logging so I don't need 2 logging windows per session
 
 Before release, make sure:
 - Make sure everything works over normal DNS
