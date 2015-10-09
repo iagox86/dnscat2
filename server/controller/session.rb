@@ -122,7 +122,8 @@ class Session
   def _handle_syn(packet, max_length)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!_syn_valid?())
-      raise(DnscatException, "SYN received in invalid state")
+      @window.puts("[WARNING] SYN received in invalid state (ignoring)")
+      return nil
     end
 
     # Save some of their options
@@ -278,6 +279,10 @@ class Session
         :session_id => @id,
         :reason => "An unhandled exception killed the session: %s" % e.to_s(),
       })
+    end
+
+    if(response_packet.nil?)
+      return nil
     end
 
     if(response_packet.to_bytes().length() > max_length)
