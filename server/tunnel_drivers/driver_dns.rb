@@ -184,23 +184,27 @@ class DriverDNS
   end
 
   def do_passthrough(request)
-    if(@@passthrough)
-      if(!@shown_pt)
-        window.puts("Unable to handle request: #{transaction.name}")
-        window.puts("Passing upstream to: #{@@passthrough}")
-        window.puts("(This will only be shown once)")
-        @shown_pt = true
-      end
-      transaction.passthrough!(@@passthrough)
-    elsif(!@shown_pt)
-      window.puts("Unable to handle request, returning an error: #{transaction.name}")
-      window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
-      window.puts("or run \"set passthrough=true\")")
-      window.puts("(This will only be shown once)")
+    if(!@shown_pt)
+      puts("TODO: Passthrough")
       @shown_pt = true
-
-      transaction.fail!(:NXDomain)
     end
+#    if(@@passthrough)
+#      if(!@shown_pt)
+#        window.puts("Unable to handle request: #{transaction.name}")
+#        window.puts("Passing upstream to: #{@@passthrough}")
+#        window.puts("(This will only be shown once)")
+#        @shown_pt = true
+#      end
+#      transaction.passthrough!(@@passthrough)
+#    elsif(!@shown_pt)
+#      window.puts("Unable to handle request, returning an error: #{transaction.name}")
+#      window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
+#      window.puts("or run \"set passthrough=true\")")
+#      window.puts("(This will only be shown once)")
+#      @shown_pt = true
+#
+#      transaction.fail!(:NXDomain)
+#    end
   end
 
   def start()
@@ -218,7 +222,7 @@ class DriverDNS
         # Determine the actual name, without the extra cruft
         name, domain = DriverDNS.figure_out_name(question.name, @domains)
         if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
-          do_passthrough()
+          do_passthrough(request)
           next
         end
 
