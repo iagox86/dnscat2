@@ -6,6 +6,8 @@ Some goals (these will be deleted as I complete them):
 - Update documentation / output / etc.
 - Figure out if I actually need to include the domain name
 - Improve the logging so I don't need 2 logging windows per session
+- Give a better error if the domain is provided the wrong way:
+  $ ./dnscat --dns type=CNAME skullseclabs.org --packet-trace
 
 Before release, make sure:
 - Make sure everything works over normal DNS
