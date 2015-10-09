@@ -25,7 +25,7 @@ class DriverDNS
   @@id = 0
 
   RECORD_TYPES = {
-    Dnser::Packet::TYPE_TXT => {
+    DNSer::Packet::TYPE_TXT => {
       :requires_domain => false,
       :max_length      => 241, # Carefully chosen
       :requires_hex    => true,
@@ -33,7 +33,7 @@ class DriverDNS
          name.unpack("H*").pop
       end,
     },
-    Dnser::Packet::TYPE_MX => {
+    DNSer::Packet::TYPE_MX => {
       :requires_domain => true,
       :max_length      => 241,
       :requires_hex    => true,
@@ -41,7 +41,7 @@ class DriverDNS
          name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
       end,
     },
-    Dnser::Packet::TYPE_CNAME => {
+    DNSer::Packet::TYPE_CNAME => {
       :requires_domain => true,
       :max_length      => 241,
       :requires_hex    => true,
@@ -49,7 +49,7 @@ class DriverDNS
          name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
       end,
     },
-    Dnser::Packet::TYPE_A => {
+    DNSer::Packet::TYPE_A => {
       :requires_domain => false,
       :max_length      => (MAX_A_RECORDS * 4) - 1, # Length-prefixed, since we only have DWORD granularity
       :requires_hex    => false,
@@ -64,7 +64,7 @@ class DriverDNS
         end
       end,
     },
-    Dnser::Packet::TYPE_AAAA => {
+    DNSer::Packet::TYPE_AAAA => {
       :requires_domain => false,
       :max_length      => (MAX_AAAA_RECORDS * 16) - 1, # Length-prefixed, because low granularity
       :requires_hex    => false,
@@ -204,7 +204,7 @@ class DriverDNS
   end
 
   def start()
-    Dnser.new(@host, @port) do |request, reply|
+    DNSer.new(@host, @port) do |request, reply|
       begin
         if(request.questions.length < 1)
           raise(DnscatException, "Received a packet with no questions")
@@ -287,28 +287,28 @@ class DriverDNS
             reply.add_answer(question.answer(60, r))
           end
         end
-      rescue Dnser::DnsException => e
+      rescue DNSer::DnsException => e
         window.puts("There was a problem parsing the incoming packet!")
         window.puts(e.inspect)
         e.backtrace.each do |bt|
           window.puts(bt)
         end
 
-        reply = question.get_error(Dnser::Packet::RCODE_NAME_ERROR)
+        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue DnscatException => e
         window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
         window.puts(e.inspect)
         e.backtrace.each do |bt|
           window.puts(bt)
         end
-        reply = question.get_error(Dnser::Packet::RCODE_NAME_ERROR)
+        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue StandardError => e
         window.puts("Error caught:")
         window.puts(e.inspect)
         e.backtrace.each do |bt|
           window.puts(bt)
         end
-        reply = question.get_error(Dnser::Packet::RCODE_NAME_ERROR)
+        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       end
 
       reply
