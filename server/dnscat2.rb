@@ -24,6 +24,9 @@ require 'trollop'
 NAME = "dnscat2"
 VERSION = "0.03"
 
+# Don't ignore unhandled errors in threads
+Thread.abort_on_exception = true
+
 window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
 window.puts("Welcome to dnscat2! Some documentation may be out of date.")
 window.puts()
