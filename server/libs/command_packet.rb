@@ -49,7 +49,7 @@ class CommandPacket
       :response => [ :session_id ],
     },
     COMMAND_EXEC => {
-      :request  => [ :command ],
+      :request  => [ :name, :command ],
       :response => [ :session_id ],
     },
     COMMAND_DOWNLOAD => {
@@ -226,6 +226,7 @@ class CommandPacket
 
     when COMMAND_EXEC
       if(@data[:is_request])
+        packet += [@data[:name]].pack("Z*")
         packet += [@data[:command]].pack("Z*")
       else
         packet += [@data[:session_id]].pack("n")
