@@ -405,6 +405,14 @@ int main(int argc, char *argv[])
     }
   }
 
+  if(tunnel_driver_created && argv[optind])
+  {
+    printf("It looks like you used --dns and also passed a domain on the commandline.\n");
+    printf("That's not allowed! Either use '--dns domain=xxx' or don't use a --dns\n");
+    printf("argument!\n");
+    exit(1);
+  }
+
   /* If no output was set, use the domain, and use the last option as the
    * domain. */
   if(!tunnel_driver_created)
