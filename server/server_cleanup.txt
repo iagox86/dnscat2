@@ -1,14 +1,19 @@
 Some goals (these will be deleted as I complete them):
 - Take care of all TODOs that are possible
-- Bring back the "session last heard from [X] minutes ago" message
-- Update documentation / output / etc.
-- Figure out if I actually need to include the domain name
 - Improve the logging so I don't need 2 logging windows per session
 - Make it possible to start/stop tunnel drivers again
+- Figure out why "exec ping 4.2.2.1" didn't work
+- Figure out why it won't compile on Cygwin anymore
+- Make sure auto_attach works
 
 Before release, make sure:
+- Update documentation / output / etc.
 - Make sure everything works over normal DNS
+- Make sure everything works on Windows
+- Make sure all the commandline settings and other settings work
 
 Out of scope things that I'd like to do eventually (so I'll file them as github issues):
 - Add a command to command sessions to spawn a console session (--console), if that's possible
 - Nested sessions
+- Figure out if I actually need to include the domain name
+- Write tests for the connection/session stuff

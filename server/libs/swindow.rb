@@ -123,6 +123,7 @@ class SWindow
     @name = params[:name] || "unnamed"
     @prompt = params[:prompt] || ("%s %s> " % [@name, @id.to_s()])
     @noinput = params[:noinput] || false
+    @times_out = params[:times_out] || false
 
     @callback = nil
     @history = RingBuffer.new(@@history_size)
@@ -342,6 +343,10 @@ class SWindow
     @@input_thread.join()
   end
 
+  def kick()
+    @last_seen = Time.now()
+  end
+
   def to_s()
     s = "%s :: %s" % [@id.to_s(), @name]
     if(@@active == self)
@@ -350,6 +355,13 @@ class SWindow
 
     if(@pending)
       s += " [*]"
+    end
+
+    if(@times_out)
+      elapsed = Time.now() - @last_seen
+      if(elapsed > 5)
+        s += " [idle for #{elapsed.to_i()} seconds]"
+      end
     end
 
     return s

@@ -44,7 +44,7 @@ class Session
 
     # TODO: Somewhere in here, I need the concept of a 'parent' session
     @settings = Settings.new()
-    @window = SWindow.new(main_window, false)
+    @window = SWindow.new(main_window, false, {:times_out => true})
 
     @settings.create("prompt", Settings::TYPE_NO_STRIP, "not set> ", "Change the prompt (if you want a space, use quotes; 'set prompt=\"a> \"'.") do |old_val, new_val|
       @window.prompt = new_val
@@ -261,6 +261,9 @@ class Session
   end
 
   def feed(data, max_length)
+    # Tell the window that we're still alive
+    window.kick()
+
     packet = Packet.parse(data, @options)
 
     if(Settings::GLOBAL.get("packet_trace"))
