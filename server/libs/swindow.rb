@@ -31,9 +31,9 @@
 # If you want a message to go to a window's parents (or children), a special
 # function called with() can be used with a block:
 #
-window.with({:to_parent => true}) do
-  window.puts("hi")
-end
+# window.with({:to_parent => true}) do
+#   window.puts("hi")
+# end
 #
 # The following options can be set:
 # * :to_parent - sends to the current window and its parent
