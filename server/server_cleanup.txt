@@ -4,7 +4,6 @@ Some goals (these will be deleted as I complete them):
 - Make it possible to start/stop tunnel drivers again
 - Figure out why "exec ping 4.2.2.1" didn't work
 - Figure out why it won't compile on Cygwin anymore
-- Make sure auto_attach works
 
 Before release, make sure:
 - Update documentation / output / etc.

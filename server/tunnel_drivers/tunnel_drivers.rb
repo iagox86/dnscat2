@@ -19,17 +19,19 @@ class TunnelDrivers
         controller.feed(data, max_length)
       end
     rescue Errno::EACCES => e
-      controller.window.puts_ex("*** ERROR ***", {:to_ancestors => true})
-      controller.window.puts_ex("", {:to_ancestors => true})
-      controller.window.puts_ex("There was a problem creating the socket: #{e}", {:to_ancestors => true})
-      controller.window.puts_ex("", {:to_ancestors => true})
-      controller.window.puts_ex("If you're trying to run this on Linux, chances are you need to", {:to_ancestors => true})
-      controller.window.puts_ex("run this as root, or give ruby permission to listen on port 53.", {:to_ancestors => true})
-      controller.window.puts_ex("", {:to_ancestors => true})
-      controller.window.puts_ex("Sadly, this is non-trivial; rvmsudo doesn't work, because it's", {:to_ancestors => true})
-      controller.window.puts_ex("a shellscript and breaks ctrl-z; the best way is to use 'su' or", {:to_ancestors => true})
-      controller.window.puts_ex("'sudo', and to ensure that the appropriate gems are globally", {:to_ancestors => true})
-      controller.window.puts_ex("installed.", {:to_ancestors => true})
+      controller.window.with({:to_ancestors => true}) do
+        controller.window.puts("*** ERROR ***")
+        controller.window.puts("")
+        controller.window.puts("There was a problem creating the socket: #{e}")
+        controller.window.puts("")
+        controller.window.puts("If you're trying to run this on Linux, chances are you need to")
+        controller.window.puts("run this as root, or give ruby permission to listen on port 53.")
+        controller.window.puts("")
+        controller.window.puts("Sadly, this is non-trivial; rvmsudo doesn't work, because it's")
+        controller.window.puts("a shellscript and breaks ctrl-z; the best way is to use 'su' or")
+        controller.window.puts("'sudo', and to ensure that the appropriate gems are globally")
+        controller.window.puts("installed.")
+      end
     end
 #    @@drivers[driver.id] = {
 #      :driver => driver,

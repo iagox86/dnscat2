@@ -62,11 +62,13 @@ class Session
   end
 
   def kill()
-    if(@state != STATE_KILLED)
-      @state = STATE_KILLED
-      @window.puts_ex("Session #{@window.id} has been killed", {:to_ancestors=>true, :to_descendants=>true})
-    else
-      @window.puts_ex("Session #{@window.id} has been killed (again)", {:to_ancestors=>true, :to_descendants=>true})
+    @window.with({:to_ancestors=>true, :to_descendants=>true}) do
+      if(@state != STATE_KILLED)
+        @state = STATE_KILLED
+        @window.puts("Session #{@window.id} has been killed")
+      else
+        @window.puts("Session #{@window.id} has been killed (again)")
+      end
     end
 
     @window.close()

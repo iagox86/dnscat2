@@ -152,8 +152,6 @@ end
 # Add any domains passed on the commandline
 dns_settings[:domains] = dns_settings[:domains] || []
 dns_settings[:domains] += ARGV
-puts("ARGV = #{ARGV}")
-puts(dns_settings[:domains])
 
 TunnelDrivers.start(controller, DriverDNS.new(dns_settings[:host], dns_settings[:port], dns_settings[:domains], window))
 

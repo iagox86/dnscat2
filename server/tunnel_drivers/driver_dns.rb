@@ -95,30 +95,32 @@ class DriverDNS
       :noinput => true,
     })
 
-    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port}", {:to_parent => true})
-    @window.puts_ex("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...", {:to_parent=>true})
-    @window.puts_ex("", {:to_parent => true})
+    @window.with({:to_parent => true}) do
+      @window.puts("Starting Dnscat2 DNS server on #{host}:#{port}")
+      @window.puts("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...")
+      @window.puts("")
 
-    if(domains.nil? || domains.length == 0)
-      @window.puts_ex("It looks like you didn't give me any domains to recognize!", {:to_parent => true})
-      @window.puts_ex("That's cool, though, you can still use direct queries,", {:to_parent => true})
-      @window.puts_ex("although those are less stealthy.", {:to_parent => true})
-      @window.puts_ex("", {:to_parent => true})
-    else
-      @window.puts_ex("Assuming you have an authoritative DNS server, you can run", {:to_parent => true})
-      @window.puts_ex("the client anywhere with the following:", {:to_parent => true})
-      domains.each do |domain|
-        @window.puts_ex("  ./dnscat2 #{domain}", {:to_parent => true})
+      if(domains.nil? || domains.length == 0)
+        @window.puts("It looks like you didn't give me any domains to recognize!")
+        @window.puts("That's cool, though, you can still use direct queries,")
+        @window.puts("although those are less stealthy.")
+        @window.puts("")
+      else
+        @window.puts("Assuming you have an authoritative DNS server, you can run")
+        @window.puts("the client anywhere with the following:")
+        domains.each do |domain|
+          @window.puts("  ./dnscat2 #{domain}")
+        end
+        @window.puts("")
       end
-      @window.puts_ex("", {:to_parent => true})
-    end
 
-    @window.puts_ex("To talk directly to the server without a domain name, run:", {:to_parent => true})
-    @window.puts_ex("  ./dnscat2 --dns server=x.x.x.x,port=yyy", {:to_parent => true})
-    @window.puts_ex("", {:to_parent => true})
-    @window.puts_ex("Of course, you have to figure out <server> yourself! Clients", {:to_parent => true})
-    @window.puts_ex("will connect directly on UDP port 53 (by default).", {:to_parent => true})
-    @window.puts_ex("", {:to_parent => true})
+      @window.puts("To talk directly to the server without a domain name, run:")
+      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=yyy")
+      @window.puts("")
+      @window.puts("Of course, you have to figure out <server> yourself! Clients")
+      @window.puts("will connect directly on UDP port 53 (by default).")
+      @window.puts("")
+    end
 
 
     @host        = host
@@ -289,25 +291,34 @@ class DriverDNS
           end
         end
       rescue DNSer::DnsException => e
-        window.puts_ex("There was a problem parsing the incoming packet! (for more information, check window '#{window.id}')", {:to_ancestors=>true})
-        window.puts_ex(e.inspect, {:to_ancestors=>true})
+        window.with({:to_ancestors => true}) do
+          window.puts("There was a problem parsing the incoming packet! (for more information, check window '#{window.id}')")
+          window.puts(e.inspect)
+        end
+
         e.backtrace.each do |bt|
-          window.puts_ex(bt)
+          window.puts(bt)
         end
 
         reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue DnscatException => e
-        window.puts_ex("Protocol exception caught in dnscat DNS module (for more information, check window '#{window.id}'):", {:to_ancestors=>true})
-        window.puts_ex(e.inspect, {:to_ancestors=>true})
+        window.with({:to_ancestors => true}) do
+          window.puts("Protocol exception caught in dnscat DNS module (for more information, check window '#{window.id}'):")
+          window.puts(e.inspect)
+        end
+
         e.backtrace.each do |bt|
-          window.puts_ex(bt)
+          window.puts(bt)
         end
         reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue StandardError => e
-        window.puts_ex("Error caught (for more information, check window '#{window.id}'):", {:to_ancestors=>true})
-        window.puts_ex(e.inspect, {:to_ancestors=>true})
+        window.with({:to_ancestors => true}) do
+          window.puts("Error caught (for more information, check window '#{window.id}'):")
+          window.puts(e.inspect)
+        end
+
         e.backtrace.each do |bt|
-          window.puts_ex(bt)
+          window.puts(bt)
         end
         reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       end
