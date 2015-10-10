@@ -586,10 +586,10 @@ class DNSer
   end
 
   def initialize(host, port)
-    @thread = Thread.new() do |t|
-      s = UDPSocket.new()
-      s.bind(host, port)
+    s = UDPSocket.new()
+    s.bind(host, port)
 
+    @thread = Thread.new() do |t|
       begin
         loop do
           data = s.recvfrom(1024)
@@ -619,7 +619,6 @@ class DNSer
 
     Thread.new() do
       begin
-        s = UDPSocket.new()
         s.send(packet.serialize(), 0, server, port)
 
         timeout(timeout_seconds) do

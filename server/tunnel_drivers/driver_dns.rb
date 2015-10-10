@@ -95,30 +95,32 @@ class DriverDNS
       :noinput => true,
     })
 
-    @window.puts_ex("Starting Dnscat2 DNS server on #{host}:#{port}", {:to_parent => true})
-    @window.puts_ex("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...", {:to_parent=>true})
-    @window.puts_ex("", {:to_parent => true})
+    @window.with({:to_parent => true}) do
+      @window.puts("Starting Dnscat2 DNS server on #{host}:#{port}")
+      @window.puts("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...")
+      @window.puts("")
 
-    if(domains.nil? || domains.length == 0)
-      @window.puts_ex("It looks like you didn't give me any domains to recognize!", {:to_parent => true})
-      @window.puts_ex("That's cool, though, you can still use direct queries,", {:to_parent => true})
-      @window.puts_ex("although those are less stealthy.", {:to_parent => true})
-      @window.puts_ex("", {:to_parent => true})
-    else
-      @window.puts_ex("Assuming you have an authoritative DNS server, you can run", {:to_parent => true})
-      @window.puts_ex("the client anywhere with the following:", {:to_parent => true})
-      domains.each do |domain|
-        @window.puts_ex("  ./dnscat2 #{domain}", {:to_parent => true})
+      if(domains.nil? || domains.length == 0)
+        @window.puts("It looks like you didn't give me any domains to recognize!")
+        @window.puts("That's cool, though, you can still use direct queries,")
+        @window.puts("although those are less stealthy.")
+        @window.puts("")
+      else
+        @window.puts("Assuming you have an authoritative DNS server, you can run")
+        @window.puts("the client anywhere with the following:")
+        domains.each do |domain|
+          @window.puts("  ./dnscat2 #{domain}")
+        end
+        @window.puts("")
       end
-      @window.puts_ex("", {:to_parent => true})
-    end
 
-    @window.puts_ex("To talk directly to the server without a domain name, run:", {:to_parent => true})
-    @window.puts_ex("  ./dnscat2 --dns server=x.x.x.x,port=yyy", {:to_parent => true})
-    @window.puts_ex("", {:to_parent => true})
-    @window.puts_ex("Of course, you have to figure out <server> yourself! Clients", {:to_parent => true})
-    @window.puts_ex("will connect directly on UDP port 53 (by default).", {:to_parent => true})
-    @window.puts_ex("", {:to_parent => true})
+      @window.puts("To talk directly to the server without a domain name, run:")
+      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=yyy")
+      @window.puts("")
+      @window.puts("Of course, you have to figure out <server> yourself! Clients")
+      @window.puts("will connect directly on UDP port 53 (by default).")
+      @window.puts("")
+    end
 
 
     @host        = host
@@ -184,23 +186,27 @@ class DriverDNS
   end
 
   def do_passthrough(request)
-    if(@@passthrough)
-      if(!@shown_pt)
-        window.puts("Unable to handle request: #{transaction.name}")
-        window.puts("Passing upstream to: #{@@passthrough}")
-        window.puts("(This will only be shown once)")
-        @shown_pt = true
-      end
-      transaction.passthrough!(@@passthrough)
-    elsif(!@shown_pt)
-      window.puts("Unable to handle request, returning an error: #{transaction.name}")
-      window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
-      window.puts("or run \"set passthrough=true\")")
-      window.puts("(This will only be shown once)")
+    if(!@shown_pt)
+      puts("TODO: Passthrough")
       @shown_pt = true
-
-      transaction.fail!(:NXDomain)
     end
+#    if(@@passthrough)
+#      if(!@shown_pt)
+#        window.puts("Unable to handle request: #{transaction.name}")
+#        window.puts("Passing upstream to: #{@@passthrough}")
+#        window.puts("(This will only be shown once)")
+#        @shown_pt = true
+#      end
+#      transaction.passthrough!(@@passthrough)
+#    elsif(!@shown_pt)
+#      window.puts("Unable to handle request, returning an error: #{transaction.name}")
+#      window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
+#      window.puts("or run \"set passthrough=true\")")
+#      window.puts("(This will only be shown once)")
+#      @shown_pt = true
+#
+#      transaction.fail!(:NXDomain)
+#    end
   end
 
   def start()
@@ -218,7 +224,7 @@ class DriverDNS
         # Determine the actual name, without the extra cruft
         name, domain = DriverDNS.figure_out_name(question.name, @domains)
         if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
-          do_passthrough()
+          do_passthrough(request)
           next
         end
 
@@ -252,10 +258,7 @@ class DriverDNS
         # Get the response
         response = proc.call(name, max_length)
 
-        # Sanity check the response
-        if(response.nil?)
-          response = '' # TODO(iagox86): When does this happen, and why? Can we handle it better?
-        elsif(response.length > max_length)
+        if(response.length > max_length)
           raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
         end
 
@@ -265,9 +268,9 @@ class DriverDNS
         # Append domain, if needed
         if(type_info[:requires_domain])
           if(domain.nil?)
-            response = "dnscat." + response
+            response = (response == "" ? "dnscat" : ("dnscat." + response))
           else
-            response = response + "." + domain
+            response = (response == "" ? domain : (response + "." + domain))
           end
         end
 
@@ -288,27 +291,36 @@ class DriverDNS
           end
         end
       rescue DNSer::DnsException => e
-        window.puts("There was a problem parsing the incoming packet!")
-        window.puts(e.inspect)
+        window.with({:to_ancestors => true}) do
+          window.puts("There was a problem parsing the incoming packet! (for more information, check window '#{window.id}')")
+          window.puts(e.inspect)
+        end
+
         e.backtrace.each do |bt|
           window.puts(bt)
         end
 
-        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue DnscatException => e
-        window.puts("Protocol exception caught in dnscat DNS module (unable to determine session at this point to close it):")
-        window.puts(e.inspect)
+        window.with({:to_ancestors => true}) do
+          window.puts("Protocol exception caught in dnscat DNS module (for more information, check window '#{window.id}'):")
+          window.puts(e.inspect)
+        end
+
         e.backtrace.each do |bt|
           window.puts(bt)
         end
-        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue StandardError => e
-        window.puts("Error caught:")
-        window.puts(e.inspect)
+        window.with({:to_ancestors => true}) do
+          window.puts("Error caught (for more information, check window '#{window.id}'):")
+          window.puts(e.inspect)
+        end
+
         e.backtrace.each do |bt|
           window.puts(bt)
         end
-        reply = question.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       end
 
       reply

@@ -135,6 +135,19 @@ An A response might look like:
 Where the leading `0` is the sequence number of the block, the `9` is
 the length, and the `2` and `3` are sequence numbers.
 
+## Errors
+
+If the server encounters and error (for example, an exception occurs or
+a bad message is received), it can take a few actions depending on the
+severity:
+
+* For errors that should be ignored (for example, a duplicate SYN packet is
+  received), it should return no dnscat2 data (a blank message; on TXT/A/AAAA,
+  it's literally no data returned; on CNAME/MX/NS, where the domain name is
+  mandatory, the domain name alone should be returned ("skullseclabs.org" for
+  example).
+* For fatal errors (like an unhandled exception on the server), a FIN packet
+  with a descriptive message should be returned.
 
 # dnscat protocol
 
@@ -334,21 +347,17 @@ order). The following datatypes are used:
 - Each connection is initiated by a client sending a SYN containing a
   random session_id and random initial sequence number to the server as
   well as its requested options
-- If the client doesn't get a response, it should choose a new
-  session_id before retransmitting
-  - (this resolves a potential issue where a Server->Client SYN is lost,
-    and the server thinks a session is running while the client doesn't)
 - The following options are defined:
   - OPT_NAME - 0x01
     - Packet contains an additional field called the session name, which
       is a free-form field containing user-readable data
-  - OPT_DOWNLOAD - 0x08
+  - OPT_DOWNLOAD - 0x08 [deprecated; don't use]
     - Requests a download from the server
     - Server should serve that file in place of stdin
     - For obvious reasons, servers should *not* let users read arbitrary
       files, but rather make it up to the user to choose which
       files/folders to allow
-  - CHUNKED_DOWNLOAD - 0x10
+  - CHUNKED_DOWNLOAD - 0x10 [deprecated; don't use]
     - Requests a "chunked" download from the server - in the MSG
       packets, the client will let the server know which offset to
       download
@@ -364,6 +373,11 @@ order). The following datatypes are used:
 - `packet_id` should be different for each packet, and is entirely
   designed to prevent caching. Incremental is fine. The peer should
   ignore it.
+- If the server received multiple identical SYN packets, it should reply
+  to each of them the same way (this is required in case the response to
+  the SYN gets dropped).
+- If the server receives a different SYN packet with the same
+  session_id, it should be ignored (this prevents session stealing).
 
 #### Error states
 

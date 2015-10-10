@@ -19,6 +19,8 @@ require 'trollop'
 class Controller
   include ControllerCommands
 
+  attr_accessor :window
+
   def initialize(window)
     @window = window
     @commander = Commander.new()

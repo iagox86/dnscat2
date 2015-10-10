@@ -17,23 +17,31 @@
 # Windows are set up like a tree - when you create a window, you can specify a
 # 'parent'. When a window is deactivated or closed, the parent is activated (if
 # possible).  Typically, you'll want one "master" window, which is the top-most
-# window in the tree. 
+# window in the tree.
 #
 # User input is handled by a callback function. The proc that handles user
 # input is passed to the on_input() function (which allows it to be changed),
 # and it's called each time the user presses <enter>.
 #
-# A couple other noteworthy features I haven't mentioned yet:
+# The window can be printed to using fairly normal functions - puts, printf,
+# print, etc.
 #
-# * Each window's history is tracked up to 1000 lines (by default).. this can
-#   be changed by changing SWindow.history_size()
-# * Closed windows are still maintained, so users can view them
-# * Windows can be enumerated through their parents
-# * The puts(), print(), etc functions do exactly what you'd expect, but
-#   instead of printing to stdout, they print to the window
-# * The puts_ex() function also prints to the window, but it has the option of
-#   printing to parent/ancestor/child/descendant windows as well
-# * Windows are assigned an incremental id value and can be referred to as such
+# Windows are assigned an incremental ID value, and can be referred to as such.
+#
+# If you want a message to go to a window's parents (or children), a special
+# function called with() can be used with a block:
+#
+# window.with({:to_parent => true}) do
+#   window.puts("hi")
+# end
+#
+# The following options can be set:
+# * :to_parent - sends to the current window and its parent
+# * :to_ancestors - sends to the current window, its parent, its parent's parent, etc.
+# * :to_children - Sends to the current window, and each of its children
+# * :to_descendants - Sends to the current window, its children, its children's children, etc.
+#
+# Each window also maintains a history of typed comments, up to 1000 lines (by default).
 ##
 
 require 'readline'
@@ -123,12 +131,18 @@ class SWindow
     @name = params[:name] || "unnamed"
     @prompt = params[:prompt] || ("%s %s> " % [@name, @id.to_s()])
     @noinput = params[:noinput] || false
+    @times_out = params[:times_out] || false
 
     @callback = nil
     @history = RingBuffer.new(@@history_size)
     @typed_history = []
     @closed = false
     @pending = false
+
+    @to_parent = false
+    @to_ancestors = false
+    @to_children = false
+    @to_descendants = false
 
     if(@parent)
       @parent._add_child(self)
@@ -139,7 +153,9 @@ class SWindow
     end
 
     if(params[:quiet] != true)
-      self.puts_ex("New window created: %s" % @id.to_s(), {:to_ancestors=>true})
+      self.with({:to_ancestors => true}) do
+        self.puts("New window created: %s" % @id.to_s())
+      end
     end
 
     @@windows[@id.to_s()] = self
@@ -166,6 +182,44 @@ class SWindow
     @callback = proc
   end
 
+  def with(params = {})
+    # Save the state
+    to_parent      = @to_parent
+    to_ancestors   = @to_ancestors
+    to_children    = @to_children
+    to_descendants = @to_descendants
+
+    # Set the state
+    @to_parent      = params[:to_parent]      || @to_parent
+    @to_ancestors   = params[:to_ancestors]   || @to_ancestors
+    @to_children    = params[:to_children]    || @to_children
+    @to_descendants = params[:to_descendants] || @to_descendants
+
+    yield()
+
+    # Restore the state
+    @to_parent      = to_parent
+    @to_ancestors   = to_ancestors
+    @to_children    = to_children
+    @to_descendants = to_descendants
+  end
+
+  def do_recursion(func, *args)
+    if(@parent && (@to_parent || @to_ancestors))
+      @parent.with({:to_parent => false, :to_children => false, :to_descendants => false, :to_ancestors => @to_ancestors}) do
+        @parent.send(func, *args)
+      end
+    end
+
+    if(@to_child || @to_descendants)
+      @children.each do |c|
+        c.with({:to_parent => @to_parent, :to_child => false, :to_parent => false, :to_ancestors => false}) do
+          c.send(func, *args)
+        end
+      end
+    end
+  end
+
   # Write to a window, just like $stdout.puts()
   def puts(str = "")
     _we_just_got_data()
@@ -174,6 +228,8 @@ class SWindow
       $stdout.puts(str)
     end
     @history << (str.to_s() + "\n")
+
+    do_recursion(:puts, str)
   end
 
   # Write to a window, just like $stdout.print()
@@ -185,6 +241,8 @@ class SWindow
       $stdout.print(str)
     end
     @history << str.to_s()
+
+    do_recursion(:print, str)
   end
 
   # Write to a window, just like $stdout.printf()
@@ -194,48 +252,6 @@ class SWindow
 
   def _add_child(child)
     @children << child
-  end
-
-  # Write to a window, jsut like $stdout.puts(), except that the output can
-  # also be printed to parents, ancestors, children, or descendants.
-  #
-  # Where the input is printed is controlled by the last argument, and the
-  # possible values for the last argument are:
-  #  :to_parent
-  #  :to_ancestors
-  #  :to_children
-  #  :to_descendants
-  def puts_ex(str, params = {})
-    # I keep using these by accident, so just handle them
-    params.each_key do |k|
-      if(![:to_parent, :to_ancestors, :to_children, :to_descendants].index(k))
-        puts("oops: #{k} doesn't exist!")
-      end
-    end
-
-    puts(str)
-
-    if(params[:to_parent] || params[:to_ancestors])
-      parent_params = params.clone()
-      parent_params[:to_parent] = false
-      parent_params[:to_children] = false
-      parent_params[:to_descendants] = false
-
-      if(@parent)
-        @parent.puts_ex(str, parent_params)
-      end
-    end
-
-    if(params[:to_children] || params[:to_descendants])
-      child_params = params.clone()
-      child_params[:to_child] = false
-      child_params[:to_parent] = false
-      child_params[:to_ancestors] = false
-
-      @children.each do |child|
-        child.puts_ex(str, child_params)
-      end
-    end
   end
 
   # Enable a window; re-draws the history, and starts sending user input to
@@ -342,6 +358,10 @@ class SWindow
     @@input_thread.join()
   end
 
+  def kick()
+    @last_seen = Time.now()
+  end
+
   def to_s()
     s = "%s :: %s" % [@id.to_s(), @name]
     if(@@active == self)
@@ -350,6 +370,13 @@ class SWindow
 
     if(@pending)
       s += " [*]"
+    end
+
+    if(@times_out)
+      elapsed = Time.now() - @last_seen
+      if(elapsed > 5)
+        s += " [idle for #{elapsed.to_i()} seconds]"
+      end
     end
 
     return s

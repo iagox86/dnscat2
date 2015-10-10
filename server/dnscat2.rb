@@ -24,6 +24,9 @@ require 'trollop'
 NAME = "dnscat2"
 VERSION = "0.03"
 
+# Don't ignore unhandled errors in threads
+Thread.abort_on_exception = true
+
 window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
 window.puts("Welcome to dnscat2! Some documentation may be out of date.")
 window.puts()
@@ -132,22 +135,28 @@ rescue Settings::ValidationError => e
   Trollop::die("Check your command-line arguments")
 end
 
-# The domains can be passed on the commandline
-domains = ARGV.clone()
-
+domains = []
 if(opts[:dns])
-  dns_settings = parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domain => nil })
-  if(dns_settings[:domain].nil?)
-    dns_settings[:domain] = domains
-  else
-    dns_settings[:domain] = [dns_settings[:domain]]
-  end
+  dns_settings = parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domains => nil })
+  dns_settings[:domains] = [dns_settings[:domains]]
 
-  TunnelDrivers.start(controller, DriverDNS.new(dns_settings[:host], dns_settings[:port], dns_settings[:domains], window))
 elsif(opts[:dnsport] || opts[:dnshost])
   # This way of starting a server is deprecated, technically
-  TunnelDrivers.start(controller, DriverDNS.new(opts[:dnshost], opts[:dnsport], domains, window))
+  dns_settings = {
+    :host => opts[:dnshost],
+    :port => opts[:dnsport],
+    :domains => [],
+  }
 end
+
+# Add any domains passed on the commandline
+dns_settings[:domains] = dns_settings[:domains] || []
+dns_settings[:domains] += ARGV
+
+TunnelDrivers.start(controller, DriverDNS.new(dns_settings[:host], dns_settings[:port], dns_settings[:domains], window))
+
+# The domains can be passed on the commandline
+domains = ARGV.clone()
 
 # Wait for the input window to finish its thing
 SWindow.wait()
