@@ -27,6 +27,11 @@
 #define PIPE_READ  0
 #define PIPE_WRITE 1
 
+/* This is necessary for some systems... see:
+ * https://github.com/iagox86/dnscat2/issues/61
+ */
+int kill(pid_t pid, int sig);
+
 static SELECT_RESPONSE_t exec_callback(void *group, int socket, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
   driver_exec_t *driver = (driver_exec_t*) param;
