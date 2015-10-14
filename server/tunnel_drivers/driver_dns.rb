@@ -336,4 +336,8 @@ class DriverDNS
     @dnser = nil
     @window.close()
   end
+
+  def to_s()
+    return @window.name
+  end
 end

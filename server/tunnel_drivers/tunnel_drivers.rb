@@ -57,4 +57,10 @@ class TunnelDrivers
     driver.stop()
     @@drivers.delete(id)
   end
+
+  def TunnelDrivers.each_driver()
+    @@drivers.each_pair do |id, driver|
+      yield(id, driver)
+    end
+  end
 end

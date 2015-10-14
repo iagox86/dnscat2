@@ -233,8 +233,8 @@ module ControllerCommands
           next
         end
 
-        @window.puts("Attempting to stop the tunnel driver: #{optarg}")
         TunnelDrivers.stop(optarg)
+        @window.puts("Stopped the tunnel driver: #{optarg}")
       end
     )
 
@@ -244,7 +244,9 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optarg|
-        # TODO
+        TunnelDrivers.each_driver do |name, desc|
+          @window.puts("#{name} :: #{desc}")
+        end
       end
     )
   end
