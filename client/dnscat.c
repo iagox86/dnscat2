@@ -327,7 +327,7 @@ int main(int argc, char *argv[])
         {
           driver_created = TRUE;
 
-          session = session_create_console(group, "Console session");
+          session = session_create_console(group, "console session");
           controller_add_session(session);
         }
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
@@ -341,14 +341,14 @@ int main(int argc, char *argv[])
         {
           driver_created = TRUE;
 
-          session = session_create_command(group, "Command session");
+          session = session_create_command(group, "command session");
           controller_add_session(session);
         }
         else if(!strcmp(option_name, "ping"))
         {
           driver_created = TRUE;
 
-          session = session_create_ping(group, "Ping session");
+          session = session_create_ping(group, "ping session");
           controller_add_session(session);
         }
 
@@ -435,7 +435,7 @@ int main(int argc, char *argv[])
   /* If no i/o was set, create a command session. */
   if(!driver_created)
   {
-    session = session_create_command(group, "command (default)");
+    session = session_create_command(group, "command session");
     controller_add_session(session);
   }
 

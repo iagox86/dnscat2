@@ -14,10 +14,11 @@
 #include <sys/time.h>
 #endif
 
+#include "controller/packet.h"
+#include "libs/buffer.h"
 #include "libs/log.h"
 #include "libs/memory.h"
 #include "libs/select_group.h"
-#include "packet.h"
 
 #include "session.h"
 
@@ -343,6 +344,31 @@ void session_destroy(session_t *session)
   safe_free(session);
 }
 
+static char *get_name(char *base)
+{
+#ifndef WIN32
+  /* This code isn't beautiful, but it does the job and it's only local
+   * stuff anyway (no chance of being exploited). */
+  char hostname[128];
+  buffer_t *buffer = NULL;
+
+  /* Read the hostname */
+  gethostname(hostname, 128);
+  hostname[127] = '\0';
+
+  buffer = buffer_create(BO_BIG_ENDIAN);
+  buffer_add_string(buffer, base);
+  buffer_add_string(buffer, " (");
+  buffer_add_string(buffer, hostname);
+  buffer_add_string(buffer, ")");
+  buffer_add_int8(buffer, 0);
+
+  return (char*)buffer_create_string_and_destroy(buffer, NULL);
+#else
+  return safe_strdup(base);
+#endif
+}
+
 static session_t *session_create(char *name)
 {
   session_t *session     = (session_t*)safe_malloc(sizeof(session_t));
@@ -366,7 +392,7 @@ static session_t *session_create(char *name)
   session->name = NULL;
   if(name)
   {
-    session->name = safe_strdup(name);
+    session->name = get_name(name);
     LOG_INFO("Setting session->name to %s", session->name);
   }
 
