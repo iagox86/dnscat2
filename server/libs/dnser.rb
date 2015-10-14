@@ -415,7 +415,7 @@ class DNSer
         return DNSer::Packet::TYPES[@type]
       end
 
-      def class_s()
+      def cls_s()
         return DNSer::Packet::CLSES[@cls]
       end
 
@@ -458,10 +458,6 @@ class DNSer
         @rr   = rr
       end
 
-      def to_s()
-        return "#{@name} [#{@type} #{@cls}]: #{@rr} [TTL = #{@ttl}]"
-      end
-
       def Answer.parse(data)
         name = data.unpack_name()
         type, cls, ttl, rr_length = data.unpack("nnNn")
@@ -493,6 +489,18 @@ class DNSer
         # Hardcoding 0xc00c is kind of ugly, but it always works
         rr = @rr.serialize()
         return [0xc00c, @type, @cls, @ttl, rr.length(), rr].pack("nnnNna*")
+      end
+
+      def type_s()
+        return DNSer::Packet::TYPES[@type]
+      end
+
+      def cls_s()
+        return DNSer::Packet::CLSES[@cls]
+      end
+
+      def to_s()
+        return "#{@name} [#{type_s()} #{cls_s()}]: #{@rr} [TTL = #{@ttl}]"
       end
     end
 
@@ -611,6 +619,10 @@ class DNSer
 
   def stop()
     @thread.kill()
+  end
+
+  def wait()
+    @thread.join()
   end
 
   def DNSer.query(hostname, server = "8.8.8.8", port = 53, type = DNSer::Packet::TYPE_ANY, cls = DNSer::Packet::CLS_IN, timeout_seconds = 3)

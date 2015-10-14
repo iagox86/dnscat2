@@ -2,6 +2,7 @@ Some goals (these will be deleted as I complete them):
 - Take care of all TODOs that are possible
 - Improve the logging so I don't need 2 logging windows per session
 - Make it possible to start/stop tunnel drivers again
+- Update dnslogger.rb to use dnser
 
 Before release, make sure:
 - Make sure all the commandline settings and other settings work
