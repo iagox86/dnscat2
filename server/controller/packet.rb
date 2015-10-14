@@ -123,7 +123,6 @@ class Packet
       data = data[4..-1] # Remove the first four bytes
 
       return MsgBody.new(options, {
-        :data  => data,
         :seq   => seq,
         :ack   => ack,
         :data  => data,

@@ -3,6 +3,8 @@ Some goals (these will be deleted as I complete them):
 - Improve the logging so I don't need 2 logging windows per session
 - Make it possible to start/stop tunnel drivers again
 - Figure out why "exec ping 4.2.2.1" didn't work
+- Fix this message for other ports: "Of course, you have to figure out <server> yourself!  Clients will connect directly on UDP port 53 (by default)."
+
 
 Before release, make sure:
 - Update documentation / output / etc.
