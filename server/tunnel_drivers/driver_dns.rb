@@ -18,8 +18,9 @@ class DriverDNS
   # This is upstream dns
   @@passthrough = nil
 
-  MAX_A_RECORDS = 20   # A nice number that shouldn't cause a TCP switch
-  MAX_AAAA_RECORDS = 5
+  # Experimentally determined to work
+  MAX_A_RECORDS = 64
+  MAX_AAAA_RECORDS = 16
 
   # This is only used to ensure each packet is unique to avoid caching
   @@id = 0
@@ -51,12 +52,12 @@ class DriverDNS
     },
     DNSer::Packet::TYPE_A => {
       :requires_domain => false,
-      :max_length      => (MAX_A_RECORDS * 4) - 1, # Length-prefixed, since we only have DWORD granularity
+      :max_length      => (MAX_A_RECORDS * (4-1)) - 1, # Length-prefixed and sequenced
       :requires_hex    => false,
 
       # Encode in length-prefixed dotted-decimal notation
       :encoder         => Proc.new() do |name|
-        i = 0
+        i = rand(255 - MAX_A_RECORDS - 1)
         (name.length.chr + name).chars.each_slice(3).map(&:join).map do |ip|
           ip = ip.force_encoding('ASCII-8BIT').ljust(3, "\xFF".force_encoding('ASCII-8BIT'))
           i += 1
@@ -66,12 +67,12 @@ class DriverDNS
     },
     DNSer::Packet::TYPE_AAAA => {
       :requires_domain => false,
-      :max_length      => (MAX_AAAA_RECORDS * 16) - 1, # Length-prefixed, because low granularity
+      :max_length      => (MAX_AAAA_RECORDS * (16-1)) - 1, # Length-prefixed and sequenced
       :requires_hex    => false,
 
       # Encode in length-prefixed IPv6 notation
       :encoder         => Proc.new() do |name|
-        i = 0
+        i = rand(255 - MAX_AAAA_RECORDS - 1)
         (name.length.chr + name).chars.each_slice(15).map(&:join).map do |ip|
           ip = ip.force_encoding('ASCII-8BIT').ljust(15, "\xFF".force_encoding('ASCII-8BIT'))
           i += 1
@@ -217,13 +218,18 @@ class DriverDNS
         end
 
         question = request.questions[0]
-
-        # Log what's going on
         window.puts("Received:  #{question.name} (#{question.type_s})")
 
         # Determine the actual name, without the extra cruft
         name, domain = DriverDNS.figure_out_name(question.name, @domains)
-        if(name.nil? || name !~ /^[a-fA-F0-9.]*$/)
+        if(name.nil?)
+          window.puts("Skipping: name couldn't be determined")
+          do_passthrough(request)
+          next
+        end
+
+        if(name !~ /^[a-fA-F0-9.]*$/)
+          window.puts("Skipping: name looks invalid")
           do_passthrough(request)
           next
         end
