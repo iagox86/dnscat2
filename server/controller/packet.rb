@@ -58,8 +58,8 @@ class Packet
     def SynBody.parse(data)
       at_least?(data, 4) || raise(DnscatException, "Packet is too short (SYN)")
 
-      seq, options = data.unpack("nn")
-      data = data[4..-1]
+      seq, options, data = data.unpack("nna*")
+      $stdout.puts("Hi: #{data.unpack("H*")}")
 
       # Parse the option name, if it has one
       name = nil
@@ -96,11 +96,18 @@ class Packet
     end
 
     def to_s()
-      return "[[SYN]] :: isn = %04x, options = %04x" % [@seq, @options]
+      return "[[SYN]] :: isn = %04x, options = %04x, name = %s" % [@seq, @options, @name]
     end
 
     def to_bytes()
-      return [seq, options].pack("nn")
+      result = [@seq, @options].pack("nn")
+      if((@options & OPT_NAME) == OPT_NAME)
+        result += [@name].pack("Z*")
+      end
+      if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
+        result += [@name].pack("Z*")
+      end
+      return result
     end
   end
 
