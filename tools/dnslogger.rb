@@ -38,6 +38,7 @@ opts = Trollop::options do
   opt :TXT,     "Response to send back for 'TXT' requests",   :type => :string,  :default => nil
   opt :MX,      "Response to send back for 'MX' requests",    :type => :string,  :default => nil
   opt :MX_PREF, "The preference order for the MX record",     :type => :integer, :default => 10
+  opt :NS,      "Response to send back for 'NS' requests",    :type => :string,  :default => nil
 
   opt :ttl, "The TTL value to return", :type => :integer, :default => 60
 end
@@ -90,6 +91,9 @@ dnser = DNSer.new(opts[:host], opts[:port]) do |request, reply|
     end
     if(opts[:MX])
       reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_MX, question.cls, opts[:ttl], DNSer::Packet::MX.new(opts[:MX], opts[:MX_PREF])))
+    end
+    if(opts[:NS])
+      reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_NS, question.cls, opts[:ttl], DNSer::Packet::NS.new(opts[:NS])))
     end
   else
     reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
