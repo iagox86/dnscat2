@@ -155,8 +155,9 @@ class SWindow
     end
 
     if(params[:quiet] != true)
-      self.with({:to_ancestors => true}) do
-        self.puts("New window created: %s" % @id.to_s())
+      target = @parent ? @parent : self
+      target.with({:to_descendants => true, :to_ancestors => true}) do
+        target.puts("New window created: %s" % @id.to_s())
       end
     end
 
