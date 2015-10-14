@@ -13,10 +13,11 @@
 require 'libs/dnser.rb'
 
 class DriverDNS
-  attr_reader :window
+  attr_reader :id
 
   # This is upstream dns
   @@passthrough = nil
+  @@id = 0
 
   # Experimentally determined to work
   MAX_A_RECORDS = 64
@@ -145,32 +146,38 @@ class DriverDNS
     end
 #    if(@@passthrough)
 #      if(!@shown_pt)
-#        window.puts("Unable to handle request: #{transaction.name}")
-#        window.puts("Passing upstream to: #{@@passthrough}")
-#        window.puts("(This will only be shown once)")
+#        @window.puts("Unable to handle request: #{transaction.name}")
+#        @window.puts("Passing upstream to: #{@@passthrough}")
+#        @window.puts("(This will only be shown once)")
 #        @shown_pt = true
 #      end
 #      transaction.passthrough!(@@passthrough)
 #    elsif(!@shown_pt)
-#      window.puts("Unable to handle request, returning an error: #{transaction.name}")
-#      window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
-#      window.puts("or run \"set passthrough=true\")")
-#      window.puts("(This will only be shown once)")
+#      @window.puts("Unable to handle request, returning an error: #{transaction.name}")
+#      @window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
+#      @window.puts("or run \"set passthrough=true\")")
+#      @window.puts("(This will only be shown once)")
 #      @shown_pt = true
 #
 #      transaction.fail!(:NXDomain)
 #    end
   end
 
-  def initialize(window, host, port, domains)
+  def initialize(parent_window, host, port, domains)
     if(domains.nil?)
       domains = []
     end
 
-    @shown_pt = false
-    @window   = window
+    @id = 'dns%d' % (@@id += 1)
+    @window = SWindow.new(parent_window, false, {
+      :id => @id,
+      :name => "DNS Driver running on #{host}:#{port} domains = #{domains.join(', ')}",
+      :noinput => true,
+    })
 
-    @window.with({:to_parent => true}) do
+    @shown_pt = false
+
+    @window.with({:to_ancestors => true}) do
       @window.puts("Starting Dnscat2 DNS server on #{host}:#{port}")
       @window.puts("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...")
       @window.puts("")
@@ -204,18 +211,18 @@ class DriverDNS
         end
 
         question = request.questions[0]
-        window.puts("Received:  #{question.name} (#{question.type_s})")
+        @window.puts("Received:  #{question.name} (#{question.type_s})")
 
         # Determine the actual name, without the extra cruft
         name, domain = DriverDNS.figure_out_name(question.name, domains)
         if(name.nil?)
-          window.puts("Skipping: name couldn't be determined")
+          @window.puts("Skipping: name couldn't be determined")
           do_passthrough(request)
           next
         end
 
         if(name !~ /^[a-fA-F0-9.]*$/)
-          window.puts("Skipping: name looks invalid")
+          @window.puts("Skipping: name looks invalid")
           do_passthrough(request)
           next
         end
@@ -272,7 +279,7 @@ class DriverDNS
         end
 
         # Log the response
-        window.puts("Sending:  #{response}")
+        @window.puts("Sending:  #{response}")
 
         # Allow multiple response records
         if(response.is_a?(String))
@@ -283,34 +290,34 @@ class DriverDNS
           end
         end
       rescue DNSer::DnsException => e
-        window.with({:to_ancestors => true}) do
-          window.puts("There was a problem parsing the incoming packet! (for more information, check window '#{window.id}')")
-          window.puts(e.inspect)
+        @window.with({:to_ancestors => true}) do
+          @window.puts("There was a problem parsing the incoming packet! (for more information, check window '#{@window.id}')")
+          @window.puts(e.inspect)
         end
 
         e.backtrace.each do |bt|
-          window.puts(bt)
+          @window.puts(bt)
         end
 
         reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue DnscatException => e
-        window.with({:to_ancestors => true}) do
-          window.puts("Protocol exception caught in dnscat DNS module (for more information, check window '#{window.id}'):")
-          window.puts(e.inspect)
+        @window.with({:to_ancestors => true}) do
+          @window.puts("Protocol exception caught in dnscat DNS module (for more information, check window '#{@window.id}'):")
+          @window.puts(e.inspect)
         end
 
         e.backtrace.each do |bt|
-          window.puts(bt)
+          @window.puts(bt)
         end
         reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       rescue StandardError => e
-        window.with({:to_ancestors => true}) do
-          window.puts("Error caught (for more information, check window '#{window.id}'):")
-          window.puts(e.inspect)
+        @window.with({:to_ancestors => true}) do
+          @window.puts("Error caught (for more information, check window '#{@window.id}'):")
+          @window.puts(e.inspect)
         end
 
         e.backtrace.each do |bt|
-          window.puts(bt)
+          @window.puts(bt)
         end
         reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
       end

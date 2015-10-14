@@ -8,7 +8,6 @@
 
 class TunnelDrivers
   @@drivers = {}
-  @@id = 0
 
   class StopDriver < Exception
   end
@@ -22,18 +21,11 @@ class TunnelDrivers
       raise(ArgumentError, "The :args argument must be an array")
     end
 
-    id = "td%d" % (@@id += 1)
-
-    window = SWindow.new(parent_window, false, {
-      :id => id,
-      :name => "Tunnel Driver status window",
-      :noinput => true,
-    })
-
     begin
-      @@drivers[id] = driver_cls.new(window, *args) do |data, max_length|
+      driver = driver_cls.new(parent_window, *args) do |data, max_length|
         controller.feed(data, max_length)
       end
+      @@drivers[driver.id] = driver
     rescue Errno::EACCES => e
       controller.window.with({:to_ancestors => true}) do
         controller.window.puts("*** ERROR ***")
