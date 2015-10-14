@@ -1,7 +1,6 @@
 Some goals (these will be deleted as I complete them):
 - Take care of all TODOs that are possible
 - Improve the logging so I don't need 2 logging windows per session
-- Make it possible to start/stop tunnel drivers again
 - See if I can make passthrough happen again (not a huge deal if I can't)
 
 Before release, make sure:
