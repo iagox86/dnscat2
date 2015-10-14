@@ -136,16 +136,10 @@ module ControllerCommands
 
     @commander.register_command("kill",
       Trollop::Parser.new do
-        banner("Kill the specified session or tunnel driver")
+        banner("Kill the specified session (to stop a tunnel driver, use 'stop')")
       end,
 
       Proc.new do |opts, optarg|
-        if(TunnelDrivers.exists?(optarg))
-          @window.puts("Attempting to stop the tunnel driver: #{optarg}")
-          TunnelDrivers.stop(optarg)
-          next
-        end
-
         session = find_session_by_window(optarg)
         if(!session)
           @window.puts("Couldn't find window with id = #{optarg}")
@@ -175,7 +169,7 @@ module ControllerCommands
                " Examples:\n" +
                "  start --dns domain=skullseclabs.org\n" +
                "  start --dns domain=skullseclabs.org,port=53\n" +
-               "  start --dns domain=skullseclabs.org,port=5353\n" +
+               "  start --dns domain=skullseclabs.org,port=5353,host=127.0.0.1\n" +
                "\n" +
                "To stop a driver, simply use the 'kill' command on the window\n" +
                "it created (td1, td2, etc)\n" +
@@ -185,19 +179,13 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optarg|
-        if(opts[:dns].nil?)
-          @window.puts("No --dns argument was passed!")
-          @window.puts()
-          raise(Trollop::HelpNeeded)
-        end
-
         args = {
           :domain => nil,
-          :host => "0.0.0.0",
-          :port => "53",
+          :host   => "0.0.0.0",
+          :port   => "53",
         }
 
-        opts[:dns].split(/[,;]/).each do |arg|
+        (opts[:dns] || '').split(/[,;]/).each do |arg|
           name, value = arg.split(/=/, 2)
           name = name.strip().to_sym()
           value = value.strip()
@@ -224,7 +212,39 @@ module ControllerCommands
           args[:domain] = [args[:domain]]
         end
 
-        TunnelDrivers.start(self, DriverDNS.new(args[:host], args[:port], args[:domain], @window))
+        TunnelDrivers.start({
+          :controller => self,
+          :window     => @window,
+          :driver     => DriverDNS,
+          :args       => [args[:host], args[:port], args[:domain]]
+        })
+      end
+    )
+
+    @commander.register_command("stop",
+      Trollop::Parser.new do
+        banner("Stop the specified tunnel driver ('td*')")
+      end,
+
+      Proc.new do |opts, optarg|
+        # Try to stop it if it's a tunnel driver
+        if(!TunnelDrivers.exists?(optarg))
+          @window.puts("No such driver: #{optarg}")
+          next
+        end
+
+        @window.puts("Attempting to stop the tunnel driver: #{optarg}")
+        TunnelDrivers.stop(optarg)
+      end
+    )
+
+    @commander.register_command("tunnels",
+      Trollop::Parser.new do
+        banner("Displays a list of the active tunnel drivers")
+      end,
+
+      Proc.new do |opts, optarg|
+        # TODO
       end
     )
   end

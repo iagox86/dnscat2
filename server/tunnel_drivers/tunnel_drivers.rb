@@ -51,6 +51,10 @@ class TunnelDrivers
     end
   end
 
+  def TunnelDrivers.exists?(id)
+    return !@@drivers[id].nil?
+  end
+
   def TunnelDrivers.stop(id)
     driver = @@drivers[id]
 
@@ -59,6 +63,6 @@ class TunnelDrivers
     end
 
     driver.stop()
-    driver.delete(id)
+    @@drivers.delete(id)
   end
 end
