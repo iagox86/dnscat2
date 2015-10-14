@@ -2,15 +2,12 @@ Some goals (these will be deleted as I complete them):
 - Take care of all TODOs that are possible
 - Improve the logging so I don't need 2 logging windows per session
 - Make it possible to start/stop tunnel drivers again
-- Figure out why "exec ping 4.2.2.1" didn't work
-- Fix this message for other ports: "Of course, you have to figure out <server> yourself!  Clients will connect directly on UDP port 53 (by default)."
-
 
 Before release, make sure:
-- Update documentation / output / etc.
+- Make sure all the commandline settings and other settings work
 - Make sure everything works over normal DNS
 - Make sure everything works on Windows
-- Make sure all the commandline settings and other settings work
+- Update documentation / output / etc.
 
 Out of scope things that I'd like to do eventually (so I'll file them as github issues):
 - Add a command to command sessions to spawn a console session (--console), if that's possible

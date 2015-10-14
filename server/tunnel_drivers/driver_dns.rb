@@ -116,10 +116,10 @@ class DriverDNS
       end
 
       @window.puts("To talk directly to the server without a domain name, run:")
-      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=yyy")
+      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=#{port}")
       @window.puts("")
       @window.puts("Of course, you have to figure out <server> yourself! Clients")
-      @window.puts("will connect directly on UDP port 53 (by default).")
+      @window.puts("will connect directly on UDP port #{port}.")
       @window.puts("")
     end
 
