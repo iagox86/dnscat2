@@ -22,9 +22,6 @@ class DriverDNS
   MAX_A_RECORDS = 64
   MAX_AAAA_RECORDS = 16
 
-  # This is only used to ensure each packet is unique to avoid caching
-  @@id = 0
-
   RECORD_TYPES = {
     DNSer::Packet::TYPE_TXT => {
       :requires_domain => false,
@@ -84,51 +81,6 @@ class DriverDNS
     },
 
   }
-
-  def initialize(host, port, domains, parent_window)
-    if(domains.nil?)
-      domains = []
-    end
-
-    @window = SWindow.new(parent_window, false, {
-      :id => ('td' + (@@id+=1).to_s()),
-      :name => "DNS Tunnel Driver status window for #{host}:#{port} [domains = #{(domains == []) ? "n/a" : domains.join(", ")}]",
-      :noinput => true,
-    })
-
-    @window.with({:to_parent => true}) do
-      @window.puts("Starting Dnscat2 DNS server on #{host}:#{port}")
-      @window.puts("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...")
-      @window.puts("")
-
-      if(domains.nil? || domains.length == 0)
-        @window.puts("It looks like you didn't give me any domains to recognize!")
-        @window.puts("That's cool, though, you can still use direct queries,")
-        @window.puts("although those are less stealthy.")
-        @window.puts("")
-      else
-        @window.puts("Assuming you have an authoritative DNS server, you can run")
-        @window.puts("the client anywhere with the following:")
-        domains.each do |domain|
-          @window.puts("  ./dnscat2 #{domain}")
-        end
-        @window.puts("")
-      end
-
-      @window.puts("To talk directly to the server without a domain name, run:")
-      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=#{port}")
-      @window.puts("")
-      @window.puts("Of course, you have to figure out <server> yourself! Clients")
-      @window.puts("will connect directly on UDP port #{port}.")
-      @window.puts("")
-    end
-
-
-    @host        = host
-    @port        = port
-    @domains     = domains
-    @shown_pt    = false
-  end
 
   # If domain is non-nil, match /(.*)\.domain/
   # If domain is nil, match /identifier\.(.*)/
@@ -210,8 +162,42 @@ class DriverDNS
 #    end
   end
 
-  def start()
-    DNSer.new(@host, @port) do |request, reply|
+  def initialize(window, host, port, domains)
+    if(domains.nil?)
+      domains = []
+    end
+
+    @shown_pt = false
+    @window   = window
+
+    @window.with({:to_parent => true}) do
+      @window.puts("Starting Dnscat2 DNS server on #{host}:#{port}")
+      @window.puts("[domains = #{(domains == []) ? "n/a" : domains.join(", ")}]...")
+      @window.puts("")
+
+      if(domains.nil? || domains.length == 0)
+        @window.puts("It looks like you didn't give me any domains to recognize!")
+        @window.puts("That's cool, though, you can still use direct queries,")
+        @window.puts("although those are less stealthy.")
+        @window.puts("")
+      else
+        @window.puts("Assuming you have an authoritative DNS server, you can run")
+        @window.puts("the client anywhere with the following:")
+        domains.each do |domain|
+          @window.puts("  ./dnscat2 #{domain}")
+        end
+        @window.puts("")
+      end
+
+      @window.puts("To talk directly to the server without a domain name, run:")
+      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=#{port}")
+      @window.puts("")
+      @window.puts("Of course, you have to figure out <server> yourself! Clients")
+      @window.puts("will connect directly on UDP port #{port}.")
+      @window.puts("")
+    end
+
+    @dnser = DNSer.new(host, port) do |request, reply|
       begin
         if(request.questions.length < 1)
           raise(DnscatException, "Received a packet with no questions")
@@ -221,7 +207,7 @@ class DriverDNS
         window.puts("Received:  #{question.name} (#{question.type_s})")
 
         # Determine the actual name, without the extra cruft
-        name, domain = DriverDNS.figure_out_name(question.name, @domains)
+        name, domain = DriverDNS.figure_out_name(question.name, domains)
         if(name.nil?)
           window.puts("Skipping: name couldn't be determined")
           do_passthrough(request)
@@ -334,8 +320,13 @@ class DriverDNS
   end
 
   def stop()
-    # TODO
-    exit
+    if(@dnser.nil?)
+      @window.puts("Tried to kill a session that isn't started or that's already dead!")
+      return
+    end
+
+    @dnser.stop()
+    @dnser = nil
     @window.close()
   end
 end

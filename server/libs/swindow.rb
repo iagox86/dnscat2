@@ -73,6 +73,8 @@ class SWindow
 
   @@input_thread = Thread.new() do
     begin
+      # This lets the program load a bit before the initial prompt is printed (a slightly better user experience)
+      sleep(0.1)
       _catch_suspend() do
         loop do
           begin

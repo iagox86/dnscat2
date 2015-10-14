@@ -13,9 +13,25 @@ class TunnelDrivers
   class StopDriver < Exception
   end
 
-  def TunnelDrivers.start(controller, driver)
+  def TunnelDrivers.start(params = {})
+    controller    = params[:controller] || raise(ArgumentError, "The :controller argument is required")
+    parent_window = params[:window]     || raise(ArgumentError, "The :window argument is required")
+    driver_cls    = params[:driver]     || raise(ArgumentError, "The :driver argument is required")
+    args          = params[:args]       || raise(ArgumentError, "The :args argument is required")
+    if(!args.is_a?(Array))
+      raise(ArgumentError, "The :args argument must be an array")
+    end
+
+    id = "td%d" % (@@id += 1)
+
+    window = SWindow.new(parent_window, false, {
+      :id => id,
+      :name => "Tunnel Driver status window",
+      :noinput => true,
+    })
+
     begin
-      driver.start() do |data, max_length|
+      @@drivers[id] = driver_cls.new(window, *args) do |data, max_length|
         controller.feed(data, max_length)
       end
     rescue Errno::EACCES => e
@@ -33,27 +49,6 @@ class TunnelDrivers
         controller.window.puts("installed.")
       end
     end
-#    @@drivers[driver.id] = {
-#      :driver => driver,
-#      :thread => Thread.new do |t|
-#        begin
-#          driver.recv() do |data, max_length|
-#            controller.feed(data, max_length)
-#          end
-#        rescue TunnelDrivers::StopDriver => e
-#          driver.window.puts("Stopping this tunnel: #{e}")
-#        rescue Exception => e
-#          driver.window.puts("Error in the TunnelDriver: #{e.inspect}")
-#          e.backtrace.each do |b|
-#            driver.window.puts("#{b}")
-#          end
-#        end
-#      end
-#    }
-  end
-
-  def TunnelDrivers.exists?(id)
-    return !@@drivers[id].nil?
   end
 
   def TunnelDrivers.stop(id)
@@ -63,8 +58,7 @@ class TunnelDrivers
       return false
     end
 
-    driver[:driver].stop()
-    driver[:thread].raise(TunnelDrivers::StopDriver, "Close!")
+    driver.stop()
     driver.delete(id)
   end
 end

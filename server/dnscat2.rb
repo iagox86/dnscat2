@@ -153,10 +153,13 @@ end
 dns_settings[:domains] = dns_settings[:domains] || []
 dns_settings[:domains] += ARGV
 
-TunnelDrivers.start(controller, DriverDNS.new(dns_settings[:host], dns_settings[:port], dns_settings[:domains], window))
-
-# The domains can be passed on the commandline
-domains = ARGV.clone()
+# Start the DNS driver
+TunnelDrivers.start({
+  :controller => controller,
+  :window     => window,
+  :driver     => DriverDNS,
+  :args       => [dns_settings[:host], dns_settings[:port], dns_settings[:domains]],
+})
 
 # Wait for the input window to finish its thing
 SWindow.wait()
