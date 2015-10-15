@@ -57,7 +57,6 @@ class DriverProcess
           # Get the exit status
           exit_status = wait_thr.value
 
-          # TODO: Handle exit
           if(!exit_status.success?)
             @window.puts("Command exited with an error: #{process}")
           else

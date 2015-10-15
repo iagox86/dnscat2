@@ -19,7 +19,6 @@
 # lifting.
 #
 # TODO: Handle settings (replacing $var with a name)
-# TODO: Handle shell escapes ('!command')
 ##
 
 
@@ -106,6 +105,10 @@ class Commander
   # This will throw an ArgumentError for various reasons, including
   # unknown commands, badly quoted strings, and bad arguments.
   def feed(data)
+    if(data[0] == '!')
+      system(data[1..-1])
+      return
+    end
     args = Shellwords.shellwords(data)
 
     if(args.length == 0)

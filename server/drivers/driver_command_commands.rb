@@ -94,7 +94,6 @@ module DriverCommandCommands
         })
 
         _send_request(shell) do |request, response|
-          # TODO: This may be unnecessary once I get nesting right
           @window.puts("Shell session created!")
         end
 
@@ -223,7 +222,7 @@ module DriverCommandCommands
 
       Proc.new do |opts, optarg|
         _send_request(CommandPacket.create_shutdown_request(request_id())) do |request, response|
-          @window.puts("TODO: handle shutdown() response")
+          @window.puts("Shutdown response received")
         end
         @window.puts("Attempting to shut down remote session(s)...")
       end

@@ -100,10 +100,6 @@ class Session
       bytes_acked += 0x10000
     end
 
-    if(bytes_acked > 0)
-      # TODO: Log data acknowledged
-    end
-
     @outgoing_data = @outgoing_data[bytes_acked..-1]
     @my_seq = n
   end
