@@ -29,6 +29,7 @@ class Controller
     _register_commands()
 
     @window.on_input() do |data|
+      data = Settings::GLOBAL.do_replace(data)
       begin
         @commander.feed(data)
       rescue ArgumentError => e

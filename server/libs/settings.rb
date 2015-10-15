@@ -169,4 +169,21 @@ class Settings
     # This sets it to the default value
     unset(name, false)
   end
+
+  # Replaces any variable found in the given, in the form '$var' where 'var'
+  # is a setting, with the setting value
+  #
+  # For example if "id" is set to 123, then the string "the id is $id" will
+  # become "the id is 123".
+  def do_replace(str, allow_recursion = true)
+    @settings.each_pair do |name, setting|
+      str = str.gsub(/\$#{name}/, setting[:value].to_s())
+    end
+
+    if(allow_recursion)
+      str = Settings::GLOBAL.do_replace(str, false)
+    end
+
+    return str
+  end
 end

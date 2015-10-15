@@ -17,10 +17,7 @@
 #
 # This class uses the shellwords and trollop libraries to do much of the heavy
 # lifting.
-#
-# TODO: Handle settings (replacing $var with a name)
 ##
-
 
 require 'shellwords'
 require 'trollop'

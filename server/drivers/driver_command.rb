@@ -62,6 +62,8 @@ class DriverCommand
     _register_commands()
 
     @window.on_input() do |data|
+      # This replaces any $variables with 
+      data = @settings.do_replace(data)
       begin
         @commander.feed(data)
       rescue ArgumentError => e
