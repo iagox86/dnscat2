@@ -346,7 +346,6 @@ void session_destroy(session_t *session)
 
 static char *get_name(char *base)
 {
-#ifndef WIN32
   /* This code isn't beautiful, but it does the job and it's only local
    * stuff anyway (no chance of being exploited). */
   char hostname[128];
@@ -364,9 +363,6 @@ static char *get_name(char *base)
   buffer_add_int8(buffer, 0);
 
   return (char*)buffer_create_string_and_destroy(buffer, NULL);
-#else
-  return safe_strdup(base);
-#endif
 }
 
 static session_t *session_create(char *name)
