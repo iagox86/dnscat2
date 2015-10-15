@@ -1,11 +1,15 @@
-# 0.01
+# 0.03
 
-* Initial release, everything is new!
+* Re-wrote large parts of the server into way cleaner code
+* Significantly updated the documentation for the server
+* Removed reliance from rubydns, a built-in DNS server is now used for
+  everything
+* Added a standalone tool, dnslogger.rb
 
 # 0.02
 
 * Re-wrote large parts of the client into cleaner code (for example,
-removed the entire message.* code, which was an awful, awful idea)
+removed the entire message.\* code, which was an awful, awful idea)
 * When multiple sessions are in progress, it's now "fair" (a message is
 sent every 'tick'; each session now takes turns sending out a message,
 rather than the oldest sessions blocking out younger ones
@@ -16,4 +20,9 @@ in another form!)
 commandline - it's now modeled after socat
 * The client will no longer transmit forever against a bad server - it
 will attempt to retransmit 10 times by default
+
+# 0.01
+
+* Initial release, everything is new!
+
 
