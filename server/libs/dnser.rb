@@ -629,6 +629,8 @@ class DNSer
     packet = DNSer::Packet.new(rand(65535), DNSer::Packet::QR_QUERY, DNSer::Packet::OPCODE_QUERY, DNSer::Packet::FLAG_RD, DNSer::Packet::RCODE_SUCCESS)
     packet.add_question(DNSer::Packet::Question.new(hostname, type, cls))
 
+    s = UDPSocket.new()
+
     Thread.new() do
       begin
         s.send(packet.serialize(), 0, server, port)

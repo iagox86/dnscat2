@@ -1,6 +1,3 @@
-Some goals (these will be deleted as I complete them):
-- See if I can make passthrough happen again (not a huge deal if I can't)
-
 Before release, make sure:
 - Make sure all the commandline settings and other settings work
 - Make sure everything works over normal DNS
