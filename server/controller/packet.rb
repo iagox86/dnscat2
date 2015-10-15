@@ -59,7 +59,6 @@ class Packet
       at_least?(data, 4) || raise(DnscatException, "Packet is too short (SYN)")
 
       seq, options, data = data.unpack("nna*")
-      $stdout.puts("Hi: #{data.unpack("H*")}")
 
       # Parse the option name, if it has one
       name = nil
