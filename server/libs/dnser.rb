@@ -675,7 +675,6 @@ class DNSer
       ) do |response|
         # If there was a timeout, handle it
         if(response.nil?)
-          puts("timeout...")
           response = @response
           response.rcode = DNSer::Packet::RCODE_SERVER_FAILURE
         end
