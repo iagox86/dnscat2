@@ -248,7 +248,7 @@ class DNSer
       end
 
       def NS.parse(data)
-        return data.unpack_name()
+        return NS.new(data.unpack_name())
       end
 
       def serialize()
@@ -268,7 +268,7 @@ class DNSer
       end
 
       def CNAME.parse(data)
-        return data.unpack_name()
+        return CNAME.new(data.unpack_name())
       end
 
       def serialize()
@@ -322,6 +322,9 @@ class DNSer
       attr_accessor :preference, :name
 
       def initialize(name, preference = 10)
+        if(!name.is_a?(String) || !preference.is_a?(Fixnum))
+          raise ArgumentError("Creating an MX record wrong! Please file a bug!")
+        end
         @name = name
         @preference = preference
       end
@@ -330,7 +333,7 @@ class DNSer
         preference = data.unpack("n").pop()
         name = data.unpack_name()
 
-        return MX.new(preference, name)
+        return MX.new(name, preference)
       end
 
       def serialize()
@@ -388,6 +391,26 @@ class DNSer
 
       def to_s()
         return "#{@address} [A]"
+      end
+    end
+
+    class RRUnknown
+      def initialize(type, data)
+        @type = type
+        @data = data
+      end
+
+      def RRUnknown.parse(type, data, length)
+        data = data.unpack("A#{length}").pop()
+        return RRUnknown.new(type, data)
+      end
+
+      def serialize()
+        return @data
+      end
+
+      def to_s()
+        return "(Unknown record type #{@type}): #{@data.unpack("H*")}"
       end
     end
 
@@ -456,6 +479,10 @@ class DNSer
         @cls  = cls
         @ttl  = ttl
         @rr   = rr
+
+        if(rr.is_a?(String))
+          raise(ArgumentError, "'rr' can't be a string!")
+        end
       end
 
       def Answer.parse(data)
@@ -479,7 +506,7 @@ class DNSer
           rr = AAAA.parse(data)
         else
           puts("Warning: Unknown record type: #{type}")
-          data.unpack("A#{rr_length}").pop()
+          rr = RRUnknown.parse(type, data, rr_length)
         end
 
         return Answer.new(name, type, cls, ttl, rr)
@@ -594,13 +621,14 @@ class DNSer
   end
 
   class Transaction
-    attr_reader :request, :response
+    attr_reader :request, :response, :sent
 
     def initialize(s, request, host, port)
       @s       = s
       @request = request
       @host    = host
       @port    = port
+      @sent    = false
 
       @response = DNSer::Packet.new(
         @request.trn_id,
@@ -614,24 +642,49 @@ class DNSer
     end
 
     def add_answer(answer)
+      raise ArgumentError("Already sent!") if(@sent)
+
       @response.add_answer(answer)
     end
 
     def error(rcode)
+      raise ArgumentError("Already sent!") if(@sent)
+
       @response.rcode = rcode
     end
 
     def error!(rcode)
+      raise ArgumentError("Already sent!") if(@sent)
+
       @response.rcode = rcode
       reply!()
     end
 
     def passthrough!(pt_host, pt_port)
+      raise ArgumentError("Already sent!") if(@sent)
+
+      DNSer.query(
+        @request.questions[0].name,
+        pt_host,
+        pt_port,
+        @request.questions[0].type,
+        @request.questions[0].cls,
+        10
+      ) do |response|
+
+        response.trn_id = @request.trn_id
+        @s.send(response.serialize(), 0, @host, @port)
+      end
+
+      @sent = true
       # TODO
     end
 
     def reply!()
+      raise ArgumentError("Already sent!") if(@sent)
+
       @s.send(@response.serialize(), 0, @host, @port)
+      @sent = true
     end
   end
 
