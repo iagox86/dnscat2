@@ -58,15 +58,8 @@ opts = Trollop::options do
     :type => :string,  :default => "0.0.0.0"
   opt :dnsport,   "The DNS port to listen on [deprecated]",
     :type => :integer, :default => 53
-#  opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
-#    :type => :string, :default => ""
-
-#  opt :tcp,       "Start a TCP server",
-#    :type => :boolean, :default => true
-#  opt :tcphost,   "The TCP ip address to listen on",
-#    :type => :string,  :default => "0.0.0.0"
-#  opt :tcpport,    "The port to listen on",
-#    :type => :integer, :default => 4444
+  opt :passthrough, "Unhandled requests are sent upstream DNS server, host:port",
+    :type => :string, :default => ""
 
   opt :debug,     "Min debug level [info, warning, error, fatal]",
     :type => :string,  :default => "warning"

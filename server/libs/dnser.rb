@@ -662,7 +662,7 @@ class DNSer
       reply!()
     end
 
-    def passthrough!(pt_host, pt_port)
+    def passthrough!(pt_host, pt_port, callback = nil)
       raise ArgumentError("Already sent!") if(@sent)
 
       DNSer.query(
@@ -675,10 +675,10 @@ class DNSer
       ) do |response|
         response.trn_id = @request.trn_id
         @s.send(response.serialize(), 0, @host, @port)
+        callback.call(response)
       end
 
       @sent = true
-      # TODO
     end
 
     def reply!()
