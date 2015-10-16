@@ -57,8 +57,8 @@ end
 opts = Trollop::options do
   version(NAME + " v" + VERSION + " (server)")
 
-  opt :version,   "Get the dnscat version",
-    :type => :boolean, :default => false
+  opt :h,         "Placeholder for help",   :type => :boolean, :default => false
+  opt :version,   "Get the dnscat version", :type => :boolean, :default => false
 
   opt :dns,       "Start a DNS server. Can optionally pass a number of comma-separated name=value pairs (host, port, domain). Eg, '--dns host=0.0.0.0,port=53531,domain=skullseclabs.org'",
     :type => :string, :default => nil
@@ -89,6 +89,12 @@ opts = Trollop::options do
     :type => :string,  :default => nil
   opt :history_size,   "The number of lines of history that windows will maintain",
     :type => :integer, :default => 1000
+end
+
+if(opts[:h])
+  window.puts("To get help, you have to use --help; I can't find any way to make")
+  window.puts("'-h' work on my command parser... :(")
+  exit
 end
 
 begin
