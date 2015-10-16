@@ -16,7 +16,7 @@ class DriverDNS
   attr_reader :id
 
   # This is upstream dns
-  @@passthrough = nil
+#  @@passthrough = nil
   @@id = 0
 
   # Experimentally determined to work
@@ -122,28 +122,28 @@ class DriverDNS
     return nil
   end
 
-  def DriverDNS.set_passthrough(host, port)
-    if(host.nil?)
-      @@passthrough = nil
-      return
-    end
-
-    @@passthrough = {
-      :host => host,
-      :port => port,
-    }
-    @shown_pt = false
-  end
+#  def DriverDNS.set_passthrough(host, port)
+#    if(host.nil?)
+#      @@passthrough = nil
+#      return
+#    end
+#
+#    @@passthrough = {
+#      :host => host,
+#      :port => port,
+#    }
+#    @shown_pt = false
+#  end
 
   def id()
     return @window.id
   end
 
-  def do_passthrough(request)
-    if(!@shown_pt)
-      puts("TODO: Passthrough")
-      @shown_pt = true
-    end
+#  def do_passthrough(request)
+#    if(!@shown_pt)
+#      puts("TODO: Passthrough")
+#      @shown_pt = true
+#    end
 #    if(@@passthrough)
 #      if(!@shown_pt)
 #        @window.puts("Unable to handle request: #{transaction.name}")
@@ -161,7 +161,7 @@ class DriverDNS
 #
 #      transaction.fail!(:NXDomain)
 #    end
-  end
+#  end
 
   def initialize(parent_window, host, port, domains)
     if(domains.nil?)
@@ -175,7 +175,7 @@ class DriverDNS
       :noinput => true,
     })
 
-    @shown_pt = false
+#    @shown_pt = false
 
     @window.with({:to_ancestors => true}) do
       @window.puts("Starting Dnscat2 DNS server on #{host}:#{port}")
@@ -217,13 +217,13 @@ class DriverDNS
         name, domain = DriverDNS.figure_out_name(question.name, domains)
         if(name.nil?)
           @window.puts("Skipping: name couldn't be determined")
-          do_passthrough(request)
+#          do_passthrough(request)
           next
         end
 
         if(name !~ /^[a-fA-F0-9.]*$/)
           @window.puts("Skipping: name looks invalid")
-          do_passthrough(request)
+#          do_passthrough(request)
           next
         end
 

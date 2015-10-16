@@ -66,8 +66,8 @@ opts = Trollop::options do
     :type => :string,  :default => "0.0.0.0"
   opt :dnsport,   "The DNS port to listen on [deprecated]",
     :type => :integer, :default => 53
-  opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
-    :type => :string, :default => ""
+#  opt :passthrough, "If set (not by default), unhandled requests are sent to a real (upstream) DNS server",
+#    :type => :string, :default => ""
 
 #  opt :tcp,       "Start a TCP server",
 #    :type => :boolean, :default => true
@@ -96,20 +96,20 @@ begin
     # We don't have any callbacks
   end
 
-  Settings::GLOBAL.create("passthrough", Settings::TYPE_BLANK_IS_NIL, opts[:passthrough], "Send queries to the given upstream host (note: this can cause weird recursion problems). Expected: 'set passthrough host:port'. Set to blank to disable.") do |old_val, new_val|
-    if(new_val.nil?)
-      window.puts("passthrough => disabled")
-
-      DriverDNS.set_passthrough(nil, nil)
-      next
-    end
-
-    host, port = new_val.split(/:/, 2)
-    port = port || 53
-
-    DriverDNS.set_passthrough(host, port)
-    window.puts("passthrough => #{host}:#{port}")
-  end
+#  Settings::GLOBAL.create("passthrough", Settings::TYPE_BLANK_IS_NIL, opts[:passthrough], "Send queries to the given upstream host (note: this can cause weird recursion problems). Expected: 'set passthrough host:port'. Set to blank to disable.") do |old_val, new_val|
+#    if(new_val.nil?)
+#      window.puts("passthrough => disabled")
+#
+#      DriverDNS.set_passthrough(nil, nil)
+#      next
+#    end
+#
+#    host, port = new_val.split(/:/, 2)
+#    port = port || 53
+#
+#    DriverDNS.set_passthrough(host, port)
+#    window.puts("passthrough => #{host}:#{port}")
+#  end
 
   Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach], "If true, the UI will automatically open new sessions") do |old_val, new_val|
     window.puts("auto_attach => #{new_val}")
