@@ -41,4 +41,28 @@ class CommandHelpers
       return s.to_s()
     end
   end
+
+  def CommandHelpers.parse_setting_string(str, defaults = nil)
+    response = (defaults || {}).clone()
+
+    str.split(/,/).each do |segment|
+      name, value = segment.split(/=/, 2)
+      if(value.nil?)
+        raise(ArgumentError, "Invalid settings string; a comma-separated list of name=value pairs is required. ('#{str}')")
+      end
+
+      name = name.to_sym()
+      if(defaults && !defaults.has_key?(name))
+        raise(ArgumentError, "Invalid setting: #{name}; allowed settings are #{defaults.keys.join(', ')}. ('#{str}')")
+      end
+
+      if(response[name].is_a?(Array))
+        response[name] << value
+      else
+        response[name] = value
+      end
+    end
+
+    return response
+  end
 end

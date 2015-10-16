@@ -1,3 +1,5 @@
+- Attempt to open the socket as early as possible, so we can detect problems (like bad port number) before displaying anything else
+
 Before release, make sure:
 - Make sure all the commandline settings and other settings work
 - Make sure everything works over normal DNS

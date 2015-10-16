@@ -179,44 +179,25 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optarg|
-        args = {
-          :domain => nil,
-          :host   => "0.0.0.0",
-          :port   => "53",
-        }
-
-        (opts[:dns] || '').split(/[,;]/).each do |arg|
-          name, value = arg.split(/=/, 2)
-          name = name.strip().to_sym()
-          value = value.strip()
-
-          if(value.nil?)
-            @window.puts("The --dns argument requires name=value pairs,")
-            @window.puts("separated by commas. See examples below.")
-            @window.puts()
-            raise(Trollop::HelpNeeded)
-          end
-
-          if(!args.has_key?(name))
-            @window.puts("The --dns argument requires certain name=value pairs,")
-            @window.puts("separated by commas, but this one isn't valid:")
-            @window.puts("#{name}")
-            @window.puts()
-            raise(Trollop::HelpNeeded)
-          end
-
-          args[name] = value
+        if(opts[:dns].nil?)
+          @window.puts("The --dns argument is currently required!")
+          raise(Trollop::HelpNeeded)
         end
 
-        if(!args[:domain].nil?)
-          args[:domain] = [args[:domain]]
+        begin
+          dns = CommandHelpers.parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domains => [], :domain => [] })
+          dns[:domains] = dns[:domains] + dns[:domain]
+        rescue ArgumentError => e
+          @window.puts("Couldn't parse setting:")
+          @window.puts(e)
+          raise(Trollop::HelpNeeded)
         end
 
         TunnelDrivers.start({
           :controller => self,
           :window     => @window,
           :driver     => DriverDNS,
-          :args       => [args[:host], args[:port], args[:domain]]
+          :args       => [dns[:host], dns[:port], dns[:domains]]
         })
       end
     )

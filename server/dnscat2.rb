@@ -12,6 +12,7 @@
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
 require 'controller/controller'
+require 'libs/command_helpers'
 require 'libs/settings'
 require 'tunnel_drivers/driver_dns'
 require 'tunnel_drivers/driver_tcp'
@@ -27,40 +28,31 @@ VERSION = "0.03"
 # Don't ignore unhandled errors in threads
 Thread.abort_on_exception = true
 
-window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
-window.puts("Welcome to dnscat2! Some documentation may be out of date.")
-window.puts()
-
-controller = Controller.new(window)
-
-def parse_setting_string(str, defaults = nil)
-  response = (defaults || {}).clone()
-
-  str.split(/,/).each do |segment|
-    name, value = segment.split(/=/, 2)
-    if(value.nil?)
-      raise(Settings::ValidationError, "Invalid settings string; a comma-separated list of name=value pairs is required. ('#{str}')")
-    end
-
-    name = name.to_sym()
-    if(defaults && !defaults.has_key?(name))
-      raise(Settings::ValidationError, "Invalid setting: #{name}; allowed settings are #{defaults.keys.join(', ')}. ('#{str}')")
-    end
-
-    response[name] = value
-  end
-
-  return response
-end
-
 # Options
 opts = Trollop::options do
   version(NAME + " v" + VERSION + " (server)")
+  banner("You'll almost certainly want to run this in one of a few ways...")
+  banner("")
+  banner("Default host (0.0.0.0) and port (53), with no specific domain:")
+  banner("# ruby dnscat2.rb")
+  banner("")
+  banner("Default host/port, with a particular domain to listen on:")
+  banner("# ruby dnscat2.rb domain.com")
+  banner("")
+  banner("Or multiple domains:")
+  banner("# ruby dnscat2.rb a.com b.com c.com")
+  banner("")
+  banner("If you need to change the address or port it's listening on, that")
+  banner("can be done by passing the --dns argument:")
+  banner("# ruby dnscat2.rb --dns 'host=127.0.0.1,port=53531,domain=a.com,domain=b.com'")
+  banner("")
+  banner("For other options, see below!")
+  banner("")
 
   opt :h,         "Placeholder for help",   :type => :boolean, :default => false
   opt :version,   "Get the dnscat version", :type => :boolean, :default => false
 
-  opt :dns,       "Start a DNS server. Can optionally pass a number of comma-separated name=value pairs (host, port, domain). Eg, '--dns host=0.0.0.0,port=53531,domain=skullseclabs.org'",
+  opt :dns,       "Start a DNS server. Can optionally pass a number of comma-separated name=value pairs (host, port, domain). Eg, '--dns host=0.0.0.0,port=53531,domain=skullseclabs.org' - 'domain' can be passed multiple times",
     :type => :string, :default => nil
   opt :dnshost,   "The DNS ip address to listen on [deprecated]",
     :type => :string,  :default => "0.0.0.0"
@@ -96,6 +88,12 @@ if(opts[:h])
   window.puts("'-h' work on my command parser... :(")
   exit
 end
+
+window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
+window.puts("Welcome to dnscat2! Some documentation may be out of date.")
+window.puts()
+
+controller = Controller.new(window)
 
 begin
   Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace], "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
@@ -143,9 +141,14 @@ end
 
 domains = []
 if(opts[:dns])
-  dns_settings = parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domains => nil })
-  dns_settings[:domains] = [dns_settings[:domains]]
-
+  begin
+    dns_settings = CommandHelpers.parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domains => [], :domain => [] })
+    dns_settings[:domains] = dns_settings[:domain] + dns_settings[:domains]
+  rescue ArgumentError => e
+    window.puts("Sorry, we had trouble parsing your --dns string:")
+    window.puts(e)
+    exit(1)
+  end
 elsif(opts[:dnsport] || opts[:dnshost])
   # This way of starting a server is deprecated, technically
   dns_settings = {
