@@ -5,6 +5,9 @@
 * Removed reliance from rubydns, a built-in DNS server is now used for
   everything
 * Added a standalone tool, dnslogger.rb
+* There is now a "passthrough" option, which will forward any requests
+  that dnscat2 doesn't know how to handle to an upstream server
+  (somewhat stealthier, maybe?)
 
 # 0.02
 
