@@ -671,11 +671,22 @@ class DNSer
         pt_port,
         @request.questions[0].type,
         @request.questions[0].cls,
-        10
+        3
       ) do |response|
+        # If there was a timeout, handle it
+        if(response.nil?)
+          puts("timeout...")
+          response = @response
+          response.rcode = DNSer::Packet::RCODE_SERVER_FAILURE
+        end
+
         response.trn_id = @request.trn_id
         @s.send(response.serialize(), 0, @host, @port)
-        callback.call(response)
+
+        # Let the callback know if anybody registered one
+        if(callback)
+          callback.call(response)
+        end
       end
 
       @sent = true

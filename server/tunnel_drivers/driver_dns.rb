@@ -16,7 +16,7 @@ class DriverDNS
   attr_reader :id
 
   # This is upstream dns
-#  @@passthrough = nil
+  @@passthrough = nil
   @@id = 0
 
   # Experimentally determined to work
@@ -122,46 +122,41 @@ class DriverDNS
     return nil
   end
 
-#  def DriverDNS.set_passthrough(host, port)
-#    if(host.nil?)
-#      @@passthrough = nil
-#      return
-#    end
-#
-#    @@passthrough = {
-#      :host => host,
-#      :port => port,
-#    }
-#    @shown_pt = false
-#  end
+  def DriverDNS.set_passthrough(host, port)
+    if(host.nil?)
+      @@passthrough = nil
+      return
+    end
+
+    @@passthrough = {
+      :host => host,
+      :port => port,
+    }
+    @shown_pt = false
+  end
 
   def id()
     return @window.id
   end
 
-#  def do_passthrough(request)
-#    if(!@shown_pt)
-#      puts("TODO: Passthrough")
-#      @shown_pt = true
-#    end
-#    if(@@passthrough)
-#      if(!@shown_pt)
-#        @window.puts("Unable to handle request: #{transaction.name}")
-#        @window.puts("Passing upstream to: #{@@passthrough}")
-#        @window.puts("(This will only be shown once)")
-#        @shown_pt = true
-#      end
-#      transaction.passthrough!(@@passthrough)
-#    elsif(!@shown_pt)
-#      @window.puts("Unable to handle request, returning an error: #{transaction.name}")
-#      @window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
-#      @window.puts("or run \"set passthrough=true\")")
-#      @window.puts("(This will only be shown once)")
-#      @shown_pt = true
-#
-#      transaction.fail!(:NXDomain)
-#    end
-#  end
+  def do_passthrough(transaction)
+    if(@@passthrough)
+      question = transaction.request.questions[0]
+      @window.puts("Unknown request for '#{question ? question : '<unknown>'}', passing to #{@@passthrough[:host]}:#{@@passthrough[:port]}")
+
+      transaction.passthrough!(@@passthrough[:host], @@passthrough[:port])
+    elsif(!@shown_pt)
+      @window.puts("Unable to handle request, returning an error: #{transaction.name}")
+      @window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
+      @window.puts("or run \"set passthrough=8.8.8.8:53\")")
+      @window.puts("(This will only be shown once)")
+      @shown_pt = true
+
+      transaction.fail!(:NXDomain)
+    end
+
+    @shown_pt = true
+  end
 
   def initialize(parent_window, host, port, domains)
     if(domains.nil?)
@@ -223,13 +218,13 @@ class DriverDNS
         name, domain = DriverDNS.figure_out_name(question.name, domains)
         if(name.nil?)
           @window.puts("Skipping: name couldn't be determined")
-#          do_passthrough(request)
+          do_passthrough(transaction)
           next
         end
 
         if(name !~ /^[a-fA-F0-9.]*$/)
           @window.puts("Skipping: name looks invalid")
-#          do_passthrough(request)
+          do_passthrough(transaction)
           next
         end
 
