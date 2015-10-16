@@ -16,6 +16,7 @@
 require 'ipaddr'
 require 'socket'
 require 'timeout'
+require '/usr/local/google/home/rbowes/tools/dnscat2/server/libs/hex.rb'
 
 class DNSer
   class DnsException < StandardError
@@ -111,29 +112,15 @@ class DNSer
     end
 
     class DnsUnpacker
+      attr_accessor :data
+
       def initialize(data)
-        @data = data
-        @offset = 0
-        @saved_offset = nil
-      end
-
-      def reset
+        @data = data.force_encoding("ASCII-8BIT")
         @offset = 0
       end
 
-      def save()
-        if(@saved_offset.nil?)
-          @saved_offset = @offset
-        end
-      end
-
-      def restore()
-        @offset = @saved_offset
-        @saved_offset = nil
-      end
-
-      def move(i)
-        @offset = i
+      def remaining()
+        return @data[@offset..-1]
       end
 
       def unpack(format, offset = nil)
@@ -175,11 +162,12 @@ class DNSer
           if(len == 0)
             break
           end
-
           # Handle "pointer" records by updating the offset
-          if(len == 0xc0)
-            save()
-            offset = unpack("C").pop()
+          if((len & 0xc0) == 0xc0)
+            # If the first two bits are 1 (ie, 0xC0), the next
+            # 10 bits are an offset, so we have to mask out the first two bits
+            # with 0x3F (00111111)
+            offset = ((len << 8) | unpack("C").pop()) & 0x3FFF
 
             move_offset(offset) do
               segments << unpack_name().split(/\./)
@@ -195,6 +183,17 @@ class DNSer
         return segments.join('.')
       end
 
+      def verify_length(len)
+        start_length = @offset
+        yield
+        end_length   = @offset
+
+        if(end_length - start_length != len)
+          raise(FormatException, "There was something wrong with a resource record in the packet!")
+        end
+      end
+
+      # TODO: Compress the name properly, if we acn
       def DnsUnpacker.pack_name(name)
         result = ''
 
@@ -489,24 +488,27 @@ class DNSer
         name = data.unpack_name()
         type, cls, ttl, rr_length = data.unpack("nnNn")
 
-        case type
-        when TYPE_A
-          rr = A.parse(data)
-        when TYPE_NS
-          rr = NS.parse(data)
-        when TYPE_CNAME
-          rr = CNAME.parse(data)
-        when TYPE_SOA
-          rr = SOA.parse(data)
-        when TYPE_MX
-          rr = MX.parse(data)
-        when TYPE_TXT
-          rr = TXT.parse(data)
-        when TYPE_AAAA
-          rr = AAAA.parse(data)
-        else
-          puts("Warning: Unknown record type: #{type}")
-          rr = RRUnknown.parse(type, data, rr_length)
+        rr = nil
+        data.verify_length(rr_length) do
+          case type
+          when TYPE_A
+            rr = A.parse(data)
+          when TYPE_NS
+            rr = NS.parse(data)
+          when TYPE_CNAME
+            rr = CNAME.parse(data)
+          when TYPE_SOA
+            rr = SOA.parse(data)
+          when TYPE_MX
+            rr = MX.parse(data)
+          when TYPE_TXT
+            rr = TXT.parse(data)
+          when TYPE_AAAA
+            rr = AAAA.parse(data)
+          else
+            puts("Warning: Unknown record type: #{type}")
+            rr = RRUnknown.parse(type, data, rr_length)
+          end
         end
 
         return Answer.new(name, type, cls, ttl, rr)
@@ -671,7 +673,6 @@ class DNSer
         @request.questions[0].cls,
         10
       ) do |response|
-
         response.trn_id = @request.trn_id
         @s.send(response.serialize(), 0, @host, @port)
       end
@@ -697,7 +698,7 @@ class DNSer
     @thread = Thread.new() do |t|
       begin
         loop do
-          data = @s.recvfrom(1024)
+          data = @s.recvfrom(65536)
           request = DNSer::Packet.parse(data[0])
           transaction = Transaction.new(@s, request, data[1][3], data[1][1])
 
@@ -734,7 +735,7 @@ class DNSer
         s.send(packet.serialize(), 0, server, port)
 
         timeout(timeout_seconds) do
-          response = s.recv(1024) # Max length of a DNS packet is 512 bytes, so this should be safe
+          response = s.recv(65536)
           proc.call(DNSer::Packet.parse(response))
         end
       rescue Timeout::Error
