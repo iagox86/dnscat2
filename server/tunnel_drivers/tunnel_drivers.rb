@@ -28,6 +28,7 @@ class TunnelDrivers
       @@drivers[driver.id] = driver
     rescue Errno::EACCES => e
       controller.window.with({:to_ancestors => true}) do
+        controller.window.puts("")
         controller.window.puts("*** ERROR ***")
         controller.window.puts("")
         controller.window.puts("There was a problem creating the socket: #{e}")
@@ -39,6 +40,10 @@ class TunnelDrivers
         controller.window.puts("a shellscript and breaks ctrl-z; the best way is to use 'su' or")
         controller.window.puts("'sudo', and to ensure that the appropriate gems are globally")
         controller.window.puts("installed.")
+        controller.window.puts("")
+        controller.window.puts("The process will run as usual, but if the 'windows' command doesn't")
+        controller.window.puts("show any listeners, nobody will be able to connect to you!")
+        controller.window.puts("")
       end
     end
   end

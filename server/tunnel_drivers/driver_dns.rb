@@ -168,6 +168,9 @@ class DriverDNS
       domains = []
     end
 
+    # Do this as early as we can, so we can fail early
+    @dnser = DNSer.new(host, port)
+
     @id = 'dns%d' % (@@id += 1)
     @window = SWindow.new(parent_window, false, {
       :id => @id,
@@ -204,7 +207,8 @@ class DriverDNS
       @window.puts("")
     end
 
-    @dnser = DNSer.new(host, port) do |request, reply|
+
+    @dnser.on_request() do |request, reply|
       begin
         if(request.questions.length < 1)
           raise(DnscatException, "Received a packet with no questions")

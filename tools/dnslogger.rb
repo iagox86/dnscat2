@@ -49,7 +49,9 @@ end
 
 puts("Starting #{NAME} #{VERSION} DNS server on #{opts[:host]}:#{opts[:port]}")
 
-dnser = DNSer.new(opts[:host], opts[:port]) do |request, reply|
+dnser = DNSer.new(opts[:host], opts[:port])
+
+dnser.on_request() do |request, reply|
   if(request.questions.length < 1)
     puts("The request didn't ask any questions!")
     next

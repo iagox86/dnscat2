@@ -594,13 +594,15 @@ class DNSer
   end
 
   def initialize(host, port)
-    s = UDPSocket.new()
-    s.bind(host, port)
+    @s = UDPSocket.new()
+    @s.bind(host, port)
+  end
 
+  def on_request()
     @thread = Thread.new() do |t|
       begin
         loop do
-          data = s.recvfrom(1024)
+          data = @s.recvfrom(1024)
           packet_request = DNSer::Packet.parse(data[0])
 
           packet_reply = DNSer::Packet.new(packet_request.trn_id, DNSer::Packet::QR_RESPONSE, packet_request.opcode, DNSer::Packet::FLAG_RD | DNSer::Packet::FLAG_RA, DNSer::Packet::RCODE_SUCCESS)
@@ -608,11 +610,11 @@ class DNSer
 
           response = proc.call(packet_request, packet_reply)
           if(response)
-            s.send(response.serialize(), 0, data[1][3], data[1][1])
+            @s.send(response.serialize(), 0, data[1][3], data[1][1])
           end
         end
       ensure
-        s.close
+        @s.close
       end
     end
   end
