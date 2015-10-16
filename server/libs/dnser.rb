@@ -593,6 +593,48 @@ class DNSer
     end
   end
 
+  class Transaction
+    attr_reader :request, :response
+
+    def initialize(s, request, host, port)
+      @s       = s
+      @request = request
+      @host    = host
+      @port    = port
+
+      @response = DNSer::Packet.new(
+        @request.trn_id,
+        DNSer::Packet::QR_RESPONSE,
+        @request.opcode,
+        DNSer::Packet::FLAG_RD | DNSer::Packet::FLAG_RA,
+        DNSer::Packet::RCODE_SUCCESS
+      )
+
+      @response.add_question(@request.questions[0])
+    end
+
+    def add_answer(answer)
+      @response.add_answer(answer)
+    end
+
+    def error(rcode)
+      @response.rcode = rcode
+    end
+
+    def error!(rcode)
+      @response.rcode = rcode
+      reply!()
+    end
+
+    def passthrough!(pt_host, pt_port)
+      # TODO
+    end
+
+    def reply!()
+      @s.send(@response.serialize(), 0, @host, @port)
+    end
+  end
+
   def initialize(host, port)
     @s = UDPSocket.new()
     @s.bind(host, port)
@@ -603,14 +645,15 @@ class DNSer
       begin
         loop do
           data = @s.recvfrom(1024)
-          packet_request = DNSer::Packet.parse(data[0])
+          request = DNSer::Packet.parse(data[0])
+          transaction = Transaction.new(@s, request, data[1][3], data[1][1])
 
-          packet_reply = DNSer::Packet.new(packet_request.trn_id, DNSer::Packet::QR_RESPONSE, packet_request.opcode, DNSer::Packet::FLAG_RD | DNSer::Packet::FLAG_RA, DNSer::Packet::RCODE_SUCCESS)
-          packet_reply.add_question(packet_request.questions[0])
-
-          response = proc.call(packet_request, packet_reply)
-          if(response)
-            @s.send(response.serialize(), 0, data[1][3], data[1][1])
+          begin
+            proc.call(transaction)
+          rescue StandardError => e
+            puts("Caught an error: #{e}")
+            puts(e.backtrace())
+            transaction.reply!(transaction.response_template({:rcode => DNSer::Packet::RCODE_SERVER_FAILURE}))
           end
         end
       ensure

@@ -208,8 +208,10 @@ class DriverDNS
     end
 
 
-    @dnser.on_request() do |request, reply|
+    @dnser.on_request() do |transaction|
       begin
+        request = transaction.request
+
         if(request.questions.length < 1)
           raise(DnscatException, "Received a packet with no questions")
         end
@@ -287,12 +289,14 @@ class DriverDNS
 
         # Allow multiple response records
         if(response.is_a?(String))
-          reply.add_answer(question.answer(60, response))
+          transaction.add_answer(question.answer(60, response))
         else
           response.each do |r|
-            reply.add_answer(question.answer(60, r))
+            transaction.add_answer(question.answer(60, r))
           end
         end
+
+        transaction.reply!()
       rescue DNSer::DnsException => e
         @window.with({:to_ancestors => true}) do
           @window.puts("There was a problem parsing the incoming packet! (for more information, check window '#{@window.id}')")
@@ -303,7 +307,7 @@ class DriverDNS
           @window.puts(bt)
         end
 
-        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        transaction.error!(DNSer::Packet::RCODE_NAME_ERROR)
       rescue DnscatException => e
         @window.with({:to_ancestors => true}) do
           @window.puts("Protocol exception caught in dnscat DNS module (for more information, check window '#{@window.id}'):")
@@ -313,7 +317,7 @@ class DriverDNS
         e.backtrace.each do |bt|
           @window.puts(bt)
         end
-        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        transaction.error!(DNSer::Packet::RCODE_NAME_ERROR)
       rescue StandardError => e
         @window.with({:to_ancestors => true}) do
           @window.puts("Error caught (for more information, check window '#{@window.id}'):")
@@ -323,10 +327,8 @@ class DriverDNS
         e.backtrace.each do |bt|
           @window.puts(bt)
         end
-        reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+        transaction.error!(DNSer::Packet::RCODE_NAME_ERROR)
       end
-
-      reply
     end
   end
 

@@ -51,7 +51,9 @@ puts("Starting #{NAME} #{VERSION} DNS server on #{opts[:host]}:#{opts[:port]}")
 
 dnser = DNSer.new(opts[:host], opts[:port])
 
-dnser.on_request() do |request, reply|
+dnser.on_request() do |transaction|
+  request = transaction.request
+
   if(request.questions.length < 1)
     puts("The request didn't ask any questions!")
     next
@@ -76,37 +78,37 @@ dnser.on_request() do |request, reply|
     else
       answer = question.answer(opts[:ttl], response)
     end
-    reply.add_answer(answer)
+    transaction.add_answer(answer)
     puts("OUT: #{answer}")
   elsif(question.type == DNSer::Packet::TYPE_ANY)
     if(opts[:A])
-      reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_A, question.cls, opts[:ttl], DNSer::Packet::A.new(opts[:A])))
+      transaction.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_A, question.cls, opts[:ttl], DNSer::Packet::A.new(opts[:A])))
     end
     if(opts[:AAAA])
-      reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_AAAA, question.cls, opts[:ttl], DNSer::Packet::AAAA.new(opts[:AAAA])))
+      transaction.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_AAAA, question.cls, opts[:ttl], DNSer::Packet::AAAA.new(opts[:AAAA])))
     end
     if(opts[:CNAME])
-      reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_CNAME, question.cls, opts[:ttl], DNSer::Packet::CNAME.new(opts[:CNAME])))
+      transaction.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_CNAME, question.cls, opts[:ttl], DNSer::Packet::CNAME.new(opts[:CNAME])))
     end
     if(opts[:TXT])
-      reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_TXT, question.cls, opts[:ttl], DNSer::Packet::TXT.new(opts[:TXT])))
+      transaction.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_TXT, question.cls, opts[:ttl], DNSer::Packet::TXT.new(opts[:TXT])))
     end
     if(opts[:MX])
-      reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_MX, question.cls, opts[:ttl], DNSer::Packet::MX.new(opts[:MX], opts[:MX_PREF])))
+      transaction.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_MX, question.cls, opts[:ttl], DNSer::Packet::MX.new(opts[:MX], opts[:MX_PREF])))
     end
     if(opts[:NS])
-      reply.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_NS, question.cls, opts[:ttl], DNSer::Packet::NS.new(opts[:NS])))
+      transaction.add_answer(DNSer::Packet::Answer.new(question.name, DNSer::Packet::TYPE_NS, question.cls, opts[:ttl], DNSer::Packet::NS.new(opts[:NS])))
     end
   else
-    reply = request.get_error(DNSer::Packet::RCODE_NAME_ERROR)
+    transaction.error(DNSer::Packet::RCODE_NAME_ERROR)
     puts("OUT: NXDomain (domain not found)")
   end
 
   if(opts[:packet_trace])
-    puts("Sent: #{reply}")
+    puts("Sent: #{transaction.response}")
   end
 
-  reply
+  transaction.reply!()
 end
 
 # Wait for it to finish (never-ending, essentially)
