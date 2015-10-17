@@ -84,12 +84,12 @@ class DriverCommand
     end
 
     # Sideload the auto-command if one is set (this should happen at the end of initialize())
-    if(auto_command = Settings::GLOBAL.get("auto_command"))
-      auto_command.split(";").each do |command|
-        command = command.strip()
-        @commander.feed(command + "\n")
-      end
-    end
+#    if(auto_command = Settings::GLOBAL.get("auto_command"))
+#      auto_command.split(";").each do |command|
+#        command = command.strip()
+#        @commander.feed(command + "\n")
+#      end
+#    end
   end
 
   def _handle_incoming(command_packet)

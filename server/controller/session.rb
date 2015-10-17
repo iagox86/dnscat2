@@ -159,6 +159,14 @@ class Session
       @window.activate()
     end
 
+    # Feed the auto_command into the window, as if it was user input
+    if(auto_command = Settings::GLOBAL.get("auto_command"))
+      auto_command.split(";").each do |command|
+        command = command.strip()
+        window.fake_input(command)
+      end
+    end
+
     return Session._create_syn(@id, @my_seq, 0)
   end
 
