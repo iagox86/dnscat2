@@ -185,7 +185,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     packet_print(packet, session->options);
   }
 
-  if(session->is_ping)
+  if(session->is_ping && packet->packet_type == PACKET_TYPE_PING)
   {
     /* This only returns if the receive is bad. */
     driver_data_received(session->driver, (uint8_t*)packet->body.ping.data, strlen(packet->body.ping.data));
