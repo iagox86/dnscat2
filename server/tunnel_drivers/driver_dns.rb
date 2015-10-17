@@ -140,13 +140,14 @@ class DriverDNS
   end
 
   def do_passthrough(transaction)
+    question = transaction.request.questions[0]
+
     if(@@passthrough)
-      question = transaction.request.questions[0]
       @window.puts("Unknown request for '#{question ? question : '<unknown>'}', passing to #{@@passthrough[:host]}:#{@@passthrough[:port]}")
 
       transaction.passthrough!(@@passthrough[:host], @@passthrough[:port])
     elsif(!@shown_pt)
-      @window.puts("Unable to handle request, returning an error: #{transaction.name}")
+      @window.puts("Unable to handle request, returning an error: #{question.name}")
       @window.puts("(If you want to pass to upstream DNS servers, use --passthrough")
       @window.puts("or run \"set passthrough=8.8.8.8:53\")")
       @window.puts("(This will only be shown once)")
