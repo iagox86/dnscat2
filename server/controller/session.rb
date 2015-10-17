@@ -27,9 +27,10 @@ class Session
   STATE_KILLED      = 0xFF
 
   HANDLERS = {
-    Packet::MESSAGE_TYPE_SYN => :_handle_syn,
-    Packet::MESSAGE_TYPE_MSG => :_handle_msg,
-    Packet::MESSAGE_TYPE_FIN => :_handle_fin,
+    Packet::MESSAGE_TYPE_SYN  => :_handle_syn,
+    Packet::MESSAGE_TYPE_MSG  => :_handle_msg,
+    Packet::MESSAGE_TYPE_FIN  => :_handle_fin,
+    Packet::MESSAGE_TYPE_PING => :_handle_ping,
   }
 
   def initialize(id, main_window)
@@ -252,6 +253,11 @@ class Session
     })
   end
 
+  def _handle_ping(packet, max_length)
+    # Just return the packet that we were sent
+    return packet
+  end
+
   def _get_pcap_window()
     id = "pcap#{@window.id}"
 
@@ -278,7 +284,12 @@ class Session
     end
 
     begin
-      response_packet = send(HANDLERS[packet.type], packet, max_length)
+      handler = HANDLERS[packet.type]
+      if(handler.nil?)
+        raise(DnscatException, "No handler found for that packet type: #{packet.type}")
+      end
+
+      response_packet = send(handler, packet, max_length)
     rescue DnscatException => e
       @window.puts("Protocol exception occurred: %s" % e.to_s())
       @window.puts()
