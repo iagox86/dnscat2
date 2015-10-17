@@ -42,7 +42,7 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
 
     if(in->command_id == COMMAND_PING && in->is_request == TRUE)
     {
-      LOG_WARNING("Got a ping request! Responding!\n");
+      LOG_WARNING("Got a ping request! Responding!");
       out = command_packet_create_ping_response(in->request_id, in->r.request.body.ping.data);
     }
     else if(in->command_id == COMMAND_SHELL && in->is_request == TRUE)
