@@ -61,9 +61,6 @@ opts = Trollop::options do
   opt :passthrough, "Unhandled requests are sent upstream DNS server, host:port",
     :type => :string, :default => ""
 
-  opt :debug,     "Min debug level [info, warning, error, fatal]",
-    :type => :string,  :default => "warning"
-
   opt :auto_command,   "Send this to each client that connects",
     :type => :string,  :default => ""
   opt :auto_attach,    "Automatically attach to new sessions",
