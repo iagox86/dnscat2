@@ -305,6 +305,12 @@ class SWindow
     @callback.call(str)
   end
 
+  # Process some string as if it was coming from the keyboard (this can be used to,
+  # for example, write scripts)
+  def fake_input(str)
+    return _incoming(str)
+  end
+
   # Set the number of lines of history for the current session. Note that this
   # only takes effect after another message is added to the history (lazy
   # evaluated, essentially).
