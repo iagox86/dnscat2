@@ -1,11 +1,1 @@
-Before release, make sure:
-- Make sure all the commandline settings and other settings work
-- Make sure everything works over normal DNS
-- Make sure everything works on Windows
-- Update documentation / output / etc.
-
-Out of scope things that I'd like to do eventually (so I'll file them as github issues):
-- Add a command to command sessions to spawn a console session (--console), if that's possible
-- Nested sessions
-- Figure out if I actually need to include the domain name
-- Write tests for the connection/session stuff
+- Documentation
