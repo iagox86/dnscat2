@@ -128,12 +128,32 @@ configured DNS server is (which will fail):
     are directly connecting to the dnscat2 server.
     
     You'll need to use --dns server=<server> if you aren't.
+    
+    ** WARNING!
+    *
+    * It looks like you're running dnscat2 with the system DNS server,
+    * and no domain name!*
+    * That's cool, I'm not going to stop you, but the odds are really,
+    * really high that this won't work. You either need to provide a
+    * domain to use DNS resolution (requires an authoritative server):
+    *
+    *     dnscat mydomain.com
+    *
+    * Or you have to provide a server to connect directly to:
+    *
+    *     dnscat --dns=server=1.2.3.4,port=53
+    *
+    * I'm going to let this keep running, but once again, this likely
+    * isn't what you want!
+    *
+    ** WARNING!
+    
     Creating DNS driver:
      domain = (null)
      host   = 0.0.0.0
      port   = 53
      type   = TXT,CNAME,MX
-     server = 8.8.8.8
+     server = 4.2.2.1
     [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
     [[ ERROR ]] :: DNS: RCODE_NAME_ERROR
     [[ ERROR ]] :: DNS: RCODE_NAME_ERROR

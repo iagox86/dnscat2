@@ -133,6 +133,31 @@ void usage(char *name, char *message)
 
 driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, char *host, uint16_t port, char *type, char *server)
 {
+  if(!server && !domain)
+  {
+    printf("\n");
+    printf("** WARNING!\n");
+    printf("*\n");
+    printf("* It looks like you're running dnscat2 with the system DNS server,\n");
+    printf("* and no domain name!");
+    printf("*\n");
+    printf("* That's cool, I'm not going to stop you, but the odds are really,\n");
+    printf("* really high that this won't work. You either need to provide a\n");
+    printf("* domain to use DNS resolution (requires an authoritative server):\n");
+    printf("*\n");
+    printf("*     dnscat mydomain.com\n");
+    printf("*\n");
+    printf("* Or you have to provide a server to connect directly to:\n");
+    printf("*\n");
+    printf("*     dnscat --dns=server=1.2.3.4,port=53\n");
+    printf("*\n");
+    printf("* I'm going to let this keep running, but once again, this likely\n");
+    printf("* isn't what you want!\n");
+    printf("*\n");
+    printf("** WARNING!\n");
+    printf("\n");
+  }
+
   if(!server)
     server = system_dns;
 
