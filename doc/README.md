@@ -3,7 +3,7 @@ here they are!
 
 # User documents
 
-## [/README.md](README.md)
+## [README.md](/README.md)
 
 The main usage documentation.
 
