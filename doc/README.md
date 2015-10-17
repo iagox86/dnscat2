@@ -3,13 +3,17 @@ here they are!
 
 # User documents
 
+## [/README.md](README.md)
+
+The main usage documentation.
+
 ## [changelog.md](changelog.md)
 
-The changelog
+The changelog.
 
 ## [authoritative_dns_setup.md](authoritative_dns_setup.md)
 
-Instructions on how to set up an authoritative nameserver
+Instructions on how to set up an authoritative nameserver.
 
 # Architecture / developer documents
 
