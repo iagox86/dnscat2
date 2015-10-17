@@ -118,7 +118,7 @@ controller would never even know.
 A session is akin to a TCP connection. It handles all the state - the
 state of the session, the sequence/acknowledgement number, and so on.
 
-Each session comes with a [driver](#driver). The driver is what knows
+Each session comes with a [driver](#drivers). The driver is what knows
 how to handle incoming/outgoing data - for example, what to display, how
 to handle user input, and so on. We'll look at the driver more below.
 
@@ -231,7 +231,7 @@ mess (I think it was fairly new at the time).
 
 So, knowing that I only really need a small subset of DNS functionality
 (the same subset as I implemented in the client :) ), I wrote a DNS
-library called [DNSer](server/libs/dnser.rb).
+library called [DNSer](/server/libs/dnser.rb).
 
 DNSer is an asynchronous resolver or server. It runs in its own thread,
 and performs all of its actions via process blocks.
@@ -278,7 +278,7 @@ contains the request (in `transaction.request`) and a skeleton of the
 response (in `transaction.response`).
 
 There are a number of functions (you'll have to look at [the
-implementation](server/libs/dnser.rb) for full details), but the
+implementation](/server/libs/dnser.rb) for full details), but the
 important ones are the functions that have bangs ('!') in their names -
 `DNSer::Transaction#reply!`, `DNSer::Transaction#error!, etc.
 
@@ -309,7 +309,7 @@ waiting for user input. When the user presses <enter>, the input is sent
 to the active window.
 
 Windows are created by calling SWindow.new(), and passing in a bunch of
-parameters (see [the implementation](server/libs/swindow.rb) for full
+parameters (see [the implementation](/server/libs/swindow.rb) for full
 details).
 
 Windows can be switched to by calling `SWindow#activate`. That prints
@@ -335,22 +335,22 @@ activated.
 
 ## Commander
 
-[Commander](server/libs/commander.rb) is a fairly simple command-parsing
-engine used to parse commands typed by users into a window. It uses
-`Trollop` and `shellwords` behind the scenes.
+[Commander](/server/libs/commander.rb) is a fairly simple
+command-parsing engine used to parse commands typed by users into a
+window. It uses `Trollop` and `shellwords` behind the scenes.
 
 Classes that need to parse user commands
-([controller.rb](server/controller/controller.rb) and
-[driver_command.rb](server/drivers/driver_command.rb)) can set up a
+([controller.rb](/server/controller/controller.rb) and
+[driver_command.rb](/server/drivers/driver_command.rb)) can set up a
 bunch of commands. Later, `Commander#feed` can be called with a line
 that the user typed, and the appropriate callback with the appropriate
 arguments will be called.
 
 ## Settings
 
-The [Settings class](server/libs/settings) was written to store settings
-for either the program (global settings, stored in `Settings::GLOBAL`)
-or for sessions.
+The [Settings class](/server/libs/settings) was written to store
+settings for either the program (global settings, stored in
+`Settings::GLOBAL`) or for sessions.
 
 The settings class is instantiated by creating a new instance:
 

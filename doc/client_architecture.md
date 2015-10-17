@@ -103,7 +103,7 @@ spawn other sessions. Sessions are identified with a 16-bit id value
 that's also sent across the network. The session management code is
 implemented in [session.c](/client/controller/session.c).
 
-Each session has a corresponding [driver](#driver) (different from a
+Each session has a corresponding [driver](#drivers) (different from a
 [tunnel_driver](#tunnel_driver)), which is how it interacts with the
 real world (the console, an executable, etc).
 
