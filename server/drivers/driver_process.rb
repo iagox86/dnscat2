@@ -81,7 +81,6 @@ class DriverProcess
     @process_stdin.write(data)
 
     out = @outgoing
-    @process_stdin.write(data)
     @outgoing = ''
 
     @window.puts("[<--] #{out}")

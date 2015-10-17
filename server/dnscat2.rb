@@ -73,15 +73,15 @@ opts = Trollop::options do
     :type => :integer, :default => 1000
 end
 
+window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
+window.puts("Welcome to dnscat2! Some documentation may be out of date.")
+window.puts()
+
 if(opts[:h])
   window.puts("To get help, you have to use --help; I can't find any way to make")
   window.puts("'-h' work on my command parser... :(")
   exit
 end
-
-window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
-window.puts("Welcome to dnscat2! Some documentation may be out of date.")
-window.puts()
 
 controller = Controller.new(window)
 
