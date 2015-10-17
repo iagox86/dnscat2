@@ -8,7 +8,7 @@
 # This is a class for managing ephemeral settings for a project.
 #
 # When the program starts, any number of settings can be registered either for
-# individually created instances of this class, or for a global instances - 
+# individually created instances of this class, or for a global instances -
 # Settings::GLOBAL - that is automatically created (and that is used for
 # getting/setting settings that don't exist).
 #

@@ -854,7 +854,7 @@ class DNSer
 
     s = UDPSocket.new()
 
-    Thread.new() do
+    return Thread.new() do
       begin
         s.send(packet.serialize(), 0, server, port)
 
