@@ -30,7 +30,6 @@ class Session
     Packet::MESSAGE_TYPE_SYN  => :_handle_syn,
     Packet::MESSAGE_TYPE_MSG  => :_handle_msg,
     Packet::MESSAGE_TYPE_FIN  => :_handle_fin,
-    Packet::MESSAGE_TYPE_PING => :_handle_ping,
   }
 
   def initialize(id, main_window)
@@ -251,11 +250,6 @@ class Session
       :session_id => @id,
       :reason => "Bye!",
     })
-  end
-
-  def _handle_ping(packet, max_length)
-    # Just return the packet that we were sent
-    return packet
   end
 
   def _get_pcap_window()

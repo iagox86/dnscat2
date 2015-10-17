@@ -207,7 +207,7 @@ class Packet
   class PingBody
     extend PacketHelper
 
-    attr_reader :reason
+    attr_reader :data
 
     def initialize(options, params = {})
       @options = options
@@ -225,7 +225,7 @@ class Packet
     end
 
     def to_s()
-      return "[[PING]] :: %s" % [@reason]
+      return "[[PING]] :: %s" % [@data]
     end
 
     def to_bytes()
@@ -261,6 +261,12 @@ class Packet
     _, _, session_id, _ = Packet.parse_header(data)
 
     return session_id
+  end
+
+  def Packet.peek_type(data)
+    _, type, _, _ = Packet.parse_header(data)
+
+    return type
   end
 
   def Packet.parse(data, options = nil)
