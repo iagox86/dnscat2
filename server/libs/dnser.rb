@@ -16,7 +16,6 @@
 require 'ipaddr'
 require 'socket'
 require 'timeout'
-require '/usr/local/google/home/rbowes/tools/dnscat2/server/libs/hex.rb'
 
 class DNSer
   class DnsException < StandardError

@@ -132,7 +132,7 @@ class Session
         @window.puts("[WARNING] Duplicate SYN received!")
         return Session._create_syn(@id, @my_seq, 0)
       else
-        raise(DnscatException, "Illegal SYN received")
+        return nil
       end
     end
 
