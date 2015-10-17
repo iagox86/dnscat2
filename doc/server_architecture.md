@@ -299,10 +299,10 @@ Before beta0.03, the UI for the server was a bit of a mess, coupled with
 the functionality really badly.
 
 After getting sick of the coupling, I decided to take care of it and
-wrote SWindow. SWindow tries to simulate a multi-window environment
-using only `Readline`, which works okay, but not great. By keeping it
-fairly abstract, it'll be trivial to add a NCurses or Web-based
-interface down the road.
+wrote [SWindow](/server/libs/swindow.rb). SWindow tries to simulate a
+multi-window environment using only `Readline`, which works okay, but
+not great. By keeping it fairly abstract, it'll be trivial to add a
+NCurses or Web-based interface down the road.
 
 When SWindow() is included, it immediately starts an input thread,
 waiting for user input. When the user presses <enter>, the input is sent
@@ -348,7 +348,7 @@ arguments will be called.
 
 ## Settings
 
-The [Settings class](/server/libs/settings) was written to store
+The [Settings class](/server/libs/settings.rb) was written to store
 settings for either the program (global settings, stored in
 `Settings::GLOBAL`) or for sessions.
 
