@@ -11,6 +11,31 @@
 #
 # Note: after writing this, I noticed that Resolv::DNS exists in the Ruby
 # language, I need to check if I can use that.
+#
+# There are two methods for using this library: as a client (to make a query)
+# or as a server (to listen for queries and respond to them).
+#
+# To make a query, use DNSer.query:
+#
+#   DNSer.query("google.com") do |response|
+#     ...
+#   end
+#
+# `response` will be of type DNSer::Packet.
+#
+# To listen for queries, create a new instance of DNSer, which will begin
+# listening on a port, but won't actually handle queries yet:
+#
+#   dnser = DNSer.new("0.0.0.0", 53)
+#   dnser.on_request() do |transaction|
+#     ...
+#   end
+#
+# `transaction` is of type DNSer::Transaction, and allows you to respond to the
+# request either immediately or asynchronously.
+#
+# DNSer currently supports the following record types: A, NS, CNAME, SOA, MX,
+# TXT, and AAAA.
 ##
 
 require 'ipaddr'
@@ -18,12 +43,14 @@ require 'socket'
 require 'timeout'
 
 class DNSer
+  # Create a custom error message
   class DnsException < StandardError
   end
 
   class Packet
     attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
 
+    # Request / response
     QR_QUERY    = 0x0000
     QR_RESPONSE = 0x0001
 
@@ -32,22 +59,24 @@ class DNSer
       QR_RESPONSE => "RESPONSE",
     }
 
+    # Return codes
     RCODE_SUCCESS         = 0x0000
     RCODE_FORMAT_ERROR    = 0x0001
-    RCODE_SERVER_FAILURE  = 0x0002
-    RCODE_NAME_ERROR      = 0x0003
+    RCODE_SERVER_FAILURE  = 0x0002 # :servfail
+    RCODE_NAME_ERROR      = 0x0003 # :NXDomain
     RCODE_NOT_IMPLEMENTED = 0x0004
     RCODE_REFUSED         = 0x0005
 
     RCODES = {
-      RCODE_SUCCESS         => "RCODE_SUCCESS",
-      RCODE_FORMAT_ERROR    => "RCODE_FORMAT_ERROR",
-      RCODE_SERVER_FAILURE  => "RCODE_SERVER_FAILURE",
-      RCODE_NAME_ERROR      => "RCODE_NAME_ERROR",
-      RCODE_NOT_IMPLEMENTED => "RCODE_NOT_IMPLEMENTED",
-      RCODE_REFUSED         => "RCODE_REFUSED",
+      RCODE_SUCCESS         => ":NoError (RCODE_SUCCESS)",
+      RCODE_FORMAT_ERROR    => ":FormErr (RCODE_FORMAT_ERROR)",
+      RCODE_SERVER_FAILURE  => ":ServFail (RCODE_SERVER_FAILURE)",
+      RCODE_NAME_ERROR      => ":NXDomain (RCODE_NAME_ERROR)",
+      RCODE_NOT_IMPLEMENTED => ":NotImp (RCODE_NOT_IMPLEMENTED)",
+      RCODE_REFUSED         => ":Refused (RCODE_REFUSED)",
     }
 
+    # Opcodes - only QUERY is typically used
     OPCODE_QUERY  = 0x0000
     OPCODE_IQUERY = 0x0800
     OPCODE_STATUS = 0x1000
@@ -58,6 +87,7 @@ class DNSer
       OPCODE_STATUS => "OPCODE_STATUS",
     }
 
+    # The types that we support
     TYPE_A     = 0x0001
     TYPE_NS    = 0x0002
     TYPE_CNAME = 0x0005
@@ -78,11 +108,13 @@ class DNSer
       TYPE_ANY   => "ANY",
     }
 
+    # The DNS flags
     FLAG_AA = 0x0008 # Authoritative answer
     FLAG_TC = 0x0004 # Truncated
     FLAG_RD = 0x0002 # Recursion desired
     FLAG_RA = 0x0001 # Recursion available
 
+    # This converts a set of flags, as an integer, into a string
     def Packet.FLAGS(flags)
       result = []
       if((flags & FLAG_AA) == FLAG_AA)
@@ -101,6 +133,7 @@ class DNSer
       return result.join("|")
     end
 
+    # Classes - we only define IN (Internet)
     CLS_IN                = 0x0001 # Internet
 
     CLSES = {
@@ -110,18 +143,26 @@ class DNSer
     class FormatException < StandardError
     end
 
+    # DNS has some unusual properties that we have to handle, which is why I
+    # wrote this class. It handles building / parsing DNS packets and keeping
+    # track of where in the packet we currently are. The advantage, besides
+    # simpler unpacking, is that encoded names (with pointers to other parts
+    # of the packet) can be trivially handled.
     class DnsUnpacker
       attr_accessor :data
 
+      # Create a new instance, initialized with the given data
       def initialize(data)
         @data = data.force_encoding("ASCII-8BIT")
         @offset = 0
       end
 
-      def remaining()
-        return @data[@offset..-1]
-      end
+#      def remaining()
+#        return @data[@offset..-1]
+#      end
 
+      # Unpack from the string, exactly like the normal `String#Unpack` method
+      # in Ruby, except that an offset into the string is maintained and updated.
       def unpack(format, offset = nil)
         # If there's an offset, unpack starting there
         if(!offset.nil?)
@@ -139,13 +180,21 @@ class DNSer
         return *results
       end
 
-      def move_offset(offset)
+      # This temporarily changes the offset that we're reading from, runs the
+      # given block, then changes it back. This is used internally while
+      # unpacking names.
+      def _move_offset(offset)
         old_offset = @offset
         @offset = offset
         yield
         @offset = old_offset
       end
 
+      # Unpack a name from the packet. Names are special, because they're
+      # encoded as:
+      # * A series of length-prefixed blocks, each indicating a segment
+      # * Blocks with a length the starts with two '1' bits (11xxxxx...), which
+      #   contains a pointer to another name elsewhere in the packet
       def unpack_name(depth = 0)
         segments = []
 
@@ -168,8 +217,8 @@ class DNSer
             # with 0x3F (00111111)
             offset = ((len << 8) | unpack("C").pop()) & 0x3FFF
 
-            move_offset(offset) do
-              segments << unpack_name().split(/\./)
+            _move_offset(offset) do
+              segments << unpack_name(depth+1).split(/\./)
             end
 
             break
@@ -188,11 +237,14 @@ class DNSer
         end_length   = @offset
 
         if(end_length - start_length != len)
-          raise(FormatException, "There was something wrong with a resource record in the packet!")
+          raise(FormatException, "A resource record's length didn't match its actual length; something is funky")
         end
       end
 
-      # TODO: Compress the name properly, if we acn
+      # Take a name, as a dotted string ("google.com") and return it as length-
+      # prefixed segments ("\x06google\x03com\x00").
+      #
+      # TODO: Compress the name properly, if we can ("\xc0\x0c")
       def DnsUnpacker.pack_name(name)
         result = ''
 
@@ -204,6 +256,8 @@ class DNSer
         return result
       end
 
+      # Shows where in the string we're currently editing. Mostly usefulu for
+      # debugging.
       def to_s()
         if(@offset == 0)
           return @data.unpack("H*").pop
@@ -412,6 +466,9 @@ class DNSer
       end
     end
 
+    # This defines a DNS question. One question is sent in outgoing packets,
+    # and one question is also sent in the response - generally, the same as
+    # the question that was asked.
     class Question
       attr_reader :name, :type, :cls
 
@@ -433,11 +490,11 @@ class DNSer
       end
 
       def type_s()
-        return DNSer::Packet::TYPES[@type]
+        return DNSer::Packet::TYPES[@type] || "<unknown>"
       end
 
       def cls_s()
-        return DNSer::Packet::CLSES[@cls]
+        return DNSer::Packet::CLSES[@cls] || "<unknown>"
       end
 
       def to_s()
@@ -468,6 +525,9 @@ class DNSer
       end
     end
 
+    # A DNS answer. A DNS response packet contains zero or more Answer records
+    # (defined by the 'ancount' value in the header). An answer contains the
+    # name of the domain from the question, followed by a resource record.
     class Answer
       attr_reader :name, :type, :cls, :ttl, :rr
 
@@ -606,7 +666,26 @@ class DNSer
       return result
     end
 
-    def to_s()
+    def to_s(brief = false)
+      if(brief)
+        question = @questions[0] || '<unknown>'
+
+        # Print error packets more clearly
+        if(@rcode != DNSer::Packet::RCODE_SUCCESS)
+          return "Request for #{question}: error: #{DNSer::Packet::RCODES[@rcode]}"
+        end
+
+        if(@qr == DNSer::Packet::QR_QUERY)
+          return "Request for #{question}"
+        else
+          if(@answers.length == 0)
+            return "Response for #{question}: n/a"
+          else
+            return "Response for #{question}: #{@answers[0]} (and #{@answers.length - 1} others)"
+          end
+        end
+      end
+
       results = ["DNS #{QRS[@qr] || "unknown"}: id=#{@trn_id}, opcode=#{OPCODES[@opcode]}, flags=#{Packet.FLAGS(@flags)}, rcode=#{RCODES[@rcode] || "unknown"}, qdcount=#{@questions.length}, ancount=#{@answers.length}"]
 
       @questions.each do |q|
@@ -621,6 +700,13 @@ class DNSer
     end
   end
 
+  # When a request comes in, a transaction is created and sent to the callback.
+  # The transaction can be used to respond to the request at any point in the
+  # future.
+  #
+  # Any methods with a bang ('!') in front will send the response back to the
+  # requester. Only one bang method can be called, any subsequent calls will
+  # throw an exception.
   class Transaction
     attr_reader :request, :response, :sent
 
@@ -664,13 +750,13 @@ class DNSer
     def passthrough!(pt_host, pt_port, callback = nil)
       raise ArgumentError("Already sent!") if(@sent)
 
-      DNSer.query(
-        @request.questions[0].name,
-        pt_host,
-        pt_port,
-        @request.questions[0].type,
-        @request.questions[0].cls,
-        3
+      DNSer.query(@request.questions[0].name, {
+          :server  => pt_host,
+          :port    => pt_port,
+          :type    => @request.questions[0].type,
+          :cls     => @request.questions[0].cls,
+          :timeout => 3,
+        }
       ) do |response|
         # If there was a timeout, handle it
         if(response.nil?)
@@ -698,11 +784,17 @@ class DNSer
     end
   end
 
+  # Create a new DNSer and listen on the given host/port. This will throw an
+  # exception if we aren't allowed to bind to the given port.
   def initialize(host, port)
     @s = UDPSocket.new()
     @s.bind(host, port)
+    @thread = nil
   end
 
+  # This method returns immediately, but spawns a background thread. The thread
+  # will recveive and parse DNS packets, create a transaction, and pass it to
+  # the caller's block.
   def on_request()
     @thread = Thread.new() do |t|
       begin
@@ -725,15 +817,38 @@ class DNSer
     end
   end
 
+  # Kill the listener
   def stop()
+    if(@thread.nil?)
+      puts("Tried to stop a listener that wasn't listening!")
+      return
+    end
+
     @thread.kill()
+    @thread = nil
   end
 
+  # After calling on_request(), this can be called to halt the program's
+  # execution until the thread is stopped.
   def wait()
+    if(@thread.nil?)
+      puts("Tried to wait on a DNSer instance that wasn't listening!")
+      return
+    end
+
     @thread.join()
   end
 
-  def DNSer.query(hostname, server = "8.8.8.8", port = 53, type = DNSer::Packet::TYPE_ANY, cls = DNSer::Packet::CLS_IN, timeout_seconds = 3)
+  # Send out a query, asynchronously. This immediately returns, then, when the
+  # query is finished, the callback block is called with a DNSer::Packet that
+  # represents the response (or nil, if there was a timeout).
+  def DNSer.query(hostname, params = {})
+    server   = params[:server]   || "8.8.8.8"
+    port     = params[:port]     || 53
+    type     = params[:type]     || DNSer::Packet::TYPE_A
+    cls      = params[:cls]      || DNSer::Packet::CLS_IN
+    timeout  = params[:timeout]  || 3
+
     packet = DNSer::Packet.new(rand(65535), DNSer::Packet::QR_QUERY, DNSer::Packet::OPCODE_QUERY, DNSer::Packet::FLAG_RD, DNSer::Packet::RCODE_SUCCESS)
     packet.add_question(DNSer::Packet::Question.new(hostname, type, cls))
 
@@ -743,7 +858,7 @@ class DNSer
       begin
         s.send(packet.serialize(), 0, server, port)
 
-        timeout(timeout_seconds) do
+        timeout(timeout) do
           response = s.recv(65536)
           proc.call(DNSer::Packet.parse(response))
         end

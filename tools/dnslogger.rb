@@ -71,11 +71,7 @@ dnser.on_request() do |transaction|
 
   question = request.questions[0]
 
-  if(opts[:packet_trace])
-    puts("IN: #{request}")
-  else
-    puts("IN:  #{question}")
-  end
+  puts(request.to_s(!opts[:packet_trace]))
 
   # If they provided a way to handle it, to that
   response = question.type_s ? opts[question.type_s.to_sym] : nil
@@ -87,33 +83,17 @@ dnser.on_request() do |transaction|
     end
 
     transaction.add_answer(answer)
-
-    if(opts[:packet_trace])
-      puts("OUT: #{transaction.response}")
-    else
-      puts("OUT: #{answer}")
-    end
-
+    puts(transaction.response.to_s(!opts[:packet_trace]))
     transaction.reply!()
   else
     if(pt_host)
       transaction.passthrough!(pt_host, pt_port, Proc.new() do |packet|
-        if(opts[:packet_trace])
-          puts("OUT: #{packet}")
-        else
-          packet.answers.each do |a|
-            puts("OUT: #{a}")
-          end
-        end
+        puts(packet.to_s(!opts[:packet_trace]))
       end)
       puts("OUT: (...forwarding upstream...)")
     else
       transaction.error!(DNSer::Packet::RCODE_NAME_ERROR)
-      if(opts[:packet_trace])
-        puts("OUT: #{transaction.response}")
-      else
-        puts("OUT: NXDomain (domain not found)")
-      end
+      puts(transaction.response.to_s(!opts[:packet_trace]))
     end
   end
 
