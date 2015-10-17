@@ -153,7 +153,7 @@ class DriverDNS
       @window.puts("(This will only be shown once)")
       @shown_pt = true
 
-      transaction.fail!(:NXDomain)
+      transaction.error!(DNSer::Packet::RCODE_NAME_ERROR)
     end
 
     @shown_pt = true
