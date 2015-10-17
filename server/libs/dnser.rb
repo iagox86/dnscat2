@@ -749,6 +749,8 @@ class DNSer
         end
       rescue Timeout::Error
         proc.call(nil)
+      rescue Exception => e
+        puts("There was an exception sending a query for #{hostname} to #{server}:#{port}: #{e}")
       ensure
         if(s)
           s.close()
