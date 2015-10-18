@@ -293,12 +293,86 @@ side's data (by adding the length to the other side's `SEQ` number)
 while sending out its own data and updating its own `SEQ` number (by
 looking at the other side's `ACK` number).
 
+## Encryption / signing
+
+It's important to start by noting: this isn't designed to be strong
+encryption, with assurances like SSL. It's designed to be fast, easy to
+implement, and to prevent passive eavesdropping. Active (man in the
+middle) attacks are only prevented using a shared secret.
+
+### Key exchange
+
+Key exchange is performed using Curve25519 and SHA3. The client and
+server each generate a 32-byte secret, then use Curve25519 to create a
+public key.  The client sends their public key to the server, and the
+server sends their public key to the client.
+
+Once they have the other's public keys, they use those keys to generate
+`shared_key`. The `shared_key`, along with some static strings, are
+SHA3'd (with 256-bit output) to generate the actual keys.
+
+* `basepoint = "\x09\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"`
+* `shared_key = curve25519(mypublic, mysecret, basepoint)`
+* `client_write = SHA3(shared_key || "client_write_key", 256)`
+* `client_mac   = SHA3(shared_key || "client_mac_key",   256)`
+* `server_write = SHA3(shared_key || "server_write_key", 256)`
+* `server_mac   = SHA3(shared_key || "server_mac_key",   256)`
+
+### Peer validation
+
+The client and server can optionally use a shared secret (ie, a
+password) to prevent man-in-the-middle attacks.
+
+
+# TODO
+
+### Stream encapsulation
+
+After each dnscat2 packet is serialized to a byte stream, but before
+it's converted to DNS by the `tunnel_driver`, it's wrapped in
+encryption.
+
+Each packet requires a distinct nonce value. An incremental 32-bit value
+is enough for our uses (if the session gets close to 4.2bn messages, see
+the section on renegotiation below).
+
+Each packet also requires a signature. This is to prevent
+man-in-the-middle attacks, so as long as it can hold off an attacker for
+more than a couple seconds, it's suitable. As such, we're going to use
+SHA3 with a 64-bit output.
+
+The calculations are as follows:
+
+* `encrypted_data = salsa20(data, nonce, write_key)`
+* `signature = SHA3(mac || nonce || encrypted_data, 64)`
+
+Where the `mac` and `write_key` are either the client's or the server's
+respective keys, depending on who's performing the operation.
+
+The final encapsulated packet looks like this:
+
+* (uint64_t) signature
+* (uint32_t) nonce
+* (byte[])   encrypted_data
+
+Any messages with bad encryption should simply be given a blank
+response, or discarded altogether.
+
+### Re-negotiation
+
+To re-negotiate encryption, the client simply sends a `NEGENC` message
+to the server with a new public key, encrypted and signed as normal.
+The server will respond with a new pubkey of its own, exactly like the
+original configuration (the only difference is, it's done over an
+encrypted channel).
+
 ## Constants
 
     /* Message types */
     #define MESSAGE_TYPE_SYN        (0x00)
     #define MESSAGE_TYPE_MSG        (0x01)
     #define MESSAGE_TYPE_FIN        (0x02)
+    #define MESSAGE_TYPE_NEGENC     (0x03)
     #define MESSAGE_TYPE_PING       (0xFF)
 
     /* Options */
@@ -324,9 +398,10 @@ problems.
 As mentioned above, all fields are encoded as big endian (network byte
 order). The following datatypes are used:
 
-* `uint8_t` - an 8-bit (one byte) value
-* `uint16_t` - a 16-bit (two byte) value
-* `uint32_t` - a 32-bit (four byte) value
+* `uint8_t` - an 8-bit (one-byte) value
+* `uint16_t` - a 16-bit (two-byte) value
+* `uint32_t` - a 32-bit (four-byte) value
+* `uint64_t` - a 64-bit (eight-byte) value
 * `ntstring` - a null-terminated string (that is, a series of bytes with a NUL byte ("\0") at the end
 * `byte[]` - an array of bytes - if no size is specified, then it's the rest of the packet
 
@@ -413,6 +488,21 @@ order). The following datatypes are used:
 - (uint8_t)  message_type [0x02]
 - (uint16_t) session_id
 - (ntstring) reason
+
+### MESSAGE_TYPE_NEGENC: [0x03]
+
+- (uint16_t) packet_id
+- (uint8_t)  message_type [0x03]
+- (uint16_t) session_id
+- (uint32_t) flags
+- (uint64_t) nonce
+- (byte[16]) proof
+
+#### Notes
+
+- This can be sent at any time, though will typically be sent first
+- The client and server each send a random 32-bit nonce
+- The proof is a HMAC_SHA1() of the string "dnscat2", signed with the shared key (this is a quick way of telling if we're using the same shared key)
 
 #### Notes
 
