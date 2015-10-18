@@ -334,35 +334,25 @@ Typically, it'll be passed in as commandline arguments. The server may
 even auto-generate a key for each listener and give the user the
 specific command to enter the key.
 
-If a client attempts to validate with a key, the server *MUST* validate
-back. If the client validates and the server doesn't, the client *MUST*
-terminate the connection.
+If a client attempts to validate, the server *MUST* validate back. If
+the client validates and the server doesn't, the client *MUST* terminate
+the connection.
 
-If the client attempts a connection without using a key, it's up to the
-server to decide whether or not to allow the connection (it has no
+If the client doesn't perform validation, it's up to the server to
+decide whether or not to allow the connection (it has no
 man-in-the-middle protection, but it's possible that the client simply
 didn't use a key).
 
-The actual validation is done in the SYN packet, by setting the
-OPT_VALIDATE flag. The client validates against the server with this
-value:
+The actual validation is done in a `VALIDATE` packet. Like the `NEGENC`
+packet, this can be sent at any time, but is almost always sent directly
+after `NEGENC` and before `SYN`. If a server requires authentication, it
+*MAY* reject a connection that doesn't do `VALIDATE` directly after
+`NEGENC` by responding with a `FIN`.
+
+The validation strings are computed using SHA3-256:
 
     client_validation = SHA3-256("client" || shared_key || pubkey_client || pubkey_server || shared_secret)
-
-Likewise, the server validates against the client with:
-
     server_validation = SHA3-256("server" || shared_key || pubkey_client || pubkey_server || shared_secret)
-
-The client and server *MUST NOT* allow any messages except for `SYN` to
-be processed pre-validation. The time between `NEGENC` and the SYN
-packet is a dangerous period, where encryption is enabled by the peer
-hasn't bee validated.
-
-Note that an evil server will be able to get an innocent client's `SYN`
-message. The `SYN` contains the name of a session, but nothing else
-that's mildly sensitive.
-
-See the definition for `MESSAGE_TYPE_SYN` below for more details.
 
 ### Stream encapsulation
 
@@ -419,6 +409,7 @@ their nonce values back to 0.
     #define MESSAGE_TYPE_MSG        (0x01)
     #define MESSAGE_TYPE_FIN        (0x02)
     #define MESSAGE_TYPE_NEGENC     (0x03)
+    #define MESSAGE_TYPE_VALIDATE   (0x04)
     #define MESSAGE_TYPE_PING       (0xFF)
 
     /* Options */
@@ -426,7 +417,6 @@ their nonce values back to 0.
     /* #define OPT_DOWNLOAD         (0x08) DEPRECATED */
     /* #define OPT_CHUNKED_DOWNLOAD (0x10) DEPRECATED */
     #define OPT_COMMAND          (0x20)
-    #define OPT_VALIDATE         (0x40)
 
 ## Messages
 
@@ -461,8 +451,6 @@ order). The following datatypes are used:
 - (uint16_t) options
 - If OPT_NAME is set:
   - (ntstring) session_name
-- If OPT_VALIDATE is set:
-  - (byte[32]) validator
 
 #### Notes
 
@@ -473,9 +461,6 @@ order). The following datatypes are used:
   - OPT_NAME - 0x01
     - Packet contains an additional field called the session name, which
       is a free-form field containing user-readable data
-  - OPT_VALIDATE - 0x40
-    - If this is set by the client, they are validating themselves to
-      the server. See the encryption/signing section above.
 - The server responds with its own SYN, containing its initial sequence
   number and its options.
 - Both the `session_id` and initial sequence number should be
@@ -524,6 +509,11 @@ order). The following datatypes are used:
 - (uint16_t) session_id
 - (ntstring) reason
 
+#### Notes
+
+- Once a FIN has been sent, the client or server should no longer
+  attempt to respond to anything from that connection.
+
 ### MESSAGE_TYPE_NEGENC: [0x03]
 
 - (uint16_t) packet_id
@@ -539,10 +529,19 @@ order). The following datatypes are used:
 - The client and server each send a random 32-bit nonce
 - The proof is a HMAC_SHA1() of the string "dnscat2", signed with the shared key (this is a quick way of telling if we're using the same shared key)
 
-#### Notes
+### MESSAGE_TYPE_VALIDATE: [0x04]
 
-- Once a FIN has been sent, the client or server should no longer
-  attempt to respond to anything from that connection.
+- (uint16_t) packet_id
+- (uint8_t)  message_type [0x03]
+- (uint16_t) session_id
+- (byte[32]) validator
+
+#### Notes
+- This is sent directly after `MESSAGE_TYPE_NEG`
+- The client may not be required to send this (it's up to the server)
+- If the client DOES send it, the server *MUST* respond in kind
+- The validator is based on a shared secret, more information can be
+  found under [Peer validation](#peer-validation)
 
 ### MESSAGE_TYPE_PING: [0xFF]
 
