@@ -302,29 +302,67 @@ middle) attacks are only prevented using a shared secret.
 
 ### Key exchange
 
-Key exchange is performed using Curve25519 and SHA3. The client and
-server each generate a 256-bit secret, then use Curve25519 to create a
-public key.  The client sends their public key to the server, and the
-server sends their public key to the client.
+Key exchange is performed using Curve25519 and SHA3-256. The client and
+server each generate a 256-bit private key, then use Curve25519 to
+derive a public key.  The client sends their public key to the server,
+and the server sends their public key to the client. There are more
+details on how it's sent below, where `MESSAGE_TYPE_NEGENC` is defined.
 
-Once they have the other's public keys, they use those keys to generate
-`shared_key`. The `shared_key`, along with some static strings, are
-SHA3'd (with 256-bit output) to generate the actual keys.
+Once they have the other's public keys, the client and server use those
+keys to generate `shared_key`. The `shared_key`, along with some static
+strings, are SHA3'd to generate the actual keys.
 
-* `basepoint = "\x09\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"`
-* `shared_key = curve25519(mypublic, mysecret, basepoint)`
-* `client_write = SHA3(shared_key || "client_write_key", 256)`
-* `client_mac   = SHA3(shared_key || "client_mac_key",   256)`
-* `server_write = SHA3(shared_key || "server_write_key", 256)`
-* `server_mac   = SHA3(shared_key || "server_mac_key",   256)`
+    `basepoint = "\x09\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"`
+    `shared_key = curve25519(mypublic, mysecret, basepoint)`
+    `client_write = SHA3-256(shared_key || "client_write_key")`
+    `client_mac   = SHA3-256(shared_key || "client_mac_key")`
+    `server_write = SHA3-256(shared_key || "server_write_key")`
+    `server_mac   = SHA3-256(shared_key || "server_mac_key")`
+
+Note that, without peer validation, this is vulnerable to
+man-in-the-middle attacks. But it still prevents passive inspection, so
+it isn't completely without merit, and should be used as the default
+mode.
 
 ### Peer validation
 
-The client and server can optionally use a shared secret (ie, a
-password) to prevent man-in-the-middle attacks.
+The client and server can optionally use a shared secret (ie, a password
+or a key) to prevent man-in-the-middle attacks.
 
+`shared_secret` is something the client and server have to pre-decide.
+Typically, it'll be passed in as commandline arguments. The server may
+even auto-generate a key for each listener and give the user the
+specific command to enter the key.
 
-# TODO
+If a client attempts to validate with a key, the server *MUST* validate
+back. If the client validates and the server doesn't, the client *MUST*
+terminate the connection.
+
+If the client attempts a connection without using a key, it's up to the
+server to decide whether or not to allow the connection (it has no
+man-in-the-middle protection, but it's possible that the client simply
+didn't use a key).
+
+The actual validation is done in the SYN packet, by setting the
+OPT_VALIDATE flag. The client validates against the server with this
+value:
+
+    client_validation = SHA3-256("client" || shared_key || pubkey_client || pubkey_server || shared_secret)
+
+Likewise, the server validates against the client with:
+
+    server_validation = SHA3-256("server" || shared_key || pubkey_client || pubkey_server || shared_secret)
+
+The client and server *MUST NOT* allow any messages except for `SYN` to
+be processed pre-validation. The time between `NEGENC` and the SYN
+packet is a dangerous period, where encryption is enabled by the peer
+hasn't bee validated.
+
+Note that an evil server will be able to get an innocent client's `SYN`
+message. The `SYN` contains the name of a session, but nothing else
+that's mildly sensitive.
+
+See the definition for `MESSAGE_TYPE_SYN` below for more details.
 
 ### Stream encapsulation
 
@@ -334,20 +372,19 @@ encryption.
 
 Each packet requires a distinct nonce value. An incremental 16-bit value
 is used. When the client or server's nonce value approaches the maximum
-value (0xFFFF or 65535), the client *must* initiate a re-negotiation
-(see below). The client and server *MUST NOT* allow the other to use a
-nonce that's smaller than the previous nonce, unless a re-negotiation
-happens.
+value (0xFFFF (65535)), the client *must* initiate a re-negotiation (see
+below). The client and server *MUST NOT* allow the other to use a nonce
+that's smaller than the previous nonce, unless a re-negotiation happens.
 
 Each packet also requires a signature. This is to prevent
 man-in-the-middle attacks, so as long as it can hold off an attacker for
 more than a couple seconds, it's suitable. As such, we're going to use
-SHA3 with a 48-bit output.
+SHA3-256 truncated to 48 bits.
 
 The calculations are as follows:
 
-* `encrypted_data = salsa20(data, nonce, write_key)`
-* `signature = SHA3(mac || nonce || encrypted_data, 64)`
+    `encrypted_data = salsa20(data, nonce, write_key)`
+    `signature = SHA3(mac || nonce || encrypted_data, 64)`
 
 Where the `mac` and `write_key` are either the client's or the server's
 respective keys, depending on who's performing the operation.
@@ -365,10 +402,12 @@ blank response, or discarded altogether.
 ### Re-negotiation
 
 To re-negotiate encryption, the client simply sends a `NEGENC` message
-to the server with a new public key, encrypted and signed as normal.
-The server will respond with a new pubkey of its own, exactly like the
-original configuration (the only difference is, it's done over an
-encrypted channel).
+to the server with a new public key, encrypted and signed as a normal
+message. The server will respond with a new pubkey of its own, exactly
+like the original configuration (the only difference is, it's done over
+an encrypted channel).
+
+Validation is not re-done. The connection is assumed to still be valid.
 
 After successful re-negotiation, the client and server should both reset
 their nonce values back to 0.
@@ -384,9 +423,10 @@ their nonce values back to 0.
 
     /* Options */
     #define OPT_NAME             (0x01)
-    #define OPT_DOWNLOAD         (0x08)
-    #define OPT_CHUNKED_DOWNLOAD (0x10)
+    /* #define OPT_DOWNLOAD         (0x08) DEPRECATED */
+    /* #define OPT_CHUNKED_DOWNLOAD (0x10) DEPRECATED */
     #define OPT_COMMAND          (0x20)
+    #define OPT_VALIDATE         (0x40)
 
 ## Messages
 
@@ -421,8 +461,8 @@ order). The following datatypes are used:
 - (uint16_t) options
 - If OPT_NAME is set:
   - (ntstring) session_name
-- If OPT_DOWNLOAD or OPT_CHUNKED_DOWNLOAD is set:
-  - (ntstring) filename
+- If OPT_VALIDATE is set:
+  - (byte[32]) validator
 
 #### Notes
 
@@ -433,18 +473,9 @@ order). The following datatypes are used:
   - OPT_NAME - 0x01
     - Packet contains an additional field called the session name, which
       is a free-form field containing user-readable data
-  - OPT_DOWNLOAD - 0x08 [deprecated; don't use]
-    - Requests a download from the server
-    - Server should serve that file in place of stdin
-    - For obvious reasons, servers should *not* let users read arbitrary
-      files, but rather make it up to the user to choose which
-      files/folders to allow
-  - CHUNKED_DOWNLOAD - 0x10 [deprecated; don't use]
-    - Requests a "chunked" download from the server - in the MSG
-      packets, the client will let the server know which offset to
-      download
-    - Each MSG also contains an offset field
-    - Each data chunk is exactly XXX-TODO bytes long
+  - OPT_VALIDATE - 0x40
+    - If this is set by the client, they are validating themselves to
+      the server. See the encryption/signing section above.
 - The server responds with its own SYN, containing its initial sequence
   number and its options.
 - Both the `session_id` and initial sequence number should be
@@ -478,11 +509,8 @@ order). The following datatypes are used:
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0x01]
 - (uint16_t) session_id
-- If OPT_CHUNKED_DOWNLOAD is set:
-  - (uint32_t) chunk number
-- If OPT_CHUCNKED_DOWNLOAD is not set:
-  - (uint16_t) seq
-  - (uint16_t) ack
+- (uint16_t) seq
+- (uint16_t) ack
 - (byte[]) data
 
 #### Notes
