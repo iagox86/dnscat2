@@ -332,14 +332,17 @@ After each dnscat2 packet is serialized to a byte stream, but before
 it's converted to DNS by the `tunnel_driver`, it's wrapped in
 encryption.
 
-Each packet requires a distinct nonce value. An incremental 32-bit value
-is enough for our uses (if the session gets close to 4.2bn messages, see
-the section on renegotiation below).
+Each packet requires a distinct nonce value. An incremental 16-bit value
+is used. When the client or server's nonce value approaches the maximum
+value (0xFFFF or 65535), the client *must* initiate a re-negotiation
+(see below). The client and server *MUST NOT* allow the other to use a
+nonce that's smaller than the previous nonce, unless a re-negotiation
+happens.
 
 Each packet also requires a signature. This is to prevent
 man-in-the-middle attacks, so as long as it can hold off an attacker for
 more than a couple seconds, it's suitable. As such, we're going to use
-SHA3 with a 64-bit output.
+SHA3 with a 48-bit output.
 
 The calculations are as follows:
 
@@ -351,12 +354,13 @@ respective keys, depending on who's performing the operation.
 
 The final encapsulated packet looks like this:
 
-* (uint64_t) signature
-* (uint32_t) nonce
+* (uint48_t) signature
+* (uint16_t) nonce
 * (byte[])   encrypted_data
 
-Any messages with bad encryption should simply be given a blank
-response, or discarded altogether.
+*IMPORTANT*: The client and server *MUST NOT* re-use a nonce.  Any
+messages with a bad signature or a bad nonce should simply be given a
+blank response, or discarded altogether.
 
 ### Re-negotiation
 
@@ -365,6 +369,9 @@ to the server with a new public key, encrypted and signed as normal.
 The server will respond with a new pubkey of its own, exactly like the
 original configuration (the only difference is, it's done over an
 encrypted channel).
+
+After successful re-negotiation, the client and server should both reset
+their nonce values back to 0.
 
 ## Constants
 
