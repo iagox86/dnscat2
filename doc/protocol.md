@@ -303,7 +303,7 @@ middle) attacks are only prevented using a shared secret.
 ### Key exchange
 
 Key exchange is performed using Curve25519 and SHA3. The client and
-server each generate a 32-byte secret, then use Curve25519 to create a
+server each generate a 256-bit secret, then use Curve25519 to create a
 public key.  The client sends their public key to the server, and the
 server sends their public key to the client.
 

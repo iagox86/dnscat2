@@ -27,6 +27,8 @@
 #include "libs/select_group.h"
 #include "libs/udp.h"
 #include "tunnel_drivers/driver_dns.h"
+#include "libs/crypto/sha1.h" /* TODO: Delete me! */
+#include "libs/crypto/pkcs5_pbkdf2.h" /* TODO: Delete me! */
 
 /* Default options */
 #define NAME    "dnscat2"
@@ -291,6 +293,39 @@ int main(int argc, char *argv[])
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
   session_t        *session = NULL;
+  uint8_t buffer[10000];
+  int i;
+
+/* DELETE ME */
+  SHA1_CTX test;
+  SHA1Init(&test);
+  SHA1Update(&test, "password", 8);
+  SHA1Final(buffer, &test);
+
+  for(i =0; i < SHA1_DIGEST_LENGTH; i++)
+    printf("%x", buffer[i] & 0x0FF);
+  printf("\n");
+
+  pkcs5_pbkdf2("password", 8, (uint8_t*)"ATHENA.MIT.EDUraeburn", 21, buffer, 16, 1);
+  for(i =0; i < 16; i++)
+    printf("%02x", buffer[i] & 0x0FF);
+  printf("\n");
+  printf("cdedb5281bb2f801565a1122b2563515\n");
+  exit(0);
+#if 0
+int pkcs5_pbkdf2(const char *pass, size_t pass_len, const uint8_t *salt, size_t salt_len, uint8_t *key, size_t key_len, unsigned int rounds);
+     Input:
+       P = "password" (8 octets)
+       S = "salt" (4 octets)
+       c = 1
+       dkLen = 20
+
+     Output:
+       DK = 0c 60 c8 0f 96 1f 0e 71
+            f3 a9 b5 24 af 60 12 06
+            2f e0 37 a6             (20 octets)
+#endif
+/* DELETE ME */
 
   group = select_group_create();
   system_dns = dns_get_system();

@@ -35,6 +35,10 @@ OBJS=controller/packet.o \
 		 drivers/driver_exec.o \
 		 drivers/driver_ping.o \
 		 libs/buffer.o \
+		 libs/crypto/curve25519-donna.c \
+		 libs/crypto/salsa20.o \
+		 libs/crypto/sha1.o \
+		 libs/crypto/pkcs5_pbkdf2.o \
 		 libs/dns.o \
 		 libs/log.o \
 		 libs/memory.o \
