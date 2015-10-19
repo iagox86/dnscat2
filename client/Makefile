@@ -7,16 +7,16 @@
 # Should work for Linux and BSD make.
 
 CC?=gcc
-DEBUG_CFLAGS?=-g -DTESTMEMORY -Werror -O0
+DEBUG_CFLAGS?=-DTESTMEMORY -Werror -O0
 RELEASE_CFLAGS?=-Os
-CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security
+CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security -g
 LIBS=-pie -Wl,-z,relro,-z,now
 
 # Can't use a '#' in the shell command
 VERSION=$(shell egrep '^.define VERSION' dnscat.c | head -n1 | cut -d\" -f2)
 
 OS=$(shell uname -s)
-ARCH=$(shell if [[ `uname -p` == *"64"* ]]; then echo "x64"; else echo "x86"; fi)
+ARCH=$(shell uname -p | sed 's/x86_64/x64/i' | sed 's/i.86/x86/i')
 
 ifeq ($(OS), Linux)
   RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(ARCH)"
@@ -49,18 +49,19 @@ OBJS=controller/packet.o \
 
 DNSCAT_DNS_OBJS=${OBJS} dnscat.o
 
+all: dnscat
+	@echo "*** Build complete! Run 'make debug' to build a debug version!"
+
 debug: CFLAGS += $(DEBUG_CFLAGS)
 debug: dnscat
 	@echo "*** Debug build complete"
 
 release: CFLAGS += ${RELEASE_CFLAGS}
 release: clean dnscat
+	strip dnscat
 	tar -cjf ${RELEASE_FILENAME}.tar.bz2 dnscat
 	@echo "*** Release compiled: `pwd`/${RELEASE_FILENAME}"
 	@echo "*** By the way, did you update the version number in the server?"
-
-# At some point, maybe should default to making the release version
-all: debug
 
 remove:
 	rm -f /usr/local/bin/dnscat

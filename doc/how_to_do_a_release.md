@@ -2,6 +2,17 @@ This document is written more for myself than for the community. But if
 somebody else someday has to do a release (because, I dunno, I gave up
 DNS for NetBIOS), this could be helpful. :)
 
+## Merge!
+
+If there's a branch to merge, simply run:
+
+    git checkout master
+    git pull
+    git merge otherbranch
+    git push
+
+Super simple!
+
 ## Make sure the version number and docs are up to date
 
 Both client/dnscat.c and server/dnscat2.rb contain a version number at
