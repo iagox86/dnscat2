@@ -5,4 +5,5 @@
 
 source 'https://rubygems.org'
 
-gem 'trollop'       # commandline parsing
+gem 'trollop' # commandline parsing
+gem 'salsa20' # encrypted connections

@@ -8,12 +8,18 @@
 # Builds and parses dnscat2 packets.
 ##
 
+require 'salsa20'
+
 require 'libs/dnscat_exception'
 require 'libs/hex'
+require 'libs/sha3'
 
 module PacketHelper
   def at_least?(data, needed)
     return (data.length >= needed)
+  end
+  def exactly?(data, needed)
+    return (data.length == needed)
   end
 end
 
@@ -24,6 +30,8 @@ class Packet
   MESSAGE_TYPE_SYN        = 0x00
   MESSAGE_TYPE_MSG        = 0x01
   MESSAGE_TYPE_FIN        = 0x02
+  MESSAGE_TYPE_NEGENC     = 0x03
+  MESSAGE_TYPE_AUTH       = 0x04
   MESSAGE_TYPE_PING       = 0xFF
 
   OPT_NAME                = 0x0001
@@ -143,19 +151,6 @@ class Packet
       }).to_bytes().length()
     end
 
-#    def str_format(str)
-#      result = ""
-#      str.chars.each do |c|
-#        if(c.ord < 0x20 || c.ord > 0x7F)
-#          result += '\x%02x' % (c.ord)
-#        else
-#          result += c
-#        end
-#      end
-#
-#      return result
-#    end
-
     def to_s()
       return "[[MSG]] :: seq = %04x, ack = %04x, data = 0x%x bytes" % [@seq, @ack, data.length]
     end
@@ -164,7 +159,7 @@ class Packet
       result = ""
       seq = @seq || 0
       ack = @ack || 0
-      result += [seq, ack, @data].pack("nnA*")
+      result += [seq, ack, @data].pack("nna*")
 
       return result
     end
@@ -201,6 +196,79 @@ class Packet
 
     def to_bytes()
       [@reason].pack("Z*")
+    end
+  end
+
+  class NegEncBody
+    extend PacketHelper
+
+    attr_reader :flags, :public_key
+
+    def initialize(params = {})
+      @flags      = params[:flags]      || raise(DnscatException, "params[:flags] is required!")
+      @public_key = params[:public_key] || raise(DnscatException, "params[:public_key] is required!")
+
+      if(@public_key.length != 32)
+        raise(DnscatException, "params[:public_key] was the wrong size!")
+      end
+    end
+
+    def NegEncBody.parse(data)
+      exactly?(data, 36) || raise(DnscatException, "Packet is the wrong length (NEGENC)")
+      flags, public_key, data = data.unpack("Na32a*")
+
+      if(public_key.length != 32)
+        raise(DnscatException, "NegEncBody packet was too short")
+      end
+      if(data != "")
+        raise(DnscatException, "Extra data on the end of a NEGENC packet")
+      end
+
+      return NegEncBody.new({:flags => flags, :public_key => public_key})
+    end
+
+    def to_s()
+      return "[[NEGENC]] :: flags = 0x%08x, pubkey = %s" % [@flags, @public_key.unpack("H*").pop()]
+    end
+
+    def to_bytes()
+      return [@flags, @public_key].pack("Na32")
+    end
+  end
+
+  class AuthBody
+    extend PacketHelper
+
+    attr_reader :authenticator
+
+    def initialize(params = {})
+      @authenticator = params[:authenticator] || raise(DnscatException, "params[:authenticator] is required!")
+
+      if(@authenticator.length != 32)
+        raise(DnscatException, "params[:authenticator] was the wrong size!")
+      end
+    end
+
+    def AuthBody.parse(data)
+      exactly?(data, 32) || raise(DnscatException, "Packet is the wrong length (AUTH)")
+      authenticator, data = data.unpack("a32a*")
+
+      if(authenticator.length != 32)
+        raise(DnscatException, "AUTH packet was too short")
+      end
+      if(data != "")
+        raise(DnscatException, "Extra data on the end of a AUTH packet")
+      end
+
+      return AuthBody.new({:authenticator => authenticator})
+    end
+
+    def to_s()
+      return "[[AUTH]] :: authenticator = %s" % [@authenticator.unpack("H*").pop()]
+    end
+
+    def to_bytes()
+      return [authenticator].pack("a32")
     end
   end
 
@@ -324,6 +392,48 @@ class Packet
     end
 
     return result
+  end
+end
+
+class EncryptedPacket
+  attr_reader :nonce, :packet
+
+  def initialize(nonce, packet)
+    if(nonce < 0x0000 || nonce > 0xFFFF)
+      raise(DnscatException, "Invalid nonce: #{nonce}")
+    end
+  end
+
+  def EncryptedPacket.parse(data, their_mac_key, their_write_key, options = nil)
+    signature, signed_data = data.unpack("a6a*")
+
+    correct_signature = Digest::SHA3.new(256).digest(their_mac_key + signed_data)
+    # TODO: I might want to change this exception so we can handle it more gracefully
+    if(correct_signature[0,6] != signature)
+      raise(DnscatException, "Invalid signature on message!")
+    end
+
+    # Read the nonce as a 16-bit integer
+    nonce, encrypted_data = data.unpack("na*")
+
+    # Decrypt the data
+    decryptor = Salsa20.new(their_write_key, [nonce].pack("q>"))
+    data = decryptor.decrypt(encrypted_data)
+
+    return EncryptedPacket.new(nonce, Packet.parse(data, options))
+  end
+
+  def to_s()
+    return "[Will be encrypted 0x%x] %s" % [@nonce, @packet.to_s]
+  end
+
+  def to_bytes(our_mac_key, our_write_key)
+    encryptor = Salsa20.new(our_write_key, [@nonce].pack("q>"))
+    encrypted_data = encryptor.encrypt(@packet.to_bytes())
+    to_sign = [@nonce, encrypted_data].pack("na*")
+    signature = Digest::SHA3.new(256).digest(our_mac_key + to_sign)
+
+    return signature[0,6] + to_sign
   end
 end
 

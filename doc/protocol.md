@@ -381,7 +381,7 @@ SHA3-256 truncated to 48 bits.
 The calculations are as follows:
 
     `encrypted_data = salsa20(data, nonce, write_key)`
-    `signature = SHA3(mac || nonce || encrypted_data, 64)`
+    `signature = SHA3(mac || nonce || encrypted_data)[0,6]`
 
 Where the `mac` and `write_key` are either the client's or the server's
 respective keys, depending on who's performing the operation.
@@ -525,14 +525,12 @@ order). The following datatypes are used:
 - (uint8_t)  message_type [0x03]
 - (uint16_t) session_id
 - (uint32_t) flags
-- (uint64_t) nonce
-- (byte[16]) proof
+- (byte[32]) public_key
 
 #### Notes
 
 - This can be sent at any time, though will typically be sent first
-- The client and server each send a random 32-bit nonce
-- The proof is a HMAC_SHA1() of the string "dnscat2", signed with the shared secret (this is a quick way of telling if we're using the same shared secret)
+- The public key is derived using Curve25519 (see above)
 
 ### MESSAGE_TYPE_AUTH: [0x04]
 
@@ -542,7 +540,7 @@ order). The following datatypes are used:
 - (byte[32]) authenticator
 
 #### Notes
-- This is sent directly after `MESSAGE_TYPE_NEG`
+- This is sent directly after `MESSAGE_TYPE_NEGENC`
 - The client may not be required to send this (it's up to the server)
 - If the client DOES send it, the server *MUST* respond in kind
 - The authenticator is based on a pre-shared secret, more information can be
