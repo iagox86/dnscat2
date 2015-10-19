@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef WIN32
 #include "libs/pstdint.h"
@@ -54,12 +55,19 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
 
     case PACKET_TYPE_FIN:
       packet->body.fin.reason = buffer_alloc_next_ntstring(buffer);
+      break;
 
+    case PACKET_TYPE_NEGENC:
+      packet->body.negenc.flags = buffer_read_next_int32(buffer);
+      buffer_read_next_bytes(buffer, packet->body.negenc.public_key, 32);
+      break;
+
+    case PACKET_TYPE_AUTH:
+      buffer_read_next_bytes(buffer, packet->body.auth.authenticator, 32);
       break;
 
     case PACKET_TYPE_PING:
       packet->body.ping.data = buffer_alloc_next_ntstring(buffer);
-
       break;
 
     default:
@@ -139,6 +147,31 @@ packet_t *packet_create_fin(uint16_t session_id, char *reason)
   packet->packet_id       = rand() % 0xFFFF;
   packet->session_id      = session_id;
   packet->body.fin.reason = safe_strdup(reason);
+
+  return packet;
+}
+
+packet_t *packet_create_negenc(uint16_t session_id, uint32_t flags, uint8_t *public_key)
+{
+  packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
+
+  packet->packet_type       = PACKET_TYPE_NEGENC;
+  packet->packet_id         = rand() % 0xFFFF;
+  packet->session_id        = session_id;
+  packet->body.negenc.flags = flags;
+  memcpy(packet->body.negenc.public_key, public_key, 32);
+
+  return packet;
+}
+
+packet_t *packet_create_auth(uint16_t session_id, uint8_t *authenticator)
+{
+  packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
+
+  packet->packet_type       = PACKET_TYPE_AUTH;
+  packet->packet_id         = rand() % 0xFFFF;
+  packet->session_id        = session_id;
+  memcpy(packet->body.auth.authenticator, authenticator, 32);
 
   return packet;
 }
@@ -232,6 +265,40 @@ size_t packet_get_fin_size(options_t options)
   return size;
 }
 
+size_t packet_get_negenc_size()
+{
+  static size_t size = 0;
+
+  if(size == 0)
+  {
+    uint8_t  *fake_key = { 0 };
+    packet_t *p = packet_create_negenc(0, 0, fake_key);
+    uint8_t  *data = packet_to_bytes(p, &size, 0);
+
+    safe_free(data);
+    packet_destroy(p);
+  }
+
+  return size;
+}
+
+size_t packet_get_auth_size()
+{
+  static size_t size = 0;
+
+  if(size == 0)
+  {
+    uint8_t  *fake_authenticator = { 0 };
+    packet_t *p = packet_create_auth(0, fake_authenticator);
+    uint8_t  *data = packet_to_bytes(p, &size, 0);
+
+    safe_free(data);
+    packet_destroy(p);
+  }
+
+  return size;
+}
+
 size_t packet_get_ping_size()
 {
   static size_t size = 0;
@@ -277,12 +344,19 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
 
     case PACKET_TYPE_FIN:
       buffer_add_ntstring(buffer, packet->body.fin.reason);
+      break;
 
+    case PACKET_TYPE_NEGENC:
+      buffer_add_int32(buffer, packet->body.negenc.flags);
+      buffer_add_bytes(buffer, packet->body.negenc.public_key, 32);
+      break;
+
+    case PACKET_TYPE_AUTH:
+      buffer_add_bytes(buffer, packet->body.auth.authenticator, 32);
       break;
 
     case PACKET_TYPE_PING:
       buffer_add_ntstring(buffer, packet->body.ping.data);
-
       break;
 
     default:
@@ -311,6 +385,14 @@ char *packet_to_s(packet_t *packet, options_t options)
   {
     _snprintf_s(ret, 1024, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
   }
+  else if(packet->packet_type == PACKET_TYPE_NEGENC)
+  {
+    _snprintf_s(ret, 1024, 1024, "Type = NEGENC :: [0x%04x] session = 0x%04x :: flags = 0x%08x :: public_key = [not shown]", packet->packet_id, packet->session_id, packet->body.negenc.flags);
+  }
+  else if(packet->packet_type == PACKET_TYPE_AUTH)
+  {
+    _snprintf_s(ret, 1024, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
+  }
   else if(packet->packet_type == PACKET_TYPE_PING)
   {
     _snprintf_s(ret, 1024, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
@@ -331,6 +413,14 @@ char *packet_to_s(packet_t *packet, options_t options)
   else if(packet->packet_type == PACKET_TYPE_FIN)
   {
     snprintf(ret, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
+  }
+  else if(packet->packet_type == PACKET_TYPE_NEGENC)
+  {
+    snprintf(ret, 1024, "Type = NEGENC :: [0x%04x] session = 0x%04x :: flags = 0x%08x :: public_key = [not shown]", packet->packet_id, packet->session_id, packet->body.negenc.flags);
+  }
+  else if(packet->packet_type == PACKET_TYPE_AUTH)
+  {
+    snprintf(ret, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
   }
   else if(packet->packet_type == PACKET_TYPE_PING)
   {
@@ -358,8 +448,6 @@ void packet_destroy(packet_t *packet)
   {
     if(packet->body.syn.name)
       safe_free(packet->body.syn.name);
-    if(packet->body.syn.filename)
-      safe_free(packet->body.syn.filename);
   }
 
   if(packet->packet_type == PACKET_TYPE_MSG)
@@ -372,6 +460,16 @@ void packet_destroy(packet_t *packet)
   {
     if(packet->body.fin.reason)
       safe_free(packet->body.fin.reason);
+  }
+
+  if(packet->packet_type == PACKET_TYPE_NEGENC)
+  {
+    /* Nothing was allocated. */
+  }
+
+  if(packet->packet_type == PACKET_TYPE_AUTH)
+  {
+    /* Nothing was allocated. */
   }
 
   if(packet->packet_type == PACKET_TYPE_PING)

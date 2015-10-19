@@ -37,7 +37,6 @@ typedef struct
   uint16_t seq;
   uint16_t options;
   char    *name;
-  char    *filename;
 } syn_packet_t;
 
 typedef enum
