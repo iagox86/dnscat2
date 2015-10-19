@@ -326,12 +326,12 @@ few different static strings to generate the actual keys.
     `server_write = SHA3-256(shared_secret || "server_write_key")`
     `server_mac   = SHA3-256(shared_secret || "server_mac_key")`
 
-Note that, without peer validation (see below), this is vulnerable to
+Note that, without peer authentication (see below), this is vulnerable to
 man-in-the-middle attacks. But it still prevents passive inspection, so
 it isn't completely without merit, and should be used as the default
 mode.
 
-### Peer validation
+### Peer authentication
 
 The client and server can optionally use a pre-shared secret (ie, a
 password or a key) to prevent man-in-the-middle attacks.
@@ -341,25 +341,25 @@ Typically, it'll be passed in as commandline arguments. The server may
 even auto-generate a key for each listener and give the user the
 specific command to enter the key.
 
-If a client attempts to validate, the server *MUST* validate back. If
-the client validates and the server doesn't, the client *MUST* terminate
-the connection.
+If a client attempts to authenticate, the server *MUST* authenticate
+back. If the client authenticate and the server doesn't, the client
+*MUST* terminate the connection.
 
-If the client doesn't perform validation, it's up to the server to
+If the client doesn't perform authentication, it's up to the server to
 decide whether or not to allow the connection (it has no
 man-in-the-middle protection, but it's possible that the client simply
 didn't use a key).
 
-The actual validation is done in a `VALIDATE` packet. Like the `NEGENC`
+The actual authentication is done in a `AUTH` packet. Like the `NEGENC`
 packet, this can be sent at any time, but is almost always sent directly
 after `NEGENC` and before `SYN`. If a server wishes to be strict, it
-*MAY* opt to reject a connection that doesn't do `VALIDATE` directly
+*MAY* opt to reject a connection that doesn't do `AUTH` directly
 after `NEGENC` by responding with a `FIN`.
 
-The validation strings are computed using SHA3-256:
+The authentication strings are computed using SHA3-256:
 
-    client_validation = SHA3-256("client" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
-    server_validation = SHA3-256("server" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+    client_authentication = SHA3-256("client" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+    server_authentication = SHA3-256("server" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
 
 ### Stream encapsulation
 
@@ -404,7 +404,7 @@ message. The server will respond with a new pubkey of its own, exactly
 like the original configuration (the only difference is, it's done over
 an encrypted channel).
 
-Validation is not re-done. The connection is assumed to still be valid.
+Authentication is not re-done. The connection is assumed to still be valid.
 
 After successful re-negotiation, the client and server should both reset
 their nonce values back to 0.
@@ -412,17 +412,15 @@ their nonce values back to 0.
 ## Constants
 
     /* Message types */
-    #define MESSAGE_TYPE_SYN        (0x00)
-    #define MESSAGE_TYPE_MSG        (0x01)
-    #define MESSAGE_TYPE_FIN        (0x02)
-    #define MESSAGE_TYPE_NEGENC     (0x03)
-    #define MESSAGE_TYPE_VALIDATE   (0x04)
-    #define MESSAGE_TYPE_PING       (0xFF)
+    #define MESSAGE_TYPE_SYN    (0x00)
+    #define MESSAGE_TYPE_MSG    (0x01)
+    #define MESSAGE_TYPE_FIN    (0x02)
+    #define MESSAGE_TYPE_NEGENC (0x03)
+    #define MESSAGE_TYPE_AUTH   (0x04)
+    #define MESSAGE_TYPE_PING   (0xFF)
 
     /* Options */
     #define OPT_NAME             (0x01)
-    /* #define OPT_DOWNLOAD         (0x08) DEPRECATED */
-    /* #define OPT_CHUNKED_DOWNLOAD (0x10) DEPRECATED */
     #define OPT_COMMAND          (0x20)
 
 ## Messages
@@ -536,19 +534,19 @@ order). The following datatypes are used:
 - The client and server each send a random 32-bit nonce
 - The proof is a HMAC_SHA1() of the string "dnscat2", signed with the shared secret (this is a quick way of telling if we're using the same shared secret)
 
-### MESSAGE_TYPE_VALIDATE: [0x04]
+### MESSAGE_TYPE_AUTH: [0x04]
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0x03]
 - (uint16_t) session_id
-- (byte[32]) validator
+- (byte[32]) authenticator
 
 #### Notes
 - This is sent directly after `MESSAGE_TYPE_NEG`
 - The client may not be required to send this (it's up to the server)
 - If the client DOES send it, the server *MUST* respond in kind
-- The validator is based on a pre-shared secret, more information can be
-  found under [Peer validation](#peer-validation)
+- The authenticator is based on a pre-shared secret, more information can be
+  found under [Peer authentication](#peer-authentication)
 
 ### MESSAGE_TYPE_PING: [0xFF]
 
