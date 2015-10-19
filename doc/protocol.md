@@ -298,7 +298,7 @@ looking at the other side's `ACK` number).
 It's important to start by noting: this isn't designed to be strong
 encryption, with assurances like SSL. It's designed to be fast, easy to
 implement, and to prevent passive eavesdropping. Active (man in the
-middle) attacks are only prevented using a shared secret.
+middle) attacks are only prevented using a pre-shared secret.
 
 To summarize, Curve25519 and SHA3 are used to generate a shared
 symmetric key, which is used with SHA3 and Salsa20 to sign and encrypt
@@ -316,15 +316,15 @@ their public key to the client. This is all performed in the
 `MESSAGE_TYPE_NEGENC` packet, defined below.
 
 Once they have one another's public keys, the client and server use
-those keys to generate `shared_key`. `shared_key` is SHA3'd with a few
-different static strings to generate the actual keys.
+those keys to generate `shared_secret`. `shared_secret` is SHA3'd with a
+few different static strings to generate the actual keys.
 
     `basepoint = "\x09\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"`
-    `shared_key = curve25519(mypublic, mysecret, basepoint)`
-    `client_write = SHA3-256(shared_key || "client_write_key")`
-    `client_mac   = SHA3-256(shared_key || "client_mac_key")`
-    `server_write = SHA3-256(shared_key || "server_write_key")`
-    `server_mac   = SHA3-256(shared_key || "server_mac_key")`
+    `shared_secret = curve25519(mypublic, mysecret, basepoint)`
+    `client_write = SHA3-256(shared_secret || "client_write_key")`
+    `client_mac   = SHA3-256(shared_secret || "client_mac_key")`
+    `server_write = SHA3-256(shared_secret || "server_write_key")`
+    `server_mac   = SHA3-256(shared_secret || "server_mac_key")`
 
 Note that, without peer validation (see below), this is vulnerable to
 man-in-the-middle attacks. But it still prevents passive inspection, so
@@ -333,10 +333,10 @@ mode.
 
 ### Peer validation
 
-The client and server can optionally use a shared secret (ie, a password
-or a key) to prevent man-in-the-middle attacks.
+The client and server can optionally use a pre-shared secret (ie, a
+password or a key) to prevent man-in-the-middle attacks.
 
-`shared_secret` is something the client and server have to pre-decide.
+`preshared_secret` is something the client and server have to pre-decide.
 Typically, it'll be passed in as commandline arguments. The server may
 even auto-generate a key for each listener and give the user the
 specific command to enter the key.
@@ -358,8 +358,8 @@ after `NEGENC` by responding with a `FIN`.
 
 The validation strings are computed using SHA3-256:
 
-    client_validation = SHA3-256("client" || shared_key || pubkey_client || pubkey_server || shared_secret)
-    server_validation = SHA3-256("server" || shared_key || pubkey_client || pubkey_server || shared_secret)
+    client_validation = SHA3-256("client" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+    server_validation = SHA3-256("server" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
 
 ### Stream encapsulation
 
@@ -534,7 +534,7 @@ order). The following datatypes are used:
 
 - This can be sent at any time, though will typically be sent first
 - The client and server each send a random 32-bit nonce
-- The proof is a HMAC_SHA1() of the string "dnscat2", signed with the shared key (this is a quick way of telling if we're using the same shared key)
+- The proof is a HMAC_SHA1() of the string "dnscat2", signed with the shared secret (this is a quick way of telling if we're using the same shared secret)
 
 ### MESSAGE_TYPE_VALIDATE: [0x04]
 
@@ -547,7 +547,7 @@ order). The following datatypes are used:
 - This is sent directly after `MESSAGE_TYPE_NEG`
 - The client may not be required to send this (it's up to the server)
 - If the client DOES send it, the server *MUST* respond in kind
-- The validator is based on a shared secret, more information can be
+- The validator is based on a pre-shared secret, more information can be
   found under [Peer validation](#peer-validation)
 
 ### MESSAGE_TYPE_PING: [0xFF]
