@@ -141,4 +141,7 @@ void packet_print(packet_t *packet, options_t options);
 /* Needs to be freed with safe_free() */
 uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options);
 
+/* Create a new copy of the packet. */
+packet_t *packet_clone(packet_t *packet, options_t options);
+
 #endif

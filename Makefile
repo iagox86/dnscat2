@@ -9,6 +9,10 @@ all:
 	@echo "* Client: client/dnscat"
 	@echo "* Server: server/dnscat_*.rb"
 
+debug:
+	@cd client && make debug
+	@echo "Debug compile complete!"
+
 release:
 	@cd client && make release
 	@echo "Release compile complete!"

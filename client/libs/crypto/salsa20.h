@@ -1,5 +1,5 @@
-#ifndef _SALSA20_H_
-#define _SALSA20_H_
+#ifndef __SALSA20_H__
+#define __SALSA20_H__
 
 #include <stdint.h>
 #include <stddef.h>
