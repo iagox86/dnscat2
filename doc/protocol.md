@@ -300,17 +300,24 @@ encryption, with assurances like SSL. It's designed to be fast, easy to
 implement, and to prevent passive eavesdropping. Active (man in the
 middle) attacks are only prevented using a shared secret.
 
+To summarize, Curve25519 and SHA3 are used to generate a shared
+symmetric key, which is used with SHA3 and Salsa20 to sign and encrypt
+all messages between the client and server.
+
+Read on for more details.
+
 ### Key exchange
 
 Key exchange is performed using Curve25519 and SHA3-256. The client and
-server each generate a 256-bit private key, then use Curve25519 to
-derive a public key.  The client sends their public key to the server,
-and the server sends their public key to the client. There are more
-details on how it's sent below, where `MESSAGE_TYPE_NEGENC` is defined.
+server each generates a random 256-bit private key at the start of a
+connection, then uses Curve25519 to derive a shared (symmetric) key.
+The client sends their public key to the server, and the server sends
+their public key to the client. This is all performed in the
+`MESSAGE_TYPE_NEGENC` packet, defined below.
 
-Once they have the other's public keys, the client and server use those
-keys to generate `shared_key`. The `shared_key`, along with some static
-strings, are SHA3'd to generate the actual keys.
+Once they have one another's public keys, the client and server use
+those keys to generate `shared_key`. `shared_key` is SHA3'd with a few
+different static strings to generate the actual keys.
 
     `basepoint = "\x09\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"`
     `shared_key = curve25519(mypublic, mysecret, basepoint)`
@@ -319,7 +326,7 @@ strings, are SHA3'd to generate the actual keys.
     `server_write = SHA3-256(shared_key || "server_write_key")`
     `server_mac   = SHA3-256(shared_key || "server_mac_key")`
 
-Note that, without peer validation, this is vulnerable to
+Note that, without peer validation (see below), this is vulnerable to
 man-in-the-middle attacks. But it still prevents passive inspection, so
 it isn't completely without merit, and should be used as the default
 mode.
@@ -345,9 +352,9 @@ didn't use a key).
 
 The actual validation is done in a `VALIDATE` packet. Like the `NEGENC`
 packet, this can be sent at any time, but is almost always sent directly
-after `NEGENC` and before `SYN`. If a server requires authentication, it
-*MAY* reject a connection that doesn't do `VALIDATE` directly after
-`NEGENC` by responding with a `FIN`.
+after `NEGENC` and before `SYN`. If a server wishes to be strict, it
+*MAY* opt to reject a connection that doesn't do `VALIDATE` directly
+after `NEGENC` by responding with a `FIN`.
 
 The validation strings are computed using SHA3-256:
 
@@ -381,7 +388,7 @@ respective keys, depending on who's performing the operation.
 
 The final encapsulated packet looks like this:
 
-* (uint48_t) signature
+* (byte[6]) signature
 * (uint16_t) nonce
 * (byte[])   encrypted_data
 
