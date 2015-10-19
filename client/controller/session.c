@@ -138,7 +138,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
         if(data_length == 0 && session->is_shutdown)
           packet = packet_create_fin(session->id, "Stream closed");
         else
-          packet = packet_create_msg_normal(session->id, session->my_seq, session->their_seq, data, data_length);
+          packet = packet_create_msg(session->id, session->my_seq, session->their_seq, data, data_length);
 
         safe_free(data);
 
@@ -236,10 +236,10 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
           LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
 
           /* Validate the SEQ */
-          if(packet->body.msg.options.normal.seq == session->their_seq)
+          if(packet->body.msg.seq == session->their_seq)
           {
             /* Verify the ACK is sane */
-            uint16_t bytes_acked = packet->body.msg.options.normal.ack - session->my_seq;
+            uint16_t bytes_acked = packet->body.msg.ack - session->my_seq;
 
             /* If there's still bytes waiting in the buffer.. */
             if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
@@ -285,7 +285,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
           }
           else
           {
-            LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.options.normal.seq);
+            LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.seq);
           }
         }
         else if(packet->packet_type == PACKET_TYPE_FIN)

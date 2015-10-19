@@ -18,11 +18,6 @@
 
 typedef struct
 {
-#if 0
-  char      *name;
-  char      *download;
-  uint32_t   first_chunk;
-#endif
   select_group_t *group;
   buffer_t       *outgoing_data;
   NBBOOL          is_shutdown;
