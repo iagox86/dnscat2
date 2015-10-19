@@ -367,11 +367,15 @@ After each dnscat2 packet is serialized to a byte stream, but before
 it's converted to DNS by the `tunnel_driver`, it's wrapped in
 encryption.
 
-Each packet requires a distinct nonce value. An incremental 16-bit value
-is used. When the client or server's nonce value approaches the maximum
-value (0xFFFF (65535)), the client *must* initiate a re-negotiation (see
-below). The client and server *MUST NOT* allow the other to use a nonce
-that's smaller than the previous nonce, unless a re-negotiation happens.
+Each packet requires a distinct nonce value. Even if it's unclear
+whether a message was received (ie, even if it's a retransmission), the
+nonce must still change.
+
+An incremental 16-bit value is used for the nonce. When the client or
+server's nonce value approaches the maximum value (0xFFFF (65535)), the
+client *must* initiate a re-negotiation (see below). The client and
+server *MUST NOT* allow the other to re-use a nonce or to decrement the
+nonce, unless a re-negotiation has happened.
 
 Each packet also requires a signature. This is to prevent
 man-in-the-middle attacks, so as long as it can hold off an attacker for
