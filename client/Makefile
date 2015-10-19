@@ -16,7 +16,7 @@ LIBS=-pie -Wl,-z,relro,-z,now
 VERSION=$(shell egrep '^.define VERSION' dnscat.c | head -n1 | cut -d\" -f2)
 
 OS=$(shell uname -s)
-ARCH=$(shell uname -p | sed 's/86_//' | tr A-Z a-z)
+ARCH=$(shell uname -p | sed 's/x86_64/x64/i' | sed 's/i.86/x86/i')
 
 ifeq ($(OS), Linux)
   RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(ARCH)"
