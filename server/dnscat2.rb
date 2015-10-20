@@ -61,6 +61,11 @@ opts = Trollop::options do
   opt :passthrough, "Unhandled requests are sent upstream DNS server, host:port",
     :type => :string, :default => ""
 
+  opt :require_enc, "Require all clients to negotiate encryption",
+    :type => boolean, :default => false
+  opt :require_auth, "Require all clients using encryption to authorize with a pre-shared secret",
+    :type => boolean, :default => false
+
   opt :auto_command,   "Send this to each client that connects",
     :type => :string,  :default => ""
   opt :auto_attach,    "Automatically attach to new sessions",
@@ -120,6 +125,12 @@ begin
   Settings::GLOBAL.create("history_size", Settings::TYPE_INTEGER, opts[:history_size], "Change the number of lines to store in the new windows' histories") do |old_val, new_val|
     SWindow.history_size = new_val
     window.puts("history_size (for new windows) => #{new_val}")
+  end
+
+  Settings::GLOBAL.create("require_enc", Settings::TYPE_BOOLEAN, opts[:require_enc], "If true, all new clients *must* use encrypted connections") do |old_val, new_val|
+  end
+
+  Settings::GLOBAL.create("require_auth", Settings::TYPE_BOOLEAN, opts[:require_auth], "If true, all new clients using encryption *must* authenticate") do |old_val, new_val|
   end
 rescue Settings::ValidationError => e
   window.puts("There was an error with one of your commandline arguments:")
