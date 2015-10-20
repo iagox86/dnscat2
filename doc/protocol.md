@@ -300,7 +300,7 @@ encryption, with assurances like SSL. It's designed to be fast, easy to
 implement, and to prevent passive eavesdropping. Active (man in the
 middle) attacks are only prevented using a pre-shared secret.
 
-To summarize, Curve25519 and SHA3 are used to generate a shared
+To summarize, Diffie Hellman and SHA3 are used to generate a shared
 symmetric key, which is used with SHA3 and Salsa20 to sign and encrypt
 all messages between the client and server.
 
@@ -308,19 +308,17 @@ Read on for more details.
 
 ### Key exchange
 
-Key exchange is performed using Curve25519 and SHA3-256. The client and
-server each generates a random 256-bit private key at the start of a
-connection, then uses Curve25519 to derive a shared (symmetric) key.
-The client sends their public key to the server, and the server sends
-their public key to the client. This is all performed in the
-`MESSAGE_TYPE_NEGENC` packet, defined below.
+Key exchange is performed using Diffie Hellman and SHA3-256. The client
+and server each generates a random 1024-bit secret key at the start of a
+connection, then uses Diffie Hellman to derive a shared (symmetric) key.
+This is all performed in the `MESSAGE_TYPE_NEGENC` packet, defined
+below.
 
 Once they have one another's public keys, the client and server use
 those keys to generate `shared_secret`. `shared_secret` is SHA3'd with a
 few different static strings to generate the actual keys.
 
-    `basepoint = "\x09\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"`
-    `shared_secret = curve25519(mypublic, mysecret, basepoint)`
+    `shared_secret = DiffieHellman(theirpublic, mysecret)`
     `client_write = SHA3-256(shared_secret || "client_write_key")`
     `client_mac   = SHA3-256(shared_secret || "client_mac_key")`
     `server_write = SHA3-256(shared_secret || "server_write_key")`
@@ -529,12 +527,12 @@ order). The following datatypes are used:
 - (uint8_t)  message_type [0x03]
 - (uint16_t) session_id
 - (uint32_t) flags
-- (byte[32]) public_key
+- (byte[128]) public_key
 
 #### Notes
 
 - This can be sent at any time, though will typically be sent first
-- The public key is derived using Curve25519 (see above)
+- The public key is derived using Diffie Hellman (see above)
 
 ### MESSAGE_TYPE_AUTH: [0x04]
 
