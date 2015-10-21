@@ -20,6 +20,9 @@
 typedef enum
 {
   SESSION_STATE_NEW,
+#ifndef NO_ENCRYPTION
+  SESSION_STATE_READY,
+#endif
   SESSION_STATE_ESTABLISHED
 } session_state_t;
 
@@ -45,6 +48,12 @@ typedef struct
   driver_t       *driver;
 
   buffer_t       *outgoing_buffer;
+
+#ifndef NO_ENCRYPTION
+  uint8_t private_key[32];
+  uint8_t public_key[64];
+  uint8_t shared_secret[32];
+#endif
 } session_t;
 
 session_t *session_create_console(select_group_t *group, char *name);

@@ -27,8 +27,10 @@ typedef enum
   PACKET_TYPE_SYN    = 0x00,
   PACKET_TYPE_MSG    = 0x01,
   PACKET_TYPE_FIN    = 0x02,
+#ifndef NO_ENCRYPTION
   PACKET_TYPE_NEGENC = 0x03,
   PACKET_TYPE_AUTH   = 0x04,
+#endif
   PACKET_TYPE_PING   = 0xFF,
 } packet_type_t;
 
@@ -70,19 +72,21 @@ typedef struct
 
 typedef struct
 {
+  char *data;
+} ping_packet_t;
+
+#ifndef NO_ENCRYPTION
+typedef struct
+{
   uint32_t flags;
-  uint8_t  public_key[32];
+  uint8_t  public_key[64];
 } negenc_packet_t;
 
 typedef struct
 {
   uint8_t authenticator[32];
 } auth_packet_t;
-
-typedef struct
-{
-  char *data;
-} ping_packet_t;
+#endif
 
 typedef struct
 {
@@ -95,9 +99,11 @@ typedef struct
     syn_packet_t    syn;
     msg_packet_t    msg;
     fin_packet_t    fin;
+    ping_packet_t   ping;
+#ifndef NO_ENCRYPTION
     negenc_packet_t negenc;
     auth_packet_t   auth;
-    ping_packet_t   ping;
+#endif
   } body;
 } packet_t;
 
@@ -111,9 +117,12 @@ uint16_t packet_peek_session_id(uint8_t *data, size_t length);
 packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options);
 packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length);
 packet_t *packet_create_fin(uint16_t session_id, char *reason);
+packet_t *packet_create_ping(uint16_t session_id, char *data);
+
+#ifndef NO_ENCRYPTION
 packet_t *packet_create_negenc(uint16_t session_id, uint32_t flags, uint8_t *public_key);
 packet_t *packet_create_auth(uint16_t session_id, uint8_t *authenticator);
-packet_t *packet_create_ping(uint16_t session_id, char *data);
+#endif
 
 /* Set the OPT_NAME field and add a name value. */
 void packet_syn_set_name(packet_t *packet, char *name);

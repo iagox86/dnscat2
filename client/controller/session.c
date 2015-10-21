@@ -20,6 +20,10 @@
 #include "libs/memory.h"
 #include "libs/select_group.h"
 
+#ifndef NO_ENCRYPTION
+#include "libs/crypto/micro-ecc/uECC.h"
+#endif
+
 #include "session.h"
 
 /* Allow the user to override the initial sequence number. */
@@ -33,6 +37,14 @@ static int packet_delay = 1000;
 
 /* Transmit instantly when data is received. */
 static NBBOOL transmit_instantly_on_data = TRUE;
+
+#ifndef NO_ENCRYPTION
+/* Should we set up encryption? */
+static NBBOOL do_encryption = TRUE;
+
+/* Pre-shared secret (used for authentication) */
+/*static char *preshared_secret = NULL;*/
+#endif
 
 static uint64_t time_ms()
 {
@@ -88,6 +100,19 @@ static void poll_for_data(session_t *session)
   }
 }
 
+static packet_t *create_syn(session_t *session)
+{
+  packet_t *packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
+
+  if(session->is_command)
+    packet_syn_set_is_command(packet);
+
+  if(session->name)
+    packet_syn_set_name(packet, session->name);
+
+  return packet;
+}
+
 uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length)
 {
   packet_t *packet      = NULL;
@@ -118,17 +143,25 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
     switch(session->state)
     {
       case SESSION_STATE_NEW:
-        LOG_INFO("In SESSION_STATE_NEW, sending a SYN packet (SEQ = 0x%04x)...", session->my_seq);
-
-        packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
-
-        if(session->is_command)
-          packet_syn_set_is_command(packet);
-
-        if(session->name)
-          packet_syn_set_name(packet, session->name);
-
+#ifndef NO_ENCRYPTION
+        if(do_encryption)
+        {
+          packet = packet_create_negenc(session->id, 0, session->public_key);
+        }
+        else
+        {
+          packet = create_syn(session);
+        }
+#else
+        packet = create_syn(session);
+#endif
         break;
+
+#ifndef NO_ENCRYPTION
+      case SESSION_STATE_READY:
+        packet = create_syn(session);
+        break;
+#endif
 
       case SESSION_STATE_ESTABLISHED:
         /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
@@ -194,10 +227,37 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
   {
     switch(session->state)
     {
+
+#ifndef NO_ENCRYPTION
       case SESSION_STATE_NEW:
+        if(packet->packet_type != PACKET_TYPE_NEGENC)
+        {
+          LOG_FATAL("In SESSION_STATE_NEW, the server failed to respond with a NEGENC packet");
+          LOG_FATAL("This could indicate a version mismatch!");
+          exit(1);
+        }
+
+        buffer_t *deleteme;
+        deleteme = buffer_create(BO_BIG_ENDIAN);
+        uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1());
+        session->state = SESSION_STATE_READY;
+        buffer_add_bytes(deleteme, session->shared_secret, 32);
+        printf("\nSHARED SECRET:\n");
+        buffer_print(deleteme);
+
+        /* We can send a response right away */
+        session->last_transmit = 0;
+        session->missed_transmissions = 0;
+        send_right_away = TRUE;
+
+        break;
+
+      case SESSION_STATE_READY:
+#else
+      case SESSION_STATE_NEW:
+#endif
         if(packet->packet_type == PACKET_TYPE_SYN)
         {
-          LOG_INFO("In SESSION_STATE_NEW, received SYN (ISN = 0x%04x)", packet->body.syn.seq);
           session->their_seq = packet->body.syn.seq;
           session->options   = (options_t) packet->body.syn.options;
           session->state = SESSION_STATE_ESTABLISHED;
@@ -385,6 +445,24 @@ static session_t *session_create(char *name)
   session->missed_transmissions = 0;
   session->outgoing_buffer = buffer_create(BO_LITTLE_ENDIAN);
 
+#ifndef NO_ENCRYPTION
+  if(do_encryption)
+  {
+    buffer_t *deleteme = buffer_create(BO_LITTLE_ENDIAN);
+    uECC_make_key(session->public_key, session->private_key, uECC_secp256r1());
+
+    printf("\nPRIVATE KEY:\n");
+    buffer_clear(deleteme);
+    buffer_add_bytes(deleteme, session->private_key, 32);
+    buffer_print(deleteme);
+
+    printf("\nPUBLIC KEY:\n");
+    buffer_clear(deleteme);
+    buffer_add_bytes(deleteme, session->public_key, 64);
+    buffer_print(deleteme);
+    printf("\n");
+  }
+#endif
   session->name = NULL;
   if(name)
   {

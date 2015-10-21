@@ -57,18 +57,19 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
       packet->body.fin.reason = buffer_alloc_next_ntstring(buffer);
       break;
 
+    case PACKET_TYPE_PING:
+      packet->body.ping.data = buffer_alloc_next_ntstring(buffer);
+      break;
+#ifndef NO_ENCRYPTION
     case PACKET_TYPE_NEGENC:
       packet->body.negenc.flags = buffer_read_next_int32(buffer);
-      buffer_read_next_bytes(buffer, packet->body.negenc.public_key, 32);
+      buffer_read_next_bytes(buffer, packet->body.negenc.public_key, 64);
       break;
 
     case PACKET_TYPE_AUTH:
       buffer_read_next_bytes(buffer, packet->body.auth.authenticator, 32);
       break;
-
-    case PACKET_TYPE_PING:
-      packet->body.ping.data = buffer_alloc_next_ntstring(buffer);
-      break;
+#endif
 
     default:
       LOG_FATAL("Error: unknown message type (0x%02x)\n", packet->packet_type);
@@ -151,6 +152,19 @@ packet_t *packet_create_fin(uint16_t session_id, char *reason)
   return packet;
 }
 
+packet_t *packet_create_ping(uint16_t session_id, char *data)
+{
+  packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
+
+  packet->packet_type     = PACKET_TYPE_PING;
+  packet->packet_id       = rand() % 0xFFFF;
+  packet->session_id      = session_id;
+  packet->body.ping.data  = safe_strdup(data);
+
+  return packet;
+}
+
+#ifndef NO_ENCRYPTION
 packet_t *packet_create_negenc(uint16_t session_id, uint32_t flags, uint8_t *public_key)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
@@ -159,7 +173,7 @@ packet_t *packet_create_negenc(uint16_t session_id, uint32_t flags, uint8_t *pub
   packet->packet_id         = rand() % 0xFFFF;
   packet->session_id        = session_id;
   packet->body.negenc.flags = flags;
-  memcpy(packet->body.negenc.public_key, public_key, 32);
+  memcpy(packet->body.negenc.public_key, public_key, 64);
 
   return packet;
 }
@@ -175,18 +189,7 @@ packet_t *packet_create_auth(uint16_t session_id, uint8_t *authenticator)
 
   return packet;
 }
-
-packet_t *packet_create_ping(uint16_t session_id, char *data)
-{
-  packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
-
-  packet->packet_type     = PACKET_TYPE_PING;
-  packet->packet_id       = rand() % 0xFFFF;
-  packet->session_id      = session_id;
-  packet->body.ping.data  = safe_strdup(data);
-
-  return packet;
-}
+#endif
 
 void packet_syn_set_name(packet_t *packet, char *name)
 {
@@ -265,6 +268,23 @@ size_t packet_get_fin_size(options_t options)
   return size;
 }
 
+size_t packet_get_ping_size()
+{
+  static size_t size = 0;
+
+  /* If the size isn't known yet, calculate it. */
+  if(size == 0)
+  {
+    packet_t *p = packet_create_ping(0, "");
+    uint8_t *data = packet_to_bytes(p, &size, (options_t)0);
+    safe_free(data);
+    packet_destroy(p);
+  }
+
+  return size;
+}
+
+#ifndef NO_ENCRYPTION
 size_t packet_get_negenc_size()
 {
   static size_t size = 0;
@@ -298,22 +318,7 @@ size_t packet_get_auth_size()
 
   return size;
 }
-
-size_t packet_get_ping_size()
-{
-  static size_t size = 0;
-
-  /* If the size isn't known yet, calculate it. */
-  if(size == 0)
-  {
-    packet_t *p = packet_create_ping(0, "");
-    uint8_t *data = packet_to_bytes(p, &size, (options_t)0);
-    safe_free(data);
-    packet_destroy(p);
-  }
-
-  return size;
-}
+#endif
 
 /* TODO: This is a little hacky - converting it to a bytestream and back to
  * clone - but it's by far the easiest way! */
@@ -357,18 +362,20 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
       buffer_add_ntstring(buffer, packet->body.fin.reason);
       break;
 
+    case PACKET_TYPE_PING:
+      buffer_add_ntstring(buffer, packet->body.ping.data);
+      break;
+
+#ifndef NO_ENCRYPTION
     case PACKET_TYPE_NEGENC:
       buffer_add_int32(buffer, packet->body.negenc.flags);
-      buffer_add_bytes(buffer, packet->body.negenc.public_key, 32);
+      buffer_add_bytes(buffer, packet->body.negenc.public_key, 64);
       break;
 
     case PACKET_TYPE_AUTH:
       buffer_add_bytes(buffer, packet->body.auth.authenticator, 32);
       break;
-
-    case PACKET_TYPE_PING:
-      buffer_add_ntstring(buffer, packet->body.ping.data);
-      break;
+#endif
 
     default:
       LOG_FATAL("Error: Unknown message type: %u\n", packet->packet_type);
@@ -396,6 +403,11 @@ char *packet_to_s(packet_t *packet, options_t options)
   {
     _snprintf_s(ret, 1024, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
   }
+  else if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    _snprintf_s(ret, 1024, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
+  }
+#ifndef NO_ENCRYPTION
   else if(packet->packet_type == PACKET_TYPE_NEGENC)
   {
     _snprintf_s(ret, 1024, 1024, "Type = NEGENC :: [0x%04x] session = 0x%04x :: flags = 0x%08x :: public_key = [not shown]", packet->packet_id, packet->session_id, packet->body.negenc.flags);
@@ -404,10 +416,7 @@ char *packet_to_s(packet_t *packet, options_t options)
   {
     _snprintf_s(ret, 1024, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
   }
-  else if(packet->packet_type == PACKET_TYPE_PING)
-  {
-    _snprintf_s(ret, 1024, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
-  }
+#endif
   else
   {
     _snprintf_s(ret, 1024, 1024, "Unknown packet type!");
@@ -425,6 +434,11 @@ char *packet_to_s(packet_t *packet, options_t options)
   {
     snprintf(ret, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
   }
+  else if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    snprintf(ret, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
+  }
+#ifndef NO_ENCRYPTION
   else if(packet->packet_type == PACKET_TYPE_NEGENC)
   {
     snprintf(ret, 1024, "Type = NEGENC :: [0x%04x] session = 0x%04x :: flags = 0x%08x :: public_key = [not shown]", packet->packet_id, packet->session_id, packet->body.negenc.flags);
@@ -433,10 +447,7 @@ char *packet_to_s(packet_t *packet, options_t options)
   {
     snprintf(ret, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
   }
-  else if(packet->packet_type == PACKET_TYPE_PING)
-  {
-    snprintf(ret, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
-  }
+#endif
   else
   {
     snprintf(ret, 1024, "Unknown packet type!");
@@ -473,6 +484,13 @@ void packet_destroy(packet_t *packet)
       safe_free(packet->body.fin.reason);
   }
 
+  if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    if(packet->body.ping.data)
+      safe_free(packet->body.ping.data);
+  }
+
+#ifndef NO_ENCRYPTION
   if(packet->packet_type == PACKET_TYPE_NEGENC)
   {
     /* Nothing was allocated. */
@@ -482,12 +500,7 @@ void packet_destroy(packet_t *packet)
   {
     /* Nothing was allocated. */
   }
-
-  if(packet->packet_type == PACKET_TYPE_PING)
-  {
-    if(packet->body.ping.data)
-      safe_free(packet->body.ping.data);
-  }
+#endif
 
   safe_free(packet);
 }
