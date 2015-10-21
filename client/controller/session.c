@@ -46,6 +46,17 @@ static NBBOOL do_encryption = TRUE;
 /*static char *preshared_secret = NULL;*/
 #endif
 
+/* TODO: Delete this. */
+static void print_hex(char *label, uint8_t *data, size_t length)
+{
+  size_t i;
+
+  printf("%s: ", label);
+  for(i = 0; i < length; i++)
+    printf("%02x", data[i] & 0x0FF);
+  printf("\n");
+}
+
 static uint64_t time_ms()
 {
 #ifdef WIN32
@@ -237,13 +248,12 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
           exit(1);
         }
 
-        buffer_t *deleteme;
-        deleteme = buffer_create(BO_BIG_ENDIAN);
+        print_hex("Their public key", packet->body.negenc.public_key, 64);
+
         uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1());
         session->state = SESSION_STATE_READY;
-        buffer_add_bytes(deleteme, session->shared_secret, 32);
-        printf("\nSHARED SECRET:\n");
-        buffer_print(deleteme);
+
+        print_hex("Shared secret", session->shared_secret, 32);
 
         /* We can send a response right away */
         session->last_transmit = 0;
@@ -448,19 +458,10 @@ static session_t *session_create(char *name)
 #ifndef NO_ENCRYPTION
   if(do_encryption)
   {
-    buffer_t *deleteme = buffer_create(BO_LITTLE_ENDIAN);
     uECC_make_key(session->public_key, session->private_key, uECC_secp256r1());
 
-    printf("\nPRIVATE KEY:\n");
-    buffer_clear(deleteme);
-    buffer_add_bytes(deleteme, session->private_key, 32);
-    buffer_print(deleteme);
-
-    printf("\nPUBLIC KEY:\n");
-    buffer_clear(deleteme);
-    buffer_add_bytes(deleteme, session->public_key, 64);
-    buffer_print(deleteme);
-    printf("\n");
+    print_hex("My private key", session->private_key, 32);
+    print_hex("My public key", session->public_key, 64);
   }
 #endif
   session->name = NULL;
