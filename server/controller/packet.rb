@@ -30,9 +30,9 @@ class Packet
   MESSAGE_TYPE_SYN        = 0x00
   MESSAGE_TYPE_MSG        = 0x01
   MESSAGE_TYPE_FIN        = 0x02
+  MESSAGE_TYPE_PING       = 0xFF
   MESSAGE_TYPE_NEGENC     = 0x03
   MESSAGE_TYPE_AUTH       = 0x04
-  MESSAGE_TYPE_PING       = 0xFF
 
   OPT_NAME                = 0x0001
   # OPT_TUNNEL              = 0x0002 # Deprecated
@@ -199,40 +199,69 @@ class Packet
     end
   end
 
+  class PingBody
+    extend PacketHelper
+
+    attr_reader :data
+
+    def initialize(options, params = {})
+      @options = options
+      @data = params[:data] || raise(DnscatException, "params[:data] can't be nil!")
+    end
+
+    def PingBody.parse(options, data)
+      at_least?(data, 3) || raise(DnscatException, "Packet is too short (PING)")
+
+      data = data.unpack("Z*").pop
+
+      return PingBody.new(options, {
+        :data => data,
+      })
+    end
+
+    def to_s()
+      return "[[PING]] :: %s" % [@data]
+    end
+
+    def to_bytes()
+      [@data].pack("Z*")
+    end
+  end
+
   class NegEncBody
     extend PacketHelper
 
-    attr_reader :flags, :public_key
+    attr_reader :flags, :public_key_x, :public_key_y
 
     def initialize(params = {})
-      @flags      = params[:flags]      || raise(DnscatException, "params[:flags] is required!")
-      @public_key = params[:public_key] || raise(DnscatException, "params[:public_key] is required!")
-
-      if(@public_key.length != 32)
-        raise(DnscatException, "params[:public_key] was the wrong size!")
-      end
+      @flags        = params[:flags]        || raise(DnscatException, "params[:flags] is required!")
+      @public_key_x = params[:public_key_x] || raise(DnscatException, "params[:public_key_x] is required!")
+      @public_key_y = params[:public_key_y] || raise(DnscatException, "params[:public_key_y] is required!")
     end
 
     def NegEncBody.parse(data)
-      exactly?(data, 36) || raise(DnscatException, "Packet is the wrong length (NEGENC)")
-      flags, public_key, data = data.unpack("Na32a*")
+      exactly?(data, 68) || raise(DnscatException, "Packet is the wrong length (NEGENC)")
+      flags, public_key_x, public_key_y, data = data.unpack("Na32a32a*")
 
-      if(public_key.length != 32)
-        raise(DnscatException, "NegEncBody packet was too short")
-      end
       if(data != "")
         raise(DnscatException, "Extra data on the end of a NEGENC packet")
       end
 
-      return NegEncBody.new({:flags => flags, :public_key => public_key})
+      public_key_x = public_key_x.unpack("H*").pop().to_i(16)
+      public_key_y = public_key_y.unpack("H*").pop().to_i(16)
+
+      return NegEncBody.new({:flags => flags, :public_key_x => public_key_x, :public_key_y => public_key_y})
     end
 
     def to_s()
-      return "[[NEGENC]] :: flags = 0x%08x, pubkey = %s" % [@flags, @public_key.unpack("H*").pop()]
+      return "[[NEGENC]] :: flags = 0x%08x, pubkey = %s %s" % [@flags, @public_key_x.to_s(16), @public_key_y.to_s(16)]
     end
 
     def to_bytes()
-      return [@flags, @public_key].pack("Na32")
+      public_key_x = [@public_key_x.to_s(16)].pack("H*")
+      public_key_y = [@public_key_y.to_s(16)].pack("H*")
+
+      return [@flags, public_key_x, public_key_y].pack("Na32a32")
     end
   end
 
@@ -269,35 +298,6 @@ class Packet
 
     def to_bytes()
       return [authenticator].pack("a32")
-    end
-  end
-
-  class PingBody
-    extend PacketHelper
-
-    attr_reader :data
-
-    def initialize(options, params = {})
-      @options = options
-      @data = params[:data] || raise(DnscatException, "params[:data] can't be nil!")
-    end
-
-    def PingBody.parse(options, data)
-      at_least?(data, 3) || raise(DnscatException, "Packet is too short (PING)")
-
-      data = data.unpack("Z*").pop
-
-      return PingBody.new(options, {
-        :data => data,
-      })
-    end
-
-    def to_s()
-      return "[[PING]] :: %s" % [@data]
-    end
-
-    def to_bytes()
-      [@data].pack("Z*")
     end
   end
 
@@ -354,8 +354,12 @@ class Packet
       body = FinBody.parse(options, data)
     elsif(type == MESSAGE_TYPE_PING)
       body = PingBody.parse(nil, data)
+    elsif(type == MESSAGE_TYPE_NEGENC)
+      body = NegEncBody.parse(data)
+    elsif(type == MESSAGE_TYPE_AUTH)
+      body = AuthBody.parse(data)
     else
-      raise(DnscatException, "Unknown message type: 0x%x", type)
+      raise(DnscatException, "Unknown message type: 0x%x" % type)
     end
 
     return Packet.new(packet_id, type, session_id, body)
@@ -375,6 +379,14 @@ class Packet
 
   def Packet.create_ping(params = {})
     return Packet.new(params[:packet_id], MESSAGE_TYPE_PING, params[:session_id], PingBody.new(nil, params))
+  end
+
+  def Packet.create_negenc(options, params = {})
+    return Packet.new(params[:packet_id], MESSAGE_TYPE_NEGENC, params[:session_id], NegEncBody.new(params))
+  end
+
+  def Packet.create_auth(options, params = {})
+    return Packet.new(params[:packet_id], MESSAGE_TYPE_AUTH, params[:session_id], AuthBody.new(params))
   end
 
   def to_s()

@@ -47,6 +47,8 @@ class Session
     Packet::MESSAGE_TYPE_AUTH   => :_handle_auth,
   }
 
+  ECDH_GROUP = ECDSA::Group::Nistp256
+
   def initialize(id, main_window)
     @state = STATE_NEW
     @their_seq = 0
@@ -284,16 +286,27 @@ class Session
 
     # Generate a keypair
     # TODO: Support re-negotiation
-    @pkey = OpenSSL::PKey::EC.new("prime256v1")
-    group = ECDSA::Group::Secp256k1
-    @private_key = 1 + SecureRandom.random_number(group.order - 1)
-    @public_key = group.generator.multiply_by_scalar(private_key)
-    @window.puts("Private key: #{@private_key.to_s(16)}")
-    @window.puts("Public key:  #{@public_key.to_s(16)}")
-    @public_key_string = ECDSA::Format::PointOctetString.encode(@public_key, {:compression => true})
+    if(@my_private_key.nil?)
+      @my_private_key = 1 + SecureRandom.random_number(ECDH_GROUP.order - 1)
+      @my_public_key  = ECDH_GROUP.generator.multiply_by_scalar(@my_private_key)
+    end
+    @window.puts(packet)
+    @window.puts("X: #{packet.body.public_key_x}")
+    @window.puts("Y: #{packet.body.public_key_y}")
+    @their_public_key = ECDSA::Point.new(ECDH_GROUP, packet.body.public_key_x, packet.body.public_key_y)
+    @shared_secret = @their_public_key.multiply_by_scalar(@my_private_key)
 
+    @window.puts("My private key:   #{@my_private_key.to_s(16)}")
+    @window.puts("My public key:    #{@my_public_key.x.to_s(16)} #{@my_public_key.y.to_s(16)}")
+    @window.puts("Their public key: #{@their_public_key.x.to_s(16)} #{@their_public_key.y.to_s(16)}")
+    @window.puts("Shared secret: #{@shared_secret.x.to_s(16)} #{@shared_secret.y.to_s(16)}")
 
-
+    return Packet.create_negenc(@options, {
+      :session_id   => @id,
+      :flags        => 0,
+      :public_key_x => @my_public_key.x,
+      :public_key_y => @my_public_key.y,
+    })
   end
 
   def _get_pcap_window()
