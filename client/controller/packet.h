@@ -31,7 +31,10 @@ typedef enum
   PACKET_TYPE_NEGENC = 0x03,
   PACKET_TYPE_AUTH   = 0x04,
 #endif
+  PACKET_TYPE_COUNT_NOT_PING,
+
   PACKET_TYPE_PING   = 0xFF,
+
 } packet_type_t;
 
 typedef struct

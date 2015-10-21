@@ -46,6 +46,9 @@ static NBBOOL do_encryption = TRUE;
 /*static char *preshared_secret = NULL;*/
 #endif
 
+/* Define a handler function pointer. */
+typedef NBBOOL(packet_handler)(session_t *session, packet_t *packet);
+
 /* TODO: Delete this. */
 static void print_hex(char *label, uint8_t *data, size_t length)
 {
@@ -211,6 +214,184 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
   return result;
 }
 
+#ifndef NO_ENCRYPTION
+NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
+{
+  LOG_FATAL("The server failed to respond with a NEGENC packet");
+  LOG_FATAL("This could indicate a version mismatch!");
+  exit(1);
+}
+
+NBBOOL _handle_msg_new(session_t *session, packet_t *packet)
+{
+  LOG_FATAL("The server failed to respond with a NEGENC packet");
+  LOG_FATAL("This could indicate a version mismatch!");
+  exit(1);
+
+  return TRUE;
+}
+
+NBBOOL _handle_fin_new(session_t *session, packet_t *packet)
+{
+  LOG_FATAL("The server failed to respond with a NEGENC packet");
+  LOG_FATAL("This could indicate a version mismatch!");
+  exit(1);
+
+  return TRUE;
+}
+
+NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
+{
+  print_hex("Their public key", packet->body.negenc.public_key, 64);
+
+  uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1());
+  session->state = SESSION_STATE_READY;
+
+  print_hex("Shared secret", session->shared_secret, 32);
+
+  /* We can send a response right away */
+  session->last_transmit = 0;
+  session->missed_transmissions = 0;
+
+  return TRUE;
+}
+NBBOOL _handle_auth_new(session_t *session, packet_t *packet)
+{
+  LOG_FATAL("The server failed to respond with a NEGENC packet");
+  LOG_FATAL("This could indicate a version mismatch!");
+  exit(1);
+
+  return TRUE;
+}
+#endif
+
+NBBOOL _handle_syn_ready(session_t *session, packet_t *packet)
+{
+  session->their_seq = packet->body.syn.seq;
+  session->options   = (options_t) packet->body.syn.options;
+  session->state = SESSION_STATE_ESTABLISHED;
+
+  /* Since we established a valid session, we can send stuff right away. */
+  session->last_transmit = 0;
+  session->missed_transmissions = 0;
+
+  return TRUE;
+}
+
+NBBOOL _handle_msg_ready(session_t *session, packet_t *packet)
+{
+  LOG_WARNING("In SESSION_STATE_READY, received unexpected MSG (ignoring)");
+  exit(1);
+
+  return TRUE;
+}
+
+NBBOOL _handle_fin_ready(session_t *session, packet_t *packet)
+{
+  return TRUE;
+}
+
+#ifndef NO_ENCRYPTION
+NBBOOL _handle_negenc_ready(session_t *session, packet_t *packet)
+{
+  return TRUE;
+}
+
+NBBOOL _handle_auth_ready(session_t *session, packet_t *packet)
+{
+  return TRUE;
+}
+#endif
+
+NBBOOL _handle_syn_established(session_t *session, packet_t *packet)
+{
+  LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
+  return FALSE;
+}
+
+NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
+{
+  NBBOOL send_right_away = FALSE;
+
+  LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
+
+  /* Validate the SEQ */
+  if(packet->body.msg.seq == session->their_seq)
+  {
+    /* Verify the ACK is sane */
+    uint16_t bytes_acked = packet->body.msg.ack - session->my_seq;
+
+    /* If there's still bytes waiting in the buffer.. */
+    if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
+    {
+      /* Since we got a valid response back, the connection isn't dying. */
+      session->missed_transmissions = 0;
+
+      /* Reset the retransmit counter since we got some valid data. */
+      if(bytes_acked > 0)
+      {
+        /* Only reset the counter if we want to re-transmit
+         * right away. */
+        if(transmit_instantly_on_data)
+        {
+          session->last_transmit = 0;
+          session->missed_transmissions = 0;
+          send_right_away = TRUE;
+        }
+      }
+
+      /* Increment their sequence number */
+      session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
+
+      /* Remove the acknowledged data from the buffer */
+      buffer_consume(session->outgoing_buffer, bytes_acked);
+
+      /* Increment my sequence number */
+      if(bytes_acked != 0)
+      {
+        session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
+      }
+
+      /* Print the data, if we received any, and then immediately receive more. */
+      if(packet->body.msg.data_length > 0)
+      {
+        driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
+      }
+    }
+    else
+    {
+      LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_buffer));
+    }
+  }
+  else
+  {
+    LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.seq);
+  }
+
+  return send_right_away;
+}
+
+NBBOOL _handle_fin_established(session_t *session, packet_t *packet)
+{
+  LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
+  session->last_transmit = 0;
+  session->missed_transmissions = 0;
+  session_kill(session);
+
+  return TRUE;
+}
+
+#ifndef NO_ENCRYPTION
+NBBOOL _handle_negenc_established(session_t *session, packet_t *packet)
+{
+  return TRUE;
+}
+NBBOOL _handle_auth_established(session_t *session, packet_t *packet)
+{
+  return TRUE;
+}
+#endif
+
 NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 {
   /* Parse the packet to get the session id */
@@ -236,148 +417,52 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
   }
   else
   {
-    switch(session->state)
-    {
+    /* Handlers for the various states / messages */
+    packet_handler *handlers[PACKET_TYPE_COUNT_NOT_PING][SESSION_STATE_COUNT];
 
 #ifndef NO_ENCRYPTION
-      case SESSION_STATE_NEW:
-        if(packet->packet_type != PACKET_TYPE_NEGENC)
-        {
-          LOG_FATAL("In SESSION_STATE_NEW, the server failed to respond with a NEGENC packet");
-          LOG_FATAL("This could indicate a version mismatch!");
-          exit(1);
-        }
-
-        print_hex("Their public key", packet->body.negenc.public_key, 64);
-
-        uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1());
-        session->state = SESSION_STATE_READY;
-
-        print_hex("Shared secret", session->shared_secret, 32);
-
-        /* We can send a response right away */
-        session->last_transmit = 0;
-        session->missed_transmissions = 0;
-        send_right_away = TRUE;
-
-        break;
-
-      case SESSION_STATE_READY:
-#else
-      case SESSION_STATE_NEW:
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_NEW]            = _handle_syn_new;
 #endif
-        if(packet->packet_type == PACKET_TYPE_SYN)
-        {
-          session->their_seq = packet->body.syn.seq;
-          session->options   = (options_t) packet->body.syn.options;
-          session->state = SESSION_STATE_ESTABLISHED;
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_READY]          = _handle_syn_ready;
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_ESTABLISHED]    = _handle_syn_established;
 
-          /* Since we established a valid session, we can send stuff right away. */
-          session->last_transmit = 0;
-          session->missed_transmissions = 0;
-          send_right_away = TRUE;
-        }
-        else if(packet->packet_type == PACKET_TYPE_MSG)
-        {
-          LOG_WARNING("In SESSION_STATE_NEW, received unexpected MSG (ignoring)");
-        }
-        else if(packet->packet_type == PACKET_TYPE_FIN)
-        {
-          /* TODO: I shouldn't exit here. */
-          LOG_FATAL("In SESSION_STATE_NEW, received FIN: %s", packet->body.fin.reason);
+#ifndef NO_ENCRYPTION
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_NEW]            = _handle_msg_new;
+#endif
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_READY]          = _handle_msg_ready;
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_ESTABLISHED]    = _handle_msg_established;
 
-          exit(0);
-        }
-        else
-        {
-          /* TODO: I shouldn't exit here. */
-          LOG_FATAL("Unknown packet type: 0x%02x", packet->packet_type);
-          exit(1);
-        }
+#ifndef NO_ENCRYPTION
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]            = _handle_fin_new;
+#endif
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_READY]          = _handle_fin_ready;
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]    = _handle_fin_established;
 
-        break;
-      case SESSION_STATE_ESTABLISHED:
-        if(packet->packet_type == PACKET_TYPE_SYN)
-        {
-          LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
-        }
-        else if(packet->packet_type == PACKET_TYPE_MSG)
-        {
-          LOG_INFO("In SESSION_STATE_ESTABLISHED, received a MSG");
+#ifndef NO_ENCRYPTION
+    handlers[PACKET_TYPE_NEGENC][SESSION_STATE_NEW]         = _handle_negenc_new;
+    handlers[PACKET_TYPE_NEGENC][SESSION_STATE_READY]       = _handle_negenc_ready;
+    handlers[PACKET_TYPE_NEGENC][SESSION_STATE_ESTABLISHED] = _handle_negenc_established;
 
-          /* Validate the SEQ */
-          if(packet->body.msg.seq == session->their_seq)
-          {
-            /* Verify the ACK is sane */
-            uint16_t bytes_acked = packet->body.msg.ack - session->my_seq;
+    handlers[PACKET_TYPE_AUTH][SESSION_STATE_NEW]           = _handle_auth_new;
+    handlers[PACKET_TYPE_AUTH][SESSION_STATE_READY]         = _handle_auth_ready;
+    handlers[PACKET_TYPE_AUTH][SESSION_STATE_ESTABLISHED]   = _handle_auth_established;
+#endif
 
-            /* If there's still bytes waiting in the buffer.. */
-            if(bytes_acked <= buffer_get_remaining_bytes(session->outgoing_buffer))
-            {
-              /* Since we got a valid response back, the connection isn't dying. */
-              session->missed_transmissions = 0;
-
-              /* Reset the retransmit counter since we got some valid data. */
-              if(bytes_acked > 0)
-              {
-                /* Only reset the counter if we want to re-transmit
-                 * right away. */
-                if(transmit_instantly_on_data)
-                {
-                  session->last_transmit = 0;
-                  session->missed_transmissions = 0;
-                  send_right_away = TRUE;
-                }
-              }
-
-              /* Increment their sequence number */
-              session->their_seq = (session->their_seq + packet->body.msg.data_length) & 0xFFFF;
-
-              /* Remove the acknowledged data from the buffer */
-              buffer_consume(session->outgoing_buffer, bytes_acked);
-
-              /* Increment my sequence number */
-              if(bytes_acked != 0)
-              {
-                session->my_seq = (session->my_seq + bytes_acked) & 0xFFFF;
-              }
-
-              /* Print the data, if we received any, and then immediately receive more. */
-              if(packet->body.msg.data_length > 0)
-              {
-                driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
-              }
-            }
-            else
-            {
-              LOG_WARNING("Bad ACK received (%d bytes acked; %d bytes in the buffer)", bytes_acked, buffer_get_remaining_bytes(session->outgoing_buffer));
-            }
-          }
-          else
-          {
-            LOG_WARNING("Bad SEQ received (Expected %d, received %d)", session->their_seq, packet->body.msg.seq);
-          }
-        }
-        else if(packet->packet_type == PACKET_TYPE_FIN)
-        {
-          LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
-          session->last_transmit = 0;
-          session->missed_transmissions = 0;
-          session_kill(session);
-        }
-        else
-        {
-          LOG_FATAL("Unknown packet type: 0x%02x - closing session", packet->packet_type);
-          session_kill(session);
-        }
-
-        break;
-      default:
-        LOG_FATAL("Wound up in an unknown state: 0x%x", session->state);
-        packet_destroy(packet);
-        session_kill(session);
-        exit(1);
+    /* Be extra cautious. */
+    if(packet->packet_type < 0 || packet->packet_type >= PACKET_TYPE_COUNT_NOT_PING)
+    {
+      char *packet_str = packet_to_s(packet, session->options);
+      LOG_FATAL("Received an illegal packet: %s", packet_str);
+      safe_free(packet_str);
+      exit(1);
     }
+
+    if(session->state < 0 || session->state >= SESSION_STATE_COUNT)
+    {
+      LOG_FATAL("We ended up in an illegal state: 0x%x", session->state);
+    }
+
+    send_right_away = handlers[packet->packet_type][session->state](session, packet);
   }
 
   packet_destroy(packet);
