@@ -7,6 +7,9 @@
 #
 ##
 
+require 'securerandom'
+require 'ecdsa'
+
 require 'controller/packet'
 require 'drivers/driver_command'
 require 'drivers/driver_console'
@@ -21,15 +24,27 @@ class Session
   attr_reader :id, :name, :options, :state
   attr_reader :window
 
-  # Session states
-  STATE_NEW         = 0x00
-  STATE_ESTABLISHED = 0x01
-  STATE_KILLED      = 0xFF
+  # The session was just created and hasn't seen a packet yet
+  STATE_NEW           = 0x00
+
+  # After performing the key exchange
+  STATE_READY         = 0x01
+
+  # After performing authentication
+  STATE_AUTHENTICATED = 0x02
+
+  # After receiving a SYN
+  STATE_ESTABLISHED   = 0x03
+
+  # After being manually killed
+  STATE_KILLED        = 0xFF
 
   HANDLERS = {
-    Packet::MESSAGE_TYPE_SYN  => :_handle_syn,
-    Packet::MESSAGE_TYPE_MSG  => :_handle_msg,
-    Packet::MESSAGE_TYPE_FIN  => :_handle_fin,
+    Packet::MESSAGE_TYPE_SYN    => :_handle_syn,
+    Packet::MESSAGE_TYPE_MSG    => :_handle_msg,
+    Packet::MESSAGE_TYPE_FIN    => :_handle_fin,
+    Packet::MESSAGE_TYPE_NEGENC => :_handle_negenc,
+    Packet::MESSAGE_TYPE_AUTH   => :_handle_auth,
   }
 
   def initialize(id, main_window)
@@ -37,6 +52,8 @@ class Session
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
     @options = 0
+
+    @secret = nil # SecureRandom.random_bytes(128)
 
     @id = id
     @incoming_data = ''
@@ -75,7 +92,14 @@ class Session
   end
 
   def _syn_valid?()
-    return @state == STATE_NEW
+    # This is basically where all the access control security happens
+    if(!Settings::GLOBAL.get("require_enc"))
+      return @state == STATE_NEW || @state == STATE_READY || @state == STATE_AUTHENTICATED
+    elsif(!Settings::GLOBAL.get("require_auth"))
+      return @state == STATE_READY || @state == STATE_AUTHENTICATED
+    end
+
+    return @state == STATE_AUTHENTICATED
   end
 
   def _msg_valid?()
@@ -84,6 +108,14 @@ class Session
 
   def _fin_valid?()
     return @state == STATE_ESTABLISHED || @state == STATE_KILLED
+  end
+
+  def _negenc_valid?()
+    return true
+  end
+
+  def _auth_valid?()
+    return @state == STATE_READY
   end
 
   def _next_outgoing(n)
@@ -117,20 +149,13 @@ class Session
     return "id: 0x%04x [internal: %d], state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @window.id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
-  def Session._create_syn(session_id, my_sequence, options)
-    return Packet.create_syn(0, {
-      :session_id => session_id,
-      :seq        => my_sequence,
-      :options    => options, # TODO: I haven't paid much attention to what the server puts in its options field, should I?
-    })
-  end
-
   def _handle_syn(packet, max_length)
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
+    # TODO: This has an interesting impact on encrypted connections - they can get a SYN response before negotiating encryption
     if(!_syn_valid?())
       if(@their_seq == packet.body.seq && @options == packet.body.options)
         @window.puts("[WARNING] Duplicate SYN received!")
-        return Session._create_syn(@id, @my_seq, 0)
+        return Packet.create_syn(0, :session_id => @id, :seq => @my_Seq)
       else
         return nil
       end
@@ -167,7 +192,7 @@ class Session
       end
     end
 
-    return Session._create_syn(@id, @my_seq, 0)
+    return Packet.create_syn(0, :session_id => @id, :seq => @my_Seq)
   end
 
   def _actual_msg_max_length(max_data_length)
@@ -250,6 +275,25 @@ class Session
       :session_id => @id,
       :reason => "Bye!",
     })
+  end
+
+  def _handle_negenc(packet, max_length)
+    if(!_negenc_valid?())
+      raise(DnscatException, "NEGENC received in invalid state")
+    end
+
+    # Generate a keypair
+    # TODO: Support re-negotiation
+    @pkey = OpenSSL::PKey::EC.new("prime256v1")
+    group = ECDSA::Group::Secp256k1
+    @private_key = 1 + SecureRandom.random_number(group.order - 1)
+    @public_key = group.generator.multiply_by_scalar(private_key)
+    @window.puts("Private key: #{@private_key.to_s(16)}")
+    @window.puts("Public key:  #{@public_key.to_s(16)}")
+    @public_key_string = ECDSA::Format::PointOctetString.encode(@public_key, {:compression => true})
+
+
+
   end
 
   def _get_pcap_window()

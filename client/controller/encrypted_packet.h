@@ -27,7 +27,7 @@ typedef struct
 } encrypted_packet_t;
 
 /* Create an encrypted packet. */
-encrypted_packet_t *encrypted_packet_create(uint16_t nonce, packet_t *packet);
+encrypted_packet_t *encrypted_packet_create(uint16_t nonce, packet_t *packet, options_t options);
 
 /* Parse a packet from a byte stream. */
 encrypted_packet_t *encrypted_packet_parse(uint8_t *data, size_t length, options_t options, uint8_t *their_mac_key, uint8_t *their_write_key);
@@ -45,6 +45,6 @@ char *encrypted_packet_to_s(encrypted_packet_t *packet, options_t options);
 void encrypted_packet_print(encrypted_packet_t *packet, options_t options);
 
 /* Needs to be freed with safe_free() */
-uint8_t *encrypted_packet_to_bytes(encrypted_packet_t *packet, size_t *length, options_t options);
+uint8_t *encrypted_packet_to_bytes(encrypted_packet_t *encrypted_packet, uint8_t *write_key, uint8_t *mac_key, size_t *length, options_t options);
 
 #endif

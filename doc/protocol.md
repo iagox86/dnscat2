@@ -300,7 +300,7 @@ encryption, with assurances like SSL. It's designed to be fast, easy to
 implement, and to prevent passive eavesdropping. Active (man in the
 middle) attacks are only prevented using a pre-shared secret.
 
-To summarize, Curve25519 and SHA3 are used to generate a shared
+To summarize, a key exchange algorithm and SHA3 are used to generate a shared
 symmetric key, which is used with SHA3 and Salsa20 to sign and encrypt
 all messages between the client and server.
 
@@ -308,19 +308,17 @@ Read on for more details.
 
 ### Key exchange
 
-Key exchange is performed using Curve25519 and SHA3-256. The client and
-server each generates a random 256-bit private key at the start of a
-connection, then uses Curve25519 to derive a shared (symmetric) key.
-The client sends their public key to the server, and the server sends
-their public key to the client. This is all performed in the
-`MESSAGE_TYPE_NEGENC` packet, defined below.
+Key exchange is performed using the Prime256v1 Elliptic Curve and
+SHA3-256. The client and server each generates a random 1024-bit secret
+key at the start of a connection, then derive a shared (symmetric) key.
+This is all performed in the `MESSAGE_TYPE_NEGENC` packet, defined
+below.
 
 Once they have one another's public keys, the client and server use
 those keys to generate `shared_secret`. `shared_secret` is SHA3'd with a
 few different static strings to generate the actual keys.
 
-    `basepoint = "\x09\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"`
-    `shared_secret = curve25519(mypublic, mysecret, basepoint)`
+    `shared_secret = DiffieHellman(theirpublic, mysecret)`
     `client_write = SHA3-256(shared_secret || "client_write_key")`
     `client_mac   = SHA3-256(shared_secret || "client_mac_key")`
     `server_write = SHA3-256(shared_secret || "server_write_key")`
@@ -350,11 +348,9 @@ decide whether or not to allow the connection (it has no
 man-in-the-middle protection, but it's possible that the client simply
 didn't use a key).
 
-The actual authentication is done in a `AUTH` packet. Like the `NEGENC`
-packet, this can be sent at any time, but is almost always sent directly
-after `NEGENC` and before `SYN`. If a server wishes to be strict, it
-*MAY* opt to reject a connection that doesn't do `AUTH` directly
-after `NEGENC` by responding with a `FIN`.
+The actual authentication is done in a `AUTH` packet. If it's being
+used, it must be sent directly after the `NEGENC` packet and before
+`SYN`.
 
 The authentication strings are computed using SHA3-256:
 
@@ -367,11 +363,15 @@ After each dnscat2 packet is serialized to a byte stream, but before
 it's converted to DNS by the `tunnel_driver`, it's wrapped in
 encryption.
 
-Each packet requires a distinct nonce value. An incremental 16-bit value
-is used. When the client or server's nonce value approaches the maximum
-value (0xFFFF (65535)), the client *must* initiate a re-negotiation (see
-below). The client and server *MUST NOT* allow the other to use a nonce
-that's smaller than the previous nonce, unless a re-negotiation happens.
+Each packet requires a distinct nonce value. Even if it's unclear
+whether a message was received (ie, even if it's a retransmission), the
+nonce must still change.
+
+An incremental 16-bit value is used for the nonce. When the client or
+server's nonce value approaches the maximum value (0xFFFF (65535)), the
+client *must* initiate a re-negotiation (see below). The client and
+server *MUST NOT* allow the other to re-use a nonce or to decrement the
+nonce, unless a re-negotiation has happened.
 
 Each packet also requires a signature. This is to prevent
 man-in-the-middle attacks, so as long as it can hold off an attacker for
@@ -525,12 +525,12 @@ order). The following datatypes are used:
 - (uint8_t)  message_type [0x03]
 - (uint16_t) session_id
 - (uint32_t) flags
-- (byte[32]) public_key
+- (byte[128]) public_key
 
 #### Notes
 
 - This can be sent at any time, though will typically be sent first
-- The public key is derived using Curve25519 (see above)
+- See above for how the public key is derived
 
 ### MESSAGE_TYPE_AUTH: [0x04]
 
@@ -540,7 +540,8 @@ order). The following datatypes are used:
 - (byte[32]) authenticator
 
 #### Notes
-- This is sent directly after `MESSAGE_TYPE_NEGENC`
+- This is sent directly after `MESSAGE_TYPE_NEGENC` and before
+  `MESSAGE_TYPE_SYN`
 - The client may not be required to send this (it's up to the server)
 - If the client DOES send it, the server *MUST* respond in kind
 - The authenticator is based on a pre-shared secret, more information can be

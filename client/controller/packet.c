@@ -315,6 +315,17 @@ size_t packet_get_ping_size()
   return size;
 }
 
+/* TODO: This is a little hacky - converting it to a bytestream and back to
+ * clone - but it's by far the easiest way! */
+packet_t *packet_clone(packet_t *packet, options_t options)
+{
+    uint8_t *packet_bytes  = NULL;
+    size_t   packet_length = -1;
+
+    packet_bytes = packet_to_bytes(packet, &packet_length, options);
+    return packet_parse(packet_bytes, packet_length, options);
+}
+
 uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
