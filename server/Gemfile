@@ -5,5 +5,6 @@
 
 source 'https://rubygems.org'
 
-gem 'trollop' # commandline parsing
-gem 'salsa20' # encrypted connections
+gem 'trollop' # Commandline parsing
+gem 'salsa20' # Encrypted connections
+gem 'ecdsa'   # Used for ECDH key exchange
