@@ -36,7 +36,7 @@ OBJS=controller/encrypted_packet.o \
 		 drivers/driver_exec.o \
 		 drivers/driver_ping.o \
 		 libs/buffer.o \
-		 libs/crypto/curve25519-donna.c \
+		 libs/crypto/micro-ecc/uECC.o \
 		 libs/crypto/salsa20.o \
 		 libs/crypto/sha3.o \
 		 libs/dns.o \
@@ -70,8 +70,7 @@ remove:
 uninstall: remove
 
 clean:
-	-rm -f *.o *.exe *.stackdump dnscat tcpcat test driver_tcp driver_dns
-	-rm -f controller/*.o drivers/*.o libs/*.o tunnel_drivers/*.o tunnel_drivers/dns/*.o
+	-rm -f *.o */*.o */*/*.o */*/*/*.o *.exe *.stackdump dnscat tcpcat test driver_tcp driver_dns
 	-rm -rf win32/Debug/
 	-rm -rf win32/Release/
 	-rm -rf win32/*.ncb
