@@ -192,7 +192,7 @@ class Session
       end
     end
 
-    return Packet.create_syn(0, :session_id => @id, :seq => @my_Seq)
+    return Packet.create_syn(0, :session_id => @id, :seq => @my_seq)
   end
 
   def _actual_msg_max_length(max_data_length)
@@ -329,7 +329,10 @@ class Session
 
       response_packet = send(handler, packet, max_length)
     rescue DnscatException => e
-      @window.puts("Protocol exception occurred: %s" % e.to_s())
+      @window.with({:to_ancestors => true}) do
+        @window.puts("ERROR: Protocol exception occurred: #{e}")
+        @window.puts("Switch to window #{@window.id} for more details!")
+      end
       @window.puts()
       @window.puts("If you think this might be a bug, please report with the")
       @window.puts("following stacktrace:")
