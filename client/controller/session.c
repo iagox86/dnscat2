@@ -215,36 +215,23 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 }
 
 #ifndef NO_ENCRYPTION
-NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
+NBBOOL _handle_bad_new(session_t *session, packet_t *packet)
 {
   LOG_FATAL("The server failed to respond with a NEGENC packet");
   LOG_FATAL("This could indicate a version mismatch!");
   exit(1);
-}
-
-NBBOOL _handle_msg_new(session_t *session, packet_t *packet)
-{
-  LOG_FATAL("The server failed to respond with a NEGENC packet");
-  LOG_FATAL("This could indicate a version mismatch!");
-  exit(1);
-
-  return TRUE;
-}
-
-NBBOOL _handle_fin_new(session_t *session, packet_t *packet)
-{
-  LOG_FATAL("The server failed to respond with a NEGENC packet");
-  LOG_FATAL("This could indicate a version mismatch!");
-  exit(1);
-
-  return TRUE;
 }
 
 NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
 {
   print_hex("Their public key", packet->body.negenc.public_key, 64);
 
-  uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1());
+  if(!uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1()))
+  {
+    LOG_FATAL("Failed to calculate a shared secret!");
+    exit(1);
+  }
+
   session->state = SESSION_STATE_READY;
 
   print_hex("Shared secret", session->shared_secret, 32);
@@ -252,14 +239,6 @@ NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
   /* We can send a response right away */
   session->last_transmit = 0;
   session->missed_transmissions = 0;
-
-  return TRUE;
-}
-NBBOOL _handle_auth_new(session_t *session, packet_t *packet)
-{
-  LOG_FATAL("The server failed to respond with a NEGENC packet");
-  LOG_FATAL("This could indicate a version mismatch!");
-  exit(1);
 
   return TRUE;
 }
@@ -281,31 +260,26 @@ NBBOOL _handle_syn_ready(session_t *session, packet_t *packet)
 NBBOOL _handle_msg_ready(session_t *session, packet_t *packet)
 {
   LOG_WARNING("In SESSION_STATE_READY, received unexpected MSG (ignoring)");
-  exit(1);
-
-  return TRUE;
-}
-
-NBBOOL _handle_fin_ready(session_t *session, packet_t *packet)
-{
-  return TRUE;
+  return FALSE;
 }
 
 #ifndef NO_ENCRYPTION
 NBBOOL _handle_negenc_ready(session_t *session, packet_t *packet)
 {
-  return TRUE;
+  LOG_FATAL("Re-negotiate isn't implemented yet!");
+  exit(1);
 }
 
 NBBOOL _handle_auth_ready(session_t *session, packet_t *packet)
 {
-  return TRUE;
+  LOG_FATAL("Auth isn't implemented yet!");
+  exit(1);
 }
 #endif
 
 NBBOOL _handle_syn_established(session_t *session, packet_t *packet)
 {
-  LOG_WARNING("In SESSION_STATE_ESTABLISHED, recieved SYN (ignoring)");
+  LOG_WARNING("Received a SYN in the middle of a session (ignoring)");
   return FALSE;
 }
 
@@ -371,9 +345,9 @@ NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
   return send_right_away;
 }
 
-NBBOOL _handle_fin_established(session_t *session, packet_t *packet)
+NBBOOL _handle_fin(session_t *session, packet_t *packet)
 {
-  LOG_FATAL("In SESSION_STATE_ESTABLISHED, received FIN: %s - closing session", packet->body.fin.reason);
+  LOG_FATAL("Received FIN: (reason: '%s') - closing session", packet->body.fin.reason);
   session->last_transmit = 0;
   session->missed_transmissions = 0;
   session_kill(session);
@@ -384,11 +358,13 @@ NBBOOL _handle_fin_established(session_t *session, packet_t *packet)
 #ifndef NO_ENCRYPTION
 NBBOOL _handle_negenc_established(session_t *session, packet_t *packet)
 {
-  return TRUE;
+  LOG_FATAL("Re-negotiate isn't implemented yet!");
+  exit(1);
 }
 NBBOOL _handle_auth_established(session_t *session, packet_t *packet)
 {
-  return TRUE;
+  LOG_FATAL("Auth isn't implemented yet!");
+  exit(1);
 }
 #endif
 
@@ -421,29 +397,29 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     packet_handler *handlers[PACKET_TYPE_COUNT_NOT_PING][SESSION_STATE_COUNT];
 
 #ifndef NO_ENCRYPTION
-    handlers[PACKET_TYPE_SYN][SESSION_STATE_NEW]            = _handle_syn_new;
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_NEW]            = _handle_bad_new;
 #endif
     handlers[PACKET_TYPE_SYN][SESSION_STATE_READY]          = _handle_syn_ready;
     handlers[PACKET_TYPE_SYN][SESSION_STATE_ESTABLISHED]    = _handle_syn_established;
 
 #ifndef NO_ENCRYPTION
-    handlers[PACKET_TYPE_MSG][SESSION_STATE_NEW]            = _handle_msg_new;
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_NEW]            = _handle_bad_new;
 #endif
     handlers[PACKET_TYPE_MSG][SESSION_STATE_READY]          = _handle_msg_ready;
     handlers[PACKET_TYPE_MSG][SESSION_STATE_ESTABLISHED]    = _handle_msg_established;
 
 #ifndef NO_ENCRYPTION
-    handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]            = _handle_fin_new;
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]            = _handle_fin;
 #endif
-    handlers[PACKET_TYPE_FIN][SESSION_STATE_READY]          = _handle_fin_ready;
-    handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]    = _handle_fin_established;
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_READY]          = _handle_fin;
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]    = _handle_fin;
 
 #ifndef NO_ENCRYPTION
     handlers[PACKET_TYPE_NEGENC][SESSION_STATE_NEW]         = _handle_negenc_new;
     handlers[PACKET_TYPE_NEGENC][SESSION_STATE_READY]       = _handle_negenc_ready;
     handlers[PACKET_TYPE_NEGENC][SESSION_STATE_ESTABLISHED] = _handle_negenc_established;
 
-    handlers[PACKET_TYPE_AUTH][SESSION_STATE_NEW]           = _handle_auth_new;
+    handlers[PACKET_TYPE_AUTH][SESSION_STATE_NEW]           = _handle_bad_new;
     handlers[PACKET_TYPE_AUTH][SESSION_STATE_READY]         = _handle_auth_ready;
     handlers[PACKET_TYPE_AUTH][SESSION_STATE_ESTABLISHED]   = _handle_auth_established;
 #endif
@@ -532,7 +508,11 @@ static session_t *session_create(char *name)
   else
     session->my_seq        = rand() % 0xFFFF; /* Random isn */
 
+#ifndef NO_ENCRYPTION
   session->state         = SESSION_STATE_NEW;
+#else
+  session->state         = SESSION_STATE_READY;
+#endif
   session->their_seq     = 0;
   session->is_shutdown   = FALSE;
 
@@ -543,7 +523,11 @@ static session_t *session_create(char *name)
 #ifndef NO_ENCRYPTION
   if(do_encryption)
   {
-    uECC_make_key(session->public_key, session->private_key, uECC_secp256r1());
+    if(!uECC_make_key(session->public_key, session->private_key, uECC_secp256r1()))
+    {
+      LOG_FATAL("Failed to generate a keypair!");
+      exit(1);
+    }
 
     print_hex("My private key", session->private_key, 32);
     print_hex("My public key", session->public_key, 64);

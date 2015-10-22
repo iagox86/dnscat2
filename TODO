@@ -1,0 +1,4 @@
+- Renegotiation
+- Turning off encryption from the commandline
+- Server forcing encryption to be on
+- Server forcing authentication
