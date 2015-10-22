@@ -55,6 +55,12 @@ typedef struct
   uint8_t private_key[32];
   uint8_t public_key[64];
   uint8_t shared_secret[32];
+  uint8_t my_write_key[32];
+  uint8_t my_mac_key[32];
+  uint8_t their_write_key[32];
+  uint8_t their_mac_key[32];
+
+  uint16_t my_nonce;
 #endif
 } session_t;
 

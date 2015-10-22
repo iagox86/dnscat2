@@ -14,8 +14,10 @@
 #include <sys/time.h>
 #endif
 
+#include "controller/encrypted_packet.h"
 #include "controller/packet.h"
 #include "libs/buffer.h"
+#include "libs/crypto/sha3.h"
 #include "libs/log.h"
 #include "libs/memory.h"
 #include "libs/select_group.h"
@@ -44,6 +46,12 @@ static NBBOOL do_encryption = TRUE;
 
 /* Pre-shared secret (used for authentication) */
 /*static char *preshared_secret = NULL;*/
+
+#define CLIENT_WRITE_KEY "client_write_key"
+#define CLIENT_MAC_KEY   "client_mac_key"
+#define SERVER_WRITE_KEY "server_write_key"
+#define SERVER_MAC_KEY   "server_mac_key"
+
 #endif
 
 /* Define a handler function pointer. */
@@ -72,13 +80,6 @@ static uint64_t time_ms()
   gettimeofday(&tv, NULL);
   return (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000 ;
 #endif
-}
-
-/* Wait for a delay or incoming data before retransmitting. Call this after transmitting data. */
-static void update_counter(session_t *session)
-{
-  session->last_transmit = time_ms();
-  session->missed_transmissions++;
 }
 
 /* Decide whether or not we should transmit data yet. */
@@ -127,6 +128,11 @@ static packet_t *create_syn(session_t *session)
   return packet;
 }
 
+static NBBOOL should_we_encrypt(session_t *session)
+{
+  return (do_encryption && session->state != SESSION_STATE_NEW);
+}
+
 uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length)
 {
   packet_t *packet      = NULL;
@@ -140,6 +146,20 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
   /* Don't transmit too quickly without receiving anything. */
   if(!can_i_transmit_yet(session))
     return NULL;
+
+#ifndef NO_ENCRYPTION
+  /* If we're in encryption mode, we have to save 8 bytes for the encrypted_packet header. */
+  if(should_we_encrypt(session))
+  {
+    max_length -= 8;
+
+    if(max_length <= 0)
+    {
+      LOG_FATAL("There isn't enough room in this protocol to encrypt packets!\n");
+      exit(1);
+    }
+  }
+#endif
 
   /* It's pretty ugly, but I don't see any other way, since ping requires
    * special packets we have to handle it separately. */
@@ -158,24 +178,13 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
     {
       case SESSION_STATE_NEW:
 #ifndef NO_ENCRYPTION
-        if(do_encryption)
-        {
-          packet = packet_create_negenc(session->id, 0, session->public_key);
-        }
-        else
-        {
-          packet = create_syn(session);
-        }
-#else
-        packet = create_syn(session);
+        packet = packet_create_negenc(session->id, 0, session->public_key);
 #endif
         break;
 
-#ifndef NO_ENCRYPTION
       case SESSION_STATE_READY:
         packet = create_syn(session);
         break;
-#endif
 
       case SESSION_STATE_ESTABLISHED:
         /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
@@ -199,15 +208,40 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 
   if(packet)
   {
-  /* Print packet data if we're supposed to. */
-    if(packet_trace)
-    {
-      printf("OUTGOING: ");
-      packet_print(packet, session->options);
-    }
+    session->last_transmit = time_ms();
+    session->missed_transmissions++;
 
-    update_counter(session);
-    result = packet_to_bytes(packet, length, session->options);
+    /* Print packet data if we're supposed to. */
+
+    packet_print(packet, session->options);
+#ifndef NO_ENCRYPTION
+    if(should_we_encrypt(session))
+    {
+      encrypted_packet_t *encrypted_packet = encrypted_packet_create(session->my_nonce++, packet, session->options);
+
+      if(packet_trace)
+      {
+        printf("OUTGOING: ");
+        encrypted_packet_print(encrypted_packet, session->options);
+      }
+
+      result = encrypted_packet_to_bytes(encrypted_packet, session->my_write_key, session->my_mac_key, length, session->options);
+      safe_free(encrypted_packet);
+    }
+    else
+    {
+#endif
+      if(packet_trace)
+      {
+        printf("OUTGOING: ");
+        packet_print(packet, session->options);
+      }
+
+      result = packet_to_bytes(packet, length, session->options);
+#ifndef NO_ENCRYPTION
+    }
+#endif
+
     packet_destroy(packet);
   }
 
@@ -215,15 +249,17 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 }
 
 #ifndef NO_ENCRYPTION
-NBBOOL _handle_bad_new(session_t *session, packet_t *packet)
+static NBBOOL _handle_bad_new(session_t *session, packet_t *packet)
 {
   LOG_FATAL("The server failed to respond with a NEGENC packet");
   LOG_FATAL("This could indicate a version mismatch!");
   exit(1);
 }
 
-NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
+static NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
 {
+  sha3_ctx ctx;
+
   print_hex("Their public key", packet->body.negenc.public_key, 64);
 
   if(!uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1()))
@@ -236,6 +272,27 @@ NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
 
   print_hex("Shared secret", session->shared_secret, 32);
 
+  /* Generate the four keys we need. */
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, session->shared_secret, 32);
+  sha3_update(&ctx, (uint8_t*)CLIENT_WRITE_KEY, strlen(CLIENT_WRITE_KEY));
+  sha3_final(&ctx, session->my_write_key);
+
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, session->shared_secret, 32);
+  sha3_update(&ctx, (uint8_t*)CLIENT_MAC_KEY, strlen(CLIENT_MAC_KEY));
+  sha3_final(&ctx, session->my_mac_key);
+
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, session->shared_secret, 32);
+  sha3_update(&ctx, (uint8_t*)SERVER_WRITE_KEY, strlen(SERVER_WRITE_KEY));
+  sha3_final(&ctx, session->their_write_key);
+
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, session->shared_secret, 32);
+  sha3_update(&ctx, (uint8_t*)SERVER_MAC_KEY, strlen(SERVER_MAC_KEY));
+  sha3_final(&ctx, session->their_mac_key);
+
   /* We can send a response right away */
   session->last_transmit = 0;
   session->missed_transmissions = 0;
@@ -244,7 +301,7 @@ NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
 }
 #endif
 
-NBBOOL _handle_syn_ready(session_t *session, packet_t *packet)
+static NBBOOL _handle_syn_ready(session_t *session, packet_t *packet)
 {
   session->their_seq = packet->body.syn.seq;
   session->options   = (options_t) packet->body.syn.options;
@@ -257,33 +314,33 @@ NBBOOL _handle_syn_ready(session_t *session, packet_t *packet)
   return TRUE;
 }
 
-NBBOOL _handle_msg_ready(session_t *session, packet_t *packet)
+static NBBOOL _handle_msg_ready(session_t *session, packet_t *packet)
 {
   LOG_WARNING("In SESSION_STATE_READY, received unexpected MSG (ignoring)");
   return FALSE;
 }
 
 #ifndef NO_ENCRYPTION
-NBBOOL _handle_negenc_ready(session_t *session, packet_t *packet)
+static NBBOOL _handle_negenc_ready(session_t *session, packet_t *packet)
 {
   LOG_FATAL("Re-negotiate isn't implemented yet!");
   exit(1);
 }
 
-NBBOOL _handle_auth_ready(session_t *session, packet_t *packet)
+static NBBOOL _handle_auth_ready(session_t *session, packet_t *packet)
 {
   LOG_FATAL("Auth isn't implemented yet!");
   exit(1);
 }
 #endif
 
-NBBOOL _handle_syn_established(session_t *session, packet_t *packet)
+static NBBOOL _handle_syn_established(session_t *session, packet_t *packet)
 {
   LOG_WARNING("Received a SYN in the middle of a session (ignoring)");
   return FALSE;
 }
 
-NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
+static NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
 {
   NBBOOL send_right_away = FALSE;
 
@@ -345,7 +402,7 @@ NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
   return send_right_away;
 }
 
-NBBOOL _handle_fin(session_t *session, packet_t *packet)
+static NBBOOL _handle_fin(session_t *session, packet_t *packet)
 {
   LOG_FATAL("Received FIN: (reason: '%s') - closing session", packet->body.fin.reason);
   session->last_transmit = 0;
@@ -356,12 +413,13 @@ NBBOOL _handle_fin(session_t *session, packet_t *packet)
 }
 
 #ifndef NO_ENCRYPTION
-NBBOOL _handle_negenc_established(session_t *session, packet_t *packet)
+static NBBOOL _handle_negenc_established(session_t *session, packet_t *packet)
 {
   LOG_FATAL("Re-negotiate isn't implemented yet!");
   exit(1);
 }
-NBBOOL _handle_auth_established(session_t *session, packet_t *packet)
+
+static NBBOOL _handle_auth_established(session_t *session, packet_t *packet)
 {
   LOG_FATAL("Auth isn't implemented yet!");
   exit(1);
@@ -531,6 +589,8 @@ static session_t *session_create(char *name)
 
     print_hex("My private key", session->private_key, 32);
     print_hex("My public key", session->public_key, 64);
+
+    session->my_nonce = 0;
   }
 #endif
   session->name = NULL;

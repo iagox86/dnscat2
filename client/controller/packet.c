@@ -45,6 +45,8 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
     case PACKET_TYPE_SYN:
       packet->body.syn.seq     = buffer_read_next_int16(buffer);
       packet->body.syn.options = buffer_read_next_int16(buffer);
+      if(packet->body.syn.options & OPT_NAME)
+        packet->body.syn.name = buffer_alloc_next_ntstring(buffer);
       break;
 
     case PACKET_TYPE_MSG:
@@ -346,9 +348,7 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
       buffer_add_int16(buffer, packet->body.syn.options);
 
       if(packet->body.syn.options & OPT_NAME)
-      {
         buffer_add_ntstring(buffer, packet->body.syn.name);
-      }
 
       break;
 
