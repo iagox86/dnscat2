@@ -336,11 +336,13 @@ class Session
     window.kick()
 
     # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
+    packet = Packet::parse(data, @options)
+
     if(@shared_secret)
       encrypted_packet = Packet::EncryptedPacket.parse(data, @their_mac_key, @their_write_key, @options)
       packet = encrypted_packet.packet
-      puts(packet)
-    else 
+      puts(encrypted_packet)
+    else
       packet = Packet.parse(data, @options)
     end
 

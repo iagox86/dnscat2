@@ -31,22 +31,22 @@ class Packet
   MESSAGE_TYPE_MSG        = 0x01
   MESSAGE_TYPE_FIN        = 0x02
   MESSAGE_TYPE_PING       = 0xFF
-  MESSAGE_TYPE_NEGENC     = 0x03
   MESSAGE_TYPE_AUTH       = 0x04
 
   OPT_NAME                = 0x0001
   # OPT_TUNNEL              = 0x0002 # Deprecated
   # OPT_DATAGRAM            = 0x0004 # Deprecated
-  OPT_DOWNLOAD            = 0x0008
-  # OPT_CHUNKED_DOWNLOAD    = 0x0010 # Deprecated for now
+  # OPT_DOWNLOAD            = 0x0008 # Deprecated
+  # OPT_CHUNKED_DOWNLOAD    = 0x0010 # Deprecated
   OPT_COMMAND             = 0x0020
+  OPT_ENCRYPTED           = 0x0040
 
   attr_reader :packet_id, :type, :session_id, :body
 
   class SynBody
     extend PacketHelper
 
-    attr_reader :seq, :options, :name, :download
+    attr_reader :seq, :options, :name
 
     def initialize(options, params = {})
       @options = options || raise(DnscatException, "options can't be nil!")
@@ -58,8 +58,10 @@ class Packet
         @name = "(unnamed)"
       end
 
-      if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
-        @download = params[:download] || raise(DnscatException, "params[:download] can't be nil when OPT_DOWNLOAD is set!")
+      if((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
+        @crypto_flags = params[:crypto_flags] || raise(DnscatException, "params[:crypto_flags] can't be nil when OPT_ENCRYPTED is set!")
+        @public_key_x = params[:public_key_x] || raise(DnscatException, "params[:public_key_x] can't be nil when OPT_ENCRYPTED is set!")
+        @public_key_y = params[:public_key_y] || raise(DnscatException, "params[:public_key_y] can't be nil when OPT_ENCRYPTED is set!")
       end
     end
 
@@ -74,20 +76,17 @@ class Packet
         if(data.index("\0").nil?)
           raise(DnscatException, "OPT_NAME set, but no null-terminated name given")
         end
-        name = data.unpack("Z*").pop
-        data = data[(name.length+1)..-1]
+        name, data = data.unpack("Z*a*")
       else
         name = "[unnamed]"
       end
 
-      # Parse the download option, if it exists
-      download = nil
-      if((options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
-        if(data.index("\0").nil?)
-          raise(DnscatException, "OPT_DOWNLOAD set, but no null-terminated name given")
+      # If it's encrypted, grab the crypto fields
+      if((options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
+        crypto_flags, public_key_x, public_key_y, data = data.unpack("na32a32a*")
+        if(public_key_y.length < 32)
+          raise(DnscatException, "SYN packet was truncated!")
         end
-        download = data.unpack("Z*").pop
-        data = data[(download.length+1)..-1]
       end
 
       # Verify that that was the entire packet
@@ -96,24 +95,29 @@ class Packet
       end
 
       return SynBody.new(options, {
-        :seq     => seq,
-        :name    => name,
-        :download => download,
+        :seq          => seq,
+        :name         => name,
+        :crypto_flags => crypto_flags,
+        :public_key_x => public_key_x,
+        :public_key_y => public_key_y,
       })
     end
 
     def to_s()
-      return "[[SYN]] :: isn = %04x, options = %04x, name = %s" % [@seq, @options, @name]
+      return "[[SYN]] :: isn = %04x, options = %04x, name = %s, encrypted = %s" % [@seq, @options, @name, ((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED) ? "True" : "False"]
     end
 
     def to_bytes()
       result = [@seq, @options].pack("nn")
+
       if((@options & OPT_NAME) == OPT_NAME)
         result += [@name].pack("Z*")
       end
-      if((@options & OPT_DOWNLOAD) == OPT_DOWNLOAD)
-        result += [@name].pack("Z*")
+
+      if((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
+        result += [@crypto_flags, @public_key_x, @public_key_y].pack("na32a32")
       end
+
       return result
     end
   end
@@ -228,43 +232,6 @@ class Packet
     end
   end
 
-  class NegEncBody
-    extend PacketHelper
-
-    attr_reader :flags, :public_key_x, :public_key_y
-
-    def initialize(params = {})
-      @flags        = params[:flags]        || raise(DnscatException, "params[:flags] is required!")
-      @public_key_x = params[:public_key_x] || raise(DnscatException, "params[:public_key_x] is required!")
-      @public_key_y = params[:public_key_y] || raise(DnscatException, "params[:public_key_y] is required!")
-    end
-
-    def NegEncBody.parse(data)
-      exactly?(data, 68) || raise(DnscatException, "Packet is the wrong length (NEGENC)")
-      flags, public_key_x, public_key_y, data = data.unpack("Na32a32a*")
-
-      if(data != "")
-        raise(DnscatException, "Extra data on the end of a NEGENC packet")
-      end
-
-      public_key_x = public_key_x.unpack("H*").pop().to_i(16)
-      public_key_y = public_key_y.unpack("H*").pop().to_i(16)
-
-      return NegEncBody.new({:flags => flags, :public_key_x => public_key_x, :public_key_y => public_key_y})
-    end
-
-    def to_s()
-      return "[[NEGENC]] :: flags = 0x%08x, pubkey = %s %s" % [@flags, @public_key_x.to_s(16), @public_key_y.to_s(16)]
-    end
-
-    def to_bytes()
-      public_key_x = [@public_key_x.to_s(16)].pack("H*")
-      public_key_y = [@public_key_y.to_s(16)].pack("H*")
-
-      return [@flags, public_key_x, public_key_y].pack("Na32a32")
-    end
-  end
-
   class AuthBody
     extend PacketHelper
 
@@ -354,8 +321,6 @@ class Packet
       body = FinBody.parse(options, data)
     elsif(type == MESSAGE_TYPE_PING)
       body = PingBody.parse(nil, data)
-    elsif(type == MESSAGE_TYPE_NEGENC)
-      body = NegEncBody.parse(data)
     elsif(type == MESSAGE_TYPE_AUTH)
       body = AuthBody.parse(data)
     else
@@ -381,10 +346,6 @@ class Packet
     return Packet.new(params[:packet_id], MESSAGE_TYPE_PING, params[:session_id], PingBody.new(nil, params))
   end
 
-  def Packet.create_negenc(options, params = {})
-    return Packet.new(params[:packet_id], MESSAGE_TYPE_NEGENC, params[:session_id], NegEncBody.new(params))
-  end
-
   def Packet.create_auth(options, params = {})
     return Packet.new(params[:packet_id], MESSAGE_TYPE_AUTH, params[:session_id], AuthBody.new(params))
   end
@@ -404,48 +365,6 @@ class Packet
     end
 
     return result
-  end
-end
-
-class EncryptedPacket
-  attr_reader :nonce, :packet
-
-  def initialize(nonce, packet)
-    if(nonce < 0x0000 || nonce > 0xFFFF)
-      raise(DnscatException, "Invalid nonce: #{nonce}")
-    end
-  end
-
-  def EncryptedPacket.parse(data, their_mac_key, their_write_key, options = nil)
-    signature, signed_data = data.unpack("a6a*")
-
-    correct_signature = Digest::SHA3.new(256).digest(their_mac_key + signed_data)
-    # TODO: I might want to change this exception so we can handle it more gracefully
-    if(correct_signature[0,6] != signature)
-      raise(DnscatException, "Invalid signature on message!")
-    end
-
-    # Read the nonce as a 16-bit integer
-    nonce, encrypted_data = data.unpack("na*")
-
-    # Decrypt the data
-    decryptor = Salsa20.new(their_write_key, [nonce].pack("q>"))
-    data = decryptor.decrypt(encrypted_data)
-
-    return EncryptedPacket.new(nonce, Packet.parse(data, options))
-  end
-
-  def to_s()
-    return "[Will be encrypted 0x%x] %s" % [@nonce, @packet.to_s]
-  end
-
-  def to_bytes(our_mac_key, our_write_key)
-    encryptor = Salsa20.new(our_write_key, [@nonce].pack("q>"))
-    encrypted_data = encryptor.encrypt(@packet.to_bytes())
-    to_sign = [@nonce, encrypted_data].pack("na*")
-    signature = Digest::SHA3.new(256).digest(our_mac_key + to_sign)
-
-    return signature[0,6] + to_sign
   end
 end
 
