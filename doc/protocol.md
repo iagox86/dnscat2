@@ -389,12 +389,41 @@ respective keys, depending on who's performing the operation.
 The final encapsulated packet looks like this:
 
 * (byte[6]) signature
-* (uint16_t) nonce
-* (byte[])   encrypted_data
+* (byte[2]) obfuscated_nonce (see below)
+* (byte[2]) obfuscated_session_id (see below)
+* (byte[])  encrypted_data
 
 *IMPORTANT*: The client and server *MUST NOT* re-use a nonce.  Any
 messages with a bad signature or a bad nonce should simply be given a
 blank response, or discarded altogether.
+
+The nonce is required for the peer to be able to decrypt the packet, and
+is part of the signed data.
+
+The session_id is required for the server or client to identify which
+session the encrypted data belongs to; without knowing which session is
+being used, it's impossible to choose the proper decryption key.
+
+The nonce and session_id are obfuscated by XORing them with pairs of
+signature bytes:
+
+    nonce[0]      ^= nonce[0]     ^ signature[0] ^ signature[1]
+    nonce[1]      ^= nonce[0]     ^ signature[1] ^ signature[2]
+    session_id[0] ^= signature[0] ^ signature[2] ^ signature[3]
+    session_id[1] ^= signature[0] ^ signature[3] ^ signature[4]
+
+The logic behind this is:
+
+* The nonce is incremental and the session_id doesn't change; this leaks
+  information
+* XORing by a single byte still makes certain things obvious (a "\x00"
+  byte doesn't change, and the first 256 nonces contain a "\x00" byte)
+* By doing a simple XOR, we make it harder to discern the traffic
+  (though it's obviously still possible)
+
+It's not the *best* solution to the problem, but I can't think of a
+better one (keeping in mind that we don't know which client is
+contacting us at this point).
 
 ### Re-negotiation
 
