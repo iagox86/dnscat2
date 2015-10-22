@@ -16,6 +16,7 @@ require 'drivers/driver_console'
 require 'drivers/driver_process'
 require 'libs/commander'
 require 'libs/dnscat_exception'
+require 'libs/sha3'
 require 'libs/swindow'
 
 class Session
@@ -294,12 +295,19 @@ class Session
     @window.puts("X: #{packet.body.public_key_x}")
     @window.puts("Y: #{packet.body.public_key_y}")
     @their_public_key = ECDSA::Point.new(ECDH_GROUP, packet.body.public_key_x, packet.body.public_key_y)
+
     @shared_secret = @their_public_key.multiply_by_scalar(@my_private_key)
+
+    @their_write_key  = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "client_write_key")
+    @their_mac_key    = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "client_mac_key")
+    @server_write_key = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "server_write_key")
+    @server_mac_key   = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "server_mac_key")
 
     @window.puts("My private key:   #{@my_private_key.to_s(16)}")
     @window.puts("My public key:    #{@my_public_key.x.to_s(16)} #{@my_public_key.y.to_s(16)}")
     @window.puts("Their public key: #{@their_public_key.x.to_s(16)} #{@their_public_key.y.to_s(16)}")
     @window.puts("Shared secret: #{@shared_secret.x.to_s(16)} #{@shared_secret.y.to_s(16)}")
+
 
     return Packet.create_negenc(@options, {
       :session_id   => @id,
@@ -327,7 +335,16 @@ class Session
     # Tell the window that we're still alive
     window.kick()
 
-    packet = Packet.parse(data, @options)
+    # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
+    if(@shared_secret)
+      encrypted_packet = Packet::EncryptedPacket.parse(data, @their_mac_key, @their_write_key, @options)
+      packet = encrypted_packet.packet
+      puts(packet)
+    else 
+      packet = Packet.parse(data, @options)
+    end
+
+    puts(packet)
 
     if(Settings::GLOBAL.get("packet_trace"))
       window = _get_pcap_window()
