@@ -41,7 +41,7 @@ typedef struct
   uint16_t seq;
   uint16_t options;
   char    *name;
-  uint32_t crypto_flags;
+  uint16_t crypto_flags;
   uint8_t  public_key[64];
 } syn_packet_t;
 
@@ -128,7 +128,7 @@ void packet_syn_set_name(packet_t *packet, char *name);
 void packet_syn_set_is_command(packet_t *packet);
 
 /* Set up an encrypted session. */
-void packet_syn_set_encrypted(packet_t *packet, uint32_t crypto_flags, uint8_t *public_key);
+void packet_syn_set_encrypted(packet_t *packet, uint16_t crypto_flags, uint8_t *public_key);
 
 /* Get minimum packet sizes so we can avoid magic numbers. */
 size_t packet_get_syn_size();

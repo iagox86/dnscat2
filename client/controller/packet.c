@@ -49,7 +49,7 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
         packet->body.syn.name = buffer_alloc_next_ntstring(buffer);
       if(packet->body.syn.options & OPT_ENCRYPTED)
       {
-        packet->body.syn.crypto_flags = buffer_read_next_int32(buffer);
+        packet->body.syn.crypto_flags = buffer_read_next_int16(buffer);
         buffer_read_next_bytes(buffer, packet->body.syn.public_key, 64);
       }
       break;
@@ -210,7 +210,7 @@ void packet_syn_set_is_command(packet_t *packet)
 }
 
 /* Set up an encrypted session. */
-void packet_syn_set_encrypted(packet_t *packet, uint32_t crypto_flags, uint8_t *public_key)
+void packet_syn_set_encrypted(packet_t *packet, uint16_t crypto_flags, uint8_t *public_key)
 {
   if(packet->packet_type != PACKET_TYPE_SYN)
   {
@@ -337,6 +337,12 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
 
       if(packet->body.syn.options & OPT_NAME)
         buffer_add_ntstring(buffer, packet->body.syn.name);
+
+      if(packet->body.syn.options & OPT_ENCRYPTED)
+      {
+        buffer_add_int16(buffer, packet->body.syn.crypto_flags);
+        buffer_add_bytes(buffer, packet->body.syn.public_key, 64);
+      }
 
       break;
 

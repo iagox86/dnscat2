@@ -138,6 +138,12 @@ buffer_t *buffer_create_with_data(BYTE_ORDER_t byte_order, const void *data, con
   return new_buffer;
 }
 
+/* Go to the start of the buffer. */
+void buffer_reset(buffer_t *buffer)
+{
+  buffer->position = 0;
+}
+
 /* Destroy the buffer and free resources.  If this isn't used, memory will leak. */
 void buffer_destroy(buffer_t *buffer)
 {

@@ -32,6 +32,9 @@ NBBOOL check_signature(buffer_t *buffer, uint8_t *mac_key)
   uint8_t  *signed_data         = NULL;
   size_t    signed_length       = -1;
 
+  /* Start from the beginning. */
+  buffer_reset(buffer);
+
   /* Read the 5-byte header. */
   buffer_read_next_bytes(buffer, header, HEADER_LENGTH);
 
@@ -50,11 +53,19 @@ NBBOOL check_signature(buffer_t *buffer, uint8_t *mac_key)
   /* Get it out as a string. */
   signed_data = buffer_create_string(buffer, &signed_length);
 
+  /* TODO: Debug stuff. */
+  printf("VALIDATING:\n");
+  print_hex("mac_key", mac_key, 32);
+  print_hex("header", header, HEADER_LENGTH);
+  print_hex("body+nonce", body, body_length);
+
   /* Calculate H(mac_key || data) */
   sha3_256_init(&ctx);
   sha3_update(&ctx, mac_key, 32);
   sha3_update(&ctx, signed_data, signed_length);
   sha3_final(&ctx, good_signature);
+
+  print_hex("signature", good_signature, 32);
 
   /* Free the data we allocated. */
   safe_free(signed_data);
@@ -71,7 +82,11 @@ void decrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t *nonce)
   uint8_t  *body                  = NULL;
   size_t    body_length           = -1;
 
+  /* Start from the beginning. */
+  buffer_reset(buffer);
+
   /* Read the header. */
+  buffer_print(buffer);
   buffer_read_next_bytes(buffer, header, HEADER_LENGTH);
 
   /* Read the nonce, padded with zeroes. */
@@ -103,11 +118,23 @@ void sign_buffer(buffer_t *buffer, uint8_t *mac_key)
   uint8_t  *body                    = NULL;
   size_t    body_length             = -1;
 
+  /* Start from the beginning. */
+  buffer_reset(buffer);
+
+  printf("BUFFER BEFORE SIGNING:\n");
+  buffer_print(buffer);
+
   /* Read the header. */
   buffer_read_next_bytes(buffer, header, HEADER_LENGTH);
 
   /* Read the body. */
   body = buffer_read_remaining_bytes(buffer, &body_length, -1, FALSE);
+
+  /* TODO: Debug stuff. */
+  printf("SIGNING:\n");
+  print_hex("mac_key", mac_key, 32);
+  print_hex("header", header, HEADER_LENGTH);
+  print_hex("body+nonce", body, body_length);
 
   /* Generate the signature.  */
   sha3_256_init(&ctx);
@@ -116,11 +143,16 @@ void sign_buffer(buffer_t *buffer, uint8_t *mac_key)
   sha3_update(&ctx, body,      body_length);
   sha3_final(&ctx, signature);
 
+  print_hex("signature", signature, 32);
+
   /* Add the truncated signature to the packet. */
   buffer_clear(buffer);
   buffer_add_bytes(buffer, header,    HEADER_LENGTH);
-  buffer_add_bytes(buffer, signature, 32);
+  buffer_add_bytes(buffer, signature, SIGNATURE_LENGTH);
   buffer_add_bytes(buffer, body,      body_length);
+
+  printf("BUFFER AFTER SIGNING:\n");
+  buffer_print(buffer);
 }
 
 void encrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t nonce)
@@ -129,6 +161,9 @@ void encrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t nonce)
   uint8_t   nonce_str[8]          = {0};
   uint8_t  *body                  = NULL;
   size_t    body_length           = -1;
+
+  /* Start from the beginning. */
+  buffer_reset(buffer);
 
   /* Read the header. */
   buffer_read_next_bytes(buffer, header, HEADER_LENGTH);

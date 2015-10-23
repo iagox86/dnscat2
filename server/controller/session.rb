@@ -7,16 +7,17 @@
 #
 ##
 
-require 'securerandom'
 require 'ecdsa'
+require 'securerandom'
+require 'sha3'
 
+require 'controller/encrypted_packet'
 require 'controller/packet'
 require 'drivers/driver_command'
 require 'drivers/driver_console'
 require 'drivers/driver_process'
 require 'libs/commander'
 require 'libs/dnscat_exception'
-require 'libs/sha3'
 require 'libs/swindow'
 
 class Session
@@ -28,14 +29,8 @@ class Session
   # The session was just created and hasn't seen a packet yet
   STATE_NEW           = 0x00
 
-  # After performing the key exchange
-  STATE_READY         = 0x01
-
-  # After performing authentication
-  STATE_AUTHENTICATED = 0x02
-
   # After receiving a SYN
-  STATE_ESTABLISHED   = 0x03
+  STATE_ESTABLISHED   = 0x01
 
   # After being manually killed
   STATE_KILLED        = 0xFF
@@ -44,7 +39,6 @@ class Session
     Packet::MESSAGE_TYPE_SYN    => :_handle_syn,
     Packet::MESSAGE_TYPE_MSG    => :_handle_msg,
     Packet::MESSAGE_TYPE_FIN    => :_handle_fin,
-    Packet::MESSAGE_TYPE_NEGENC => :_handle_negenc,
     Packet::MESSAGE_TYPE_AUTH   => :_handle_auth,
   }
 
@@ -81,6 +75,13 @@ class Session
     end
   end
 
+  def _should_we_encrypt?(packet = nil)
+    if(packet && packet.type == Packet::MESSAGE_TYPE_SYN)
+      return false
+    end
+    return (@state != STATE_NEW) && ((@options & Packet::OPT_ENCRYPTED) == Packet::OPT_ENCRYPTED)
+  end
+
   def kill()
     @window.with({:to_ancestors=>true, :to_descendants=>true}) do
       if(@state != STATE_KILLED)
@@ -96,13 +97,7 @@ class Session
 
   def _syn_valid?()
     # This is basically where all the access control security happens
-    if(!Settings::GLOBAL.get("require_enc"))
-      return @state == STATE_NEW || @state == STATE_READY || @state == STATE_AUTHENTICATED
-    elsif(!Settings::GLOBAL.get("require_auth"))
-      return @state == STATE_READY || @state == STATE_AUTHENTICATED
-    end
-
-    return @state == STATE_AUTHENTICATED
+    return @state == STATE_NEW
   end
 
   def _msg_valid?()
@@ -111,14 +106,6 @@ class Session
 
   def _fin_valid?()
     return @state == STATE_ESTABLISHED || @state == STATE_KILLED
-  end
-
-  def _negenc_valid?()
-    return true
-  end
-
-  def _auth_valid?()
-    return @state == STATE_READY
   end
 
   def _next_outgoing(n)
@@ -153,12 +140,17 @@ class Session
   end
 
   def _handle_syn(packet, max_length)
+    options = 0
+    packet_params = {
+      :session_id => @id,
+      :seq        => @my_seq
+    }
+
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
-    # TODO: This has an interesting impact on encrypted connections - they can get a SYN response before negotiating encryption
     if(!_syn_valid?())
       if(@their_seq == packet.body.seq && @options == packet.body.options)
         @window.puts("[WARNING] Duplicate SYN received!")
-        return Packet.create_syn(0, :session_id => @id, :seq => @my_Seq)
+        return Packet.create_syn(options, packet_params)
       else
         return nil
       end
@@ -167,7 +159,6 @@ class Session
     # Save some of their options
     @their_seq = packet.body.seq
     @options   = packet.body.options
-    @state     = STATE_ESTABLISHED
 
     # TODO: We're going to need different driver types
     if((@options & Packet::OPT_COMMAND) == Packet::OPT_COMMAND)
@@ -181,7 +172,42 @@ class Session
       end
     end
 
-    @settings.set("name", packet.body.name)
+    if((@options & Packet::OPT_NAME) == Packet::OPT_NAME)
+      @settings.set("name", packet.body.name)
+    else
+      @settings.set("name", "unnamed")
+    end
+
+    if((@options & Packet::OPT_ENCRYPTED) == Packet::OPT_ENCRYPTED)
+      # TODO: Support re-negotiation
+      if(@my_private_key.nil?)
+        @my_private_key = 1 + SecureRandom.random_number(ECDH_GROUP.order - 1)
+        @my_public_key  = ECDH_GROUP.generator.multiply_by_scalar(@my_private_key)
+      end
+      @window.puts(packet)
+      @window.puts("X: #{packet.body.public_key_x}")
+      @window.puts("Y: #{packet.body.public_key_y}")
+      @their_public_key = ECDSA::Point.new(ECDH_GROUP, packet.body.public_key_x, packet.body.public_key_y)
+
+      @shared_secret = @their_public_key.multiply_by_scalar(@my_private_key)
+
+      @their_write_key  = SHA3::Digest::SHA256.digest([@shared_secret.x.to_s(16)].pack("H*") + "client_write_key")
+      @their_mac_key    = SHA3::Digest::SHA256.digest([@shared_secret.x.to_s(16)].pack("H*") + "client_mac_key")
+      @our_write_key    = SHA3::Digest::SHA256.digest([@shared_secret.x.to_s(16)].pack("H*") + "server_write_key")
+      @our_mac_key      = SHA3::Digest::SHA256.digest([@shared_secret.x.to_s(16)].pack("H*") + "server_mac_key")
+
+      @window.puts("My private key:   #{@my_private_key.to_s(16)}")
+      @window.puts("My public key:    #{@my_public_key.x.to_s(16)} #{@my_public_key.y.to_s(16)}")
+      @window.puts("Their public key: #{@their_public_key.x.to_s(16)} #{@their_public_key.y.to_s(16)}")
+      @window.puts("Shared secret:    #{@shared_secret.x.to_s(16)} #{@shared_secret.y.to_s(16)}")
+
+      @our_nonce = 0
+
+      options |= Packet::OPT_ENCRYPTED
+      packet_params[:crypto_flags] = 0
+      packet_params[:public_key_x] = @my_public_key.x
+      packet_params[:public_key_y] = @my_public_key.y
+    end
 
     if(Settings::GLOBAL.get("auto_attach"))
       @window.activate()
@@ -195,7 +221,10 @@ class Session
       end
     end
 
-    return Packet.create_syn(0, :session_id => @id, :seq => @my_seq)
+    # Move states (this has to come after the encryption code, otherwise this packet is accidentally encrypted)
+    @state     = STATE_ESTABLISHED
+
+    return Packet.create_syn(options, packet_params)
   end
 
   def _actual_msg_max_length(max_data_length)
@@ -280,43 +309,6 @@ class Session
     })
   end
 
-  def _handle_negenc(packet, max_length)
-    if(!_negenc_valid?())
-      raise(DnscatException, "NEGENC received in invalid state")
-    end
-
-    # Generate a keypair
-    # TODO: Support re-negotiation
-    if(@my_private_key.nil?)
-      @my_private_key = 1 + SecureRandom.random_number(ECDH_GROUP.order - 1)
-      @my_public_key  = ECDH_GROUP.generator.multiply_by_scalar(@my_private_key)
-    end
-    @window.puts(packet)
-    @window.puts("X: #{packet.body.public_key_x}")
-    @window.puts("Y: #{packet.body.public_key_y}")
-    @their_public_key = ECDSA::Point.new(ECDH_GROUP, packet.body.public_key_x, packet.body.public_key_y)
-
-    @shared_secret = @their_public_key.multiply_by_scalar(@my_private_key)
-
-    @their_write_key  = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "client_write_key")
-    @their_mac_key    = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "client_mac_key")
-    @server_write_key = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "server_write_key")
-    @server_mac_key   = Digest::SHA3.new(256).digest([@shared_secret.x.to_s(16)].pack("H*") + "server_mac_key")
-
-    @window.puts("My private key:   #{@my_private_key.to_s(16)}")
-    @window.puts("My public key:    #{@my_public_key.x.to_s(16)} #{@my_public_key.y.to_s(16)}")
-    @window.puts("Their public key: #{@their_public_key.x.to_s(16)} #{@their_public_key.y.to_s(16)}")
-    @window.puts("Shared secret: #{@shared_secret.x.to_s(16)} #{@shared_secret.y.to_s(16)}")
-
-
-    return Packet.create_negenc(@options, {
-      :session_id   => @id,
-      :flags        => 0,
-      :public_key_x => @my_public_key.x,
-      :public_key_y => @my_public_key.y,
-    })
-  end
-
   def _get_pcap_window()
     id = "pcap#{@window.id}"
 
@@ -335,11 +327,15 @@ class Session
     # Tell the window that we're still alive
     window.kick()
 
+    if(_should_we_encrypt?())
+      max_length -= 8
+    end
+
     # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
     packet = Packet::parse(data, @options)
 
-    if(@shared_secret)
-      encrypted_packet = Packet::EncryptedPacket.parse(data, @their_mac_key, @their_write_key, @options)
+    if(_should_we_encrypt?(packet))
+      encrypted_packet = EncryptedPacket.parse(data, @their_mac_key, @their_write_key, @options)
       packet = encrypted_packet.packet
       puts(encrypted_packet)
     else
@@ -389,16 +385,29 @@ class Session
       return ''
     end
 
-    if(response_packet.to_bytes().length() > max_length)
-      @window.puts("The session tried to return a packet that's too long!")
-      @window.puts("#{response_packet}")
-    end
-
     if(Settings::GLOBAL.get("packet_trace"))
       window = _get_pcap_window()
       window.puts("OUT: #{response_packet}")
     end
 
-    return response_packet.to_bytes()
+    if(_should_we_encrypt?(response_packet))
+      encrypted_packet = EncryptedPacket.new([@our_nonce].pack("n"), response_packet)
+      bytes = encrypted_packet.to_bytes(@our_mac_key, @our_write_key)
+      @our_nonce += 1
+
+      if(Settings::GLOBAL.get("packet_trace"))
+        window = _get_pcap_window()
+        window.puts("ENCRYPTED OUT: #{encrypted_packet}")
+      end
+    else
+      bytes = response_packet.to_bytes()
+    end
+
+    if(bytes.length() > max_length)
+      @window.puts("The session tried to return a packet that's too long!")
+      @window.puts("#{response_packet}")
+    end
+
+    return bytes
   end
 end

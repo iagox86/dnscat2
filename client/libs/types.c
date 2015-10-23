@@ -105,3 +105,14 @@ void nbdie(char *str)
   nberror(str);
   exit(EXIT_FAILURE);
 }
+
+void print_hex(char *label, uint8_t *data, size_t length)
+{
+  size_t i;
+
+  printf("%s: ", label);
+  for(i = 0; i < length; i++)
+    printf("%02x", data[i] & 0x0FF);
+  printf("\n");
+}
+

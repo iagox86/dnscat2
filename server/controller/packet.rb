@@ -8,11 +8,8 @@
 # Builds and parses dnscat2 packets.
 ##
 
-require 'salsa20'
-
 require 'libs/dnscat_exception'
 require 'libs/hex'
-require 'libs/sha3'
 
 module PacketHelper
   def at_least?(data, needed)
@@ -46,7 +43,7 @@ class Packet
   class SynBody
     extend PacketHelper
 
-    attr_reader :seq, :options, :name
+    attr_reader :seq, :options, :name, :crypto_flags, :public_key_x, :public_key_y
 
     def initialize(options, params = {})
       @options = options || raise(DnscatException, "options can't be nil!")
@@ -62,6 +59,10 @@ class Packet
         @crypto_flags = params[:crypto_flags] || raise(DnscatException, "params[:crypto_flags] can't be nil when OPT_ENCRYPTED is set!")
         @public_key_x = params[:public_key_x] || raise(DnscatException, "params[:public_key_x] can't be nil when OPT_ENCRYPTED is set!")
         @public_key_y = params[:public_key_y] || raise(DnscatException, "params[:public_key_y] can't be nil when OPT_ENCRYPTED is set!")
+
+        if(!@public_key_x.is_a?(Bignum) || !@public_key_y.is_a?(Bignum))
+          raise(DnscatException, "The public key must be represented as an integer (#{@public_key_x.class}, #{@public_key_y.class})!")
+        end
       end
     end
 
@@ -87,6 +88,10 @@ class Packet
         if(public_key_y.length < 32)
           raise(DnscatException, "SYN packet was truncated!")
         end
+
+        # Convert into integers
+        public_key_x = public_key_x.unpack("H*").pop().to_i(16)
+        public_key_y = public_key_y.unpack("H*").pop().to_i(16)
       end
 
       # Verify that that was the entire packet
@@ -115,7 +120,9 @@ class Packet
       end
 
       if((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
-        result += [@crypto_flags, @public_key_x, @public_key_y].pack("na32a32")
+        public_key_x = [@public_key_x.to_s(16)].pack("H*")
+        public_key_y = [@public_key_y.to_s(16)].pack("H*")
+        result += [@crypto_flags, public_key_x, public_key_y].pack("na32a32")
       end
 
       return result

@@ -90,5 +90,8 @@ void nbdie(char *str);
 /* Implementation of strcasestr() for Windows. */
 char *nbstrcasestr(char *haystack, char *needle);
 
+/* Print a hex string, comes in handy a lot! */
+void print_hex(char *label, uint8_t *data, size_t length);
+
 #endif
 

@@ -64,6 +64,9 @@ buffer_t *buffer_create(BYTE_ORDER_t byte_order);
 /* Create a new packet buffer, with data. */
 buffer_t *buffer_create_with_data(BYTE_ORDER_t byte_order, const void *data, const size_t length);
 
+/* Go to the start of the buffer. */
+void buffer_reset(buffer_t *buffer);
+
 /* Destroy the buffer and free resources.  If this isn't used, memory will leak. */
 void buffer_destroy(buffer_t *buffer);
 

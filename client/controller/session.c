@@ -57,17 +57,6 @@ static NBBOOL do_encryption = TRUE;
 /* Define a handler function pointer. */
 typedef NBBOOL(packet_handler)(session_t *session, packet_t *packet);
 
-/* TODO: Delete this... maybe? Or find a better home? */
-static void print_hex(char *label, uint8_t *data, size_t length)
-{
-  size_t i;
-
-  printf("%s: ", label);
-  for(i = 0; i < length; i++)
-    printf("%02x", data[i] & 0x0FF);
-  printf("\n");
-}
-
 static NBBOOL should_we_encrypt(session_t *session)
 {
   return (do_encryption && session->state != SESSION_STATE_NEW);
@@ -242,7 +231,8 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   /* Make sure they're encrypting. */
   if(do_encryption && !(packet->body.syn.options & OPT_ENCRYPTED))
   {
-    LOG_FATAL("The server doesn't want to encrypt the session!");
+    LOG_FATAL("The server doesn't want to encrypt the session (or ran into an error)!");
+    packet_print(packet, session->options);
     exit(1);
   }
 
@@ -404,6 +394,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
       LOG_FATAL("Server's signature was wrong!");
       exit(1);
     }
+    printf("SIGNATURE VERIFIED!!\n");
 
     /* TODO: Verify their nonce */
     decrypt_buffer(packet_buffer, session->their_write_key, NULL);

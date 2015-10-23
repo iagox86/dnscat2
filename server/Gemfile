@@ -7,4 +7,5 @@ source 'https://rubygems.org'
 
 gem 'trollop' # Commandline parsing
 gem 'salsa20' # Encrypted connections
+gem 'sha3'    # Message signing + key derivation
 gem 'ecdsa'   # Used for ECDH key exchange
