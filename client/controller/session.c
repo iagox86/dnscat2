@@ -14,15 +14,15 @@
 #include <sys/time.h>
 #endif
 
-#include "controller/encrypted_packet.h"
 #include "controller/packet.h"
 #include "libs/buffer.h"
-#include "libs/crypto/sha3.h"
 #include "libs/log.h"
 #include "libs/memory.h"
 #include "libs/select_group.h"
 
 #ifndef NO_ENCRYPTION
+#include "controller/encrypted_packet.h"
+#include "libs/crypto/sha3.h"
 #include "libs/crypto/micro-ecc/uECC.h"
 #endif
 
@@ -57,10 +57,12 @@ static NBBOOL do_encryption = TRUE;
 /* Define a handler function pointer. */
 typedef NBBOOL(packet_handler)(session_t *session, packet_t *packet);
 
+#ifndef NO_ENCRYPTION
 static NBBOOL should_we_encrypt(session_t *session)
 {
   return (do_encryption && session->state != SESSION_STATE_NEW);
 }
+#endif
 
 static uint64_t time_ms()
 {
@@ -222,7 +224,9 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 
 static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
 {
+#ifndef NO_ENCRYPTION
   sha3_ctx ctx;
+#endif
 
   session->their_seq = packet->body.syn.seq;
   session->options   = (options_t) packet->body.syn.options;
@@ -440,8 +444,10 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]            = _handle_fin;
     handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]    = _handle_fin;
 
+#ifndef NO_ENCRYPTION
     handlers[PACKET_TYPE_AUTH][SESSION_STATE_NEW]           = _handle_auth;
     handlers[PACKET_TYPE_AUTH][SESSION_STATE_ESTABLISHED]   = _handle_auth;
+#endif
 
     /* Be extra cautious. */
     if(packet->packet_type < 0 || packet->packet_type >= PACKET_TYPE_COUNT_NOT_PING)

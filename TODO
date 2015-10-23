@@ -6,3 +6,4 @@
 - Standardize my/our in variable names
 - When pinging: "The session tried to return a packet that's too long!"
 - Deal with session stealing when an invalid SYN arrives
+- Implement short authentiation strings

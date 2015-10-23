@@ -64,6 +64,9 @@ release: clean dnscat
 	@echo "*** Release compiled: `pwd`/${RELEASE_FILENAME}"
 	@echo "*** By the way, did you update the version number in the server?"
 
+nocrypto: CFLAGS += -DNO_ENCRYPTION
+nocrypto: all
+
 remove:
 	rm -f /usr/local/bin/dnscat
 
