@@ -33,15 +33,38 @@ encrypted_packet_t *encrypted_packet_create(uint16_t nonce, packet_t *packet, op
 static NBBOOL check_signature(buffer_t *buffer, uint8_t *mac_key)
 {
   sha3_ctx  ctx;
+
+  uint8_t   header[5];
   uint8_t   their_signature[6];
+  uint8_t   nonce[8];
   uint8_t   good_signature[32];
+  uint8_t  *body;
+  size_t    body_length;
+
   uint8_t  *signed_data         = NULL;
   size_t    signed_length       = -1;
 
-  /* Read their 48-bit signature off the front of the packet. */
+  /* Read the 5-byte header. */
+  buffer_read_bytes(buffer, header, 5);
+
+  /* Read their 6-byte (48-bit) signature off the front of the packet. */
   buffer_read_next_bytes(buffer, their_signature, 6);
 
-  /* Read the entirety of the signed data (without consuming it!) */
+  /* Read the nonce, padded with NUL bytes. */
+  memset(nonce, '\0', 8);
+  buffer_read_next_bytes(buffer, nonce+6, 2);
+
+  /* Read the body. */
+  body = buffer_read_remaining_bytes(buffer, &body_length, -1, FALSE);
+
+  /* Re-build the buffer without the signature. */
+  buffer_clear(buffer);
+  buffer = buffer_create(BO_BIG_ENDIAN);
+  buffer_add_bytes(buffer, header, 5);
+  buffer_add_bytes(buffer, nonce, 8);
+  buffer_add_bytes(buffer, body, body_length);
+
+  /* Get it out as a string. */
   signed_data = buffer_read_remaining_bytes(buffer, &signed_length, -1, FALSE);
 
   /* Calculate H(mac_key || data) */
@@ -52,6 +75,7 @@ static NBBOOL check_signature(buffer_t *buffer, uint8_t *mac_key)
 
   /* Free the data we allocated. */
   safe_free(signed_data);
+  safe_free(body);
 
   /* Validate the signature */
   return (NBBOOL)!memcmp(their_signature, good_signature, 6);
@@ -60,9 +84,14 @@ static NBBOOL check_signature(buffer_t *buffer, uint8_t *mac_key)
 static void sign_buffer(buffer_t *buffer, uint8_t *mac_key)
 {
   sha3_ctx  ctx;
+  uint8_t   header[5];
+  uint8_t  *body;
+  uint8_t  *signed_data = NULL;
   size_t    signed_length;
-  uint8_t  *signed_data = buffer_read_remaining_bytes(buffer, &signed_length, -1, FALSE);
   uint8_t   signature[32];
+
+  /* Read in all the data so we can generate a signature. */
+  signed_data = buffer_read_remaining_bytes(buffer, &signed_length, -1, FALSE);
 
   /* Generate the signature. */
   sha3_256_init(&ctx);
@@ -72,8 +101,9 @@ static void sign_buffer(buffer_t *buffer, uint8_t *mac_key)
 
   /* Add the truncated signature to the packet. */
   buffer_clear(buffer);
+  buffer_add_bytes(buffer, signed_data, 5);
   buffer_add_bytes(buffer, signature, 6);
-  buffer_add_bytes(buffer, signed_data, signed_length);
+  buffer_add_bytes(buffer, signed_data+5, signed_length-5);
 }
 
 void decrypt_buffer(buffer_t *buffer, uint8_t *write_key)
