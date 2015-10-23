@@ -13,6 +13,8 @@ require 'salsa20'
 class EncryptedPacket
   attr_reader :nonce, :packet
 
+  #@@crypto_status = SWindow.new(nil, false, { :noinput => true, :id => "crypto", :name => "Crypto status"})
+
   def initialize(nonce, packet)
     if(nonce.length != 2)
       raise(DnscatException, "Invalid nonce: #{nonce}")
@@ -23,13 +25,7 @@ class EncryptedPacket
   end
 
   def EncryptedPacket.parse(data, their_mac_key, their_write_key, options = nil)
-    puts("DATA: #{data.unpack("H*")}")
     header, signature, nonce, encrypted_body = data.unpack("a5a6a2a*")
-
-    puts("VERIFYING THEIR PACKET:")
-    puts("mac_key: #{their_mac_key.unpack("H*")}")
-    puts("header: #{header.unpack("H*")}")
-    puts("nonce+body: #{nonce.unpack("H*")}#{encrypted_body.unpack("H*")}")
 
     # Put together the data to sign
     signed_data = header + nonce + encrypted_body
@@ -39,8 +35,6 @@ class EncryptedPacket
     if(correct_signature[0,6] != signature)
       raise(DnscatException, "Invalid signature on message!")
     end
-
-    puts("SIGNATURE WAS GOOD!")
 
     # Decrypt the body
     body = Salsa20.new(their_write_key, "\0\0\0\0\0\0" + nonce).decrypt(encrypted_body)
@@ -57,21 +51,10 @@ class EncryptedPacket
     header, body = @packet.to_bytes().unpack("a5a*")
 
     # Encrypt the body
-    puts("\nENCRYPTING")
-    puts("Key: #{our_write_key.unpack("H*")}")
-    puts("Nonce: #{("\0\0\0\0\0\0" + @nonce).unpack("H*")}")
-    puts("Decrypted body: #{body.unpack("H*")}")
     encrypted_body = Salsa20.new(our_write_key, "\0\0\0\0\0\0" + @nonce).encrypt(body)
-    puts("Encrypted body: #{encrypted_body.unpack("H*")}")
-
-    puts("SIGNING OUR PACKET:")
-    puts("mac_key: #{our_mac_key.unpack("H*")}")
-    puts("header: #{header.unpack("H*")}")
-    puts("nonce+body: #{@nonce.unpack("H*")}#{encrypted_body.unpack("H*")}")
 
     # Sign it
     signature = SHA3::Digest::SHA256.digest(our_mac_key + header + @nonce + encrypted_body)
-    puts("signature: #{signature.unpack("H*")}")
 
     # Arrange things appropriately
     return [header, signature[0,6], @nonce, encrypted_body].pack("a5a6a2a*")

@@ -56,7 +56,6 @@ class Session
     @incoming_data = ''
     @outgoing_data = ''
 
-    # TODO: Somewhere in here, I need the concept of a 'parent' session
     @settings = Settings.new()
     @window = SWindow.new(main_window, false, {:times_out => true})
 
@@ -337,12 +336,9 @@ class Session
     if(_should_we_encrypt?(packet))
       encrypted_packet = EncryptedPacket.parse(data, @their_mac_key, @their_write_key, @options)
       packet = encrypted_packet.packet
-      puts(encrypted_packet)
     else
       packet = Packet.parse(data, @options)
     end
-
-    puts(packet)
 
     if(Settings::GLOBAL.get("packet_trace"))
       window = _get_pcap_window()
