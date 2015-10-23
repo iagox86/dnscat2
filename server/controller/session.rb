@@ -148,8 +148,10 @@ class Session
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(!_syn_valid?())
       if(@their_seq == packet.body.seq && @options == packet.body.options)
+        # TODO: This is dangerous, and can lead the session being stolen!
+        # How can we prevent that?
         @window.puts("[WARNING] Duplicate SYN received!")
-        return Packet.create_syn(options, packet_params)
+        #return Packet.create_syn(options, packet_params)
       else
         return nil
       end
