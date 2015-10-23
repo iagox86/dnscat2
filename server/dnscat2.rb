@@ -76,7 +76,12 @@ opts = Trollop::options do
     :type => :string,  :default => nil
   opt :history_size,   "The number of lines of history that windows will maintain",
     :type => :integer, :default => 1000
+
+  opt :firehose,       "If set, all output goes to stdout instead of being put in windows.",
+    :type => :boolean, :default => false
 end
+
+SWindow.set_firehose(opts[:firehose])
 
 window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
 window.puts("Welcome to dnscat2! Some documentation may be out of date.")

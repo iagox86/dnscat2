@@ -56,6 +56,7 @@ class SWindow
   @@active = nil
   @@windows = {}
   @@history_size = 1000
+  @@firehose = false
 
   # This function will trap the TSTP signal (suspend, ctrl-z) and, if possible,
   # activate the parent window.
@@ -225,6 +226,11 @@ class SWindow
 
   # Write to a window, just like $stdout.puts()
   def puts(str = "")
+    if(@@firehose)
+      $stdout.puts(str)
+      return
+    end
+
     _we_just_got_data()
 
     if(@@active == self)
@@ -237,6 +243,11 @@ class SWindow
 
   # Write to a window, just like $stdout.print()
   def print(str = "")
+    if(@@firehose)
+      $stdout.print(str)
+      return
+    end
+
     _we_just_got_data()
 
     str = str.to_s()
@@ -365,6 +376,11 @@ class SWindow
   # received an exit signal or an EOF marker).
   def SWindow.wait()
     @@input_thread.join()
+  end
+
+  # This is mostly for debugging - all output goes to the same place
+  def SWindow.set_firehose(value)
+    @@firehose = value
   end
 
   def kick()
