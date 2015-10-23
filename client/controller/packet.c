@@ -47,6 +47,11 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
       packet->body.syn.options = buffer_read_next_int16(buffer);
       if(packet->body.syn.options & OPT_NAME)
         packet->body.syn.name = buffer_alloc_next_ntstring(buffer);
+      if(packet->body.syn.options & OPT_ENCRYPTED)
+      {
+        packet->body.syn.crypto_flags = buffer_read_next_int32(buffer);
+        buffer_read_next_bytes(buffer, packet->body.syn.public_key, 64);
+      }
       break;
 
     case PACKET_TYPE_MSG:
@@ -62,12 +67,8 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
     case PACKET_TYPE_PING:
       packet->body.ping.data = buffer_alloc_next_ntstring(buffer);
       break;
-#ifndef NO_ENCRYPTION
-    case PACKET_TYPE_NEGENC:
-      packet->body.negenc.flags = buffer_read_next_int32(buffer);
-      buffer_read_next_bytes(buffer, packet->body.negenc.public_key, 64);
-      break;
 
+#ifndef NO_ENCRYPTION
     case PACKET_TYPE_AUTH:
       buffer_read_next_bytes(buffer, packet->body.auth.authenticator, 32);
       break;
@@ -167,19 +168,6 @@ packet_t *packet_create_ping(uint16_t session_id, char *data)
 }
 
 #ifndef NO_ENCRYPTION
-packet_t *packet_create_negenc(uint16_t session_id, uint32_t flags, uint8_t *public_key)
-{
-  packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
-
-  packet->packet_type       = PACKET_TYPE_NEGENC;
-  packet->packet_id         = rand() % 0xFFFF;
-  packet->session_id        = session_id;
-  packet->body.negenc.flags = flags;
-  memcpy(packet->body.negenc.public_key, public_key, 64);
-
-  return packet;
-}
-
 packet_t *packet_create_auth(uint16_t session_id, uint8_t *authenticator)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
@@ -219,6 +207,23 @@ void packet_syn_set_is_command(packet_t *packet)
 
   /* Just set the field, we don't need anything else. */
   packet->body.syn.options |= OPT_COMMAND;
+}
+
+/* Set up an encrypted session. */
+void packet_syn_set_encrypted(packet_t *packet, uint32_t crypto_flags, uint8_t *public_key)
+{
+  if(packet->packet_type != PACKET_TYPE_SYN)
+  {
+    LOG_FATAL("Attempted to set the 'is_encrypted' field of a non-SYN message\n");
+    exit(1);
+  }
+
+  /* Turn on the field. */
+  packet->body.syn.options |= OPT_ENCRYPTED;
+
+  /* Save the parameters. */
+  packet->body.syn.crypto_flags = crypto_flags;
+  memcpy(packet->body.syn.public_key, public_key, 64);
 }
 
 size_t packet_get_syn_size()
@@ -287,23 +292,6 @@ size_t packet_get_ping_size()
 }
 
 #ifndef NO_ENCRYPTION
-size_t packet_get_negenc_size()
-{
-  static size_t size = 0;
-
-  if(size == 0)
-  {
-    uint8_t  *fake_key = { 0 };
-    packet_t *p = packet_create_negenc(0, 0, fake_key);
-    uint8_t  *data = packet_to_bytes(p, &size, 0);
-
-    safe_free(data);
-    packet_destroy(p);
-  }
-
-  return size;
-}
-
 size_t packet_get_auth_size()
 {
   static size_t size = 0;
@@ -367,11 +355,6 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
       break;
 
 #ifndef NO_ENCRYPTION
-    case PACKET_TYPE_NEGENC:
-      buffer_add_int32(buffer, packet->body.negenc.flags);
-      buffer_add_bytes(buffer, packet->body.negenc.public_key, 64);
-      break;
-
     case PACKET_TYPE_AUTH:
       buffer_add_bytes(buffer, packet->body.auth.authenticator, 32);
       break;
@@ -408,10 +391,6 @@ char *packet_to_s(packet_t *packet, options_t options)
     _snprintf_s(ret, 1024, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
   }
 #ifndef NO_ENCRYPTION
-  else if(packet->packet_type == PACKET_TYPE_NEGENC)
-  {
-    _snprintf_s(ret, 1024, 1024, "Type = NEGENC :: [0x%04x] session = 0x%04x :: flags = 0x%08x :: public_key = [not shown]", packet->packet_id, packet->session_id, packet->body.negenc.flags);
-  }
   else if(packet->packet_type == PACKET_TYPE_AUTH)
   {
     _snprintf_s(ret, 1024, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
@@ -439,10 +418,6 @@ char *packet_to_s(packet_t *packet, options_t options)
     snprintf(ret, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
   }
 #ifndef NO_ENCRYPTION
-  else if(packet->packet_type == PACKET_TYPE_NEGENC)
-  {
-    snprintf(ret, 1024, "Type = NEGENC :: [0x%04x] session = 0x%04x :: flags = 0x%08x :: public_key = [not shown]", packet->packet_id, packet->session_id, packet->body.negenc.flags);
-  }
   else if(packet->packet_type == PACKET_TYPE_AUTH)
   {
     snprintf(ret, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
@@ -491,11 +466,6 @@ void packet_destroy(packet_t *packet)
   }
 
 #ifndef NO_ENCRYPTION
-  if(packet->packet_type == PACKET_TYPE_NEGENC)
-  {
-    /* Nothing was allocated. */
-  }
-
   if(packet->packet_type == PACKET_TYPE_AUTH)
   {
     /* Nothing was allocated. */

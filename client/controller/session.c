@@ -57,7 +57,7 @@ static NBBOOL do_encryption = TRUE;
 /* Define a handler function pointer. */
 typedef NBBOOL(packet_handler)(session_t *session, packet_t *packet);
 
-/* TODO: Delete this. */
+/* TODO: Delete this... maybe? Or find a better home? */
 static void print_hex(char *label, uint8_t *data, size_t length)
 {
   size_t i;
@@ -66,6 +66,11 @@ static void print_hex(char *label, uint8_t *data, size_t length)
   for(i = 0; i < length; i++)
     printf("%02x", data[i] & 0x0FF);
   printf("\n");
+}
+
+static NBBOOL should_we_encrypt(session_t *session)
+{
+  return (do_encryption && session->state != SESSION_STATE_NEW);
 }
 
 static uint64_t time_ms()
@@ -115,30 +120,12 @@ static void poll_for_data(session_t *session)
   }
 }
 
-static packet_t *create_syn(session_t *session)
+uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t max_length)
 {
-  packet_t *packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
-
-  if(session->is_command)
-    packet_syn_set_is_command(packet);
-
-  if(session->name)
-    packet_syn_set_name(packet, session->name);
-
-  return packet;
-}
-
-static NBBOOL should_we_encrypt(session_t *session)
-{
-  return (do_encryption && session->state != SESSION_STATE_NEW);
-}
-
-uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length)
-{
-  packet_t *packet      = NULL;
-  uint8_t  *result      = NULL;
-  uint8_t  *data        = NULL;
-  size_t    data_length = -1;
+  packet_t *packet       = NULL;
+  uint8_t  *packet_bytes = NULL;
+  uint8_t  *data         = NULL;
+  size_t    data_length  = -1;
 
   /* Suck in any data we can from the driver. */
   poll_for_data(session);
@@ -177,13 +164,18 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
     switch(session->state)
     {
       case SESSION_STATE_NEW:
-#ifndef NO_ENCRYPTION
-        packet = packet_create_negenc(session->id, 0, session->public_key);
-#endif
-        break;
+        packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
 
-      case SESSION_STATE_READY:
-        packet = create_syn(session);
+        if(session->is_command)
+          packet_syn_set_is_command(packet);
+
+        if(session->name)
+          packet_syn_set_name(packet, session->name);
+
+#ifndef NO_ENCRYPTION
+        if(do_encryption)
+          packet_syn_set_encrypted(packet, 0, session->public_key);
+#endif
         break;
 
       case SESSION_STATE_ESTABLISHED:
@@ -208,67 +200,58 @@ uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_len
 
   if(packet)
   {
-    session->last_transmit = time_ms();
-    session->missed_transmissions++;
+    if(packet_trace)
+    {
+      printf("OUTGOING: ");
+      packet_print(packet, session->options);
+    }
 
-    /* Print packet data if we're supposed to. */
+    packet_bytes = packet_to_bytes(packet, packet_length, session->options);
+    packet_destroy(packet);
 
-    packet_print(packet, session->options);
 #ifndef NO_ENCRYPTION
     if(should_we_encrypt(session))
     {
-      encrypted_packet_t *encrypted_packet = encrypted_packet_create(session->my_nonce++, packet, session->options);
+      buffer_t *packet_buffer = buffer_create(BO_LITTLE_ENDIAN);
 
-      if(packet_trace)
-      {
-        printf("OUTGOING: ");
-        encrypted_packet_print(encrypted_packet, session->options);
-      }
+      buffer_add_bytes(packet_buffer, packet_bytes, *packet_length);
+      safe_free(packet_bytes);
 
-      result = encrypted_packet_to_bytes(encrypted_packet, session->my_write_key, session->my_mac_key, length, session->options);
-      safe_free(encrypted_packet);
-    }
-    else
-    {
-#endif
-      if(packet_trace)
-      {
-        printf("OUTGOING: ");
-        packet_print(packet, session->options);
-      }
+      encrypt_buffer(packet_buffer, session->my_write_key, session->my_nonce++);
+      sign_buffer(packet_buffer, session->my_mac_key);
 
-      result = packet_to_bytes(packet, length, session->options);
-#ifndef NO_ENCRYPTION
+      packet_bytes = buffer_create_string_and_destroy(packet_buffer, packet_length);
     }
 #endif
 
-    packet_destroy(packet);
+    session->last_transmit = time_ms();
+    session->missed_transmissions++;
   }
 
-  return result;
+  return packet_bytes;
 }
 
-#ifndef NO_ENCRYPTION
-static NBBOOL _handle_bad_new(session_t *session, packet_t *packet)
-{
-  LOG_FATAL("The server failed to respond with a NEGENC packet");
-  LOG_FATAL("This could indicate a version mismatch!");
-  exit(1);
-}
-
-static NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
+static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
 {
   sha3_ctx ctx;
 
-  print_hex("Their public key", packet->body.negenc.public_key, 64);
+  session->their_seq = packet->body.syn.seq;
+  session->options   = (options_t) packet->body.syn.options;
 
-  if(!uECC_shared_secret(packet->body.negenc.public_key, session->private_key, session->shared_secret, uECC_secp256r1()))
+#ifndef NO_ENCRYPTION
+  /* Make sure they're encrypting. */
+  if(do_encryption && !(packet->body.syn.options & OPT_ENCRYPTED))
+  {
+    LOG_FATAL("The server doesn't want to encrypt the session!");
+    exit(1);
+  }
+
+  print_hex("Their public key", packet->body.syn.public_key, 64);
+  if(!uECC_shared_secret(packet->body.syn.public_key, session->private_key, session->shared_secret, uECC_secp256r1()))
   {
     LOG_FATAL("Failed to calculate a shared secret!");
     exit(1);
   }
-
-  session->state = SESSION_STATE_READY;
 
   print_hex("Shared secret", session->shared_secret, 32);
 
@@ -292,51 +275,25 @@ static NBBOOL _handle_negenc_new(session_t *session, packet_t *packet)
   sha3_update(&ctx, session->shared_secret, 32);
   sha3_update(&ctx, (uint8_t*)SERVER_MAC_KEY, strlen(SERVER_MAC_KEY));
   sha3_final(&ctx, session->their_mac_key);
+#endif
 
   /* We can send a response right away */
-  session->last_transmit = 0;
+  session->last_transmit        = 0;
   session->missed_transmissions = 0;
+  session->state                = SESSION_STATE_ESTABLISHED;
 
   return TRUE;
 }
-#endif
-
-static NBBOOL _handle_syn_ready(session_t *session, packet_t *packet)
-{
-  session->their_seq = packet->body.syn.seq;
-  session->options   = (options_t) packet->body.syn.options;
-  session->state = SESSION_STATE_ESTABLISHED;
-
-  /* Since we established a valid session, we can send stuff right away. */
-  session->last_transmit = 0;
-  session->missed_transmissions = 0;
-
-  return TRUE;
-}
-
-static NBBOOL _handle_msg_ready(session_t *session, packet_t *packet)
-{
-  LOG_WARNING("In SESSION_STATE_READY, received unexpected MSG (ignoring)");
-  return FALSE;
-}
-
-#ifndef NO_ENCRYPTION
-static NBBOOL _handle_negenc_ready(session_t *session, packet_t *packet)
-{
-  LOG_FATAL("Re-negotiate isn't implemented yet!");
-  exit(1);
-}
-
-static NBBOOL _handle_auth_ready(session_t *session, packet_t *packet)
-{
-  LOG_FATAL("Auth isn't implemented yet!");
-  exit(1);
-}
-#endif
 
 static NBBOOL _handle_syn_established(session_t *session, packet_t *packet)
 {
   LOG_WARNING("Received a SYN in the middle of a session (ignoring)");
+  return FALSE;
+}
+
+static NBBOOL _handle_msg_new(session_t *session, packet_t *packet)
+{
+  LOG_WARNING("Received an unexpected message; very likely the remains of an old session");
   return FALSE;
 }
 
@@ -412,30 +369,52 @@ static NBBOOL _handle_fin(session_t *session, packet_t *packet)
   return TRUE;
 }
 
-#ifndef NO_ENCRYPTION
-static NBBOOL _handle_negenc_established(session_t *session, packet_t *packet)
+static NBBOOL _handle_auth(session_t *session, packet_t *packet)
 {
-  LOG_FATAL("Re-negotiate isn't implemented yet!");
+  LOG_FATAL("Received AUTH; we haven't implemented that yet!");
   exit(1);
 }
-
-static NBBOOL _handle_auth_established(session_t *session, packet_t *packet)
-{
-  LOG_FATAL("Auth isn't implemented yet!");
-  exit(1);
-}
-#endif
 
 NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 {
+  uint8_t *packet_bytes;
+
   /* Parse the packet to get the session id */
-  packet_t *packet = packet_parse(data, length, session->options);
+  packet_t *packet;
 
   /* Set to TRUE if data was properly ACKed and we should send more right away. */
   NBBOOL send_right_away = FALSE;
 
   /* Suck in any data we can from the driver. */
+  /* TODO: I'm not 100% sure what this does, I should check it out. */
   poll_for_data(session);
+
+  /* Make a copy of the data so we can mess around with it. */
+  packet_bytes = safe_malloc(length);
+  memcpy(packet_bytes, data, length);
+
+#ifndef NO_ENCRYPTION
+  if(should_we_encrypt(session))
+  {
+    buffer_t *packet_buffer = buffer_create_with_data(BO_BIG_ENDIAN, packet_bytes, length);
+    safe_free(packet_bytes);
+
+    if(!check_signature(packet_buffer, session->their_mac_key))
+    {
+      LOG_FATAL("Server's signature was wrong!");
+      exit(1);
+    }
+
+    /* TODO: Verify their nonce */
+    decrypt_buffer(packet_buffer, session->their_write_key, NULL);
+
+    /* Switch to the decrypted data. */
+    packet_bytes = buffer_create_string_and_destroy(packet_buffer, &length);
+  }
+#endif
+
+  /* Parse the packet. */
+  packet = packet_parse(data, length, session->options);
 
   /* Print packet data if we're supposed to. */
   if(packet_trace)
@@ -454,33 +433,17 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     /* Handlers for the various states / messages */
     packet_handler *handlers[PACKET_TYPE_COUNT_NOT_PING][SESSION_STATE_COUNT];
 
-#ifndef NO_ENCRYPTION
-    handlers[PACKET_TYPE_SYN][SESSION_STATE_NEW]            = _handle_bad_new;
-#endif
-    handlers[PACKET_TYPE_SYN][SESSION_STATE_READY]          = _handle_syn_ready;
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_NEW]            = _handle_syn_new;
     handlers[PACKET_TYPE_SYN][SESSION_STATE_ESTABLISHED]    = _handle_syn_established;
 
-#ifndef NO_ENCRYPTION
-    handlers[PACKET_TYPE_MSG][SESSION_STATE_NEW]            = _handle_bad_new;
-#endif
-    handlers[PACKET_TYPE_MSG][SESSION_STATE_READY]          = _handle_msg_ready;
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_NEW]            = _handle_msg_new;
     handlers[PACKET_TYPE_MSG][SESSION_STATE_ESTABLISHED]    = _handle_msg_established;
 
-#ifndef NO_ENCRYPTION
     handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]            = _handle_fin;
-#endif
-    handlers[PACKET_TYPE_FIN][SESSION_STATE_READY]          = _handle_fin;
     handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]    = _handle_fin;
 
-#ifndef NO_ENCRYPTION
-    handlers[PACKET_TYPE_NEGENC][SESSION_STATE_NEW]         = _handle_negenc_new;
-    handlers[PACKET_TYPE_NEGENC][SESSION_STATE_READY]       = _handle_negenc_ready;
-    handlers[PACKET_TYPE_NEGENC][SESSION_STATE_ESTABLISHED] = _handle_negenc_established;
-
-    handlers[PACKET_TYPE_AUTH][SESSION_STATE_NEW]           = _handle_bad_new;
-    handlers[PACKET_TYPE_AUTH][SESSION_STATE_READY]         = _handle_auth_ready;
-    handlers[PACKET_TYPE_AUTH][SESSION_STATE_ESTABLISHED]   = _handle_auth_established;
-#endif
+    handlers[PACKET_TYPE_AUTH][SESSION_STATE_NEW]           = _handle_auth;
+    handlers[PACKET_TYPE_AUTH][SESSION_STATE_ESTABLISHED]   = _handle_auth;
 
     /* Be extra cautious. */
     if(packet->packet_type < 0 || packet->packet_type >= PACKET_TYPE_COUNT_NOT_PING)
@@ -566,11 +529,7 @@ static session_t *session_create(char *name)
   else
     session->my_seq        = rand() % 0xFFFF; /* Random isn */
 
-#ifndef NO_ENCRYPTION
   session->state         = SESSION_STATE_NEW;
-#else
-  session->state         = SESSION_STATE_READY;
-#endif
   session->their_seq     = 0;
   session->is_shutdown   = FALSE;
 

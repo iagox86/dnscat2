@@ -12,39 +12,21 @@
 
 #include <stdlib.h>
 
-#ifdef WIN32
-#include "libs/pstdint.h"
-#else
-#include <stdint.h>
-#endif
+#include "libs/buffer.h"
+#include "libs/types.h"
 
-#include "controller/packet.h"
+/* Validates that the packet, stored in buffer, has a valid signature.
+ * It also removes the signature from the buffer. */
+NBBOOL check_signature(buffer_t *buffer, uint8_t *mac_key);
 
-typedef struct
-{
-  uint16_t  nonce;
-  packet_t *packet;
-} encrypted_packet_t;
+/* Decrypt the packet, stored in buffer. Also removes the nonce and
+ * returns it in the nonce parameter, if it's not NULL. */
+void decrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t *nonce);
 
-/* Create an encrypted packet. */
-encrypted_packet_t *encrypted_packet_create(uint16_t nonce, packet_t *packet, options_t options);
+/* Adds a signature to the packet stored in buffer. */
+void sign_buffer(buffer_t *buffer, uint8_t *mac_key);
 
-/* Parse a packet from a byte stream. */
-encrypted_packet_t *encrypted_packet_parse(uint8_t *data, size_t length, options_t options, uint8_t *their_mac_key, uint8_t *their_write_key);
-
-/* Get a handle to the normal packet. */
-packet_t *encrypted_packet_get_packet(encrypted_packet_t *encrypted_packet);
-
-/* Free the packet data structures. */
-void encrypted_packet_destroy(encrypted_packet_t *encrypted_packet);
-
-/* Get a user-readable display of the packet (don't forget to safe_free() the memory!) */
-char *encrypted_packet_to_s(encrypted_packet_t *packet, options_t options);
-
-/* Print the packet (debugging, mostly) */
-void encrypted_packet_print(encrypted_packet_t *packet, options_t options);
-
-/* Needs to be freed with safe_free() */
-uint8_t *encrypted_packet_to_bytes(encrypted_packet_t *encrypted_packet, uint8_t *write_key, uint8_t *mac_key, size_t *length, options_t options);
+/* Encrypts the packet stored in buffer, and adds the nonce to it. */
+void encrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t nonce);
 
 #endif

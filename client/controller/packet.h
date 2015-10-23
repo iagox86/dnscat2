@@ -28,7 +28,6 @@ typedef enum
   PACKET_TYPE_MSG    = 0x01,
   PACKET_TYPE_FIN    = 0x02,
 #ifndef NO_ENCRYPTION
-  PACKET_TYPE_NEGENC = 0x03,
   PACKET_TYPE_AUTH   = 0x04,
 #endif
   PACKET_TYPE_COUNT_NOT_PING,
@@ -42,6 +41,8 @@ typedef struct
   uint16_t seq;
   uint16_t options;
   char    *name;
+  uint32_t crypto_flags;
+  uint8_t  public_key[64];
 } syn_packet_t;
 
 typedef enum
@@ -52,6 +53,7 @@ typedef enum
   /* OPT_DOWNLOAD = 8, // Deprecated */
   /* OPT_CHUNKED_DOWNLOAD = 16, // Deprecated */
   OPT_COMMAND          = 0x0020,
+  OPT_ENCRYPTED        = 0x0040,
 } options_t;
 
 typedef struct
@@ -81,12 +83,6 @@ typedef struct
 #ifndef NO_ENCRYPTION
 typedef struct
 {
-  uint32_t flags;
-  uint8_t  public_key[64];
-} negenc_packet_t;
-
-typedef struct
-{
   uint8_t authenticator[32];
 } auth_packet_t;
 #endif
@@ -104,7 +100,6 @@ typedef struct
     fin_packet_t    fin;
     ping_packet_t   ping;
 #ifndef NO_ENCRYPTION
-    negenc_packet_t negenc;
     auth_packet_t   auth;
 #endif
   } body;
@@ -123,7 +118,6 @@ packet_t *packet_create_fin(uint16_t session_id, char *reason);
 packet_t *packet_create_ping(uint16_t session_id, char *data);
 
 #ifndef NO_ENCRYPTION
-packet_t *packet_create_negenc(uint16_t session_id, uint32_t flags, uint8_t *public_key);
 packet_t *packet_create_auth(uint16_t session_id, uint8_t *authenticator);
 #endif
 
@@ -133,11 +127,13 @@ void packet_syn_set_name(packet_t *packet, char *name);
 /* Set the OPT_COMMAND flag */
 void packet_syn_set_is_command(packet_t *packet);
 
+/* Set up an encrypted session. */
+void packet_syn_set_encrypted(packet_t *packet, uint32_t crypto_flags, uint8_t *public_key);
+
 /* Get minimum packet sizes so we can avoid magic numbers. */
 size_t packet_get_syn_size();
 size_t packet_get_msg_size(options_t options);
 size_t packet_get_fin_size(options_t options);
-size_t packet_get_negenc_size();
 size_t packet_get_auth_size();
 size_t packet_get_ping_size();
 

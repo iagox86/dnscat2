@@ -19,10 +19,7 @@
 
 typedef enum
 {
-#ifndef NO_ENCRYPTION
   SESSION_STATE_NEW,
-#endif
-  SESSION_STATE_READY,
   SESSION_STATE_ESTABLISHED,
 
   SESSION_STATE_COUNT
@@ -74,7 +71,7 @@ void debug_set_isn(uint16_t value);
 NBBOOL session_is_shutdown(session_t *session);
 
 NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length);
-uint8_t *session_get_outgoing(session_t *session, size_t *length, size_t max_length);
+uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t max_length);
 
 void session_enable_packet_trace();
 void session_set_delay(int delay_ms);
