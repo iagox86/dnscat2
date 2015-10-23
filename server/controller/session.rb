@@ -199,6 +199,11 @@ class Session
       @window.puts("My public key:    #{@my_public_key.x.to_s(16)} #{@my_public_key.y.to_s(16)}")
       @window.puts("Their public key: #{@their_public_key.x.to_s(16)} #{@their_public_key.y.to_s(16)}")
       @window.puts("Shared secret:    #{@shared_secret.x.to_s(16)} #{@shared_secret.y.to_s(16)}")
+      @window.puts()
+      @window.puts("Their write key: #{@their_write_key.unpack("H*")}")
+      @window.puts("Their mac key:   #{@their_mac_key.unpack("H*")}")
+      @window.puts("Our write key:   #{@our_write_key.unpack("H*")}")
+      @window.puts("Our mac key:     #{@our_mac_key.unpack("H*")}")
 
       @our_nonce = 0
 
@@ -221,7 +226,7 @@ class Session
     end
 
     # Move states (this has to come after the encryption code, otherwise this packet is accidentally encrypted)
-    @state     = STATE_ESTABLISHED
+    @state = STATE_ESTABLISHED
 
     return Packet.create_syn(options, packet_params)
   end
@@ -245,6 +250,8 @@ class Session
 
     # Validate the sequence number
     if(@their_seq != packet.body.seq)
+      @window.puts("Client sent a back sequence number (expected #{@their_seq}, received #{packet.body.seq}); re-sending")
+
       # Re-send the last packet
       old_data = _next_outgoing(_actual_msg_max_length(max_length))
 

@@ -201,7 +201,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 #ifndef NO_ENCRYPTION
     if(should_we_encrypt(session))
     {
-      buffer_t *packet_buffer = buffer_create(BO_LITTLE_ENDIAN);
+      buffer_t *packet_buffer = buffer_create(BO_BIG_ENDIAN);
 
       buffer_add_bytes(packet_buffer, packet_bytes, *packet_length);
       safe_free(packet_bytes);
@@ -265,6 +265,11 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   sha3_update(&ctx, session->shared_secret, 32);
   sha3_update(&ctx, (uint8_t*)SERVER_MAC_KEY, strlen(SERVER_MAC_KEY));
   sha3_final(&ctx, session->their_mac_key);
+
+  print_hex("my_write_key",    session->my_write_key, 32);
+  print_hex("my_mac_key",      session->my_mac_key, 32);
+  print_hex("their_write_key", session->their_write_key, 32);
+  print_hex("their_mac_key",   session->their_mac_key, 32);
 #endif
 
   /* We can send a response right away */
@@ -392,23 +397,14 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     buffer_t *packet_buffer = buffer_create_with_data(BO_BIG_ENDIAN, packet_bytes, length);
     safe_free(packet_bytes);
 
-    printf("Buffer before signature verification:\n");
-    buffer_print(packet_buffer);
-
     if(!check_signature(packet_buffer, session->their_mac_key))
     {
       LOG_FATAL("Server's signature was wrong!");
       exit(1);
     }
 
-    printf("Buffer after signature verification, before decryption:\n");
-    buffer_print(packet_buffer);
-
     /* TODO: Verify their nonce */
     decrypt_buffer(packet_buffer, session->their_write_key, NULL);
-
-    printf("Buffer after decryption:\n");
-    buffer_print(packet_buffer);
 
     /* Switch to the decrypted data. */
     packet_bytes = buffer_create_string_and_destroy(packet_buffer, &length);
@@ -537,7 +533,7 @@ static session_t *session_create(char *name)
 
   session->last_transmit = 0;
   session->missed_transmissions = 0;
-  session->outgoing_buffer = buffer_create(BO_LITTLE_ENDIAN);
+  session->outgoing_buffer = buffer_create(BO_BIG_ENDIAN);
 
 #ifndef NO_ENCRYPTION
   if(do_encryption)
