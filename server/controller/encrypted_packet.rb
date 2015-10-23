@@ -57,8 +57,12 @@ class EncryptedPacket
     header, body = @packet.to_bytes().unpack("a5a*")
 
     # Encrypt the body
-    puts(our_write_key.class)
+    puts("\nENCRYPTING")
+    puts("Key: #{our_write_key.unpack("H*")}")
+    puts("Nonce: #{("\0\0\0\0\0\0" + @nonce).unpack("H*")}")
+    puts("Decrypted body: #{body.unpack("H*")}")
     encrypted_body = Salsa20.new(our_write_key, "\0\0\0\0\0\0" + @nonce).encrypt(body)
+    puts("Encrypted body: #{encrypted_body.unpack("H*")}")
 
     puts("SIGNING OUR PACKET:")
     puts("mac_key: #{our_mac_key.unpack("H*")}")

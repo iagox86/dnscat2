@@ -383,21 +383,32 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
   packet_bytes = safe_malloc(length);
   memcpy(packet_bytes, data, length);
 
+  /* I no longer want to risk messing with data by accident, so get rid of it. */
+  data = NULL;
+
 #ifndef NO_ENCRYPTION
   if(should_we_encrypt(session))
   {
     buffer_t *packet_buffer = buffer_create_with_data(BO_BIG_ENDIAN, packet_bytes, length);
     safe_free(packet_bytes);
 
+    printf("Buffer before signature verification:\n");
+    buffer_print(packet_buffer);
+
     if(!check_signature(packet_buffer, session->their_mac_key))
     {
       LOG_FATAL("Server's signature was wrong!");
       exit(1);
     }
-    printf("SIGNATURE VERIFIED!!\n");
+
+    printf("Buffer after signature verification, before decryption:\n");
+    buffer_print(packet_buffer);
 
     /* TODO: Verify their nonce */
     decrypt_buffer(packet_buffer, session->their_write_key, NULL);
+
+    printf("Buffer after decryption:\n");
+    buffer_print(packet_buffer);
 
     /* Switch to the decrypted data. */
     packet_bytes = buffer_create_string_and_destroy(packet_buffer, &length);
@@ -405,7 +416,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 #endif
 
   /* Parse the packet. */
-  packet = packet_parse(data, length, session->options);
+  packet = packet_parse(packet_bytes, length, session->options);
 
   /* Print packet data if we're supposed to. */
   if(packet_trace)

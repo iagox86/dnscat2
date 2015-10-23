@@ -46,7 +46,6 @@ NBBOOL check_signature(buffer_t *buffer, uint8_t *mac_key)
 
   /* Re-build the buffer without the signature. */
   buffer_clear(buffer);
-  buffer = buffer_create(BO_BIG_ENDIAN);
   buffer_add_bytes(buffer, header, HEADER_LENGTH);
   buffer_add_bytes(buffer, body, body_length);
 
@@ -86,7 +85,6 @@ void decrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t *nonce)
   buffer_reset(buffer);
 
   /* Read the header. */
-  buffer_print(buffer);
   buffer_read_next_bytes(buffer, header, HEADER_LENGTH);
 
   /* Read the nonce, padded with zeroes. */
@@ -101,7 +99,13 @@ void decrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t *nonce)
   body = buffer_read_remaining_bytes(buffer, &body_length, -1, FALSE);
 
   /* Decrypt the body! */
+  printf("\nDECRYPTING::\n");
+  print_hex("key", write_key, 32);
+  print_hex("nonce", nonce_str, 8);
+  print_hex("encrypted body", body, body_length);
+  printf("\n");
   s20_crypt(write_key, S20_KEYLEN_256, nonce_str, 0, body, body_length);
+  print_hex("decrypted body", body, body_length);
 
   /* Re-build the packet without the nonce. */
   buffer_clear(buffer);
