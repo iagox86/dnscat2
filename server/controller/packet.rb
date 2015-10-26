@@ -8,6 +8,7 @@
 # Builds and parses dnscat2 packets.
 ##
 
+require 'controller/encryptor'
 require 'libs/dnscat_exception'
 require 'libs/hex'
 
@@ -90,8 +91,8 @@ class Packet
         end
 
         # Convert into integers
-        public_key_x = public_key_x.unpack("H*").pop().to_i(16)
-        public_key_y = public_key_y.unpack("H*").pop().to_i(16)
+        public_key_x = Encryptor.binary_to_bignum(public_key_x)
+        public_key_y = Encryptor.binary_to_bignum(public_key_y)
       end
 
       # Verify that that was the entire packet
@@ -120,8 +121,8 @@ class Packet
       end
 
       if((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
-        public_key_x = [@public_key_x.to_s(16)].pack("H*")
-        public_key_y = [@public_key_y.to_s(16)].pack("H*")
+        public_key_x = Encryptor.bignum_to_binary(@public_key_x)
+        public_key_y = Encryptor.bignum_to_binary(@public_key_y)
         result += [@crypto_flags, public_key_x, public_key_y].pack("na32a32")
       end
 

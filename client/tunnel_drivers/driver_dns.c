@@ -163,7 +163,7 @@ static void do_send(driver_dns_t *driver)
   assert(driver->s != -1); /* Make sure we have a valid socket. */
   assert(data); /* Make sure they aren't trying to send NULL. */
   assert(length > 0); /* Make sure they aren't trying to send 0 bytes. */
-  assert(length <= MAX_DNSCAT_LENGTH(driver->domain));
+  /*assert(length <= MAX_DNSCAT_LENGTH(driver->domain));*/
 
   buffer = buffer_create(BO_BIG_ENDIAN);
 

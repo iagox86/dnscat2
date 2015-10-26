@@ -88,6 +88,7 @@ class Controller
 
     session_id = Packet.peek_session_id(data)
     session = _get_or_create_session(session_id)
+
     return session.feed(data, max_length)
   end
 end

@@ -16,6 +16,7 @@ class EncryptedPacket
   #@@crypto_status = SWindow.new(nil, false, { :noinput => true, :id => "crypto", :name => "Crypto status"})
 
   def initialize(nonce, packet)
+    # TODO: Make the nonce into an integer
     if(nonce.length != 2)
       raise(DnscatException, "Invalid nonce: #{nonce}")
     end
@@ -37,7 +38,7 @@ class EncryptedPacket
     end
 
     # Decrypt the body
-    body = Salsa20.new(their_write_key, "\0\0\0\0\0\0" + nonce).decrypt(encrypted_body)
+    body = Salsa20.new(their_write_key, nonce.rjust(8, "\0")).decrypt(encrypted_body)
 
     return EncryptedPacket.new(nonce, Packet.parse(header + body, options))
   end
@@ -51,7 +52,7 @@ class EncryptedPacket
     header, body = @packet.to_bytes().unpack("a5a*")
 
     # Encrypt the body
-    encrypted_body = Salsa20.new(our_write_key, "\0\0\0\0\0\0" + @nonce).encrypt(body)
+    encrypted_body = Salsa20.new(our_write_key, @nonce.rjust(8, "\0")).encrypt(body)
 
     # Sign it
     signature = SHA3::Digest::SHA256.digest(our_mac_key + header + @nonce + encrypted_body)
