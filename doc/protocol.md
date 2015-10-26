@@ -298,21 +298,60 @@ looking at the other side's `ACK` number).
 It's important to start by noting: this isn't designed to be strong
 encryption, with assurances like SSL. It's designed to be fast, easy to
 implement, and to prevent passive eavesdropping. Active (man in the
-middle) attacks are only prevented using a pre-shared secret.
+middle) attacks are only prevented using a pre-shared secret, which is
+optional by default.
 
-To summarize, a key exchange algorithm and SHA3 are used to generate a shared
-symmetric key, which is used with SHA3 and Salsa20 to sign and encrypt
-all messages between the client and server.
+To summarize, a ECDH and SHA3 are used to generate a shared symmetric
+key, which is used with SHA3 and Salsa20 to sign and encrypt all
+messages between the client and server.
 
 Read on for more details.
 
+### Algorithms
+
+#### ECDH
+
+The Prime256v1 (aka "P-256" or "Nisp256") curve is used for the ECDH key
+exchange.
+
+The following are the defined constants:
+
+    p: 11579208921035624876269744694940757353008614_3415290314195533631308867097853951,
+    a: -3,
+    b: 0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604b,
+    g: [0x6b17d1f2_e12c4247_f8bce6e5_63a440f2_77037d81_2deb33a0_f4a13945_d898c296,
+        0x4fe342e2_fe1a7f9b_8ee7eb4a_7c0f9e16_2bce3357_6b315ece_cbb64068_37bf51f5],
+    n: 11579208921035624876269744694940757352999695_5224135760342422259061068512044369,
+    h: nil,  # cofactor not given in NIST document
+
+This is implemented in the Ruby gem
+[ecdsa](https://github.com/DavidEGrayson/ruby_ecdsa) and in the C library
+[micro-ecc](https://github.com/kmackay/micro-ecc).
+
+To generate a keypair in Ruby:
+
+    require 'ecdsa'
+    require 'securerandom'
+    
+    my_private_key = 1 + SecureRandom.random_number(ECDSA::Group::Nistp256.order - 1)
+    my_public_key  = ECDSA::Group::Nistp256.generator.multiply_by_scalar(my_private_key)
+
+To import another public key (the values must be Bignum values):
+
+    their_public_key = ECDSA::Point.new(ECDSA::Group::Nistp256, their_public_key_x, their_public_key_y)
+
+And to generate a shared secret:
+
+    shared_secret = their_public_key.multiply_by_scalar(my_private_key)
+
+
 ### Key exchange
 
-Key exchange is performed using the Prime256v1 Elliptic Curve and
-SHA3-256. The client and server each generates a random 1024-bit secret
-key at the start of a connection, then derive a shared (symmetric) key.
-This is all performed in the `MESSAGE_TYPE_NEGENC` packet, defined
-below.
+Key exchange is performed using the Prime256v1 Elliptic Curve (also
+called "P-256" or "Nistp256") and SHA3-256. The client and server each
+generates a random 1024-bit secret key at the start of a connection,
+then derive a shared (symmetric) key.  This is all performed in the
+`MESSAGE_TYPE_NEGENC` packet, defined below.
 
 Once they have one another's public keys, the client and server use
 those keys to generate `shared_secret`. `shared_secret` is SHA3'd with a
