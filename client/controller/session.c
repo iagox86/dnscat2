@@ -504,12 +504,12 @@ static char *get_name(char *base)
 {
   /* This code isn't beautiful, but it does the job and it's only local
    * stuff anyway (no chance of being exploited). */
-  char hostname[128];
+  char hostname[16];
   buffer_t *buffer = NULL;
 
   /* Read the hostname */
-  gethostname(hostname, 128);
-  hostname[127] = '\0';
+  gethostname(hostname, 16);
+  hostname[15] = '\0';
 
   buffer = buffer_create(BO_BIG_ENDIAN);
   buffer_add_string(buffer, base);
