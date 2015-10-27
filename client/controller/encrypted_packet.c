@@ -138,8 +138,6 @@ void encrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t nonce)
   uint8_t  *body                  = NULL;
   size_t    body_length           = -1;
 
-  print_hex("ENCRYPTING WITH", write_key, 32);
-
   /* Start from the beginning. */
   buffer_reset(buffer);
 
@@ -155,14 +153,11 @@ void encrypt_buffer(buffer_t *buffer, uint8_t *write_key, uint16_t nonce)
   body = buffer_read_remaining_bytes(buffer, &body_length, -1, FALSE);
 
   /* Encrypt the body! */
-  print_hex("NONCE", nonce_str, 8);
   s20_crypt(write_key, S20_KEYLEN_256, nonce_str, 0, body, body_length);
 
   /* Re-build the packet with the nonce. */
   buffer_clear(buffer);
   buffer_add_bytes(buffer, header, 5);
-  printf("Nonce = 0x%04x\n", nonce);
   buffer_add_int16(buffer, nonce);
-  buffer_print(buffer);
   buffer_add_bytes(buffer, body, body_length);
 }

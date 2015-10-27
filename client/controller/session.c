@@ -240,14 +240,14 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
     exit(1);
   }
 
-  print_hex("Their public key", packet->body.syn.public_key, 64);
+  print_hex("their_public_key", packet->body.syn.public_key, 64);
   if(!uECC_shared_secret(packet->body.syn.public_key, session->private_key, session->shared_secret, uECC_secp256r1()))
   {
     LOG_FATAL("Failed to calculate a shared secret!");
     exit(1);
   }
 
-  print_hex("Shared secret", session->shared_secret, 32);
+  print_hex("shared_secret", session->shared_secret, 32);
 
   /* Generate the four keys we need. */
   sha3_256_init(&ctx);
@@ -280,6 +280,8 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   session->last_transmit        = 0;
   session->missed_transmissions = 0;
   session->state                = SESSION_STATE_ESTABLISHED;
+
+  printf("Session established!\n");
 
   return TRUE;
 }
@@ -550,8 +552,8 @@ static session_t *session_create(char *name)
       exit(1);
     }
 
-    print_hex("My private key", session->private_key, 32);
-    print_hex("My public key", session->public_key, 64);
+    print_hex("my_private_key", session->private_key, 32);
+    print_hex("my_public_key",  session->public_key, 64);
 
     session->my_nonce = 0;
   }

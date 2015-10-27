@@ -305,7 +305,155 @@ To summarize, a ECDH and SHA3 are used to generate a shared symmetric
 key, which is used with SHA3 and Salsa20 to sign and encrypt all
 messages between the client and server.
 
-Read on for more details.
+Only packets' bodies are encrypted; the headers are cleartext. This is
+necessary, because otherwise it's impossible to know who encrypted the
+message and which key should be used to decrypt it.
+
+The data that crosses the network in cleartext is:
+
+* packet_id - a meaningless random value
+* packet_type - information on the type of packet (syn/msg/fin/etc)
+* session_id - identifies the session
+
+These give no more information than the unencrypted TCP headers of a
+typical TLS session, so I decided that it's safe enough.
+
+The next few sections will detail the various parts of the encryption
+and signing. At the end, there will be a section with specific
+implementation and library information for C and Ruby.
+
+### Key exchange
+
+Key exchange is performed using the "P-256" elliptic curve and SHA3-256.
+The client and server each generates a random 256-bit secret key at the
+start of a connection, then derive a shared (symmetric) key.  This is
+all performed in the `MESSAGE_TYPE_SYN` packet, with `OPT_ENCRYPTED`
+set.
+
+Once they have one another's public keys, the client and server use
+those keys to generate `shared_secret`. `shared_secret` is SHA3'd with a
+few different static strings to generate the actual keys.
+
+    `shared_secret = ECDH("P-256", their_public_key, my_private_key)`
+    `client_write = SHA3-256(shared_secret || "client_write_key")`
+    `client_mac   = SHA3-256(shared_secret || "client_mac_key")`
+    `server_write = SHA3-256(shared_secret || "server_write_key")`
+    `server_mac   = SHA3-256(shared_secret || "server_mac_key")`
+
+Note that, without peer authentication (see below), this is vulnerable to
+man-in-the-middle attacks. But it still prevents passive inspection, so
+it isn't completely without merit, and should be used as the default
+mode. Servers may choose whether or not to require encryption and
+authentication.
+
+### Peer authentication
+
+The client and server can optionally use a pre-shared secret (ie, a
+password or a key) to prevent man-in-the-middle attacks.
+
+`preshared_secret` is something the client and server have to pre-decide.
+Typically, it'll be passed in as commandline arguments. The server may
+even auto-generate a key for each listener and give the user the
+specific command to enter the key.
+
+If a client attempts to authenticate, the server *MUST* authenticate
+back. If the client authenticates and the server doesn't, the client
+*MUST* terminate the connection.
+
+If the client doesn't perform authentication, it's up to the server to
+decide whether or not to allow the connection (it has no
+man-in-the-middle protection, but it's possible that the client simply
+didn't use a key).
+
+The actual authentication is done in a `AUTH` packet. If it's being
+used, it must be sent directly after the `SYN` packet.
+
+The authentication strings are computed using SHA3-256:
+
+    client_authentication = SHA3-256("client" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+    server_authentication = SHA3-256("server" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+
+### Short-authentication strings
+
+Instead of using peer authentication, a short-authentication string can
+be used. This is a way for the user to visually validate that the client
+and server are connected to each other, and not to somebody else.
+
+This is done by taking the first 6 bytes (48 bits) of this hash:
+
+    sas = SHA3-256("authstring" || shared_secret || pubkey_client || pubkey_server)[0,6]
+
+Then, for each byte, looking up the corresponding line in
+[this word list](/data/wordlist_256.txt) and display it to the user.
+It's up to the user to verify that the 6 words on the client match the 6
+words on the server.
+
+### Stream encapsulation
+
+A dnscat2 packet contains a 5-byte header and an arbitrarily long body.
+The header must be transmitted unencrypted, but must be signed.
+
+After each dnscat2 packet is serialized to a byte stream, but before
+it's converted to DNS by the `tunnel_driver`, the packet's body is
+wrapped in encryption and the full packet is signed.
+
+To encrypt each packet, a distinct nonce value is required, so an
+incremental 16-bit value is used. When the client or server's nonce
+value approaches the maximum value (0xFFFF (65535)), the client *must*
+initiate a re-negotiation (see below). The client and server *MUST NOT*
+allow the other to re-use a nonce or to decrement the nonce, unless a
+re-negotiation has happened since it was last used. Any packets
+containing the same or a lower nonce should be ignored (but that should
+not terminate the connection; otherwise, it's an easy DoS).
+
+A server has to deal with receiving multiple packets with the *same*
+nonce carefully. DNS tends to retransmit itself, so receiving multiple
+packets with the same nonce isn't surprising. In particular, this will
+happen if the server's response was lost on the way back to the client.
+If a response is lost, the client will eventually re-transmit with a new
+nonce, and the server will be able to handle it appropriately; as such,
+a server *MUST NOT* respond to multiple messages with the same nonce.
+
+Encrypting the body is simply done with salsa20:
+
+    encrypted_data = salsa20(packet_body, nonce, write_key)
+
+Each packet also requires a signature. This is to prevent
+man-in-the-middle attacks, so as long as it can hold off an attacker for
+more than a couple seconds, it's suitable. As such, we use SHA3-256
+truncated to 48 bits.
+
+The calculations are as follows:
+
+    `signature = SHA3(mac_key || packet_header || nonce || encrypted_body)[0,6]`
+
+Where the `write_key` and `mac_key` are either the client's or the
+server's respective keys, depending on who's performing the operation.
+The `nonce` is the two-byte big-endian-encoded nonce value, and the
+`encrypted_body` is, of course, the body after it's been encrypted.
+
+The final encapsulated packet looks like this:
+
+* (byte[5]) header
+* (byte[6]) signature
+* (byte[2]) nonce
+* (byte[])  encrypted_body
+
+### Re-negotiation
+
+Note: This isn't implemented anywhere yet, and is likely to change!
+
+To re-negotiate encryption, the client simply sends a `RNE` message
+to the server with a new public key, encrypted and signed as a normal
+message. The server will respond with a new pubkey of its own in its own
+`RNE` packet, exactly like the original exchange.
+
+Authentication is not re-done. The connection is assumed to still be valid.
+
+After successful re-negotiation, the client and server should both reset
+their nonce values back to 0. The next packet after the `RNE` packet
+should be encrypted with the new key, and the old one should be
+discarded (preferably zeroed out so it can't be recovered, if possible).
 
 ### Algorithms
 
@@ -336,146 +484,106 @@ To generate a keypair in Ruby:
     my_private_key = 1 + SecureRandom.random_number(ECDSA::Group::Nistp256.order - 1)
     my_public_key  = ECDSA::Group::Nistp256.generator.multiply_by_scalar(my_private_key)
 
-To import another public key (the values must be Bignum values):
+To import another public key (the values must be Bignum values, see
+[encryptor.rb](/server/controller/encryptor.rb) for how to do that):
 
     their_public_key = ECDSA::Point.new(ECDSA::Group::Nistp256, their_public_key_x, their_public_key_y)
 
-And to generate a shared secret:
+And to generate the shared secret:
 
     shared_secret = their_public_key.multiply_by_scalar(my_private_key)
 
+In C, the keypair can be generated like this:
 
-### Key exchange
+    #include "libs/crypto/micro-ecc/uECC.h"
+    uECC_make_key(their_public_key, my_private_key, uECC_secp256r1())
 
-Key exchange is performed using the Prime256v1 Elliptic Curve (also
-called "P-256" or "Nistp256") and SHA3-256. The client and server each
-generates a random 1024-bit secret key at the start of a connection,
-then derive a shared (symmetric) key.  This is all performed in the
-`MESSAGE_TYPE_NEGENC` packet, defined below.
+To calculate the shared secret, the peer's public key must be formatted
+as a 64-byte string, where the first 32 bytes represent the `x`
+coordinate and the second 32 bytes represent the `y` coordinate:
 
-Once they have one another's public keys, the client and server use
-those keys to generate `shared_secret`. `shared_secret` is SHA3'd with a
-few different static strings to generate the actual keys.
+    uECC_shared_secret(their_public_key, my_private_key, shared_secret, uECC_secp256r1())
 
-    `shared_secret = DiffieHellman(theirpublic, mysecret)`
-    `client_write = SHA3-256(shared_secret || "client_write_key")`
-    `client_mac   = SHA3-256(shared_secret || "client_mac_key")`
-    `server_write = SHA3-256(shared_secret || "server_write_key")`
-    `server_mac   = SHA3-256(shared_secret || "server_mac_key")`
+To test your code, here are all the variables in a successful key
+exchange:
 
-Note that, without peer authentication (see below), this is vulnerable to
-man-in-the-middle attacks. But it still prevents passive inspection, so
-it isn't completely without merit, and should be used as the default
-mode.
+    alice_private_key:  7997cdc9af9690c78e58468c6a5f273b4c22a8a6e6a0e4be32e81d17c78a3f8b
+    alice_public_key_x: a651dedcb8833d574628bbb7b2fa2e63f3ac528aca48d38901955b6c76515c80
+    alice_public_key_y: a5d16a0bcfcc76868e9179f44c28eae55b48bacb3168f8977156e1edc7b6334d
+    
+    bob_private_key:    612b7bb5b84cdb200e4108d6ca52bc4fad94cd04fa8711227e17a268d16a7b85
+    bob_public_key_x:   8a748d60b9293e3e5f5d8b50793e476190f869b1006a23aa462ac5cd32572f1a
+    bob_public_key_y:   04e11e6440c579a3e13e67661004337ce63fd05bbeaa8c211f8fef844c075b34
+    
+    shared_secret:      6db2c22f7b0fd8921a15cf22bcbecfe84da0a852075f2707b2a24e19d9f4a6cf
 
-### Peer authentication
 
-The client and server can optionally use a pre-shared secret (ie, a
-password or a key) to prevent man-in-the-middle attacks.
 
-`preshared_secret` is something the client and server have to pre-decide.
-Typically, it'll be passed in as commandline arguments. The server may
-even auto-generate a key for each listener and give the user the
-specific command to enter the key.
+#### SHA3
 
-If a client attempts to authenticate, the server *MUST* authenticate
-back. If the client authenticate and the server doesn't, the client
-*MUST* terminate the connection.
+SHA3 is used in the protocol for simplicity; HMAC and similar constructs
+aren't required, we can simply concatenate data inside the hash (as it
+was designed to allow).
 
-If the client doesn't perform authentication, it's up to the server to
-decide whether or not to allow the connection (it has no
-man-in-the-middle protection, but it's possible that the client simply
-didn't use a key).
+The downside of SHA3 is that finding a proper implementation can be
+tricky!
 
-The actual authentication is done in a `AUTH` packet. If it's being
-used, it must be sent directly after the `NEGENC` packet and before
-`SYN`.
+We also use SHA3-256 in every case. When we need a 48-bit string, rather
+than using SHA3-48 (which isn't always implemented), we simply truncate
+a SHA3-256 output to the proper length.
 
-The authentication strings are computed using SHA3-256:
+The [sha3 gem](https://github.com/johanns/sha3), as of 1.0.1, implements
+SHA3 properly. You can verify that whatever your library is using
+generates the right string by hashing the empty string:
 
-    client_authentication = SHA3-256("client" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
-    server_authentication = SHA3-256("server" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+    1.9.3-p392 :004 > require 'sha3'
+     => false
+    1.9.3-p392 :003 > SHA3::Digest.new(256).hexdigest('')
+     => "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"
 
-### Stream encapsulation
+If you get that value, it's working! If you get something else, then
+look for another implementation. As of late 2015, I found lots of
+problematic libraries.
 
-After each dnscat2 packet is serialized to a byte stream, but before
-it's converted to DNS by the `tunnel_driver`, it's wrapped in
-encryption.
+To test your implementation, the `shared_secret` defined above should generate
+the following session keys:
 
-Each packet requires a distinct nonce value. Even if it's unclear
-whether a message was received (ie, even if it's a retransmission), the
-nonce must still change.
+    shared_secret:      6db2c22f7b0fd8921a15cf22bcbecfe84da0a852075f2707b2a24e19d9f4a6cf
+    client_write_key:   95f786ebf2f4bd460a4031f6b097f54635c27fb8df4c53cfd225c6d9d7ef3abc
+    client_mac_key:     726505b9481b72f123fa40aef9f6e777c0070b3cc016f097a8e9569ef4200810
+    server_write_key:   a795d45bd0baee7bdef64c7053f1f63b9a2edc0c3c876abe45282dd2dc777d53
+    server_mac_key:     40cb251330c07f2cfd084c841a707aa66e81e1d70775d45bcbc6a6ec72f97e91
 
-An incremental 16-bit value is used for the nonce. When the client or
-server's nonce value approaches the maximum value (0xFFFF (65535)), the
-client *must* initiate a re-negotiation (see below). The client and
-server *MUST NOT* allow the other to re-use a nonce or to decrement the
-nonce, unless a re-negotiation has happened.
+#### Salsa20
 
-Each packet also requires a signature. This is to prevent
-man-in-the-middle attacks, so as long as it can hold off an attacker for
-more than a couple seconds, it's suitable. As such, we're going to use
-SHA3-256 truncated to 48 bits.
+I chose Salsa20 because it has a nice implementation in both C and Ruby,
+and is generally considered to be a secure stream cipher. It also uses a
+256-bit key, which is rather nice (all my cryptographic values are
+256 bits!).
 
-The calculations are as follows:
+You can verify it's working by encrypting 'password' with a blank
+(all-NUL) 256-bit key and a blank (all-NUL) nonce and checking the
+output against mine:
 
-    `encrypted_data = salsa20(data, nonce, write_key)`
-    `signature = SHA3(mac || nonce || encrypted_data)[0,6]`
+    1.9.3-p392 :001 > require 'salsa20'
+     => true
+    1.9.3-p392 :002 > Salsa20.new("\0"*32, "\0"*8).encrypt("password").unpack("H*")
+     => ["eaf68528ec23007f"]
 
-Where the `mac` and `write_key` are either the client's or the server's
-respective keys, depending on who's performing the operation.
+#### Warnings
 
-The final encapsulated packet looks like this:
+There are a few places where it's easy to accidentally introduce a
+vulnerability in the dnscat2 encryption. If you're implementing a client
+(or a server), be sure you handle these:
 
-* (byte[6]) signature
-* (byte[2]) obfuscated_nonce (see below)
-* (byte[2]) obfuscated_session_id (see below)
-* (byte[])  encrypted_data
-
-*IMPORTANT*: The client and server *MUST NOT* re-use a nonce.  Any
-messages with a bad signature or a bad nonce should simply be given a
-blank response, or discarded altogether.
-
-The nonce is required for the peer to be able to decrypt the packet, and
-is part of the signed data.
-
-The session_id is required for the server or client to identify which
-session the encrypted data belongs to; without knowing which session is
-being used, it's impossible to choose the proper decryption key.
-
-The nonce and session_id are obfuscated by XORing them with pairs of
-signature bytes:
-
-    nonce[0]      ^= nonce[0]     ^ signature[0] ^ signature[1]
-    nonce[1]      ^= nonce[0]     ^ signature[1] ^ signature[2]
-    session_id[0] ^= signature[0] ^ signature[2] ^ signature[3]
-    session_id[1] ^= signature[0] ^ signature[3] ^ signature[4]
-
-The logic behind this is:
-
-* The nonce is incremental and the session_id doesn't change; this leaks
-  information
-* XORing by a single byte still makes certain things obvious (a "\x00"
-  byte doesn't change, and the first 256 nonces contain a "\x00" byte)
-* By doing a simple XOR, we make it harder to discern the traffic
-  (though it's obviously still possible)
-
-It's not the *best* solution to the problem, but I can't think of a
-better one (keeping in mind that we don't know which client is
-contacting us at this point).
-
-### Re-negotiation
-
-To re-negotiate encryption, the client simply sends a `NEGENC` message
-to the server with a new public key, encrypted and signed as a normal
-message. The server will respond with a new pubkey of its own, exactly
-like the original configuration (the only difference is, it's done over
-an encrypted channel).
-
-Authentication is not re-done. The connection is assumed to still be valid.
-
-After successful re-negotiation, the client and server should both reset
-their nonce values back to 0.
+* If an attacker sends a duplicate SYN message with the `session_id` of
+  the client, it must be ignored (basically, ignore mid-stream SYN
+  packets). If the packet is accepted, it could be possible to overwrite
+  the `session_key` of an active session.
+* The `private_key` must be generated with a SecureRandom library.
+* If a server wants authentication to be mandatory, it must have a state
+  machine that handles new -> unauthenticated -> authenticated, or it
+  must be very careful not to accept unauthenticated messages.
 
 ## Constants
 
@@ -483,13 +591,13 @@ their nonce values back to 0.
     #define MESSAGE_TYPE_SYN    (0x00)
     #define MESSAGE_TYPE_MSG    (0x01)
     #define MESSAGE_TYPE_FIN    (0x02)
-    #define MESSAGE_TYPE_NEGENC (0x03)
-    #define MESSAGE_TYPE_AUTH   (0x04)
+    #define MESSAGE_TYPE_AUTH   (0x03)
     #define MESSAGE_TYPE_PING   (0xFF)
 
     /* Options */
     #define OPT_NAME             (0x01)
     #define OPT_COMMAND          (0x20)
+    #define OPT_ENCRYPTED        (0x40)
 
 ## Messages
 
@@ -524,6 +632,10 @@ order). The following datatypes are used:
 - (uint16_t) options
 - If OPT_NAME is set:
   - (ntstring) session_name
+- If OPT_ENCRYPTED is set:
+  - (uint16_t) crypto_flags
+  - (byte[32]  public_key_x
+  - (byte[32]  public_key_y
 
 #### Notes
 
@@ -531,11 +643,21 @@ order). The following datatypes are used:
   random session_id and random initial sequence number to the server as
   well as its requested options
 - The following options are defined:
-  - OPT_NAME - 0x01
+  - OPT_NAME - 0x01 [C->S]
     - Packet contains an additional field called the session name, which
       is a free-form field containing user-readable data
+  - OPT_COMMAND - 0x20 [C->S]
+    - This is a command session, and will be tunneling command messages
+  - OPT_ENCRYPTED - 0x40 [C->S and S->C]
+    - We're negotiating encryption
+    - `crypto_flags` are currently undefined, and 0
+    - The public key x and y values are the BigInteger values converted
+      directly to hex values, then padded on the left with zeroes (if
+      necessary) to make 32 bytes.
 - The server responds with its own SYN, containing its initial sequence
   number and its options.
+  - If the client's request contained `OPT_ENCRYPTED`, the server's
+    response *MUST* also contain it.
 - Both the `session_id` and initial sequence number should be
   randomized, not incremental or static or anything, to make
   connection-hijacking attacks more difficult (the two sequence numbers
@@ -559,6 +681,9 @@ order). The following datatypes are used:
 - If a server receives a second SYN for the same session before it
   receives a MSG packet, it should respond as if it's valid (the
   response may have been lost).
+  - "if it's valid" means if it contains the same options, the same
+    sequence number, the same name (if applicable), and the same
+    encryption key (if applicable).
 - If a client or server receives a SYN for a connection during said
   connection, it should be silently discarded.
 
@@ -587,20 +712,7 @@ order). The following datatypes are used:
 - Once a FIN has been sent, the client or server should no longer
   attempt to respond to anything from that connection.
 
-### MESSAGE_TYPE_NEGENC: [0x03]
-
-- (uint16_t) packet_id
-- (uint8_t)  message_type [0x03]
-- (uint16_t) session_id
-- (uint32_t) flags
-- (byte[128]) public_key
-
-#### Notes
-
-- This can be sent at any time, though will typically be sent first
-- See above for how the public key is derived
-
-### MESSAGE_TYPE_AUTH: [0x04]
+### MESSAGE_TYPE_AUTH: [0x03]
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0x03]
