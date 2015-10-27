@@ -28,8 +28,8 @@ void encryptor_print_sas(uint8_t *shared_secret, uint8_t *my_pubkey, uint8_t *th
   sha3_256_init(&ctx);
   sha3_update(&ctx, (uint8_t*)SAS_AUTHSTRING, strlen(SAS_AUTHSTRING));
   sha3_update(&ctx, shared_secret,            32);
-  sha3_update(&ctx, my_pubkey,                32);
-  sha3_update(&ctx, their_pubkey,             32);
+  sha3_update(&ctx, my_pubkey,                64);
+  sha3_update(&ctx, their_pubkey,             64);
   sha3_final(&ctx, hash);
 
   for(i = 0; i < 6; i++)

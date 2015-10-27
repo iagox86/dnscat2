@@ -381,12 +381,15 @@ and server are connected to each other, and not to somebody else.
 
 This is done by taking the first 6 bytes (48 bits) of this hash:
 
-    sas = SHA3-256("authstring" || shared_secret || pubkey_client.x || pubkey_server.x)[0,6]
+    sas = SHA3-256("authstring" || shared_secret || pubkey_client || pubkey_server)[0,6]
 
-Then, for each byte, looking up the corresponding line in
-[this word list](/data/wordlist_256.txt) and display it to the user.
-It's up to the user to verify that the 6 words on the client match the 6
-words on the server.
+The public keys are the full x and y coordinates, represented as 64-byte
+strings (or pairs of 32-byte strings).
+
+After calculating that value, for each byte, look up the corresponding
+line in [this word list](/data/wordlist_256.txt) and display it to the
+user.  It's up to the user to verify that the 6 words on the client
+match the 6 words on the server.
 
 ### Stream encapsulation
 
