@@ -21,10 +21,7 @@
 #include "libs/select_group.h"
 
 #ifndef NO_ENCRYPTION
-#include "controller/encrypted_packet.h"
 #include "controller/encryptor.h"
-#include "libs/crypto/sha3.h"
-#include "libs/crypto/micro-ecc/uECC.h"
 #endif
 
 #include "session.h"
@@ -47,12 +44,6 @@ static NBBOOL do_encryption = TRUE;
 
 /* Pre-shared secret (used for authentication) */
 /*static char *preshared_secret = NULL;*/
-
-#define CLIENT_WRITE_KEY "client_write_key"
-#define CLIENT_MAC_KEY   "client_mac_key"
-#define SERVER_WRITE_KEY "server_write_key"
-#define SERVER_MAC_KEY   "server_mac_key"
-
 #endif
 
 /* Define a handler function pointer. */
@@ -166,7 +157,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 
 #ifndef NO_ENCRYPTION
         if(do_encryption)
-          packet_syn_set_encrypted(packet, 0, session->my_public_key);
+          packet_syn_set_encrypted(packet, 0, session->encryptor->my_public_key);
 #endif
         break;
 
@@ -209,8 +200,8 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
       buffer_add_bytes(packet_buffer, packet_bytes, *packet_length);
       safe_free(packet_bytes);
 
-      encrypt_buffer(packet_buffer, session->my_write_key, session->my_nonce++);
-      sign_buffer(packet_buffer, session->my_mac_key);
+      encryptor_encrypt_buffer(session->encryptor, packet_buffer);
+      encryptor_sign_buffer(session->encryptor, packet_buffer);
 
       packet_bytes = buffer_create_string_and_destroy(packet_buffer, packet_length);
     }
@@ -225,10 +216,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 
 static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
 {
-#ifndef NO_ENCRYPTION
-  sha3_ctx ctx;
-#endif
-
   session->their_seq = packet->body.syn.seq;
   session->options   = (options_t) packet->body.syn.options;
 
@@ -241,45 +228,18 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
     exit(1);
   }
 
-  print_hex("their_public_key", packet->body.syn.public_key, 64);
-  if(!uECC_shared_secret(packet->body.syn.public_key, session->my_private_key, session->shared_secret, uECC_secp256r1()))
+  if(!encryptor_set_their_public_key(session->encryptor, packet->body.syn.public_key))
   {
     LOG_FATAL("Failed to calculate a shared secret!");
     exit(1);
   }
 
-  print_hex("shared_secret", session->shared_secret, 32);
-
-  /* Generate the four keys we need. */
-  sha3_256_init(&ctx);
-  sha3_update(&ctx, session->shared_secret, 32);
-  sha3_update(&ctx, (uint8_t*)CLIENT_WRITE_KEY, strlen(CLIENT_WRITE_KEY));
-  sha3_final(&ctx, session->my_write_key);
-
-  sha3_256_init(&ctx);
-  sha3_update(&ctx, session->shared_secret, 32);
-  sha3_update(&ctx, (uint8_t*)CLIENT_MAC_KEY, strlen(CLIENT_MAC_KEY));
-  sha3_final(&ctx, session->my_mac_key);
-
-  sha3_256_init(&ctx);
-  sha3_update(&ctx, session->shared_secret, 32);
-  sha3_update(&ctx, (uint8_t*)SERVER_WRITE_KEY, strlen(SERVER_WRITE_KEY));
-  sha3_final(&ctx, session->their_write_key);
-
-  sha3_256_init(&ctx);
-  sha3_update(&ctx, session->shared_secret, 32);
-  sha3_update(&ctx, (uint8_t*)SERVER_MAC_KEY, strlen(SERVER_MAC_KEY));
-  sha3_final(&ctx, session->their_mac_key);
-
-  print_hex("my_write_key",    session->my_write_key, 32);
-  print_hex("my_mac_key",      session->my_mac_key, 32);
-  print_hex("their_write_key", session->their_write_key, 32);
-  print_hex("their_mac_key",   session->their_mac_key, 32);
-  printf("\n");
+  /* TODO: Put this in a if_debug() block or something. */
+  encryptor_print(session->encryptor);
 
   printf("Encrypted session established! For added security, please verify the server also displays this string:\n");
   printf("\n");
-  encryptor_print_sas(session->shared_secret, session->my_public_key, packet->body.syn.public_key);
+  encryptor_print_sas(session->encryptor);
   printf("\n");
 
 #endif
@@ -411,14 +371,14 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     buffer_t *packet_buffer = buffer_create_with_data(BO_BIG_ENDIAN, packet_bytes, length);
     safe_free(packet_bytes);
 
-    if(!check_signature(packet_buffer, session->their_mac_key))
+    if(!encryptor_check_signature(session->encryptor, packet_buffer))
     {
       LOG_FATAL("Server's signature was wrong!");
       exit(1);
     }
 
     /* TODO: Verify their nonce */
-    decrypt_buffer(packet_buffer, session->their_write_key, NULL);
+    encryptor_decrypt_buffer(session->encryptor, packet_buffer, NULL);
 
     /* Switch to the decrypted data. */
     packet_bytes = buffer_create_string_and_destroy(packet_buffer, &length);
@@ -552,18 +512,12 @@ static session_t *session_create(char *name)
   session->outgoing_buffer = buffer_create(BO_BIG_ENDIAN);
 
 #ifndef NO_ENCRYPTION
-  if(do_encryption)
+  session->encryptor = encryptor_create();
+
+  if(!session->encryptor)
   {
-    if(!uECC_make_key(session->my_public_key, session->my_private_key, uECC_secp256r1()))
-    {
-      LOG_FATAL("Failed to generate a keypair!");
-      exit(1);
-    }
-
-    print_hex("my_private_key", session->my_private_key, 32);
-    print_hex("my_public_key",  session->my_public_key, 64);
-
-    session->my_nonce = 0;
+    LOG_FATAL("Failed to generate a keypair!");
+    exit(1);
   }
 #endif
   session->name = NULL;

@@ -24,8 +24,7 @@ else
   RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(OS)-$(ARCH)"
 endif
 
-OBJS=controller/encrypted_packet.o \
-		 controller/encryptor.o \
+OBJS=controller/encryptor.o \
 		 controller/packet.o \
 		 controller/session.o \
 		 controller/controller.o \

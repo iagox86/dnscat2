@@ -17,6 +17,10 @@
 #include "libs/memory.h"
 #include "libs/types.h"
 
+#ifndef NO_ENCRYPTION
+#include "controller/encryptor.h"
+#endif
+
 typedef enum
 {
   SESSION_STATE_NEW,
@@ -49,15 +53,7 @@ typedef struct
   buffer_t       *outgoing_buffer;
 
 #ifndef NO_ENCRYPTION
-  uint8_t my_private_key[32];
-  uint8_t my_public_key[64];
-  uint8_t shared_secret[32];
-  uint8_t my_write_key[32];
-  uint8_t my_mac_key[32];
-  uint8_t their_write_key[32];
-  uint8_t their_mac_key[32];
-
-  uint16_t my_nonce;
+  encryptor_t *encryptor;
 #endif
 } session_t;
 
