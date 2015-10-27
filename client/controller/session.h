@@ -49,8 +49,8 @@ typedef struct
   buffer_t       *outgoing_buffer;
 
 #ifndef NO_ENCRYPTION
-  uint8_t private_key[32];
-  uint8_t public_key[64];
+  uint8_t my_private_key[32];
+  uint8_t my_public_key[64];
   uint8_t shared_secret[32];
   uint8_t my_write_key[32];
   uint8_t my_mac_key[32];

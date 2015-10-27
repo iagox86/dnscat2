@@ -22,6 +22,7 @@
 
 #ifndef NO_ENCRYPTION
 #include "controller/encrypted_packet.h"
+#include "controller/encryptor.h"
 #include "libs/crypto/sha3.h"
 #include "libs/crypto/micro-ecc/uECC.h"
 #endif
@@ -165,7 +166,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 
 #ifndef NO_ENCRYPTION
         if(do_encryption)
-          packet_syn_set_encrypted(packet, 0, session->public_key);
+          packet_syn_set_encrypted(packet, 0, session->my_public_key);
 #endif
         break;
 
@@ -241,7 +242,7 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   }
 
   print_hex("their_public_key", packet->body.syn.public_key, 64);
-  if(!uECC_shared_secret(packet->body.syn.public_key, session->private_key, session->shared_secret, uECC_secp256r1()))
+  if(!uECC_shared_secret(packet->body.syn.public_key, session->my_private_key, session->shared_secret, uECC_secp256r1()))
   {
     LOG_FATAL("Failed to calculate a shared secret!");
     exit(1);
@@ -274,6 +275,13 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   print_hex("my_mac_key",      session->my_mac_key, 32);
   print_hex("their_write_key", session->their_write_key, 32);
   print_hex("their_mac_key",   session->their_mac_key, 32);
+  printf("\n");
+
+  printf("Encrypted session established! For added security, please verify the server also displays this string:\n");
+  printf("\n");
+  encryptor_print_sas(session->shared_secret, session->my_public_key, packet->body.syn.public_key);
+  printf("\n");
+
 #endif
 
   /* We can send a response right away */
@@ -546,14 +554,14 @@ static session_t *session_create(char *name)
 #ifndef NO_ENCRYPTION
   if(do_encryption)
   {
-    if(!uECC_make_key(session->public_key, session->private_key, uECC_secp256r1()))
+    if(!uECC_make_key(session->my_public_key, session->my_private_key, uECC_secp256r1()))
     {
       LOG_FATAL("Failed to generate a keypair!");
       exit(1);
     }
 
-    print_hex("my_private_key", session->private_key, 32);
-    print_hex("my_public_key",  session->public_key, 64);
+    print_hex("my_private_key", session->my_private_key, 32);
+    print_hex("my_public_key",  session->my_public_key, 64);
 
     session->my_nonce = 0;
   }

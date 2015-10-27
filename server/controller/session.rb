@@ -186,6 +186,15 @@ class Session
       packet_params[:crypto_flags] = 0
       packet_params[:public_key_x] = @encryptor.my_public_key_x()
       packet_params[:public_key_y] = @encryptor.my_public_key_y()
+
+      @window.with({:to_ancestors => true}) do
+        @window.puts()
+        @window.puts("Encrypted session established! For added security, please verify the client also displays this string:")
+        @window.puts()
+        @window.puts(@encryptor.get_sas())
+        @window.puts()
+      end
+
     end
 
     if(Settings::GLOBAL.get("auto_attach"))

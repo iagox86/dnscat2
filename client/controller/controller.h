@@ -10,6 +10,9 @@
  * ever a single instance of this.
  */
 
+#ifndef __CONTROLLER_H__
+#define __CONTROLLER_H__
+
 #include "libs/types.h"
 #include "session.h"
 
@@ -21,3 +24,5 @@ void controller_kill_all_sessions();
 void controller_destroy();
 void controller_heartbeat();
 void controller_set_max_retransmits(int retransmits);
+
+#endif

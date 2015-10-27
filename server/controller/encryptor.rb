@@ -12,10 +12,13 @@ require 'securerandom'
 require 'sha3'
 
 require 'controller/encrypted_packet'
+require 'controller/encryptor_sas'
 require 'libs/dnscat_exception'
 
 class Encryptor
   attr_reader :public_key_x, :public_key_y
+
+  include EncryptorSAS
 
   ECDH_GROUP = ECDSA::Group::Nistp256
 
@@ -76,6 +79,8 @@ class Encryptor
     out << "Their mac key:   #{@their_mac_key.unpack("H*")}"
     out << "My write key:    #{@my_write_key.unpack("H*")}"
     out << "My mac key:      #{@my_mac_key.unpack("H*")}"
+    out << ""
+    out << "SAS: #{get_sas()}"
 
     return out.join("\n")
   end
