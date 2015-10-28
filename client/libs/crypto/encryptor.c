@@ -208,6 +208,9 @@ void encryptor_decrypt_buffer(encryptor_t *encryptor, buffer_t *buffer, uint16_t
   buffer_clear(buffer);
   buffer_add_bytes(buffer, header, 5);
   buffer_add_bytes(buffer, body, body_length);
+
+  /* Free up memory. */
+  safe_free(body);
 }
 
 void encryptor_sign_buffer(encryptor_t *encryptor, buffer_t *buffer)
@@ -240,6 +243,9 @@ void encryptor_sign_buffer(encryptor_t *encryptor, buffer_t *buffer)
   buffer_add_bytes(buffer, header,    HEADER_LENGTH);
   buffer_add_bytes(buffer, signature, SIGNATURE_LENGTH);
   buffer_add_bytes(buffer, body,      body_length);
+
+  /* Free memory. */
+  safe_free(body);
 }
 
 void encryptor_encrypt_buffer(encryptor_t *encryptor, buffer_t *buffer)
@@ -272,12 +278,15 @@ void encryptor_encrypt_buffer(encryptor_t *encryptor, buffer_t *buffer)
   buffer_add_bytes(buffer, header, 5);
   buffer_add_int16(buffer, nonce);
   buffer_add_bytes(buffer, body, body_length);
+
+  /* Free memory. */
+  safe_free(body);
 }
 
 void encryptor_destroy(encryptor_t *encryptor)
 {
   /* safe_free() does this anyway, but let's do it explicitly since it's crypto. */
-  memset(&encryptor, 0, sizeof(encryptor_t));
+  memset(encryptor, 0, sizeof(encryptor_t));
   safe_free(encryptor);
 }
 

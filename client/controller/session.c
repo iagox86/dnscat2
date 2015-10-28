@@ -419,6 +419,9 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
   /* Parse the packet. */
   packet = packet_parse(packet_bytes, length, session->options);
 
+  /* Free the memory we allocated. */
+  safe_free(packet_bytes);
+
   /* Print packet data if we're supposed to. */
   if(packet_trace)
   {
@@ -512,6 +515,9 @@ void session_destroy(session_t *session)
   if(session->outgoing_buffer)
     buffer_destroy(session->outgoing_buffer);
 
+  if(session->encryptor)
+    encryptor_destroy(session->encryptor);
+
   safe_free(session);
 }
 
@@ -519,12 +525,12 @@ static char *get_name(char *base)
 {
   /* This code isn't beautiful, but it does the job and it's only local
    * stuff anyway (no chance of being exploited). */
-  char hostname[16];
+  char hostname[64];
   buffer_t *buffer = NULL;
 
   /* Read the hostname */
-  gethostname(hostname, 16);
-  hostname[15] = '\0';
+  gethostname(hostname, 64);
+  hostname[63] = '\0';
 
   buffer = buffer_create(BO_BIG_ENDIAN);
   buffer_add_string(buffer, base);

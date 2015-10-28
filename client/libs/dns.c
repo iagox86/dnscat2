@@ -1290,40 +1290,6 @@ char *dns_get_system()
 #endif
 }
 
-void dns_do_test(char *domain)
-{
-    buffer_t *command;
-    char *command_str;
-
-    command = buffer_create(BO_NETWORK);
-    buffer_add_string(command, "dnstest ");
-    buffer_add_ntstring(command, domain);
-    command_str = (char*) buffer_create_string_and_destroy(command, NULL);
-    if(system(command_str))
-    {
-        safe_free(command_str);
-        command = buffer_create(BO_NETWORK);
-        buffer_add_string(command, "./dnstest ");
-        buffer_add_ntstring(command, domain);
-        command_str = (char*) buffer_create_string_and_destroy(command, NULL);
-        if(system(command_str))
-        {
-            safe_free(command_str);
-            command = buffer_create(BO_NETWORK);
-            buffer_add_string(command, "./dnstest ");
-            buffer_add_ntstring(command, domain);
-            command_str = (char*) buffer_create_string_and_destroy(command, NULL);
-            if(system(command_str))
-            {
-                fprintf(stderr, "Couldn't figure out how to run 'dnstest'. Sorry!\n");
-                exit(1);
-            }
-        }
-    }
-    safe_free(command_str);
-    exit(0);
-}
-
 int dns_is_error(dns_t *dns)
 {
   return dns->rcode != 0;
