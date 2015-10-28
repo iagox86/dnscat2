@@ -24,8 +24,7 @@ else
   RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(OS)-$(ARCH)"
 endif
 
-OBJS=controller/encryptor.o \
-		 controller/packet.o \
+OBJS=controller/packet.o \
 		 controller/session.o \
 		 controller/controller.o \
 		 drivers/driver.o \
@@ -36,6 +35,7 @@ OBJS=controller/encryptor.o \
 		 drivers/driver_exec.o \
 		 drivers/driver_ping.o \
 		 libs/buffer.o \
+		 libs/crypto/encryptor.o \
 		 libs/crypto/micro-ecc/uECC.o \
 		 libs/crypto/salsa20.o \
 		 libs/crypto/sha3.o \

@@ -21,7 +21,7 @@
 #include "libs/select_group.h"
 
 #ifndef NO_ENCRYPTION
-#include "controller/encryptor.h"
+#include "libs/crypto/encryptor.h"
 #endif
 
 #include "session.h"

@@ -18,7 +18,7 @@
 #include "libs/types.h"
 
 #ifndef NO_ENCRYPTION
-#include "controller/encryptor.h"
+#include "libs/crypto/encryptor.h"
 #endif
 
 typedef enum
