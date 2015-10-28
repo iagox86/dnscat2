@@ -36,6 +36,8 @@ typedef enum
 
 } packet_type_t;
 
+char *packet_type_to_string(packet_type_t type);
+
 typedef enum
 {
   PACKET_ENC_SUBTYPE_INIT = 0x00,

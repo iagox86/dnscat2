@@ -363,14 +363,13 @@ static NBBOOL _handle_fin(session_t *session, packet_t *packet)
 
 static NBBOOL _handle_error(session_t *session, packet_t *packet)
 {
-  LOG_FATAL("Received a message that's unexpected in this state:");
-  packet_print(packet, session->options);
+  LOG_FATAL("Received a %s packet in state %s!", packet_type_to_string(packet->packet_type), session_state_to_string(session->state));
   exit(1);
 }
 
 static NBBOOL _handle_warning(session_t *session, packet_t *packet)
 {
-  LOG_WARNING("Received a packet of type 0x%04x in an unexpected state; ignoring", packet->packet_type);
+  LOG_WARNING("Received a %s packet in state %s; ignoring!", packet_type_to_string(packet->packet_type), session_state_to_string(session->state));
 
   return FALSE;
 }
@@ -657,3 +656,24 @@ NBBOOL session_is_shutdown(session_t *session)
 {
   return session->is_shutdown;
 }
+
+char *session_state_to_string(session_state_t state)
+{
+  switch(state)
+  {
+#ifndef NO_ENCRYPTION
+    case SESSION_STATE_BEFORE_INIT:
+      return "BEFORE_INIT";
+    case SESSION_STATE_BEFORE_AUTH:
+      return "BEFORE_AUTH";
+#endif
+    case SESSION_STATE_NEW:
+      return "NEW";
+    case SESSION_STATE_ESTABLISHED:
+      return "ESTABLISHED";
+    case SESSION_STATE_COUNT:
+      return "Unknown!";
+  }
+
+  return "Unknown";
+};

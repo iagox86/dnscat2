@@ -33,6 +33,8 @@ typedef enum
   SESSION_STATE_COUNT
 } session_state_t;
 
+char *session_state_to_string(session_state_t state);
+
 typedef struct
 {
   /* Session information */

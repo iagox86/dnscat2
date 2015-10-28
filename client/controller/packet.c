@@ -460,3 +460,25 @@ void packet_destroy(packet_t *packet)
   safe_free(packet);
 }
 
+char *packet_type_to_string(packet_type_t type)
+{
+  switch(type)
+  {
+    case PACKET_TYPE_SYN:
+      return "SYN";
+    case PACKET_TYPE_MSG:
+      return "MSG";
+    case PACKET_TYPE_FIN:
+      return "FIN";
+    case PACKET_TYPE_PING:
+      return "PING";
+#ifndef NO_ENCRYPTION
+    case PACKET_TYPE_ENC:
+      return "ENC";
+#endif
+    case PACKET_TYPE_COUNT_NOT_PING:
+      return "Unknown!";
+  }
+
+  return "Unknown";
+}
