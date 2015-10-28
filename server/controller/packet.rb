@@ -29,7 +29,7 @@ class Packet
   MESSAGE_TYPE_MSG        = 0x01
   MESSAGE_TYPE_FIN        = 0x02
   MESSAGE_TYPE_PING       = 0xFF
-  MESSAGE_TYPE_AUTH       = 0x04
+  MESSAGE_TYPE_ENC        = 0x03
 
   OPT_NAME                = 0x0001
   # OPT_TUNNEL              = 0x0002 # Deprecated
@@ -37,14 +37,13 @@ class Packet
   # OPT_DOWNLOAD            = 0x0008 # Deprecated
   # OPT_CHUNKED_DOWNLOAD    = 0x0010 # Deprecated
   OPT_COMMAND             = 0x0020
-  OPT_ENCRYPTED           = 0x0040
 
   attr_reader :packet_id, :type, :session_id, :body
 
   class SynBody
     extend PacketHelper
 
-    attr_reader :seq, :options, :name, :crypto_flags, :public_key_x, :public_key_y
+    attr_reader :seq, :options, :name
 
     def initialize(options, params = {})
       @options = options || raise(DnscatException, "options can't be nil!")
@@ -54,16 +53,6 @@ class Packet
         @name = params[:name] || raise(DnscatException, "params[:name] can't be nil when OPT_NAME is set!")
       else
         @name = "(unnamed)"
-      end
-
-      if((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
-        @crypto_flags = params[:crypto_flags] || raise(DnscatException, "params[:crypto_flags] can't be nil when OPT_ENCRYPTED is set!")
-        @public_key_x = params[:public_key_x] || raise(DnscatException, "params[:public_key_x] can't be nil when OPT_ENCRYPTED is set!")
-        @public_key_y = params[:public_key_y] || raise(DnscatException, "params[:public_key_y] can't be nil when OPT_ENCRYPTED is set!")
-
-        if(!@public_key_x.is_a?(Bignum) || !@public_key_y.is_a?(Bignum))
-          raise(DnscatException, "The public key must be represented as an integer (#{@public_key_x.class}, #{@public_key_y.class})!")
-        end
       end
     end
 
@@ -83,18 +72,6 @@ class Packet
         name = "[unnamed]"
       end
 
-      # If it's encrypted, grab the crypto fields
-      if((options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
-        crypto_flags, public_key_x, public_key_y, data = data.unpack("na32a32a*")
-        if(public_key_y.length < 32)
-          raise(DnscatException, "SYN packet was truncated!")
-        end
-
-        # Convert into integers
-        public_key_x = Encryptor.binary_to_bignum(public_key_x)
-        public_key_y = Encryptor.binary_to_bignum(public_key_y)
-      end
-
       # Verify that that was the entire packet
       if(data.length > 0)
         raise(DnscatException, "Extra data on the end of an SYN packet :: #{data.unpack("H*")}")
@@ -103,14 +80,11 @@ class Packet
       return SynBody.new(options, {
         :seq          => seq,
         :name         => name,
-        :crypto_flags => crypto_flags,
-        :public_key_x => public_key_x,
-        :public_key_y => public_key_y,
       })
     end
 
     def to_s()
-      return "[[SYN]] :: isn = %04x, options = %04x, name = %s, encrypted = %s" % [@seq, @options, @name, ((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED) ? "True" : "False"]
+      return "[[SYN]] :: isn = %04x, options = %04x, name = %s" % [@seq, @options, @name]
     end
 
     def to_bytes()
@@ -118,12 +92,6 @@ class Packet
 
       if((@options & OPT_NAME) == OPT_NAME)
         result += [@name].pack("Z*")
-      end
-
-      if((@options & OPT_ENCRYPTED) == OPT_ENCRYPTED)
-        public_key_x = Encryptor.bignum_to_binary(@public_key_x)
-        public_key_y = Encryptor.bignum_to_binary(@public_key_y)
-        result += [@crypto_flags, public_key_x, public_key_y].pack("na32a32")
       end
 
       return result
@@ -240,39 +208,93 @@ class Packet
     end
   end
 
-  class AuthBody
+  class EncBody
     extend PacketHelper
 
-    attr_reader :authenticator
+    SUBTYPE_INIT = 0x0000
+    SUBTYPE_AUTH = 0x0001
+    attr_reader :subtype, :flags
+    attr_reader :public_key_x, :public_key_y # SUBTYPE_INIT
+    attr_reader :authenticator # SUBTYPE_AUTH
 
     def initialize(params = {})
-      @authenticator = params[:authenticator] || raise(DnscatException, "params[:authenticator] is required!")
+      @subtype = params[:subtype] || raise(DnscatException, "params[:subtype] is required!")
+      @flags   = params[:flags]   || raise(DnscatException, "params[:flags] is required!")
 
-      if(@authenticator.length != 32)
-        raise(DnscatException, "params[:authenticator] was the wrong size!")
+      if(@subtype == SUBTYPE_INIT)
+        @public_key_x = params[:public_key_x] || raise(DnscatException, "params[:public_key_x] is required!")
+        @public_key_y = params[:public_key_y] || raise(DnscatException, "params[:public_key_y] is required!")
+
+        if(!@public_key_x.is_a?(Bignum) || !@public_key_y.is_a?(Bignum))
+          raise(DnscatException, "Public keys have to be Bignums! (Seen: #{@public_key_x.class} #{@public_key_y.class})")
+        end
+      elsif(@subtype == SUBTYPE_AUTH)
+        @authenticator = params[:authenticator] || raise(DnscatException, "params[:authenticator] is required!")
+
+        if(@authenticator.length != 32)
+          raise(DnscatException, "params[:authenticator] was the wrong size!")
+        end
+      else
+        raise(DnscatException, "Unknown subtype: #{@subtype}")
       end
     end
 
-    def AuthBody.parse(data)
-      exactly?(data, 32) || raise(DnscatException, "Packet is the wrong length (AUTH)")
-      authenticator, data = data.unpack("a32a*")
+    def EncBody.parse(data)
+      at_least?(data, 4) || raise(DnscatException, "ENC packet is too short!")
 
-      if(authenticator.length != 32)
-        raise(DnscatException, "AUTH packet was too short")
+      subtype, flags, data = data.unpack("nna*")
+
+      params = {
+        :subtype => subtype,
+        :flags   => flags,
+      }
+
+      if(subtype == SUBTYPE_INIT)
+        exactly?(data, 64) || raise(DnscatException, "ENC packet is too short!")
+
+        public_key_x, public_key_y, data = data.unpack("a32a32a*")
+
+        params[:public_key_x] = Encryptor.binary_to_bignum(public_key_x)
+        params[:public_key_y] = Encryptor.binary_to_bignum(public_key_y)
+
+      elsif(subtype == SUBTYPE_AUTH)
+        exactly?(data, 32) || raise(DnscatException, "ENC packet is too short!")
+
+        authenticator, data = data.unpack("na32a*")
+
+        params[:authenticator] = authenticator
+      else
+        raise(DnscatException, "Unknown subtype: #{subtype}")
       end
+
       if(data != "")
-        raise(DnscatException, "Extra data on the end of a AUTH packet")
+        raise(DnscatException, "Extra data on the end of an ENC packet")
       end
 
-      return AuthBody.new({:authenticator => authenticator})
+      return EncBody.new(params)
     end
 
     def to_s()
-      return "[[AUTH]] :: authenticator = %s" % [@authenticator.unpack("H*").pop()]
+      if(@subtype == SUBTYPE_INIT)
+        return "[[ENC|INIT]] :: flags = 0x%04x, pubkey = %s,%s" % [@flags, Encryptor.bignum_to_text(@public_key_x), Encryptor.bignum_to_text(@public_key_y)]
+      elsif(@subtype == SUBTYPE_AUTH)
+        return "[[ENC|AUTH]] :: flags = 0x%04x, authenticator = %s" % [@flags, @authenticator.unpack("H*").pop()]
+      else
+        raise(DnscatException, "Unknown subtype: #{@subtype}")
+      end
     end
 
     def to_bytes()
-      return [authenticator].pack("a32")
+      if(@subtype == SUBTYPE_INIT)
+        public_key_x = Encryptor.bignum_to_binary(@public_key_x)
+        public_key_y = Encryptor.bignum_to_binary(@public_key_y)
+
+        return [@subtype, @flags, public_key_x, public_key_y].pack("nna32a32")
+      elsif(@subtype == SUBTYPE_AUTH)
+        return [@flags, @authenticator].pack("na32")
+      else
+        raise(DnscatException, "Unknown subtype: #{@subtype}")
+      end
     end
   end
 
@@ -329,8 +351,8 @@ class Packet
       body = FinBody.parse(options, data)
     elsif(type == MESSAGE_TYPE_PING)
       body = PingBody.parse(nil, data)
-    elsif(type == MESSAGE_TYPE_AUTH)
-      body = AuthBody.parse(data)
+    elsif(type == MESSAGE_TYPE_ENC)
+      body = EncBody.parse(data)
     else
       raise(DnscatException, "Unknown message type: 0x%x" % type)
     end
@@ -354,8 +376,8 @@ class Packet
     return Packet.new(params[:packet_id], MESSAGE_TYPE_PING, params[:session_id], PingBody.new(nil, params))
   end
 
-  def Packet.create_auth(options, params = {})
-    return Packet.new(params[:packet_id], MESSAGE_TYPE_AUTH, params[:session_id], AuthBody.new(params))
+  def Packet.create_enc(params = {})
+    return Packet.new(params[:packet_id], MESSAGE_TYPE_ENC, params[:session_id], EncBody.new(params))
   end
 
   def to_s()

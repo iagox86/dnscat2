@@ -32,10 +32,10 @@ class Session
   STATE_KILLED        = 0xFF
 
   HANDLERS = {
-    Packet::MESSAGE_TYPE_SYN    => :_handle_syn,
-    Packet::MESSAGE_TYPE_MSG    => :_handle_msg,
-    Packet::MESSAGE_TYPE_FIN    => :_handle_fin,
-    Packet::MESSAGE_TYPE_AUTH   => :_handle_auth,
+    Packet::MESSAGE_TYPE_SYN => :_handle_syn,
+    Packet::MESSAGE_TYPE_MSG => :_handle_msg,
+    Packet::MESSAGE_TYPE_FIN => :_handle_fin,
+    Packet::MESSAGE_TYPE_ENC => :_handle_enc,
   }
 
   def initialize(id, main_window)
@@ -47,6 +47,7 @@ class Session
     @id = id
     @incoming_data = ''
     @outgoing_data = ''
+    @encryptor = nil
 
     @settings = Settings.new()
     @window = SWindow.new(main_window, false, {:times_out => true})
@@ -64,14 +65,6 @@ class Session
       @window.history_size = new_val
       @window.puts("history_size (session) => #{new_val}")
     end
-  end
-
-  def _should_we_encrypt?(type)
-    if(type == Packet::MESSAGE_TYPE_SYN)
-      return false
-    end
-
-    return ((@options & Packet::OPT_ENCRYPTED) == Packet::OPT_ENCRYPTED)
   end
 
   def kill()
@@ -131,6 +124,39 @@ class Session
     return "id: 0x%04x [internal: %d], state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @window.id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
+  def _handle_enc(packet, max_length)
+    # TODO: only allow this in the correct state
+    params = {
+      :session_id => @id,
+      :subtype    => packet.body.subtype,
+      :flags      => 0,
+    }
+
+    if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
+      @encryptor = Encryptor.new(packet.body.public_key_x, packet.body.public_key_y)
+
+      @window.puts("Generated cryptographic values:")
+      @window.puts(@encryptor)
+
+      params[:public_key_x] = @encryptor.my_public_key_x()
+      params[:public_key_y] = @encryptor.my_public_key_y()
+
+      @window.with({:to_ancestors => true}) do
+        @window.puts()
+        @window.puts("Encrypted session established! For added security, please verify the client also displays this string:")
+        @window.puts()
+        @window.puts(@encryptor.get_sas())
+        @window.puts()
+      end
+    elsif(packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
+      raise(DnscatException, "We don't handle AUTH yet!")
+    else
+      raise(DnscatException, "Don't know how to parse: #{packet}")
+    end
+
+    return Packet.create_enc(params)
+  end
+
   def _handle_syn(packet, max_length)
     options = 0
     packet_params = {
@@ -174,27 +200,6 @@ class Session
       @settings.set("name", packet.body.name)
     else
       @settings.set("name", "unnamed")
-    end
-
-    if((@options & Packet::OPT_ENCRYPTED) == Packet::OPT_ENCRYPTED)
-      @encryptor = Encryptor.new(packet.body.public_key_x, packet.body.public_key_y)
-
-      @window.puts("Generated cryptographic values:")
-      @window.puts(@encryptor)
-
-      options |= Packet::OPT_ENCRYPTED
-      packet_params[:crypto_flags] = 0
-      packet_params[:public_key_x] = @encryptor.my_public_key_x()
-      packet_params[:public_key_y] = @encryptor.my_public_key_y()
-
-      @window.with({:to_ancestors => true}) do
-        @window.puts()
-        @window.puts("Encrypted session established! For added security, please verify the client also displays this string:")
-        @window.puts()
-        @window.puts(@encryptor.get_sas())
-        @window.puts()
-      end
-
     end
 
     if(Settings::GLOBAL.get("auto_attach"))
@@ -318,7 +323,7 @@ class Session
     window.kick()
 
     # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
-    if(_should_we_encrypt?(Packet.peek_type(data)))
+    if(@encryptor)
       packet = @encryptor.decrypt_packet(data, @options)
       max_length -= 8
     else
@@ -376,10 +381,10 @@ class Session
       window.puts("OUT: #{response_packet}")
     end
 
-    if(_should_we_encrypt?(response_packet.type))
-      bytes = @encryptor.encrypt_packet(response_packet, @options)
-    else
+    if(response_packet.type == Packet::MESSAGE_TYPE_ENC && response_packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
       bytes = response_packet.to_bytes()
+    else
+      bytes = @encryptor.encrypt_packet(response_packet, @options)
     end
 
     return bytes

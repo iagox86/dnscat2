@@ -47,11 +47,6 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
       packet->body.syn.options = buffer_read_next_int16(buffer);
       if(packet->body.syn.options & OPT_NAME)
         packet->body.syn.name = buffer_alloc_next_ntstring(buffer);
-      if(packet->body.syn.options & OPT_ENCRYPTED)
-      {
-        packet->body.syn.crypto_flags = buffer_read_next_int16(buffer);
-        buffer_read_next_bytes(buffer, packet->body.syn.public_key, 64);
-      }
       break;
 
     case PACKET_TYPE_MSG:
@@ -69,8 +64,19 @@ packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
       break;
 
 #ifndef NO_ENCRYPTION
-    case PACKET_TYPE_AUTH:
-      buffer_read_next_bytes(buffer, packet->body.auth.authenticator, 32);
+    case PACKET_TYPE_ENC:
+      packet->body.enc.subtype = buffer_read_next_int16(buffer);
+      packet->body.enc.flags   = buffer_read_next_int16(buffer);
+
+      switch(packet->body.enc.subtype)
+      {
+        case PACKET_ENC_SUBTYPE_INIT:
+          buffer_read_next_bytes(buffer, packet->body.enc.public_key, 64);
+          break;
+        case PACKET_ENC_SUBTYPE_AUTH:
+          buffer_read_next_bytes(buffer, packet->body.enc.authenticator, 32);
+          break;
+      }
       break;
 #endif
 
@@ -128,6 +134,34 @@ packet_t *packet_create_syn(uint16_t session_id, uint16_t seq, options_t options
   return packet;
 }
 
+void packet_syn_set_name(packet_t *packet, char *name)
+{
+  if(packet->packet_type != PACKET_TYPE_SYN)
+  {
+    LOG_FATAL("Attempted to set the 'name' field of a non-SYN message\n");
+    exit(1);
+  }
+
+  /* Free the name if it's already set */
+  if(packet->body.syn.name)
+    safe_free(packet->body.syn.name);
+
+  packet->body.syn.options |= OPT_NAME;
+  packet->body.syn.name = safe_strdup(name);
+}
+
+void packet_syn_set_is_command(packet_t *packet)
+{
+  if(packet->packet_type != PACKET_TYPE_SYN)
+  {
+    LOG_FATAL("Attempted to set the 'is_command' field of a non-SYN message\n");
+    exit(1);
+  }
+
+  /* Just set the field, we don't need anything else. */
+  packet->body.syn.options |= OPT_COMMAND;
+}
+
 packet_t *packet_create_msg(uint16_t session_id, uint16_t seq, uint16_t ack, uint8_t *data, size_t data_length)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
@@ -168,79 +202,42 @@ packet_t *packet_create_ping(uint16_t session_id, char *data)
 }
 
 #ifndef NO_ENCRYPTION
-packet_t *packet_create_auth(uint16_t session_id, uint8_t *authenticator)
+packet_t *packet_create_enc(uint16_t session_id, uint16_t flags)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
 
-  packet->packet_type       = PACKET_TYPE_AUTH;
-  packet->packet_id         = rand() % 0xFFFF;
-  packet->session_id        = session_id;
-  memcpy(packet->body.auth.authenticator, authenticator, 32);
+  packet->packet_type = PACKET_TYPE_ENC;
+  packet->packet_id   = rand() % 0xFFFF;
+  packet->session_id  = session_id;
+  packet->body.enc.subtype     = -1;
 
   return packet;
 }
+
+void packet_enc_set_init(packet_t *packet, uint8_t *public_key)
+{
+  if(packet->packet_type != PACKET_TYPE_ENC)
+  {
+    LOG_FATAL("Attempted to set encryption options for a non-ENC message\n");
+    exit(1);
+  }
+
+  packet->body.enc.subtype = PACKET_ENC_SUBTYPE_INIT;
+  memcpy(packet->body.enc.public_key, public_key, 64);
+}
+
+void packet_enc_set_auth(packet_t *packet, uint8_t *authenticator)
+{
+  if(packet->packet_type != PACKET_TYPE_ENC)
+  {
+    LOG_FATAL("Attempted to set encryption options for a non-ENC message\n");
+    exit(1);
+  }
+
+  packet->body.enc.subtype = PACKET_ENC_SUBTYPE_AUTH;
+  memcpy(packet->body.enc.authenticator, authenticator, 32);
+}
 #endif
-
-void packet_syn_set_name(packet_t *packet, char *name)
-{
-  if(packet->packet_type != PACKET_TYPE_SYN)
-  {
-    LOG_FATAL("Attempted to set the 'name' field of a non-SYN message\n");
-    exit(1);
-  }
-
-  /* Free the name if it's already set */
-  if(packet->body.syn.name)
-    safe_free(packet->body.syn.name);
-
-  packet->body.syn.options |= OPT_NAME;
-  packet->body.syn.name = safe_strdup(name);
-}
-
-void packet_syn_set_is_command(packet_t *packet)
-{
-  if(packet->packet_type != PACKET_TYPE_SYN)
-  {
-    LOG_FATAL("Attempted to set the 'is_command' field of a non-SYN message\n");
-    exit(1);
-  }
-
-  /* Just set the field, we don't need anything else. */
-  packet->body.syn.options |= OPT_COMMAND;
-}
-
-/* Set up an encrypted session. */
-void packet_syn_set_encrypted(packet_t *packet, uint16_t crypto_flags, uint8_t *public_key)
-{
-  if(packet->packet_type != PACKET_TYPE_SYN)
-  {
-    LOG_FATAL("Attempted to set the 'is_encrypted' field of a non-SYN message\n");
-    exit(1);
-  }
-
-  /* Turn on the field. */
-  packet->body.syn.options |= OPT_ENCRYPTED;
-
-  /* Save the parameters. */
-  packet->body.syn.crypto_flags = crypto_flags;
-  memcpy(packet->body.syn.public_key, public_key, 64);
-}
-
-size_t packet_get_syn_size()
-{
-  static size_t size = 0;
-
-  /* If the size isn't known yet, calculate it. */
-  if(size == 0)
-  {
-    packet_t *p = packet_create_syn(0, 0, (options_t)0);
-    uint8_t *data = packet_to_bytes(p, &size, (options_t)0);
-    safe_free(data);
-    packet_destroy(p);
-  }
-
-  return size;
-}
 
 size_t packet_get_msg_size(options_t options)
 {
@@ -253,22 +250,6 @@ size_t packet_get_msg_size(options_t options)
 
     p = packet_create_msg(0, 0, 0, (uint8_t *)"", 0);
     safe_free(packet_to_bytes(p, &size, options));
-    packet_destroy(p);
-  }
-
-  return size;
-}
-
-size_t packet_get_fin_size(options_t options)
-{
-  static size_t size = 0;
-
-  /* If the size isn't known yet, calculate it. */
-  if(size == 0)
-  {
-    packet_t *p = packet_create_fin(0, "");
-    uint8_t *data = packet_to_bytes(p, &size, options);
-    safe_free(data);
     packet_destroy(p);
   }
 
@@ -291,34 +272,15 @@ size_t packet_get_ping_size()
   return size;
 }
 
-#ifndef NO_ENCRYPTION
-size_t packet_get_auth_size()
-{
-  static size_t size = 0;
-
-  if(size == 0)
-  {
-    uint8_t  *fake_authenticator = { 0 };
-    packet_t *p = packet_create_auth(0, fake_authenticator);
-    uint8_t  *data = packet_to_bytes(p, &size, 0);
-
-    safe_free(data);
-    packet_destroy(p);
-  }
-
-  return size;
-}
-#endif
-
 /* TODO: This is a little hacky - converting it to a bytestream and back to
  * clone - but it's by far the easiest way! */
 packet_t *packet_clone(packet_t *packet, options_t options)
 {
-    uint8_t *packet_bytes  = NULL;
-    size_t   packet_length = -1;
+  uint8_t *packet_bytes  = NULL;
+  size_t   packet_length = -1;
 
-    packet_bytes = packet_to_bytes(packet, &packet_length, options);
-    return packet_parse(packet_bytes, packet_length, options);
+  packet_bytes = packet_to_bytes(packet, &packet_length, options);
+  return packet_parse(packet_bytes, packet_length, options);
 }
 
 uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
@@ -338,12 +300,6 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
       if(packet->body.syn.options & OPT_NAME)
         buffer_add_ntstring(buffer, packet->body.syn.name);
 
-      if(packet->body.syn.options & OPT_ENCRYPTED)
-      {
-        buffer_add_int16(buffer, packet->body.syn.crypto_flags);
-        buffer_add_bytes(buffer, packet->body.syn.public_key, 64);
-      }
-
       break;
 
     case PACKET_TYPE_MSG:
@@ -361,8 +317,28 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
       break;
 
 #ifndef NO_ENCRYPTION
-    case PACKET_TYPE_AUTH:
-      buffer_add_bytes(buffer, packet->body.auth.authenticator, 32);
+    case PACKET_TYPE_ENC:
+      buffer_add_int16(buffer, packet->body.enc.subtype);
+      buffer_add_int16(buffer, packet->body.enc.flags);
+
+      if(packet->body.enc.subtype == PACKET_ENC_SUBTYPE_INIT)
+      {
+        buffer_add_bytes(buffer, packet->body.enc.public_key, 64);
+      }
+      else if(packet->body.enc.subtype == PACKET_ENC_SUBTYPE_AUTH)
+      {
+        buffer_add_bytes(buffer, packet->body.enc.authenticator, 32);
+      }
+      else if(packet->body.enc.subtype == -1)
+      {
+        LOG_FATAL("Error: One of the packet_enc_set_*() functions have to be called!");
+        exit(1);
+      }
+      else
+      {
+        LOG_FATAL("Error: Unknown encryption subtype: 0x%04x", packet->body.enc.subtype);
+        exit(1);
+      }
       break;
 #endif
 
@@ -397,9 +373,9 @@ char *packet_to_s(packet_t *packet, options_t options)
     _snprintf_s(ret, 1024, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
   }
 #ifndef NO_ENCRYPTION
-  else if(packet->packet_type == PACKET_TYPE_AUTH)
+  else if(packet->packet_type == PACKET_TYPE_ENC)
   {
-    _snprintf_s(ret, 1024, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
+    _snprintf_s(ret, 1024, 1024, "Type = ENC :: [0x%04x] session = 0x%04x", packet->packet_id, packet->session_id);
   }
 #endif
   else
@@ -424,9 +400,9 @@ char *packet_to_s(packet_t *packet, options_t options)
     snprintf(ret, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
   }
 #ifndef NO_ENCRYPTION
-  else if(packet->packet_type == PACKET_TYPE_AUTH)
+  else if(packet->packet_type == PACKET_TYPE_ENC)
   {
-    snprintf(ret, 1024, "Type = AUTH :: [0x%04x] session = 0x%04x :: authenticator = [not shown]", packet->packet_id, packet->session_id);
+    snprintf(ret, 1024, "Type = ENC :: [0x%04x] session = 0x%04x", packet->packet_id, packet->session_id);
   }
 #endif
   else
@@ -472,7 +448,7 @@ void packet_destroy(packet_t *packet)
   }
 
 #ifndef NO_ENCRYPTION
-  if(packet->packet_type == PACKET_TYPE_AUTH)
+  if(packet->packet_type == PACKET_TYPE_ENC)
   {
     /* Nothing was allocated. */
   }

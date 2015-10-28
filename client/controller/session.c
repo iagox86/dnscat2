@@ -43,7 +43,7 @@ static NBBOOL transmit_instantly_on_data = TRUE;
 static NBBOOL do_encryption = TRUE;
 
 /* Pre-shared secret (used for authentication) */
-/*static char *preshared_secret = NULL;*/
+static char *preshared_secret = NULL;
 #endif
 
 /* Define a handler function pointer. */
@@ -52,7 +52,7 @@ typedef NBBOOL(packet_handler)(session_t *session, packet_t *packet);
 #ifndef NO_ENCRYPTION
 static NBBOOL should_we_encrypt(session_t *session)
 {
-  return (do_encryption && session->state != SESSION_STATE_NEW);
+  return do_encryption && (session->state != SESSION_STATE_BEFORE_INIT);
 }
 #endif
 
@@ -146,6 +146,17 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
   {
     switch(session->state)
     {
+      case SESSION_STATE_BEFORE_INIT:
+        packet = packet_create_enc(session->id, 0);
+        packet_enc_set_init(packet, session->encryptor->my_public_key);
+        break;
+
+      case SESSION_STATE_BEFORE_AUTH:
+        /* TODO */
+        LOG_FATAL("We can't handle SESSION_STATE_BEFORE_AUTH yet :(");
+        exit(1);
+        break;
+
       case SESSION_STATE_NEW:
         packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
 
@@ -155,10 +166,6 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
         if(session->name)
           packet_syn_set_name(packet, session->name);
 
-#ifndef NO_ENCRYPTION
-        if(do_encryption)
-          packet_syn_set_encrypted(packet, 0, session->encryptor->my_public_key);
-#endif
         break;
 
       case SESSION_STATE_ESTABLISHED:
@@ -214,25 +221,24 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
   return packet_bytes;
 }
 
-static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
+static NBBOOL _handle_enc_before_init(session_t *session, packet_t *packet)
 {
-  session->their_seq = packet->body.syn.seq;
-  session->options   = (options_t) packet->body.syn.options;
-
-#ifndef NO_ENCRYPTION
-  /* Make sure they're encrypting. */
-  if(do_encryption && !(packet->body.syn.options & OPT_ENCRYPTED))
+  if(packet->body.enc.subtype != PACKET_ENC_SUBTYPE_INIT)
   {
-    LOG_FATAL("The server doesn't want to encrypt the session (or ran into an error)!");
-    packet_print(packet, session->options);
+    LOG_FATAL("Received an unexpected encryption packet for this state: 0x%04x!", packet->body.enc.subtype);
     exit(1);
   }
 
-  if(!encryptor_set_their_public_key(session->encryptor, packet->body.syn.public_key))
+  if(!encryptor_set_their_public_key(session->encryptor, packet->body.enc.public_key))
   {
     LOG_FATAL("Failed to calculate a shared secret!");
     exit(1);
   }
+
+  if(preshared_secret)
+    session->state = SESSION_STATE_BEFORE_AUTH;
+  else
+    session->state = SESSION_STATE_NEW;
 
   /* TODO: Put this in a if_debug() block or something. */
   encryptor_print(session->encryptor);
@@ -242,7 +248,13 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   encryptor_print_sas(session->encryptor);
   printf("\n");
 
-#endif
+  return TRUE;
+}
+
+static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
+{
+  session->their_seq = packet->body.syn.seq;
+  session->options   = (options_t) packet->body.syn.options;
 
   /* We can send a response right away */
   session->last_transmit        = 0;
@@ -252,18 +264,6 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   printf("Session established!\n");
 
   return TRUE;
-}
-
-static NBBOOL _handle_syn_established(session_t *session, packet_t *packet)
-{
-  LOG_WARNING("Received a SYN in the middle of a session (ignoring)");
-  return FALSE;
-}
-
-static NBBOOL _handle_msg_new(session_t *session, packet_t *packet)
-{
-  LOG_WARNING("Received an unexpected message; very likely the remains of an old session");
-  return FALSE;
 }
 
 static NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
@@ -338,10 +338,18 @@ static NBBOOL _handle_fin(session_t *session, packet_t *packet)
   return TRUE;
 }
 
-static NBBOOL _handle_auth(session_t *session, packet_t *packet)
+static NBBOOL _handle_error(session_t *session, packet_t *packet)
 {
-  LOG_FATAL("Received AUTH; we haven't implemented that yet!");
+  LOG_FATAL("Received a message that's unexpected in this state:");
+  packet_print(packet, session->options);
   exit(1);
+}
+
+static NBBOOL _handle_warning(session_t *session, packet_t *packet)
+{
+  LOG_WARNING("Received a packet of type 0x%04x in an unexpected state; ignoring", packet->packet_type);
+
+  return FALSE;
 }
 
 NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
@@ -405,18 +413,32 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     /* Handlers for the various states / messages */
     packet_handler *handlers[PACKET_TYPE_COUNT_NOT_PING][SESSION_STATE_COUNT];
 
+#ifndef NO_ENCRYPTION
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_BEFORE_INIT]    = _handle_error;
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_BEFORE_AUTH]    = _handle_error;
+#endif
     handlers[PACKET_TYPE_SYN][SESSION_STATE_NEW]            = _handle_syn_new;
-    handlers[PACKET_TYPE_SYN][SESSION_STATE_ESTABLISHED]    = _handle_syn_established;
+    handlers[PACKET_TYPE_SYN][SESSION_STATE_ESTABLISHED]    = _handle_warning;
 
-    handlers[PACKET_TYPE_MSG][SESSION_STATE_NEW]            = _handle_msg_new;
+#ifndef NO_ENCRYPTION
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_BEFORE_INIT]    = _handle_error;
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_BEFORE_AUTH]    = _handle_error;
+#endif
+    handlers[PACKET_TYPE_MSG][SESSION_STATE_NEW]            = _handle_warning;
     handlers[PACKET_TYPE_MSG][SESSION_STATE_ESTABLISHED]    = _handle_msg_established;
 
+#ifndef NO_ENCRYPTION
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_BEFORE_INIT]    = _handle_fin;
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_BEFORE_AUTH]    = _handle_fin;
+#endif
     handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]            = _handle_fin;
     handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]    = _handle_fin;
 
 #ifndef NO_ENCRYPTION
-    handlers[PACKET_TYPE_AUTH][SESSION_STATE_NEW]           = _handle_auth;
-    handlers[PACKET_TYPE_AUTH][SESSION_STATE_ESTABLISHED]   = _handle_auth;
+    handlers[PACKET_TYPE_ENC][SESSION_STATE_BEFORE_INIT]   = _handle_enc_before_init;
+    handlers[PACKET_TYPE_ENC][SESSION_STATE_BEFORE_AUTH]   = _handle_error; /*_handle_enc_before_auth;*/
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]           = _handle_error; /* TODO: Re-negotiation. */
+    handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]   = _handle_error; /* TODO: Re-negotiation. */
 #endif
 
     /* Be extra cautious. */
@@ -499,11 +521,18 @@ static session_t *session_create(char *name)
 
   /* Check if it's a 16-bit value (I set it to a bigger value to set a random isn) */
   if(isn == (isn & 0xFFFF))
-    session->my_seq        = (uint16_t) isn; /* Use the hardcoded one. */
+    session->my_seq      = (uint16_t) isn; /* Use the hardcoded one. */
   else
-    session->my_seq        = rand() % 0xFFFF; /* Random isn */
+    session->my_seq      = rand() % 0xFFFF; /* Random isn */
 
+#ifndef NO_ENCRYPTION
+  if(do_encryption)
+    session->state       = SESSION_STATE_BEFORE_INIT;
+  else
+    session->state       = SESSION_STATE_NEW;
+#else
   session->state         = SESSION_STATE_NEW;
+#endif
   session->their_seq     = 0;
   session->is_shutdown   = FALSE;
 

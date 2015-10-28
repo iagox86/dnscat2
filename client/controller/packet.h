@@ -28,7 +28,7 @@ typedef enum
   PACKET_TYPE_MSG    = 0x01,
   PACKET_TYPE_FIN    = 0x02,
 #ifndef NO_ENCRYPTION
-  PACKET_TYPE_AUTH   = 0x04,
+  PACKET_TYPE_ENC    = 0x03,
 #endif
   PACKET_TYPE_COUNT_NOT_PING,
 
@@ -36,13 +36,17 @@ typedef enum
 
 } packet_type_t;
 
+typedef enum
+{
+  PACKET_ENC_SUBTYPE_INIT = 0x00,
+  PACKET_ENC_SUBTYPE_AUTH = 0x01,
+} packet_enc_subtype_t;
+
 typedef struct
 {
   uint16_t seq;
   uint16_t options;
   char    *name;
-  uint16_t crypto_flags;
-  uint8_t  public_key[64];
 } syn_packet_t;
 
 typedef enum
@@ -53,7 +57,6 @@ typedef enum
   /* OPT_DOWNLOAD = 8, // Deprecated */
   /* OPT_CHUNKED_DOWNLOAD = 16, // Deprecated */
   OPT_COMMAND          = 0x0020,
-  OPT_ENCRYPTED        = 0x0040,
 } options_t;
 
 typedef struct
@@ -83,8 +86,13 @@ typedef struct
 #ifndef NO_ENCRYPTION
 typedef struct
 {
+  packet_enc_subtype_t subtype;
+  uint16_t             flags;
+
+  uint8_t public_key[64];
+
   uint8_t authenticator[32];
-} auth_packet_t;
+} enc_packet_t;
 #endif
 
 typedef struct
@@ -100,7 +108,7 @@ typedef struct
     fin_packet_t    fin;
     ping_packet_t   ping;
 #ifndef NO_ENCRYPTION
-    auth_packet_t   auth;
+    enc_packet_t    enc;
 #endif
   } body;
 } packet_t;
@@ -118,7 +126,7 @@ packet_t *packet_create_fin(uint16_t session_id, char *reason);
 packet_t *packet_create_ping(uint16_t session_id, char *data);
 
 #ifndef NO_ENCRYPTION
-packet_t *packet_create_auth(uint16_t session_id, uint8_t *authenticator);
+packet_t *packet_create_enc(uint16_t session_id, uint16_t flags);
 #endif
 
 /* Set the OPT_NAME field and add a name value. */
@@ -127,14 +135,16 @@ void packet_syn_set_name(packet_t *packet, char *name);
 /* Set the OPT_COMMAND flag */
 void packet_syn_set_is_command(packet_t *packet);
 
+#ifndef NO_ENCRYPTION
 /* Set up an encrypted session. */
-void packet_syn_set_encrypted(packet_t *packet, uint16_t crypto_flags, uint8_t *public_key);
+void packet_enc_set_init(packet_t *packet, uint8_t *public_key);
+
+/* Authenticate with a PSK. */
+void packet_enc_set_auth(packet_t *packet, uint8_t *authenticator);
+#endif
 
 /* Get minimum packet sizes so we can avoid magic numbers. */
-size_t packet_get_syn_size();
 size_t packet_get_msg_size(options_t options);
-size_t packet_get_fin_size(options_t options);
-size_t packet_get_auth_size();
 size_t packet_get_ping_size();
 
 /* Free the packet data structures. */
