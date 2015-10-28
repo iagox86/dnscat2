@@ -152,9 +152,8 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
         break;
 
       case SESSION_STATE_BEFORE_AUTH:
-        /* TODO */
-        LOG_FATAL("We can't handle SESSION_STATE_BEFORE_AUTH yet :(");
-        exit(1);
+        packet = packet_create_enc(session->id, 0);
+        packet_enc_set_auth(packet, session->encryptor->my_authenticator);
         break;
 
       case SESSION_STATE_NEW:
@@ -247,6 +246,30 @@ static NBBOOL _handle_enc_before_init(session_t *session, packet_t *packet)
   printf("\n");
   encryptor_print_sas(session->encryptor);
   printf("\n");
+
+  return TRUE;
+}
+
+static NBBOOL _handle_enc_before_auth(session_t *session, packet_t *packet)
+{
+  if(packet->body.enc.subtype != PACKET_ENC_SUBTYPE_AUTH)
+  {
+    LOG_FATAL("Received an unexpected encryption packet for this state: 0x%04x!", packet->body.enc.subtype);
+    exit(1);
+  }
+
+  /* Check their authenticator. */
+  if(memcmp(packet->body.enc.authenticator, session->encryptor->their_authenticator, 32))
+  {
+    LOG_FATAL("Their authenticator was wrong! That likely means something weird is happening on the newtork...");
+    exit(1);
+  }
+
+  printf("\n");
+  printf("** Peer verified with pre-shared secret!\n");
+  printf("\n");
+
+  session->state = SESSION_STATE_NEW;
 
   return TRUE;
 }
@@ -436,7 +459,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 
 #ifndef NO_ENCRYPTION
     handlers[PACKET_TYPE_ENC][SESSION_STATE_BEFORE_INIT]   = _handle_enc_before_init;
-    handlers[PACKET_TYPE_ENC][SESSION_STATE_BEFORE_AUTH]   = _handle_error; /*_handle_enc_before_auth;*/
+    handlers[PACKET_TYPE_ENC][SESSION_STATE_BEFORE_AUTH]   = _handle_enc_before_auth;
     handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]           = _handle_error; /* TODO: Re-negotiation. */
     handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]   = _handle_error; /* TODO: Re-negotiation. */
 #endif
@@ -541,7 +564,7 @@ static session_t *session_create(char *name)
   session->outgoing_buffer = buffer_create(BO_BIG_ENDIAN);
 
 #ifndef NO_ENCRYPTION
-  session->encryptor = encryptor_create();
+  session->encryptor = encryptor_create(preshared_secret);
 
   if(!session->encryptor)
   {
@@ -617,6 +640,11 @@ void session_set_delay(int delay_ms)
 void session_set_transmit_immediately(NBBOOL transmit_immediately)
 {
   transmit_instantly_on_data = transmit_immediately;
+}
+
+void session_set_preshared_secret(char *new_preshared_secret)
+{
+  preshared_secret = new_preshared_secret;
 }
 
 NBBOOL session_is_shutdown(session_t *session)

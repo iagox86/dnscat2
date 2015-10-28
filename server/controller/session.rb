@@ -133,7 +133,7 @@ class Session
     }
 
     if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-      @encryptor = Encryptor.new(packet.body.public_key_x, packet.body.public_key_y)
+      @encryptor = Encryptor.new(packet.body.public_key_x, packet.body.public_key_y, Settings::GLOBAL.get('secret'))
 
       @window.puts("Generated cryptographic values:")
       @window.puts(@encryptor)
@@ -149,7 +149,12 @@ class Session
         @window.puts()
       end
     elsif(packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
-      raise(DnscatException, "We don't handle AUTH yet!")
+      if(packet.body.authenticator != @encryptor.their_authenticator)
+        raise(DnscatException, "Their authenticator doesn't match! It's possible that it's due to network weirdness.")
+      end
+      @window.puts("Encrypted session validated with the preshared secret!")
+
+      params[:authenticator] = @encryptor.my_authenticator
     else
       raise(DnscatException, "Don't know how to parse: #{packet}")
     end

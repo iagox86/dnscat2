@@ -79,6 +79,8 @@ void usage(char *name, char *message)
 " --retransmit-forever    Set if you want the client to re-transmit forever\n"
 "                         until a server turns up. This can be helpful, but also\n"
 "                         makes the server potentially run forever.\n"
+" --secret                Set the shared secret; set the same one on the server\n"
+"                         and the client to prevent man-in-the-middle attacks!\n"
 "\n"
 "Input options:\n"
 " --console               Send/receive output to the console.\n"
@@ -257,6 +259,7 @@ int main(int argc, char *argv[])
     {"steady",             no_argument,       0, 0}, /* Don't transmit immediately after getting a response. */
     {"max-retransmits",    required_argument, 0, 0}, /* Set the max retransmissions */
     {"retransmit-forever", no_argument,       0, 0}, /* Retransmit forever if needed */
+    {"secret",             required_argument, 0, 0}, /* Pre-shared secret */
 
     /* i/o options. */
     {"console", no_argument,       0, 0}, /* Enable console */
@@ -345,6 +348,10 @@ int main(int argc, char *argv[])
         else if(!strcmp(option_name, "retransmit-forever"))
         {
           controller_set_max_retransmits(-1);
+        }
+        else if(!strcmp(option_name, "secret"))
+        {
+          session_set_preshared_secret(optarg);
         }
 
         /* i/o drivers */

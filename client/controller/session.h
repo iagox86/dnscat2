@@ -61,6 +61,7 @@ typedef struct
 #endif
 } session_t;
 
+/* TODO: re-order and comment these. */
 session_t *session_create_console(select_group_t *group, char *name);
 session_t *session_create_exec(select_group_t *group, char *name, char *process);
 session_t *session_create_command(select_group_t *group, char *name);
@@ -76,6 +77,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 void session_enable_packet_trace();
 void session_set_delay(int delay_ms);
 void session_set_transmit_immediately(NBBOOL transmit_immediately);
+void session_set_preshared_secret(char *new_preshared_secret);
 void session_kill(session_t *session);
 void session_destroy(session_t *session);
 

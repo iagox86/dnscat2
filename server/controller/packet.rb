@@ -260,7 +260,7 @@ class Packet
       elsif(subtype == SUBTYPE_AUTH)
         exactly?(data, 32) || raise(DnscatException, "ENC packet is too short!")
 
-        authenticator, data = data.unpack("na32a*")
+        authenticator, data = data.unpack("a32a*")
 
         params[:authenticator] = authenticator
       else
@@ -291,7 +291,7 @@ class Packet
 
         return [@subtype, @flags, public_key_x, public_key_y].pack("nna32a32")
       elsif(@subtype == SUBTYPE_AUTH)
-        return [@flags, @authenticator].pack("na32")
+        return [@subtype, @flags, @authenticator].pack("nna32")
       else
         raise(DnscatException, "Unknown subtype: #{@subtype}")
       end

@@ -36,12 +36,27 @@ static void make_key(encryptor_t *encryptor, char *key_name, uint8_t *result)
   sha3_final(&ctx, result);
 }
 
-encryptor_t *encryptor_create()
+static void make_authenticator(encryptor_t *encryptor, char *authstring, uint8_t *buffer)
+{
+  sha3_ctx ctx;
+
+  sha3_256_init(&ctx);
+  sha3_update(&ctx, (uint8_t*)authstring, strlen(authstring));
+  sha3_update(&ctx, encryptor->shared_secret,    32);
+  sha3_update(&ctx, encryptor->my_public_key,    64);
+  sha3_update(&ctx, encryptor->their_public_key, 64);
+  sha3_update(&ctx, (uint8_t*)encryptor->preshared_secret, strlen(encryptor->preshared_secret));
+  sha3_final(&ctx, buffer);
+}
+
+encryptor_t *encryptor_create(char *preshared_secret)
 {
   encryptor_t *encryptor = safe_malloc(sizeof(encryptor_t));
 
   if(!uECC_make_key(encryptor->my_public_key, encryptor->my_private_key, uECC_secp256r1()))
     return NULL;
+
+  encryptor->preshared_secret = preshared_secret;
 
   return encryptor;
 }
@@ -59,6 +74,12 @@ NBBOOL encryptor_set_their_public_key(encryptor_t *encryptor, uint8_t *their_pub
   make_key(encryptor, "server_write_key", encryptor->their_write_key);
   make_key(encryptor, "server_mac_key",   encryptor->their_mac_key);
 
+  if(encryptor->preshared_secret)
+  {
+    make_authenticator(encryptor, "client", encryptor->my_authenticator);
+    make_authenticator(encryptor, "server", encryptor->their_authenticator);
+  }
+
   return TRUE;
 }
 
@@ -74,16 +95,21 @@ NBBOOL encryptor_should_we_renegotiate(encryptor_t *encryptor)
 
 void encryptor_print(encryptor_t *encryptor)
 {
-  print_hex("my_private_key",    encryptor->my_private_key,   32);
-  print_hex("my_public_key",     encryptor->my_public_key,    64);
-  print_hex("their_public_key",  encryptor->their_public_key, 64);
+  print_hex("my_private_key",      encryptor->my_private_key,   32);
+  print_hex("my_public_key",       encryptor->my_public_key,    64);
+  print_hex("their_public_key",    encryptor->their_public_key, 64);
   printf("\n");
-  print_hex("shared_secret", encryptor->shared_secret, 32);
+  print_hex("shared_secret",       encryptor->shared_secret, 32);
+  if(encryptor->preshared_secret)
+  {
+    print_hex("my_authenticator",    encryptor->my_authenticator, 32);
+    print_hex("their_authenticator", encryptor->their_authenticator, 32);
+  }
   printf("\n");
-  print_hex("my_write_key",      encryptor->my_write_key,     32);
-  print_hex("my_mac_key",        encryptor->my_mac_key,       32);
-  print_hex("their_write_key",   encryptor->their_write_key,  32);
-  print_hex("their_mac_key",     encryptor->their_mac_key,    32);
+  print_hex("my_write_key",        encryptor->my_write_key,     32);
+  print_hex("my_mac_key",          encryptor->my_mac_key,       32);
+  print_hex("their_write_key",     encryptor->their_write_key,  32);
+  print_hex("their_mac_key",       encryptor->their_mac_key,    32);
 }
 
 void encryptor_print_sas(encryptor_t *encryptor)

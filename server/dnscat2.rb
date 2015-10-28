@@ -21,6 +21,8 @@ require 'tunnel_drivers/tunnel_drivers'
 # Option parsing
 require 'trollop'
 
+require 'securerandom'
+
 # version info
 NAME = "dnscat2"
 VERSION = "0.03"
@@ -60,6 +62,8 @@ opts = Trollop::options do
     :type => :integer, :default => 53
   opt :passthrough, "Unhandled requests are sent upstream DNS server, host:port",
     :type => :string, :default => ""
+  opt :secret, "A pre-shared secret, passed to both the client and server to prevent man-in-the-middle attacks",
+    :type => :string, :default => nil
 
   opt :require_enc, "Require all clients to negotiate encryption",
     :type => :boolean, :default => false
@@ -82,6 +86,10 @@ opts = Trollop::options do
 end
 
 SWindow.set_firehose(opts[:firehose])
+
+if(opts[:secret].nil?)
+  opts[:secret] = SecureRandom::hex(16)
+end
 
 window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
 window.puts("Welcome to dnscat2! Some documentation may be out of date.")
@@ -136,6 +144,9 @@ begin
   end
 
   Settings::GLOBAL.create("require_auth", Settings::TYPE_BOOLEAN, opts[:require_auth], "If true, all new clients using encryption *must* authenticate") do |old_val, new_val|
+  end
+
+  Settings::GLOBAL.create("secret", Settings::TYPE_STRING, opts[:secret], "Pass the same --secret value to the client and the server for extra security") do |old_val, new_val|
   end
 rescue Settings::ValidationError => e
   window.puts("There was an error with one of your commandline arguments:")

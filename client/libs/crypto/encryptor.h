@@ -10,10 +10,15 @@
 
 typedef struct
 {
+  char *preshared_secret;
+
   uint8_t my_private_key[32];
   uint8_t my_public_key[64];
   uint8_t their_public_key[64];
+
   uint8_t shared_secret[32];
+  uint8_t my_authenticator[32];
+  uint8_t their_authenticator[32];
 
   uint8_t my_write_key[32];
   uint8_t my_mac_key[32];
@@ -24,7 +29,7 @@ typedef struct
 } encryptor_t;
 
 /* Create a new encryptor and generate a new private key. */
-encryptor_t *encryptor_create();
+encryptor_t *encryptor_create(char *preshared_secret);
 
 /* Set their pubkey, and also calculate all the various derived values. */
 NBBOOL encryptor_set_their_public_key(encryptor_t *encryptor, uint8_t *their_public_key);

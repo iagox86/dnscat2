@@ -16,7 +16,7 @@ require 'controller/encryptor_sas'
 require 'libs/dnscat_exception'
 
 class Encryptor
-  attr_reader :public_key_x, :public_key_y
+  attr_reader :public_key_x, :public_key_y, :their_authenticator, :my_authenticator
 
   include EncryptorSAS
 
@@ -50,7 +50,18 @@ class Encryptor
     return SHA3::Digest::SHA256.digest(Encryptor.bignum_to_binary(@shared_secret) + key_name)
   end
 
-  def initialize(their_public_key_x, their_public_key_y)
+  def _create_authenticator(name, preshared_secret)
+    return SHA3::Digest::SHA256.digest(name +
+      Encryptor.bignum_to_binary(@shared_secret) +
+      Encryptor.bignum_to_binary(@their_public_key.x) +
+      Encryptor.bignum_to_binary(@their_public_key.y) +
+      Encryptor.bignum_to_binary(@my_public_key.x) +
+      Encryptor.bignum_to_binary(@my_public_key.y) +
+      preshared_secret
+    )
+  end
+
+  def initialize(their_public_key_x, their_public_key_y, preshared_secret)
     @my_nonce = -1
     @their_nonce = -1
 
@@ -58,7 +69,11 @@ class Encryptor
     @my_private_key = 43951174550322390566248264230503370167897136622816423934586799375127212096389
     @my_public_key  = ECDH_GROUP.generator.multiply_by_scalar(@my_private_key)
     @their_public_key = ECDSA::Point.new(ECDH_GROUP, their_public_key_x, their_public_key_y)
+
     @shared_secret = @their_public_key.multiply_by_scalar(@my_private_key).x
+
+    @their_authenticator = _create_authenticator("client", preshared_secret)
+    @my_authenticator    = _create_authenticator("server", preshared_secret)
 
     @their_write_key  = _create_key("client_write_key")
     @their_mac_key    = _create_key("client_mac_key")
@@ -74,6 +89,9 @@ class Encryptor
     out << "Their public key [x]: #{Encryptor.bignum_to_text(@their_public_key.x)}"
     out << "Their public key [y]: #{Encryptor.bignum_to_text(@their_public_key.y)}"
     out << "Shared secret:        #{Encryptor.bignum_to_text(@shared_secret)}"
+    out << ""
+    out << "Their authenticator:  #{@their_authenticator.unpack("H*")}"
+    out << "My authenticator:     #{@my_authenticator.unpack("H*")}"
     out << ""
     out << "Their write key: #{@their_write_key.unpack("H*")}"
     out << "Their mac key:   #{@their_mac_key.unpack("H*")}"
