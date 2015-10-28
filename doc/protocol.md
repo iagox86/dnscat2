@@ -312,8 +312,8 @@ message and which key should be used to decrypt it.
 The data that crosses the network in cleartext is:
 
 * packet_id - a meaningless random value
-* packet_type - information on the type of packet (syn/msg/fin/etc)
-* session_id - identifies the session
+* packet_type - information on the type of packet (syn/msg/fin/etc.)
+* session_id - uniquely identifies the session
 
 These give no more information than the unencrypted TCP headers of a
 typical TLS session, so I decided that it's safe enough.
@@ -327,12 +327,13 @@ implementation and library information for C and Ruby.
 Key exchange is performed using the "P-256" elliptic curve and SHA3-256.
 The client and server each generates a random 256-bit secret key at the
 start of a connection, then derive a shared (symmetric) key.  This is
-all performed in the `MESSAGE_TYPE_SYN` packet, with `OPT_ENCRYPTED`
-set.
+all performed in the `MESSAGE_TYPE_ENC` (aka, `ENC`) packet, subtype
+`ENC_SUBTYPE_INIT`.
 
-Once they have one another's public keys, the client and server use
-those keys to generate `shared_secret`. `shared_secret` is SHA3'd with a
-few different static strings to generate the actual keys.
+Once both sides have the other's public key, the client and server use
+those keys to generate the `shared_secret`, using standard ECDH.  The
+`shared_secret` is SHA3'd with a few different static strings to
+generate the actual keys:
 
     `shared_secret = ECDH("P-256", their_public_key, my_private_key)`
     `client_write = SHA3-256(shared_secret || "client_write_key")`
@@ -351,50 +352,54 @@ authentication.
 The client and server can optionally use a pre-shared secret (ie, a
 password or a key) to prevent man-in-the-middle attacks.
 
-`preshared_secret` is something the client and server have to pre-decide.
-Typically, it'll be passed in as commandline arguments. The server may
-even auto-generate a key for each listener and give the user the
-specific command to enter the key.
+`preshared_secret` is something the client and server have to
+pre-decide.  Typically, it'll be passed in as a commandline argument.
+The server may even auto-generate a key for each listener and give the
+user the specific command to enter the key.
 
 If a client attempts to authenticate, the server *MUST* authenticate
 back. If the client authenticates and the server doesn't, the client
 *MUST* terminate the connection.
 
-If the client doesn't perform authentication, it's up to the server to
-decide whether or not to allow the connection (it has no
-man-in-the-middle protection, but it's possible that the client simply
-didn't use a key).
+Authentication, like encryption, isn't mandatory in the protocol; the
+client can choose whether or not to negotiate it, and the server can
+choose whether or not to allow or require it.
 
-The actual authentication is done in a `AUTH` packet. If it's being
-used, it must be sent directly after the `SYN` packet.
+The actual authentication is done in an `ENC` packet, subtype
+`ENC_SUBTYPE_AUTH`. It should be sent immediately after the initial key
+exchange.
 
 The authentication strings are computed using SHA3-256:
 
-    client_authentication = SHA3-256("client" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
-    server_authentication = SHA3-256("server" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+    client_authenticator = SHA3-256("client" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
+    server_authenticator = SHA3-256("server" || shared_secret || pubkey_client || pubkey_server || preshared_secret)
 
 ### Short-authentication strings
 
 Instead of using peer authentication, a short-authentication string can
 be used. This is a way for the user to visually validate that the client
-and server are connected to each other, and not to somebody else.
+and server are connected to each other, and not to somebody else. This
+*SHOULD* be displayed to the user if a pre-shared secret isn't being
+used.
 
-This is done by taking the first 6 bytes (48 bits) of this hash:
+This is done by first taking the first 6 bytes (48 bits) of this hash:
 
-    sas = SHA3-256("authstring" || shared_secret || pubkey_client || pubkey_server)[0,6]
+    sas = SHA3-256("authstring" || shared_secret || public_key_client || public_key_server)[0,6]
 
-The public keys are the full x and y coordinates, represented as 64-byte
-strings (or pairs of 32-byte strings).
+Where the public keys are the full x and y coordinates, represented as
+64-byte strings (or pairs of 32-byte strings).
 
 After calculating that value, for each byte, look up the corresponding
 line in [this word list](/data/wordlist_256.txt) and display it to the
 user.  It's up to the user to verify that the 6 words on the client
-match the 6 words on the server.
+match the 6 words on the server - they can choose whether or not to
+actually do that.
 
 ### Stream encapsulation
 
-A dnscat2 packet contains a 5-byte header and an arbitrarily long body.
-The header must be transmitted unencrypted, but must be signed.
+A standard dnscat2 packet contains a 5-byte header and an arbitrarily
+long body.  The header must be transmitted unencrypted, but must be
+signed.
 
 After each dnscat2 packet is serialized to a byte stream, but before
 it's converted to DNS by the `tunnel_driver`, the packet's body is
@@ -421,12 +426,20 @@ Encrypting the body is simply done with salsa20:
 
     encrypted_data = salsa20(packet_body, nonce, write_key)
 
+The packet_body is the sixth byte of the packet and onwards (everything
+after the header). The nonce is the nonce value, encoded in big endian,
+padded with zeroes to 8 bytes. The write_key is the write_key for the
+client or server, as appropriate.
+
 Each packet also requires a signature. This is to prevent
 man-in-the-middle attacks, so as long as it can hold off an attacker for
 more than a couple seconds, it's suitable. As such, we use SHA3-256
 truncated to 48 bits.
 
-The calculations are as follows:
+The signature covers the 5-byte packet header, the nonce, and the
+encrypted body.
+
+The calculation for the signature is:
 
     `signature = SHA3(mac_key || packet_header || nonce || encrypted_body)[0,6]`
 
@@ -446,16 +459,18 @@ The final encapsulated packet looks like this:
 
 Note: This isn't implemented anywhere yet, and is likely to change!
 
-To re-negotiate encryption, the client simply sends a `RNE` message
-to the server with a new public key, encrypted and signed as a normal
-message. The server will respond with a new pubkey of its own in its own
-`RNE` packet, exactly like the original exchange.
+To re-negotiate encryption, the client simply sends another `ENC`
+message (subtype `ENC_SUBTYPE_INIT`) to the server with a new public
+key, encrypted and signed as a normal message. The server will respond
+with a new pubkey of its own in its own `ENC` packet, exactly like the
+original exchange.
 
-Authentication is not re-done. The connection is assumed to still be valid.
+Authentication is not re-performed. The connection is assumed to still
+be authenticated.
 
-After successful re-negotiation, the client and server should both reset
-their nonce values back to 0. The next packet after the `RNE` packet
-should be encrypted with the new key, and the old one should be
+After successful re-negotiation, the client and server *SHOULD* both
+reset their nonce values back to 0. The next packet after the `ENC`
+packet should be encrypted with the new key, and the old one should be
 discarded (preferably zeroed out so it can't be recovered, if possible).
 
 ### Algorithms
@@ -520,8 +535,6 @@ exchange:
     
     shared_secret:      6db2c22f7b0fd8921a15cf22bcbecfe84da0a852075f2707b2a24e19d9f4a6cf
 
-
-
 #### SHA3
 
 SHA3 is used in the protocol for simplicity; HMAC and similar constructs
@@ -531,9 +544,10 @@ was designed to allow).
 The downside of SHA3 is that finding a proper implementation can be
 tricky!
 
-We also use SHA3-256 in every case. When we need a 48-bit string, rather
-than using SHA3-48 (which isn't always implemented), we simply truncate
-a SHA3-256 output to the proper length.
+We use the 256-bit output (SHA3-256) in every case. When we need a
+48-bit string, rather than using SHA3-48 (which isn't always
+implemented), we simply truncate a SHA3-256 output to the proper length,
+which should be safe to do per the SHA3 standard.
 
 The [sha3 gem](https://github.com/johanns/sha3), as of 1.0.1, implements
 SHA3 properly. You can verify that whatever your library is using
@@ -594,13 +608,16 @@ vulnerability in the dnscat2 encryption. If you're implementing a client
     #define MESSAGE_TYPE_SYN    (0x00)
     #define MESSAGE_TYPE_MSG    (0x01)
     #define MESSAGE_TYPE_FIN    (0x02)
-    #define MESSAGE_TYPE_AUTH   (0x03)
+    #define MESSAGE_TYPE_ENC    (0x03)
     #define MESSAGE_TYPE_PING   (0xFF)
 
+    /* Encryption subtypes */
+    #define ENC_SUBTYPE_INIT    (0x00)
+    #define ENC_SUBTYPE_AUTH    (0x01)
+
     /* Options */
-    #define OPT_NAME             (0x01)
-    #define OPT_COMMAND          (0x20)
-    #define OPT_ENCRYPTED        (0x40)
+    #define OPT_NAME            (0x01)
+    #define OPT_COMMAND         (0x20)
 
 ## Messages
 
@@ -635,10 +652,6 @@ order). The following datatypes are used:
 - (uint16_t) options
 - If OPT_NAME is set:
   - (ntstring) session_name
-- If OPT_ENCRYPTED is set:
-  - (uint16_t) crypto_flags
-  - (byte[32]  public_key_x
-  - (byte[32]  public_key_y
 
 #### Notes
 
@@ -715,20 +728,34 @@ order). The following datatypes are used:
 - Once a FIN has been sent, the client or server should no longer
   attempt to respond to anything from that connection.
 
-### MESSAGE_TYPE_AUTH: [0x03]
+### MESSAGE_TYPE_ENC: [0x03]
 
 - (uint16_t) packet_id
 - (uint8_t)  message_type [0x03]
 - (uint16_t) session_id
-- (byte[32]) authenticator
+- (uint16_t) subtype
+- (uint16_t) flags
+- If subtype is ENC_SUBTYPE_INIT:
+  - (byte[32]) public_key_x
+  - (byte[32]) public_key_y
+- If subtype is ENC_SUBTYPE_AUTH:
+  - (byte[32]) authenticator
 
 #### Notes
-- This is sent directly after `MESSAGE_TYPE_NEGENC` and before
-  `MESSAGE_TYPE_SYN`
-- The client may not be required to send this (it's up to the server)
-- If the client DOES send it, the server *MUST* respond in kind
-- The authenticator is based on a pre-shared secret, more information can be
-  found under [Peer authentication](#peer-authentication)
+- An `ENC` packet with subtype `INIT` should be sent immediately if the
+  client wants to use encryption
+- The server must respond to an `ENC` packet with its own `ENC` packet
+  of the same subtype
+- The public keys and authenticators are encoded as 32-byte hex strings,
+  padded with zeroes on the left
+
+Here's the Ruby code for converting an integer `bn` to a binary string:
+
+    [bn.to_s(16).rjust(32*2, "\0")].pack("H*")
+
+And for going from a `binary` blob to an integer:
+
+    binary.unpack("H*").pop().to_i(16)
 
 ### MESSAGE_TYPE_PING: [0xFF]
 
