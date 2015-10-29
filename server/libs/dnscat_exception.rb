@@ -5,8 +5,12 @@
 #
 # See LICENSE.md
 #
-# Implements a simple exception class for DNSCat protocol errors.
+# Implements a simple exception class for dnscat2 protocol errors.
 ##
 
 class DnscatException < StandardError
+end
+
+# Use this for exceptions that aren't as major
+class DnscatMinorException < DnscatException
 end

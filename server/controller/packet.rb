@@ -298,6 +298,10 @@ class Packet
     end
   end
 
+  def ==(other_packet)
+    return self.to_bytes() == other_packet.to_bytes()
+  end
+
   # You probably don't ever want to use this, call Packet.parse() or Packet.create_*() instead
   def initialize(packet_id, type, session_id, body)
     @packet_id  = packet_id  || rand(0xFFFF)

@@ -22,7 +22,7 @@ class Session
   attr_reader :id, :name, :options, :state
   attr_reader :window
 
-  # The session was just created and hasn't seen a packet yet
+  # The session hasn't seen a SYN packet yet (but may have done some encryption negotiation)
   STATE_NEW           = 0x00
 
   # After receiving a SYN
@@ -47,7 +47,11 @@ class Session
     @id = id
     @incoming_data = ''
     @outgoing_data = ''
+
     @encryptor = nil
+
+    @encrypted = false
+    @authenticated = false
 
     @settings = Settings.new()
     @window = SWindow.new(main_window, false, {:times_out => true})
@@ -78,19 +82,6 @@ class Session
     end
 
     @window.close()
-  end
-
-  def _syn_valid?()
-    # This is basically where all the access control security happens
-    return @state == STATE_NEW
-  end
-
-  def _msg_valid?()
-    return @state == STATE_ESTABLISHED || @state == STATE_KILLED
-  end
-
-  def _fin_valid?()
-    return @state == STATE_ESTABLISHED || @state == STATE_KILLED
   end
 
   def _next_outgoing(n)
@@ -124,65 +115,12 @@ class Session
     return "id: 0x%04x [internal: %d], state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @window.id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
-  def _handle_enc(packet, max_length)
-    # TODO: only allow this in the correct state
-    params = {
-      :session_id => @id,
-      :subtype    => packet.body.subtype,
-      :flags      => 0,
-    }
-
-    if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-      @encryptor = Encryptor.new(packet.body.public_key_x, packet.body.public_key_y, Settings::GLOBAL.get('secret'))
-
-      @window.puts("Generated cryptographic values:")
-      @window.puts(@encryptor)
-
-      params[:public_key_x] = @encryptor.my_public_key_x()
-      params[:public_key_y] = @encryptor.my_public_key_y()
-
-      @window.with({:to_ancestors => true}) do
-        @window.puts()
-        @window.puts("Encrypted session established! For added security, please verify the client also displays this string:")
-        @window.puts()
-        @window.puts(@encryptor.get_sas())
-        @window.puts()
-      end
-    elsif(packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
-      if(packet.body.authenticator != @encryptor.their_authenticator)
-        raise(DnscatException, "Their authenticator doesn't match! It's possible that it's due to network weirdness.")
-      end
-      @window.puts("Encrypted session validated with the preshared secret!")
-
-      params[:authenticator] = @encryptor.my_authenticator
-    else
-      raise(DnscatException, "Don't know how to parse: #{packet}")
-    end
-
-    return Packet.create_enc(params)
-  end
-
   def _handle_syn(packet, max_length)
     options = 0
-    packet_params = {
-      :session_id => @id,
-      :seq        => @my_seq
-    }
 
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
-    if(!_syn_valid?())
-      if(@their_seq == packet.body.seq && @options == packet.body.options)
-        # If we're encrypting, make sure the key hasn't changed
-        if(@encryptor)
-          if(packet.body.public_key_x != @encryptor.public_key_x || packet.body.public_key_y != @encryptor.public_key_y)
-            return nil
-          end
-        end
-
-        @window.puts("[WARNING] Duplicate SYN received!")
-      else
-        return nil
-      end
+    if(@state != STATE_NEW)
+      raise(DnscatMinorException, "Duplicate SYN received!")
     end
 
     # Save some of their options
@@ -222,7 +160,10 @@ class Session
     # Move states (this has to come after the encryption code, otherwise this packet is accidentally encrypted)
     @state = STATE_ESTABLISHED
 
-    return Packet.create_syn(options, packet_params)
+    return Packet.create_syn(options, {
+      :session_id => @id,
+      :seq        => @my_seq
+    })
   end
 
   def _actual_msg_max_length(max_data_length)
@@ -230,21 +171,13 @@ class Session
   end
 
   def _handle_msg(packet, max_length)
-    if(!_msg_valid?())
-      raise(DnscatException, "MSG received in invalid state!")
-    end
-
-    # We can send a FIN and close right away if the session is dead
-    if(@state == STATE_KILLED)
-      return Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason => "The user killed the session!",
-      })
+    if(@state != STATE_ESTABLISHED)
+      raise(DnscatMinorException, "MSG received in invalid state!")
     end
 
     # Validate the sequence number
     if(@their_seq != packet.body.seq)
-      @window.puts("Client sent a back sequence number (expected #{@their_seq}, received #{packet.body.seq}); re-sending")
+      @window.puts("Client sent a bad sequence number (expected #{@their_seq}, received #{packet.body.seq}); re-sending")
 
       # Re-send the last packet
       old_data = _next_outgoing(_actual_msg_max_length(max_length))
@@ -295,11 +228,6 @@ class Session
   end
 
   def _handle_fin(packet, max_length)
-    # Ignore errant FINs - if we respond to a FIN with a FIN, it would cause a potential infinite loop
-    if(!_fin_valid?())
-      raise(DnscatException, "FIN received in invalid state")
-    end
-
     # End the session
     kill()
 
@@ -307,6 +235,54 @@ class Session
       :session_id => @id,
       :reason => "Bye!",
     })
+  end
+
+  def _handle_enc(packet, max_length)
+    # TODO: Allow re-keying
+    if(@state != STATE_NEW)
+      raise(DnscatMinorException, "Received an ENC packet in an invalid state (and re-negotiation isn't done yet!)")
+    end
+
+    params = {
+      :session_id => @id,
+      :subtype    => packet.body.subtype,
+      :flags      => 0,
+    }
+
+    if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
+      @encryptor = Encryptor.new(packet.body.public_key_x, packet.body.public_key_y, Settings::GLOBAL.get('secret'))
+
+      @window.puts("Generated cryptographic values:")
+      @window.puts(@encryptor)
+
+      params[:public_key_x] = @encryptor.my_public_key_x()
+      params[:public_key_y] = @encryptor.my_public_key_y()
+
+      @window.with({:to_ancestors => true}) do
+        @window.puts()
+        @window.puts("Encrypted session established! For added security, please verify the client also displays this string:")
+        @window.puts()
+        @window.puts(@encryptor.get_sas())
+        @window.puts()
+      end
+    elsif(packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
+      if(packet.body.authenticator != @encryptor.their_authenticator)
+        kill()
+
+        return Packet.create_fin(@options, {
+          :session_id => @id,
+          :reason => "The client's authenticator (pre-shared secret) was wrong!",
+        })
+      end
+      @window.puts("Encrypted session validated with the pre-shared secret!")
+      @authenticated = true
+
+      params[:authenticator] = @encryptor.my_authenticator
+    else
+      raise(DnscatMinorException, "Don't know how to parse encryption subtype in: #{packet}")
+    end
+
+    return Packet.create_enc(params)
   end
 
   def _get_pcap_window()
@@ -327,31 +303,43 @@ class Session
     # Tell the window that we're still alive
     window.kick()
 
-    # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
-    if(@encryptor)
-      packet = @encryptor.decrypt_packet(data, @options)
-      max_length -= 8
-    else
-      packet = Packet.parse(data, @options)
-    end
-
-    if(packet.nil?)
-      @window.puts("ERROR: Unable to parse the packet!")
-      return ''
-    end
-
-    if(Settings::GLOBAL.get("packet_trace"))
-      window = _get_pcap_window()
-      window.puts("IN:  #{packet}")
-    end
-
     begin
-      handler = HANDLERS[packet.type]
-      if(handler.nil?)
-        raise(DnscatException, "No handler found for that packet type: #{packet.type}")
+      # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
+      if(@encrypted)
+        packet = @encryptor.decrypt_packet(data, @options)
+        max_length -= 8
+      else
+        packet = Packet.parse(data, @options)
       end
 
-      response_packet = send(handler, packet, max_length)
+      if(packet.nil?)
+        raise(DnscatMinorException, "Unable to parse the incoming packet!")
+      end
+
+      if(Settings::GLOBAL.get("packet_trace"))
+        window = _get_pcap_window()
+        window.puts("IN:  #{packet}")
+      end
+
+      # We can send a FIN and close right away if the session was killed
+      if(@state == STATE_KILLED)
+        response_packet = Packet.create_fin(@options, {
+          :session_id => @id,
+          :reason => "The user killed the session!",
+        })
+      else
+        handler = HANDLERS[packet.type]
+        if(handler.nil?)
+          raise(DnscatMinorException, "No handler found for that packet type: #{packet.type}")
+        end
+
+        response_packet = send(handler, packet, max_length)
+      end
+    rescue DnscatMinorException => e
+      @window.puts("There was a problem, and we're ignoring the incoming message because:")
+      @window.puts(e)
+
+      response_packet = nil
     rescue DnscatException => e
       @window.with({:to_ancestors => true}) do
         @window.puts("ERROR: Protocol exception occurred: #{e}")
@@ -386,10 +374,17 @@ class Session
       window.puts("OUT: #{response_packet}")
     end
 
-    if(response_packet.type == Packet::MESSAGE_TYPE_ENC && response_packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-      bytes = response_packet.to_bytes()
-    else
+    # If we're supposed to encrypt, do so
+    if(@encrypted)
       bytes = @encryptor.encrypt_packet(response_packet, @options)
+    else
+      bytes = response_packet.to_bytes()
+
+      # If we're responding to an encryption negotiation, turn on encryption *after* encoding the packet
+      if(response_packet.type == Packet::MESSAGE_TYPE_ENC && response_packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
+        @encrypted = true
+        @window.puts("*** ENCRYPTION ENABLED!")
+      end
     end
 
     return bytes

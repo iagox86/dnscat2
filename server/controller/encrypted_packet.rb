@@ -13,12 +13,10 @@ require 'salsa20'
 class EncryptedPacket
   attr_reader :nonce, :packet
 
-  #@@crypto_status = SWindow.new(nil, false, { :noinput => true, :id => "crypto", :name => "Crypto status"})
-
   def initialize(nonce, packet)
     # TODO: Make the nonce into an integer
     if(nonce.length != 2)
-      raise(DnscatException, "Invalid nonce: #{nonce}")
+      raise(ArgumentError, "Invalid nonce: #{nonce}")
     end
 
     @nonce  = nonce
@@ -34,7 +32,7 @@ class EncryptedPacket
     # Check the signature
     correct_signature = SHA3::Digest::SHA256.digest(their_mac_key + signed_data)
     if(correct_signature[0,6] != signature)
-      raise(DnscatException, "Invalid signature on message!")
+      raise(DnscatMinorException, "Invalid signature! (If it's the start of the session, it's probably because of re-transmits)")
     end
 
     # Decrypt the body
