@@ -471,7 +471,7 @@ reset their nonce values back to 0. The next packet after the `ENC`
 packet should be encrypted with the new key, and the old one should be
 discarded (preferably zeroed out so it can't be recovered, if possible).
 
-### Re-transmits
+### Re-transmits and keys
 
 One really annoying thing about dnscat2 is that it has to operate over a
 really, really bad protocol: DNS.
@@ -491,21 +491,34 @@ Likewise when re-keying. You're almost always going to receive at least
 one message with the old key when re-keying is performed. That's why we
 love DNS so much!
 
-Clients don't have to worry about this, but servers do. Here's my advice
-for the server...
+You might think it's safe to just ignore packets you receive with the
+wrong key. Unfortunately, that's not enough. Imagine a client sent you
+an `ENC|INIT`, either at the start or during a stream, but the response
+was dropped. That happens, frequently. At that point, you're expecting
+one set of keys, but the client is using another. From then on, it's
+impossible to communicate!
+
+Fortunately for clients, they don't have to worry about this. As soon as
+a client receives a new key, it can safely cut over to it immediately.
+Servers, however, do require some special treatment. Here's how I deal
+with it...
 
 Always keep the previous encryption keys handy immediately after
-changing them. When a message comes in, attempt to decrypt it with the
-new keys *first*. If the signature is wrong, fall back to the previous
-key, and use that to decrypt it. If the signature is right, *delete the
-old keys from memory*, and never use them again.
+changing them. When a message is received, attempt to decrypt it with
+the *new* key *first*. If the signature turns out to be wrong, fall back
+to the previous key, and use that to decrypt it. If the previous key has
+to be used to decrypt the message, always respond using that key: it's
+often a sign that the client doesn't know about the new key yet.
 
-That provides a small window of overlap between the old key and the new
-key, and it keeps the server happy! As soon as both sides have proven
-that they have the new key, the old version can be dropped.
+And then, *as soon as you receive data encrypted with the new key,
+delete the old one from memory*. Once you've received a packet encrypted
+with the key, you know the client has the proper key and you can safely
+discard the old ones. But up to that point, you're stuck supporting both
+for a brief period.
 
-Note that even with this feature, *do not allow the same nonce to be
-used with the same key*! That undermines everything!
+Note that even with this feature, the server *MUST NOT* allow the same
+nonce to be used with the same key! That undermines all security!
+
 
 ### Algorithms
 
@@ -763,8 +776,15 @@ order). The following datatypes are used:
 #### Notes
 - An `ENC|INIT` packet (`ENC` with subtype `INIT` should be sent
   immediately if the client wants to use encryption
-- The server must respond to an `ENC` packet with its own `ENC` packet
+- The server *MUST* respond to an `ENC` packet with its own `ENC` packet
   of the same subtype
+  - If the client opts for encryption, the server must opt for
+    encryption; if the client authenticates, the server must
+    authenticate
+- The server *MUST* respond to an `ENC|INIT` packet with the same crypto
+  keys - if any - that the client used to send the `ENC|INIT` message.
+  Until a client receives the `ENC|INIT` response, it has no way of
+  knowing what the key shared key is going to be!
 - The public keys and authenticators are encoded as 32-byte hex strings,
   padded with zeroes on the left
 
