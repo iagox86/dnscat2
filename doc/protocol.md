@@ -311,9 +311,9 @@ message and which key should be used to decrypt it.
 
 The data that crosses the network in cleartext is:
 
-* packet_id - a meaningless random value
-* packet_type - information on the type of packet (syn/msg/fin/etc.)
-* session_id - uniquely identifies the session
+* `packet_id` - a meaningless random value
+* `packet_type` - information on the type of packet (syn/msg/fin/etc.)
+* `session_id` - uniquely identifies the session
 
 These give no more information than the unencrypted TCP headers of a
 typical TLS session, so I decided that it's safe enough.
@@ -328,7 +328,7 @@ Key exchange is performed using the "P-256" elliptic curve and SHA3-256.
 The client and server each generates a random 256-bit secret key at the
 start of a connection, then derive a shared (symmetric) key.  This is
 all performed in the `MESSAGE_TYPE_ENC` (aka, `ENC`) packet, subtype
-`ENC_SUBTYPE_INIT`.
+`INIT` (aka, `ENC|AUTH`).
 
 Once both sides have the other's public key, the client and server use
 those keys to generate the `shared_secret`, using standard ECDH.  The
@@ -365,9 +365,8 @@ Authentication, like encryption, isn't mandatory in the protocol; the
 client can choose whether or not to negotiate it, and the server can
 choose whether or not to allow or require it.
 
-The actual authentication is done in an `ENC` packet, subtype
-`ENC_SUBTYPE_AUTH`. It should be sent immediately after the initial key
-exchange.
+The actual authentication is done in an `ENC|AUTH` packet. It should be
+sent immediately after the initial key exchange.
 
 The authentication strings are computed using SHA3-256:
 
@@ -441,7 +440,7 @@ encrypted body.
 
 The calculation for the signature is:
 
-    `signature = SHA3(mac_key || packet_header || nonce || encrypted_body)[0,6]`
+    signature = SHA3(mac_key || packet_header || nonce || encrypted_body)[0,6]
 
 Where the `write_key` and `mac_key` are either the client's or the
 server's respective keys, depending on who's performing the operation.
@@ -459,11 +458,10 @@ The final encapsulated packet looks like this:
 
 Note: This isn't implemented anywhere yet, and is likely to change!
 
-To re-negotiate encryption, the client simply sends another `ENC`
-message (subtype `ENC_SUBTYPE_INIT`) to the server with a new public
-key, encrypted and signed as a normal message. The server will respond
-with a new pubkey of its own in its own `ENC` packet, exactly like the
-original exchange.
+To re-negotiate encryption, the client simply sends another `ENC|INIT`
+message to the server with a new public key, encrypted and signed as a
+normal message. The server will respond with a new pubkey of its own in
+its own `ENC` packet, exactly like the original exchange.
 
 Authentication is not re-performed. The connection is assumed to still
 be authenticated.
@@ -472,6 +470,42 @@ After successful re-negotiation, the client and server *SHOULD* both
 reset their nonce values back to 0. The next packet after the `ENC`
 packet should be encrypted with the new key, and the old one should be
 discarded (preferably zeroed out so it can't be recovered, if possible).
+
+### Re-transmits
+
+One really annoying thing about dnscat2 is that it has to operate over a
+really, really bad protocol: DNS.
+
+A bug I ran into a lot when testing code through actual DNS servers is
+that actual DNS servers will gratuitously re-transmit like crazy,
+especially if you aren't fast enough (and ruby key generation is a tad
+slow). That means the implementation has to deal with re-transmissions
+cleanly.
+
+Imagine this: the client starts the session with an `ENC|INIT` packet,
+and the server responds with `ENC|INIT`. At that point, the server is
+ready to receive encrypted packets! However, the next packet is almost
+always another unencrypted `ENC|INIT` packet. That screws up everything.
+
+Likewise when re-keying. You're almost always going to receive at least
+one message with the old key when re-keying is performed. That's why we
+love DNS so much!
+
+Clients don't have to worry about this, but servers do. Here's my advice
+for the server...
+
+Always keep the previous encryption keys handy immediately after
+changing them. When a message comes in, attempt to decrypt it with the
+new keys *first*. If the signature is wrong, fall back to the previous
+key, and use that to decrypt it. If the signature is right, *delete the
+old keys from memory*, and never use them again.
+
+That provides a small window of overlap between the old key and the new
+key, and it keeps the server happy! As soon as both sides have proven
+that they have the new key, the old version can be dropped.
+
+Note that even with this feature, *do not allow the same nonce to be
+used with the same key*! That undermines everything!
 
 ### Algorithms
 
@@ -586,21 +620,6 @@ output against mine:
      => true
     1.9.3-p392 :002 > Salsa20.new("\0"*32, "\0"*8).encrypt("password").unpack("H*")
      => ["eaf68528ec23007f"]
-
-#### Warnings
-
-There are a few places where it's easy to accidentally introduce a
-vulnerability in the dnscat2 encryption. If you're implementing a client
-(or a server), be sure you handle these:
-
-* If an attacker sends a duplicate SYN message with the `session_id` of
-  the client, it must be ignored (basically, ignore mid-stream SYN
-  packets). If the packet is accepted, it could be possible to overwrite
-  the `session_key` of an active session.
-* The `private_key` must be generated with a SecureRandom library.
-* If a server wants authentication to be mandatory, it must have a state
-  machine that handles new -> unauthenticated -> authenticated, or it
-  must be very careful not to accept unauthenticated messages.
 
 ## Constants
 
@@ -742,8 +761,8 @@ order). The following datatypes are used:
   - (byte[32]) authenticator
 
 #### Notes
-- An `ENC` packet with subtype `INIT` should be sent immediately if the
-  client wants to use encryption
+- An `ENC|INIT` packet (`ENC` with subtype `INIT` should be sent
+  immediately if the client wants to use encryption
 - The server must respond to an `ENC` packet with its own `ENC` packet
   of the same subtype
 - The public keys and authenticators are encoded as 32-byte hex strings,
