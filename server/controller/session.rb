@@ -250,7 +250,8 @@ class Session
     }
 
     if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-      @encryptor = Encryptor.new(packet.body.public_key_x, packet.body.public_key_y, Settings::GLOBAL.get('secret'))
+      # Only generate one encryptor per session
+      @encryptor = @encryptor || Encryptor.new(packet.body.public_key_x, packet.body.public_key_y, Settings::GLOBAL.get('secret'))
 
       @window.puts("Generated cryptographic values:")
       @window.puts(@encryptor)
