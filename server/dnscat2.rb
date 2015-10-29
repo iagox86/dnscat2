@@ -66,7 +66,7 @@ opts = Trollop::options do
     :type => :string, :default => nil
 
   opt :require_enc, "Require all clients to negotiate encryption",
-    :type => :boolean, :default => false
+    :type => :boolean, :default => true
   opt :require_auth, "Require all clients using encryption to authorize with a pre-shared secret",
     :type => :boolean, :default => false
 

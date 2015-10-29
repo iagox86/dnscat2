@@ -300,6 +300,36 @@ class Session
     })
   end
 
+  def _check_crypto_options(packet)
+    # Don't enforce encryption on ENC|INIT packets
+    if(packet.type == Packet::MESSAGE_TYPE_ENC && packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
+      return
+    end
+
+    if(Settings::GLOBAL.get('require_enc') && !@encrypted)
+      @window.with({:to_ancestors => true}) do
+        @window.puts("Client attempted to connect with encryption disabled!")
+        @window.puts("If this was intentional, you can make encryption optional with 'set require_enc=false'")
+      end
+
+      raise(DnscatException, "This server requires an encrypted connection!")
+    end
+
+    # Don't enforce authentication on AUTH packets
+    if(packet.type == Packet::MESSAGE_TYPE_ENC && packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
+      return
+    end
+
+    if(Settings::GLOBAL.get('require_auth') && !@authenticated)
+      @window.with({:to_ancestors => true}) do
+        @window.puts("Client attempted to connect without a pre-shared secret!")
+        @window.puts("If this was intentional, you can make authentication optional with 'set require_auth=false'")
+      end
+
+      raise(DnscatException, "This server requires an encrypted connection!")
+    end
+  end
+
   def feed(data, max_length)
     # Tell the window that we're still alive
     window.kick()
@@ -348,6 +378,8 @@ class Session
           :reason => "The user killed the session!",
         })
       else
+        # Unless it's an encrypted packet (which implies that we're still negotiating stuff), enforce encryption restraints
+        _check_crypto_options(packet)
         handler = HANDLERS[packet.type]
         if(handler.nil?)
           raise(DnscatMinorException, "No handler found for that packet type: #{packet.type}")
