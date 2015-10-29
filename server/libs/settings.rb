@@ -99,6 +99,7 @@ class Settings
   # variables will be retrieved, if possible, from Settings::GLOBAL.
   def set(name, new_value, allow_recursion=true)
     name = name.to_s()
+    new_value = new_value.to_s()
 
     if(@settings[name].nil?)
       if(!allow_recursion)
@@ -111,7 +112,7 @@ class Settings
     old_value = @settings[name][:value]
     new_value = @@mutators[@settings[name][:type]].call(new_value)
 
-    if(@settings[name][:watcher])
+    if(@settings[name][:watcher] && old_value != new_value)
       @settings[name][:watcher].call(old_value, new_value)
     end
 

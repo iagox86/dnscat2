@@ -79,8 +79,11 @@ void usage(char *name, char *message)
 " --retransmit-forever    Set if you want the client to re-transmit forever\n"
 "                         until a server turns up. This can be helpful, but also\n"
 "                         makes the server potentially run forever.\n"
+#ifndef NO_ENCRYPTION
 " --secret                Set the shared secret; set the same one on the server\n"
 "                         and the client to prevent man-in-the-middle attacks!\n"
+" --no-encryption         Turn off encryption/authentication.\n"
+#endif
 "\n"
 "Input options:\n"
 " --console               Send/receive output to the console.\n"
@@ -259,7 +262,10 @@ int main(int argc, char *argv[])
     {"steady",             no_argument,       0, 0}, /* Don't transmit immediately after getting a response. */
     {"max-retransmits",    required_argument, 0, 0}, /* Set the max retransmissions */
     {"retransmit-forever", no_argument,       0, 0}, /* Retransmit forever if needed */
+#ifndef NO_ENCRYPTION
     {"secret",             required_argument, 0, 0}, /* Pre-shared secret */
+    {"no-encryption",      no_argument,       0, 0}, /* Disable encryption */
+#endif
 
     /* i/o options. */
     {"console", no_argument,       0, 0}, /* Enable console */
@@ -349,10 +355,16 @@ int main(int argc, char *argv[])
         {
           controller_set_max_retransmits(-1);
         }
+#ifndef NO_ENCRYPTION
         else if(!strcmp(option_name, "secret"))
         {
           session_set_preshared_secret(optarg);
         }
+        else if(!strcmp(option_name, "no-encryption"))
+        {
+          session_set_encryption(FALSE);
+        }
+#endif
 
         /* i/o drivers */
         else if(!strcmp(option_name, "console"))

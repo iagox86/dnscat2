@@ -62,13 +62,11 @@ opts = Trollop::options do
     :type => :integer, :default => 53
   opt :passthrough, "Unhandled requests are sent upstream DNS server, host:port",
     :type => :string, :default => ""
+
+  opt :security, "Set the security level; 'open' lets the client choose; 'encrypted' requires encryption (default if --secret isn't set); 'authenticated' requires encryption and authentication (default if --secret is set)",
+    :type => :string, :default => nil
   opt :secret, "A pre-shared secret, passed to both the client and server to prevent man-in-the-middle attacks",
     :type => :string, :default => nil
-
-  opt :require_enc, "Require all clients to negotiate encryption",
-    :type => :boolean, :default => true
-  opt :require_auth, "Require all clients using encryption to authorize with a pre-shared secret",
-    :type => :boolean, :default => false
 
   opt :auto_command,   "Send this to each client that connects",
     :type => :string,  :default => ""
@@ -86,6 +84,14 @@ opts = Trollop::options do
 end
 
 SWindow.set_firehose(opts[:firehose])
+
+if(opts[:security].nil?)
+  if(opts[:secret].nil?)
+    opts[:security] = 'encrypted'
+  else
+    opts[:security] = 'authenticated'
+  end
+end
 
 if(opts[:secret].nil?)
   opts[:secret] = SecureRandom::hex(16)
@@ -140,10 +146,20 @@ begin
     window.puts("history_size (for new windows) => #{new_val}")
   end
 
-  Settings::GLOBAL.create("require_enc", Settings::TYPE_BOOLEAN, opts[:require_enc], "If true, all new clients *must* use encrypted connections") do |old_val, new_val|
-  end
+  Settings::GLOBAL.create("security", Settings::TYPE_STRING, opts[:security], "Options: 'open' (let the client decide), 'encrypted' (require clients to encrypt), 'authenticated' (require clients to authenticate)") do |old_val, new_val|
+    options = {
+      'open'          => "Client can decide on security level",
+      'encrypted'     => "All connections must be encrypted",
+      'authenticated' => "All connections must be encrypted and authenticated",
+    }
 
-  Settings::GLOBAL.create("require_auth", Settings::TYPE_BOOLEAN, opts[:require_auth], "If true, all new clients using encryption *must* authenticate") do |old_val, new_val|
+    new_val_str = options[new_val]
+
+    if(!new_val_str)
+      raise(Settings::ValidationError, "Valid options for security: #{allowed.join(', ')}")
+    end
+
+    window.puts("Security policy changed: #{new_val_str}")
   end
 
   Settings::GLOBAL.create("secret", Settings::TYPE_STRING, opts[:secret], "Pass the same --secret value to the client and the server for extra security") do |old_val, new_val|

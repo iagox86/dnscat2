@@ -306,10 +306,14 @@ class Session
       return
     end
 
-    if(Settings::GLOBAL.get('require_enc') && !@encrypted)
+    if(Settings::GLOBAL.get('security') == 'open')
+      return
+    end
+
+    if(!@encrypted)
       @window.with({:to_ancestors => true}) do
         @window.puts("Client attempted to connect with encryption disabled!")
-        @window.puts("If this was intentional, you can make encryption optional with 'set require_enc=false'")
+        @window.puts("If this was intentional, you can make encryption optional with 'set security=open'")
       end
 
       raise(DnscatException, "This server requires an encrypted connection!")
@@ -320,13 +324,17 @@ class Session
       return
     end
 
-    if(Settings::GLOBAL.get('require_auth') && !@authenticated)
+    if(Settings::GLOBAL.get('security') == 'encrypted')
+      return
+    end
+
+    if(!@authenticated)
       @window.with({:to_ancestors => true}) do
         @window.puts("Client attempted to connect without a pre-shared secret!")
-        @window.puts("If this was intentional, you can make authentication optional with 'set require_auth=false'")
+        @window.puts("If this was intentional, you can make authentication optional with 'set security=encrypted'")
       end
 
-      raise(DnscatException, "This server requires an encrypted connection!")
+      raise(DnscatException, "This server requires an encrypted and authenticated connection!")
     end
   end
 

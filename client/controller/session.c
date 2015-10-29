@@ -146,6 +146,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
   {
     switch(session->state)
     {
+#ifndef NO_ENCRYPTION
       case SESSION_STATE_BEFORE_INIT:
         packet = packet_create_enc(session->id, 0);
         packet_enc_set_init(packet, session->encryptor->my_public_key);
@@ -155,6 +156,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
         packet = packet_create_enc(session->id, 0);
         packet_enc_set_auth(packet, session->encryptor->my_authenticator);
         break;
+#endif
 
       case SESSION_STATE_NEW:
         packet = packet_create_syn(session->id, session->my_seq, (options_t)0);
@@ -220,6 +222,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
   return packet_bytes;
 }
 
+#ifndef NO_ENCRYPTION
 static NBBOOL _handle_enc_before_init(session_t *session, packet_t *packet)
 {
   if(packet->body.enc.subtype != PACKET_ENC_SUBTYPE_INIT)
@@ -273,6 +276,7 @@ static NBBOOL _handle_enc_before_auth(session_t *session, packet_t *packet)
 
   return TRUE;
 }
+#endif
 
 static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
 {
@@ -514,8 +518,10 @@ void session_destroy(session_t *session)
   if(session->outgoing_buffer)
     buffer_destroy(session->outgoing_buffer);
 
+#ifndef NO_ENCRYPTION
   if(session->encryptor)
     encryptor_destroy(session->encryptor);
+#endif
 
   safe_free(session);
 }
@@ -647,10 +653,16 @@ void session_set_transmit_immediately(NBBOOL transmit_immediately)
   transmit_instantly_on_data = transmit_immediately;
 }
 
+#ifndef NO_ENCRYPTION
 void session_set_preshared_secret(char *new_preshared_secret)
 {
   preshared_secret = new_preshared_secret;
 }
+void session_set_encryption(NBBOOL new_encryption)
+{
+  do_encryption = FALSE;
+}
+#endif
 
 NBBOOL session_is_shutdown(session_t *session)
 {

@@ -79,7 +79,10 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 void session_enable_packet_trace();
 void session_set_delay(int delay_ms);
 void session_set_transmit_immediately(NBBOOL transmit_immediately);
+#ifndef NO_ENCRYPTION
 void session_set_preshared_secret(char *new_preshared_secret);
+void session_set_encryption(NBBOOL new_encryption);
+#endif
 void session_kill(session_t *session);
 void session_destroy(session_t *session);
 
