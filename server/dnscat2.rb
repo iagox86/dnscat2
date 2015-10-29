@@ -156,7 +156,7 @@ begin
     new_val_str = options[new_val]
 
     if(!new_val_str)
-      raise(Settings::ValidationError, "Valid options for security: #{allowed.join(', ')}")
+      raise(Settings::ValidationError, "Valid options for security: #{options.keys.map() { |value| "'#{value}'" }.join(', ')}")
     end
 
     window.puts("Security policy changed: #{new_val_str}")
