@@ -305,11 +305,30 @@ class Session
 
     begin
       # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
+      packet = nil
       if(@encrypted)
         packet = @encryptor.decrypt_packet(data, @options)
         max_length -= 8
       else
-        packet = Packet.parse(data, @options)
+        # If we have an encryptor set, attempt to parse the packet as encrypted
+        if(@encryptor)
+          begin
+            # Attempt to parse the packet
+            packet = @encryptor.decrypt_packet(data, @options)
+
+            # Lock encryption on so no more unencrypted packets can be received
+            @encrypted = true
+            @window.puts("*** ENCRYPTION ENABLED!")
+          rescue DnscatMinorException
+            # Do nothing
+            @window.puts("Looks like they aren't ready to encrypt yet!")
+          end
+        end
+
+        # If we haven't sorted out the packet yet, then parse it as an unencrypted packet
+        if(packet.nil?)
+          packet = Packet.parse(data, @options)
+        end
       end
 
       if(packet.nil?)
@@ -379,12 +398,6 @@ class Session
       bytes = @encryptor.encrypt_packet(response_packet, @options)
     else
       bytes = response_packet.to_bytes()
-
-      # If we're responding to an encryption negotiation, turn on encryption *after* encoding the packet
-      if(response_packet.type == Packet::MESSAGE_TYPE_ENC && response_packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-        @encrypted = true
-        @window.puts("*** ENCRYPTION ENABLED!")
-      end
     end
 
     return bytes
