@@ -384,7 +384,7 @@ class Session
     # If the program needs to ignore the packet, then it returns nil, and we
     # return a bunch of nothing
     if(response_packet.nil?)
-      window.puts("OUT: <no data>")
+      @window.puts("OUT: <no data>")
       return ''
     end
 
