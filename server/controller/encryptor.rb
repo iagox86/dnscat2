@@ -222,7 +222,7 @@ class Encryptor
       end
 
       keys = @old_keys
-      data = Encryptor._decrypt_packet_internal(@old_keys, data)
+      data = _decrypt_packet_internal(@old_keys, data)
       puts("SUCCESSFULLY DECRYPTED W/ OLD KEY") # TODO: Delete
     end
 
