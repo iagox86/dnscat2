@@ -84,7 +84,13 @@ class Encryptor
     @old_keys = nil
   end
 
+  # Returns true if something was changed
   def set_their_public_key(their_public_key_x, their_public_key_y)
+    # Check if we're actually changing anything
+    if(@keys[:their_public_key_x] == their_public_key_x && @keys[:their_public_key_y] == their_public_key_y)
+      return false
+    end
+
     @old_keys = @keys
 
     @keys = {
@@ -94,6 +100,8 @@ class Encryptor
 
     @keys[:my_private_key]      = 1 + SecureRandom.random_number(ECDH_GROUP.order - 1)
     @keys[:my_public_key]       = ECDH_GROUP.generator.multiply_by_scalar(@keys[:my_private_key])
+    @keys[:their_public_key_x]  = their_public_key_x
+    @keys[:their_public_key_y]  = their_public_key_y
     @keys[:their_public_key]    = ECDSA::Point.new(ECDH_GROUP, their_public_key_x, their_public_key_y)
 
     @keys[:shared_secret]       = @keys[:their_public_key].multiply_by_scalar(@keys[:my_private_key]).x
@@ -105,6 +113,8 @@ class Encryptor
     @keys[:their_mac_key]       = _create_key("client_mac_key")
     @keys[:my_write_key]        = _create_key("server_write_key")
     @keys[:my_mac_key]          = _create_key("server_mac_key")
+
+    return true
   end
 
   def set_their_authenticator(their_authenticator)
@@ -119,7 +129,9 @@ class Encryptor
     @authenticated = true
   end
 
-  def to_s()
+  def to_s(keys = nil)
+    keys = keys || @keys
+
     out = []
     out << "My private key:       #{Encryptor.bignum_to_text(@keys[:my_private_key])}"
     out << "My public key [x]:    #{Encryptor.bignum_to_text(@keys[:my_public_key].x)}"
@@ -193,9 +205,13 @@ class Encryptor
     return header+body
   end
 
-  def decrypt_packet(data)
+  # By doing this as a single operation, we can always be sure that we're encrypting data
+  # with the same key the client use to encrypt data
+  def decrypt_and_encrypt(data)
+    ## ** Decrypt
+    keys = @keys
     begin
-      data = _decrypt_packet_internal(@keys, data)
+      data = _decrypt_packet_internal(keys, data)
 
       # If it was successfully decrypted, make sure the @old_keys will no longer work
       @old_keys = nil
@@ -205,24 +221,25 @@ class Encryptor
         raise(e)
       end
 
-      puts("SUCCESSFULLY DECRYPTED W/ OLD KEY") # TODO: Delete
-      data = Encryptor._decrypt_packet_internal(@old_keys, data)
-    end
-
-    return data
-  end
-
-  def encrypt_packet(data, old = false)
-    keys = @keys
-    if(old && @old_keys)
       keys = @old_keys
+      data = Encryptor._decrypt_packet_internal(@old_keys, data)
+      puts("SUCCESSFULLY DECRYPTED W/ OLD KEY") # TODO: Delete
     end
 
-    # Don't encrypt if we don't have a key set
+    # Send the decrypted data up and get the encrypted data back
+    data = yield(data, ready?(keys))
+
+    # If there was an error of some sort, return nothing
+    if(data.nil? || data == '')
+      return ''
+    end
+
+    # If encryption is turned off, return unencrypted data
     if(!ready?(keys))
       return data
     end
 
+    ## ** Encrypt
     # Split the packet into a header and a body
     header, body = data.unpack("a5a*")
 

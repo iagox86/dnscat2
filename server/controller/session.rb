@@ -51,7 +51,9 @@ class Session
     @incoming_data = ''
     @outgoing_data = ''
 
-    @encryptor = nil
+    # Create this whether or not we're actually encrypting - it cleans up
+    # the handler code
+    @encryptor = Encryptor.new(Settings::GLOBAL.get('secret'))
 
     @settings = Settings.new()
     @window = SWindow.new(main_window, false, {:times_out => true})
@@ -115,6 +117,22 @@ class Session
     return "id: 0x%04x [internal: %d], state: %d, their_seq: 0x%04x, my_seq: 0x%04x, incoming_data: %d bytes [%s], outgoing data: %d bytes [%s]" % [@id, @window.id, @state, @their_seq, @my_seq, @incoming_data.length, @incoming_data, @outgoing_data.length, @outgoing_data]
   end
 
+  def _do_display_crypto_values()
+    @window.with({:to_ancestors => true}) do
+      if(@encryptor.authenticated?())
+        @window.puts("Session #{@window.id} Security: ENCRYPTED AND VERIFIED!")
+        @window.puts("(the security depends on the strength of your pre-shared secret!)")
+      elsif(@encryptor.ready?())
+        @window.puts("Session #{@window.id} security: ENCRYPTED BUT *NOT* VALIDATED")
+        @window.puts("For added security, please ensure the client displays the same string:")
+        @window.puts()
+        @window.puts(">> #{@encryptor.get_sas()}")
+      else
+        @window.puts("Session #{@window.id} security: UNENCRYPTED")
+      end
+    end
+  end
+
   def _handle_syn(packet, max_length)
     options = 0
 
@@ -122,6 +140,8 @@ class Session
     if(@state != STATE_NEW)
       raise(DnscatException, "Duplicate SYN received!")
     end
+
+    _do_display_crypto_values()
 
     # Save some of their options
     @their_seq = packet.body.seq
@@ -244,29 +264,20 @@ class Session
     }
 
     if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-      if(!@encryptor)
-        @encryptor = Encryptor.new(Settings::GLOBAL.get('secret'))
+      if(@encryptor.set_their_public_key(packet.body.public_key_x, packet.body.public_key_y))
+        @window.puts("Generated cryptographic values:")
+        @window.puts(@encryptor)
+      else
+        @window.puts("TODO: They tried to set the same public key!")
       end
 
-      @encryptor.set_their_public_key(packet.body.public_key_x, packet.body.public_key_y)
-
-      @window.puts("Generated cryptographic values:")
-      @window.puts(@encryptor)
-
+      # No matter what, respond with our public key
       params[:public_key_x] = @encryptor.my_public_key_x()
       params[:public_key_y] = @encryptor.my_public_key_y()
 
-      @window.with({:to_ancestors => true}) do
-        @window.puts()
-        @window.puts("Encrypted session established! For added security, please verify the client also displays this string:")
-        @window.puts()
-        @window.puts(@encryptor.get_sas())
-        @window.puts()
-      end
     elsif(packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
-      # Make sure we actually have an encryptor set
-      if(!@encryptor)
-        raise(DnscatException, "ENC_SUBTYPE_AUTH packet received before ENC_SUBTYPE_INIT")
+      if(!@encryptor.ready?())
+        raise(Session::SessionKiller, "Tried to authenticate before the public key was set")
       end
 
       # Check their authenticator
@@ -275,8 +286,6 @@ class Session
       rescue Encryptor::Error
         raise(Session::SessionKiller, "Invalid authenticator (pre-shared secret)")
       end
-
-      @window.puts("Encrypted session validated with the pre-shared secret!")
 
       params[:authenticator] = @encryptor.my_authenticator
     else
@@ -338,78 +347,93 @@ class Session
     end
   end
 
-  def feed(data, max_length)
+  def _handle_incoming(data, max_length)
+    packet = Packet.parse(data, @options)
+
+    if(Settings::GLOBAL.get("packet_trace"))
+      window = _get_pcap_window()
+      window.puts("IN:  #{packet}")
+    end
+
+    # We can send a FIN and close right away if the session was killed
+    if(@state == STATE_KILLED)
+      raise(Session::SessionKiller, "The session is no longer valid")
+    end
+
+    # Unless it's an encrypted packet (which implies that we're still negotiating stuff), enforce encryption restraints
+    _check_crypto_options(packet)
+
+    # Find the appropriate handler for the packet type
+    handler = HANDLERS[packet.type]
+    if(handler.nil?)
+      raise(DnscatException, "No handler found for that packet type: #{packet.type}")
+    end
+
+    # Handle the packet
+    return send(handler, packet, max_length)
+  end
+
+  def feed(possibly_encrypted_data, max_length)
     # Tell the window that we're still alive
     window.kick()
 
     begin
-      if(@encryptor)
-        data = @encryptor.decrypt_packet(data)
-        max_length -= 8
-      end
+      return @encryptor.decrypt_and_encrypt(possibly_encrypted_data) do |data, was_encrypted|
+        begin
+          if(was_encrypted)
+            max_length -= 8
+          end
 
-      packet = Packet.parse(data, @options)
+          response_packet = _handle_incoming(data, max_length)
+        rescue Session::SessionKiller => e
+          # Kill it
+          kill()
 
-      if(Settings::GLOBAL.get("packet_trace"))
-        window = _get_pcap_window()
-        window.puts("IN:  #{packet}")
-      end
+          # Tell everybody
+          @window.with({:to_ancestors => true}) do
+            @window.puts("Session #{@window.id} killed: #{e.message}")
+          end
 
-      # We can send a FIN and close right away if the session was killed
-      if(@state == STATE_KILLED)
-        raise(Session::SessionKiller, "The session is no longer valid")
-      end
+          # Respond with a FIN
+          response_packet = Packet.create_fin(@options, {
+            :session_id => @id,
+            :reason => e.message,
+          })
+        rescue DnscatException => e
+          # Tell everybody
+          @window.with({:to_ancestors => true}) do
+            @window.puts("An error occurred (see #{@window.id} for stacktrace): #{e.message}")
+          end
+          @window.puts()
+          @window.puts("If you think this might be a bug, please report this trace:")
+          @window.puts(e.inspect)
+          e.backtrace.each do |bt|
+            @window.puts(bt)
+          end
 
-      # Unless it's an encrypted packet (which implies that we're still negotiating stuff), enforce encryption restraints
-      _check_crypto_options(packet)
-      handler = HANDLERS[packet.type]
-      if(handler.nil?)
-        raise(DnscatException, "No handler found for that packet type: #{packet.type}")
-      end
+          # Don't respond
+          response_packet = nil
+        end
 
-      # Handle the packet
-      response_packet = send(handler, packet, max_length)
-    rescue Session::SessionKiller => e
-      @window.with({:to_ancestors => true}) do
-        @window.puts("Session killed: #{e.message}")
-      end
-      kill()
-      response_packet = Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason => e.message,
-      })
-    rescue DnscatException => e
-      @window.with({:to_ancestors => true}) do
-        @window.puts("An error occurred (see #{@window.id} for stacktrace): #{e.message}")
-      end
-      @window.puts()
-      @window.puts("If you think this might be a bug, please report this trace:")
-      @window.puts(e.inspect)
-      e.backtrace.each do |bt|
-        @window.puts(bt)
-      end
+        # Print the packet if the user requested a trace
+        if(Settings::GLOBAL.get("packet_trace"))
+          window = _get_pcap_window()
+          if(response_packet.nil?)
+            window.puts("OUT: <no data>")
+          else
+            window.puts("OUT: #{response_packet}")
+          end
+        end
 
-      response_packet = nil
-    end
-
-    # If the program needs to ignore the packet, then it returns nil, and we
-    # return a bunch of nothing
-    if(response_packet.nil?)
-      @window.puts("OUT: <no data>")
+        if(response_packet)
+          response_packet.to_bytes()
+        else
+          nil
+        end
+      end
+    rescue Encryptor::Error => e
+      @window.puts("There was an error decrypting or encrypting data: #{e}")
       return ''
     end
-
-    if(Settings::GLOBAL.get("packet_trace"))
-      window = _get_pcap_window()
-      window.puts("OUT: #{response_packet}")
-    end
-
-    response_bytes = response_packet.to_bytes()
-    # If we're supposed to encrypt, do so
-    if(@encryptor)
-      response_bytes = @encryptor.encrypt_packet(response_bytes, true)
-    end
-
-    return response_bytes
   end
 end
