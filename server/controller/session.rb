@@ -250,8 +250,11 @@ class Session
     }
 
     if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-      # Only generate one encryptor per session
-      @encryptor = @encryptor || Encryptor.new(packet.body.public_key_x, packet.body.public_key_y, Settings::GLOBAL.get('secret'))
+      if(!@encryptor)
+        @encryptor = Encryptor.new(Settings::GLOBAL.get('secret'))
+      end
+
+      @encryptor.set_their_public_key(packet.body.public_key_x, packet.body.public_key_y)
 
       @window.puts("Generated cryptographic values:")
       @window.puts(@encryptor)
@@ -267,7 +270,16 @@ class Session
         @window.puts()
       end
     elsif(packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
+      # Make sure we actually have an encryptor set
+      if(!@encryptor)
+        raise(DnscatMinorException, "ENC_SUBTYPE_AUTH packet received before ENC_SUBTYPE_INIT")
+      end
+
+      # Check their authenticator
       if(packet.body.authenticator != @encryptor.their_authenticator)
+        @window.with({:to_ancestors => true}) do
+          @window.puts("Connection failed: the client's authenticator (--secret value) was wrong!")
+        end
         kill()
 
         return Packet.create_fin(@options, {
@@ -275,6 +287,7 @@ class Session
           :reason => "The client's authenticator (pre-shared secret) was wrong!",
         })
       end
+
       @window.puts("Encrypted session validated with the pre-shared secret!")
       @authenticated = true
 
