@@ -10,7 +10,3 @@
 
 class DnscatException < StandardError
 end
-
-# Use this for exceptions that aren't as major
-class DnscatMinorException < DnscatException
-end

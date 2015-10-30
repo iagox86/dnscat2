@@ -20,7 +20,7 @@ class Encryptor
 
   ECDH_GROUP = ECDSA::Group::Nistp256
 
-  class SignatureError < DnscatMinorException
+  class Error < StandardError
   end
 
   def Encryptor.bignum_to_binary(bn, size=32)
@@ -64,6 +64,7 @@ class Encryptor
 
   def initialize(preshared_secret)
     @preshared_secret = preshared_secret
+    @authenticated = false
 
     # Start with encryption turned off
     @keys = {
@@ -104,6 +105,18 @@ class Encryptor
     @keys[:their_mac_key]       = _create_key("client_mac_key")
     @keys[:my_write_key]        = _create_key("server_write_key")
     @keys[:my_mac_key]          = _create_key("server_mac_key")
+  end
+
+  def set_their_authenticator(their_authenticator)
+    if(!@keys[:their_authenticator])
+      raise(DnscatException, "We weren't ready to set an authenticator!")
+    end
+
+    if(@keys[:their_authenticator] != their_authenticator)
+      raise(Encryptor::Error, "Authenticator (pre-shared secret) doesn't match!")
+    end
+
+    @authenticated = true
   end
 
   def to_s()
@@ -149,9 +162,9 @@ class Encryptor
   end
 
   # We use this special internal function so we can try decrypting with different keys
-  def Encryptor._decrypt_packet_internal(keys, data)
-    # Check if we're just in "no encrypt" mode
-    if(keys[:their_mac_key].nil?)
+  def _decrypt_packet_internal(keys, data)
+    # Don't decrypt if we don't have a key set
+    if(!ready?(keys))
       return data
     end
 
@@ -171,7 +184,7 @@ class Encryptor
     # Check the signature
     correct_signature = SHA3::Digest::SHA256.digest(keys[:their_mac_key] + signed_data)
     if(correct_signature[0,6] != signature)
-      raise(SignatureError, "Invalid signature!")
+      raise(Encryptor::Error, "Invalid signature!")
     end
 
     # Decrypt the body
@@ -180,48 +193,61 @@ class Encryptor
     return header+body
   end
 
-  def decrypt_packet(data, options)
+  def decrypt_packet(data)
     begin
-      bytes = Encryptor._decrypt_packet_internal(@keys, data)
+      data = _decrypt_packet_internal(@keys, data)
 
       # If it was successfully decrypted, make sure the @old_keys will no longer work
       @old_keys = nil
-    rescue SignatureError => e
+    rescue Encryptor::Error => e
       # Attempt to fall back to old keys
       if(@old_keys.nil?)
         raise(e)
       end
 
       puts("SUCCESSFULLY DECRYPTED W/ OLD KEY") # TODO: Delete
-      bytes = Encryptor._decrypt_packet_internal(@old_keys, data)
+      data = Encryptor._decrypt_packet_internal(@old_keys, data)
     end
 
-
-    return Packet.parse(bytes, options)
+    return data
   end
 
-  def encrypt_packet(packet, options)
+  def encrypt_packet(data, old = false)
+    keys = @keys
+    if(old && @old_keys)
+      keys = @old_keys
+    end
+
+    # Don't encrypt if we don't have a key set
+    if(!ready?(keys))
+      return data
+    end
+
     # Split the packet into a header and a body
-    header, body = packet.to_bytes().unpack("a5a*")
+    header, body = data.unpack("a5a*")
 
     # Encode the nonce properly
-    nonce = [@keys[:my_nonce]].pack("n")
+    nonce = [keys[:my_nonce]].pack("n")
 
     # Encrypt the body
-    encrypted_body = Salsa20.new(@keys[:my_write_key], nonce.rjust(8, "\0")).encrypt(body)
+    encrypted_body = Salsa20.new(keys[:my_write_key], nonce.rjust(8, "\0")).encrypt(body)
 
     # Sign it
-    signature = SHA3::Digest::SHA256.digest(@keys[:my_mac_key] + header + nonce + encrypted_body)
+    signature = SHA3::Digest::SHA256.digest(keys[:my_mac_key] + header + nonce + encrypted_body)
 
     # Arrange things appropriately
     return [header, signature[0,6], nonce, encrypted_body].pack("a5a6a2a*")
   end
 
-  def their_authenticator()
-    return @keys[:their_authenticator]
-  end
-
   def my_authenticator()
     return @keys[:my_authenticator]
+  end
+
+  def ready?(keys = nil)
+    return !(keys || @keys)[:shared_secret].nil?
+  end
+
+  def authenticated?()
+    return @authenticated
   end
 end

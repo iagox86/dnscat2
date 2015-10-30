@@ -17,6 +17,9 @@ require 'libs/dnscat_exception'
 require 'libs/swindow'
 
 class Session
+  class SessionKiller < StandardError
+  end
+
   @@isn = nil # nil = random
 
   attr_reader :id, :name, :options, :state
@@ -49,9 +52,6 @@ class Session
     @outgoing_data = ''
 
     @encryptor = nil
-
-    @encrypted = false
-    @authenticated = false
 
     @settings = Settings.new()
     @window = SWindow.new(main_window, false, {:times_out => true})
@@ -120,7 +120,7 @@ class Session
 
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
     if(@state != STATE_NEW)
-      raise(DnscatMinorException, "Duplicate SYN received!")
+      raise(DnscatException, "Duplicate SYN received!")
     end
 
     # Save some of their options
@@ -172,7 +172,7 @@ class Session
 
   def _handle_msg(packet, max_length)
     if(@state != STATE_ESTABLISHED)
-      raise(DnscatMinorException, "MSG received in invalid state!")
+      raise(DnscatException, "MSG received in invalid state!")
     end
 
     # Validate the sequence number
@@ -228,19 +228,13 @@ class Session
   end
 
   def _handle_fin(packet, max_length)
-    # End the session
-    kill()
-
-    return Packet.create_fin(@options, {
-      :session_id => @id,
-      :reason => "Bye!",
-    })
+    raise(Session::SessionKiller, "Received FIN! Bye!")
   end
 
   def _handle_enc(packet, max_length)
     # TODO: Allow re-keying
     if(@state != STATE_NEW)
-      raise(DnscatMinorException, "Received an ENC packet in an invalid state (and re-negotiation isn't done yet!)")
+      raise(DnscatException, "Received an ENC packet in an invalid state (and re-negotiation isn't done yet!)")
     end
 
     params = {
@@ -272,28 +266,21 @@ class Session
     elsif(packet.body.subtype == Packet::EncBody::SUBTYPE_AUTH)
       # Make sure we actually have an encryptor set
       if(!@encryptor)
-        raise(DnscatMinorException, "ENC_SUBTYPE_AUTH packet received before ENC_SUBTYPE_INIT")
+        raise(DnscatException, "ENC_SUBTYPE_AUTH packet received before ENC_SUBTYPE_INIT")
       end
 
       # Check their authenticator
-      if(packet.body.authenticator != @encryptor.their_authenticator)
-        @window.with({:to_ancestors => true}) do
-          @window.puts("Connection failed: the client's authenticator (--secret value) was wrong!")
-        end
-        kill()
-
-        return Packet.create_fin(@options, {
-          :session_id => @id,
-          :reason => "The client's authenticator (pre-shared secret) was wrong!",
-        })
+      begin
+        @encryptor.set_their_authenticator(packet.body.authenticator)
+      rescue Encryptor::Error
+        raise(Session::SessionKiller, "Invalid authenticator (pre-shared secret)")
       end
 
       @window.puts("Encrypted session validated with the pre-shared secret!")
-      @authenticated = true
 
       params[:authenticator] = @encryptor.my_authenticator
     else
-      raise(DnscatMinorException, "Don't know how to parse encryption subtype in: #{packet}")
+      raise(DnscatException, "Don't know how to parse encryption subtype in: #{packet}")
     end
 
     return Packet.create_enc(params)
@@ -323,13 +310,13 @@ class Session
       return
     end
 
-    if(!@encrypted)
+    if(!@encryptor.ready?())
       @window.with({:to_ancestors => true}) do
         @window.puts("Client attempted to connect with encryption disabled!")
         @window.puts("If this was intentional, you can make encryption optional with 'set security=open'")
       end
 
-      raise(DnscatException, "This server requires an encrypted connection!")
+      raise(Session::SessionKiller, "This server requires an encrypted connection!")
     end
 
     # Don't enforce authentication on AUTH packets
@@ -341,13 +328,13 @@ class Session
       return
     end
 
-    if(!@authenticated)
+    if(!@encryptor.authenticated?())
       @window.with({:to_ancestors => true}) do
         @window.puts("Client attempted to connect without a pre-shared secret!")
         @window.puts("If this was intentional, you can make authentication optional with 'set security=encrypted'")
       end
 
-      raise(DnscatException, "This server requires an encrypted and authenticated connection!")
+      raise(Session::SessionKiller, "This server requires an encrypted and authenticated connection!")
     end
   end
 
@@ -356,36 +343,12 @@ class Session
     window.kick()
 
     begin
-      # TODO: Don't allow encryption negotiation to be skipped (if the user chooses)
-      packet = nil
-      if(@encrypted)
-        packet = @encryptor.decrypt_packet(data, @options)
+      if(@encryptor)
+        data = @encryptor.decrypt_packet(data)
         max_length -= 8
-      else
-        # If we have an encryptor set, attempt to parse the packet as encrypted
-        if(@encryptor)
-          begin
-            # Attempt to parse the packet
-            packet = @encryptor.decrypt_packet(data, @options)
-
-            # Lock encryption on so no more unencrypted packets can be received
-            @encrypted = true
-            @window.puts("*** ENCRYPTION ENABLED!")
-          rescue DnscatMinorException
-            # Do nothing
-            @window.puts("Looks like they aren't ready to encrypt yet!")
-          end
-        end
-
-        # If we haven't sorted out the packet yet, then parse it as an unencrypted packet
-        if(packet.nil?)
-          packet = Packet.parse(data, @options)
-        end
       end
 
-      if(packet.nil?)
-        raise(DnscatMinorException, "Unable to parse the incoming packet!")
-      end
+      packet = Packet.parse(data, @options)
 
       if(Settings::GLOBAL.get("packet_trace"))
         window = _get_pcap_window()
@@ -394,45 +357,39 @@ class Session
 
       # We can send a FIN and close right away if the session was killed
       if(@state == STATE_KILLED)
-        response_packet = Packet.create_fin(@options, {
-          :session_id => @id,
-          :reason => "The user killed the session!",
-        })
-      else
-        # Unless it's an encrypted packet (which implies that we're still negotiating stuff), enforce encryption restraints
-        _check_crypto_options(packet)
-        handler = HANDLERS[packet.type]
-        if(handler.nil?)
-          raise(DnscatMinorException, "No handler found for that packet type: #{packet.type}")
-        end
-
-        response_packet = send(handler, packet, max_length)
+        raise(Session::SessionKiller, "The session is no longer valid")
       end
-    rescue DnscatMinorException => e
-      @window.puts("There was a problem, and we're ignoring the incoming message because:")
-      @window.puts(e)
 
-      response_packet = nil
+      # Unless it's an encrypted packet (which implies that we're still negotiating stuff), enforce encryption restraints
+      _check_crypto_options(packet)
+      handler = HANDLERS[packet.type]
+      if(handler.nil?)
+        raise(DnscatException, "No handler found for that packet type: #{packet.type}")
+      end
+
+      # Handle the packet
+      response_packet = send(handler, packet, max_length)
+    rescue Session::SessionKiller => e
+      @window.with({:to_ancestors => true}) do
+        @window.puts("Session killed: #{e.message}")
+      end
+      kill()
+      response_packet = Packet.create_fin(@options, {
+        :session_id => @id,
+        :reason => e.message,
+      })
     rescue DnscatException => e
       @window.with({:to_ancestors => true}) do
-        @window.puts("ERROR: Protocol exception occurred: #{e}")
-        @window.puts("Switch to window #{@window.id} for more details!")
+        @window.puts("An error occurred (see #{@window.id} for stacktrace): #{e.message}")
       end
       @window.puts()
-      @window.puts("If you think this might be a bug, please report with the")
-      @window.puts("following stacktrace:")
+      @window.puts("If you think this might be a bug, please report this trace:")
       @window.puts(e.inspect)
       e.backtrace.each do |bt|
         @window.puts(bt)
       end
 
-      @window.puts("Killing the session and responding with a FIN packet")
-      kill()
-
-      response_packet = Packet.create_fin(@options, {
-        :session_id => @id,
-        :reason => "An unhandled exception killed the session: %s" % e.to_s(),
-      })
+      response_packet = nil
     end
 
     # If the program needs to ignore the packet, then it returns nil, and we
@@ -447,13 +404,12 @@ class Session
       window.puts("OUT: #{response_packet}")
     end
 
+    response_bytes = response_packet.to_bytes()
     # If we're supposed to encrypt, do so
-    if(@encrypted)
-      bytes = @encryptor.encrypt_packet(response_packet, @options)
-    else
-      bytes = response_packet.to_bytes()
+    if(@encryptor)
+      response_bytes = @encryptor.encrypt_packet(response_bytes, true)
     end
 
-    return bytes
+    return response_bytes
   end
 end
