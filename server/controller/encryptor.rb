@@ -8,10 +8,10 @@
 ##
 
 require 'ecdsa'
+require 'salsa20'
 require 'securerandom'
 require 'sha3'
 
-require 'controller/encrypted_packet'
 require 'controller/encryptor_sas'
 require 'libs/dnscat_exception'
 
@@ -19,6 +19,9 @@ class Encryptor
   include EncryptorSAS
 
   ECDH_GROUP = ECDSA::Group::Nistp256
+
+  class SignatureError < DnscatMinorException
+  end
 
   def Encryptor.bignum_to_binary(bn, size=32)
     if(!bn.is_a?(Bignum))
@@ -77,11 +80,11 @@ class Encryptor
       :my_write_key        => nil,
       :my_mac_key          => nil,
     }
-    @old_keys = @keys.clone()
+    @old_keys = nil
   end
 
   def set_their_public_key(their_public_key_x, their_public_key_y)
-    @old_keys = @keys.clone()
+    @old_keys = @keys
 
     @keys = {
       :my_nonce => -1,
@@ -145,27 +148,73 @@ class Encryptor
     return @keys[:my_nonce] += 1
   end
 
-  def _is_their_nonce_valid?(their_nonce)
-    if(their_nonce < @keys[:their_nonce])
-      return false
+  # We use this special internal function so we can try decrypting with different keys
+  def Encryptor._decrypt_packet_internal(keys, data)
+    # Check if we're just in "no encrypt" mode
+    if(keys[:their_mac_key].nil?)
+      return data
     end
 
-    @keys[:their_nonce] = their_nonce
-    return true
+    # Parse out the important fields
+    header, signature, nonce, encrypted_body = data.unpack("a5a6a2a*")
+
+    # Check and update their nonce as soon as we can
+    nonce_int = nonce.unpack("n").pop()
+    if(nonce_int < keys[:their_nonce])
+      return false
+    end
+    keys[:their_nonce] = nonce_int
+
+    # Put together the data to sign
+    signed_data = header + nonce + encrypted_body
+
+    # Check the signature
+    correct_signature = SHA3::Digest::SHA256.digest(keys[:their_mac_key] + signed_data)
+    if(correct_signature[0,6] != signature)
+      raise(SignatureError, "Invalid signature!")
+    end
+
+    # Decrypt the body
+    body = Salsa20.new(keys[:their_write_key], nonce.rjust(8, "\0")).decrypt(encrypted_body)
+
+    return header+body
   end
 
   def decrypt_packet(data, options)
-    encrypted_packet = EncryptedPacket.parse(data, @keys[:their_mac_key], @keys[:their_write_key], options)
+    begin
+      bytes = Encryptor._decrypt_packet_internal(@keys, data)
 
-    if(!_is_their_nonce_valid?(encrypted_packet.nonce.unpack("n").pop))
-      return nil
+      # If it was successfully decrypted, make sure the @old_keys will no longer work
+      @old_keys = nil
+    rescue SignatureError => e
+      # Attempt to fall back to old keys
+      if(@old_keys.nil?)
+        raise(e)
+      end
+
+      puts("SUCCESSFULLY DECRYPTED W/ OLD KEY") # TODO: Delete
+      bytes = Encryptor._decrypt_packet_internal(@old_keys, data)
     end
 
-    return encrypted_packet.packet
+
+    return Packet.parse(bytes, options)
   end
 
   def encrypt_packet(packet, options)
-    EncryptedPacket.new([my_nonce()].pack("n"), packet).to_bytes(@keys[:my_mac_key], @keys[:my_write_key])
+    # Split the packet into a header and a body
+    header, body = packet.to_bytes().unpack("a5a*")
+
+    # Encode the nonce properly
+    nonce = [@keys[:my_nonce]].pack("n")
+
+    # Encrypt the body
+    encrypted_body = Salsa20.new(@keys[:my_write_key], nonce.rjust(8, "\0")).encrypt(body)
+
+    # Sign it
+    signature = SHA3::Digest::SHA256.digest(@keys[:my_mac_key] + header + nonce + encrypted_body)
+
+    # Arrange things appropriately
+    return [header, signature[0,6], nonce, encrypted_body].pack("a5a6a2a*")
   end
 
   def their_authenticator()
