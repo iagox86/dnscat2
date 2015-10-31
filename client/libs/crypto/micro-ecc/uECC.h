@@ -3,7 +3,7 @@
 #ifndef _UECC_H_
 #define _UECC_H_
 
-#include <stdint.h>
+#include "libs/types.h"
 
 /* Platform selection options.
 If uECC_PLATFORM is not defined, the code will try to guess it based on compiler macros.
