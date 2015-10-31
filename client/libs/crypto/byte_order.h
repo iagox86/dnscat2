@@ -127,6 +127,8 @@ static inline uint64_t bswap_64(uint64_t x) {
 	r.l[1] = bswap_32(w.l[0]);
 	return r.ll;
 }
+#elif defined(__FreeBSD__)
+# define bswap_64(x) bswap64(x)
 #else
 #error "bswap_64 unsupported"
 #endif
