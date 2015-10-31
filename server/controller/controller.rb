@@ -21,21 +21,20 @@ class Controller
 
   attr_accessor :window
 
-  def initialize(window)
-    @window = window
+  def initialize()
     @commander = Commander.new()
     @sessions = {}
 
     _register_commands()
 
-    @window.on_input() do |data|
+    WINDOW.on_input() do |data|
       data = Settings::GLOBAL.do_replace(data)
       begin
         @commander.feed(data)
       rescue ArgumentError => e
-        @window.puts("Error: #{e}")
-        @window.puts()
-        @commander.educate(data, @window)
+        WINDOW.puts("Error: #{e}")
+        WINDOW.puts()
+        @commander.educate(data, WINDOW)
       end
     end
   end
@@ -45,7 +44,7 @@ class Controller
       return @sessions[id]
     end
 
-    return (@sessions[id] = Session.new(id, @window))
+    return (@sessions[id] = Session.new(id, WINDOW))
   end
 
   def session_exists?(id)
@@ -82,7 +81,7 @@ class Controller
   def feed(data, max_length)
     # If it's a ping packet, handle it up here
     if(Packet.peek_type(data) == Packet::MESSAGE_TYPE_PING)
-      @window.puts("Responding to ping packet: #{Packet.parse(data).body}")
+      WINDOW.puts("Responding to ping packet: #{Packet.parse(data).body}")
       return data
     end
 

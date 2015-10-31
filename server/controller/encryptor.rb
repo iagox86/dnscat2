@@ -14,11 +14,25 @@ require 'sha3'
 
 require 'controller/encryptor_sas'
 require 'libs/dnscat_exception'
+require 'libs/swindow'
 
 class Encryptor
   include EncryptorSAS
 
   ECDH_GROUP = ECDSA::Group::Nistp256
+
+  @@window = SWindow.new(WINDOW, false, { :noinput => true, :id => "crypto-debug", :name => "Debug window for crypto stuff"})
+  @@window.puts("This window is for debugging encryption problems!")
+  @@window.puts("In general, you can ignore it. :)")
+  @@window.puts()
+  @@window.puts("One thing to note: you'll see a lot of meaningless errors here,")
+  @@window.puts("because of retransmissions and such. They don't necessarily mean")
+  @@window.puts("anything!")
+  @@window.puts()
+  @@window.puts("But if you ARE having crypto problems, please send me these")
+  @@window.puts("logs! Don't worry too much about the private keys; they're")
+  @@window.puts("session-specific and won't harm anything in the future")
+  @@window.puts()
 
   class Error < StandardError
   end
@@ -63,6 +77,8 @@ class Encryptor
   end
 
   def initialize(preshared_secret)
+    @@window.puts("Creating Encryptor with secret: #{preshared_secret}")
+
     @preshared_secret = preshared_secret
     @authenticated = false
 
@@ -88,6 +104,7 @@ class Encryptor
   def set_their_public_key(their_public_key_x, their_public_key_y)
     # Check if we're actually changing anything
     if(@keys[:their_public_key_x] == their_public_key_x && @keys[:their_public_key_y] == their_public_key_y)
+      @@window.puts("Attempted to set the same public key!")
       return false
     end
 
@@ -114,18 +131,24 @@ class Encryptor
     @keys[:my_write_key]        = _create_key("server_write_key")
     @keys[:my_mac_key]          = _create_key("server_mac_key")
 
+    @@window.puts("Setting their public key: #{Encryptor.bignum_to_text(@keys[:their_public_key_x])} #{Encryptor.bignum_to_text(@keys[:their_public_key_y])}")
+    @@window.puts("Setting my public key: #{Encryptor.bignum_to_text(@keys[:my_public_key].x)} #{Encryptor.bignum_to_text(@keys[:my_public_key].y)}")
+
     return true
   end
 
   def set_their_authenticator(their_authenticator)
     if(!@keys[:their_authenticator])
+      @@window.puts("Tried to set an authenticator too early")
       raise(DnscatException, "We weren't ready to set an authenticator!")
     end
 
     if(@keys[:their_authenticator] != their_authenticator)
+      @@window.puts("Tried to set a bad authenticator")
       raise(Encryptor::Error, "Authenticator (pre-shared secret) doesn't match!")
     end
 
+    @@window.puts("Successfully authenticated the session")
     @authenticated = true
   end
 
@@ -177,18 +200,12 @@ class Encryptor
   def _decrypt_packet_internal(keys, data)
     # Don't decrypt if we don't have a key set
     if(!ready?(keys))
+      @@window.puts("Not decrypting data (incoming data seemed to be cleartext): #{data.unpack("H*")}")
       return data
     end
 
     # Parse out the important fields
     header, signature, nonce, encrypted_body = data.unpack("a5a6a2a*")
-
-    # Check and update their nonce as soon as we can
-    nonce_int = nonce.unpack("n").pop()
-    if(nonce_int < keys[:their_nonce])
-      return false
-    end
-    keys[:their_nonce] = nonce_int
 
     # Put together the data to sign
     signed_data = header + nonce + encrypted_body
@@ -196,12 +213,22 @@ class Encryptor
     # Check the signature
     correct_signature = SHA3::Digest::SHA256.digest(keys[:their_mac_key] + signed_data)
     if(correct_signature[0,6] != signature)
+      @@window.puts("Couldn't verify packet signature!")
       raise(Encryptor::Error, "Invalid signature!")
     end
+
+    # Check the nonce *after* checking the signature (otherwise, we might update the nonce to a bad value and Bad Stuff happens)
+    nonce_int = nonce.unpack("n").pop()
+    if(nonce_int < keys[:their_nonce])
+      @@window.puts("Client tried to use an invalid nonce: #{nonce_int} < #{keys[:their_nonce]}")
+      raise(Encryptor::Error, "Invalid nonce!")
+    end
+    keys[:their_nonce] = nonce_int
 
     # Decrypt the body
     body = Salsa20.new(keys[:their_write_key], nonce.rjust(8, "\0")).decrypt(encrypted_body)
 
+    #@@window.puts("Decryption successful")
     return header+body
   end
 
@@ -211,19 +238,23 @@ class Encryptor
     ## ** Decrypt
     keys = @keys
     begin
+      #@@window.puts("Attempting to decrypt with primary key")
       data = _decrypt_packet_internal(keys, data)
+      #@@window.puts("Successfully decrypted with primary key")
 
       # If it was successfully decrypted, make sure the @old_keys will no longer work
       @old_keys = nil
     rescue Encryptor::Error => e
       # Attempt to fall back to old keys
       if(@old_keys.nil?)
+        @@window.puts("No secondary key to fallback to")
         raise(e)
       end
 
+      @@window.puts("Attempting to decrypt with secondary key")
       keys = @old_keys
       data = _decrypt_packet_internal(@old_keys, data)
-      puts("SUCCESSFULLY DECRYPTED W/ OLD KEY") # TODO: Delete
+      @@window.puts("Successfully decrypted with secondary key")
     end
 
     # Send the decrypted data up and get the encrypted data back
@@ -236,10 +267,13 @@ class Encryptor
 
     # If encryption is turned off, return unencrypted data
     if(!ready?(keys))
+      @@window.puts("Returning an unencrypted response")
       return data
     end
 
     ## ** Encrypt
+    #@@window.puts("Encrypting the response")
+
     # Split the packet into a header and a body
     header, body = data.unpack("a5a*")
 

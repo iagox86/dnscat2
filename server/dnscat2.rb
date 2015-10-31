@@ -11,6 +11,10 @@
 
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
 
+# Create the window right away so other includes can create their own windows if they want
+require 'libs/swindow'
+WINDOW = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
+
 require 'controller/controller'
 require 'libs/command_helpers'
 require 'libs/settings'
@@ -97,17 +101,16 @@ if(opts[:secret].nil?)
   opts[:secret] = SecureRandom::hex(16)
 end
 
-window = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
-window.puts("Welcome to dnscat2! Some documentation may be out of date.")
-window.puts()
+WINDOW.puts("Welcome to dnscat2! Some documentation may be out of date.")
+WINDOW.puts()
 
 if(opts[:h])
-  window.puts("To get help, you have to use --help; I can't find any way to make")
-  window.puts("'-h' work on my command parser... :(")
+  WINDOW.puts("To get help, you have to use --help; I can't find any way to make")
+  WINDOW.puts("'-h' work on my command parser... :(")
   exit
 end
 
-controller = Controller.new(window)
+controller = Controller.new()
 
 begin
   Settings::GLOBAL.create("packet_trace", Settings::TYPE_BOOLEAN, opts[:packet_trace], "If set to 'true', will open some extra windows that will display incoming/outgoing dnscat2 packets, and also parsed command packets for command sessions.") do |old_val, new_val|
@@ -116,7 +119,7 @@ begin
 
   Settings::GLOBAL.create("passthrough", Settings::TYPE_BLANK_IS_NIL, opts[:passthrough], "Send queries to the given upstream host (note: this can cause weird recursion problems). Expected: 'set passthrough host:port'. Set to blank to disable.") do |old_val, new_val|
     if(new_val.nil?)
-      window.puts("passthrough => disabled")
+      WINDOW.puts("passthrough => disabled")
 
       DriverDNS.set_passthrough(nil, nil)
       next
@@ -126,24 +129,24 @@ begin
     port = port || 53
 
     DriverDNS.set_passthrough(host, port)
-    window.puts("passthrough => #{host}:#{port}")
+    WINDOW.puts("passthrough => #{host}:#{port}")
   end
 
   Settings::GLOBAL.create("auto_attach", Settings::TYPE_BOOLEAN, opts[:auto_attach], "If true, the UI will automatically open new sessions") do |old_val, new_val|
-    window.puts("auto_attach => #{new_val}")
+    WINDOW.puts("auto_attach => #{new_val}")
   end
 
   Settings::GLOBAL.create("auto_command", Settings::TYPE_BLANK_IS_NIL, opts[:auto_command], "The command (or semicolon-separated list of commands) will automatically be executed for each new session as if they were typed at the keyboard.") do |old_val, new_val|
-    window.puts("auto_command => #{new_val}")
+    WINDOW.puts("auto_command => #{new_val}")
   end
 
   Settings::GLOBAL.create("process", Settings::TYPE_BLANK_IS_NIL, opts[:process] || "", "If set, this process is spawned for each new console session ('--console' on the client), and it handles the session instead of getting the i/o from the keyboard.") do |old_val, new_val|
-    window.puts("process => #{new_val}")
+    WINDOW.puts("process => #{new_val}")
   end
 
   Settings::GLOBAL.create("history_size", Settings::TYPE_INTEGER, opts[:history_size], "Change the number of lines to store in the new windows' histories") do |old_val, new_val|
     SWindow.history_size = new_val
-    window.puts("history_size (for new windows) => #{new_val}")
+    WINDOW.puts("history_size (for new windows) => #{new_val}")
   end
 
   Settings::GLOBAL.create("security", Settings::TYPE_STRING, opts[:security], "Options: 'open' (let the client decide), 'encrypted' (require clients to encrypt), 'authenticated' (require clients to authenticate)") do |old_val, new_val|
@@ -159,15 +162,15 @@ begin
       raise(Settings::ValidationError, "Valid options for security: #{options.keys.map() { |value| "'#{value}'" }.join(', ')}")
     end
 
-    window.puts("Security policy changed: #{new_val_str}")
+    WINDOW.puts("Security policy changed: #{new_val_str}")
   end
 
   Settings::GLOBAL.create("secret", Settings::TYPE_STRING, opts[:secret], "Pass the same --secret value to the client and the server for extra security") do |old_val, new_val|
   end
 rescue Settings::ValidationError => e
-  window.puts("There was an error with one of your commandline arguments:")
-  window.puts(e)
-  window.puts()
+  WINDOW.puts("There was an error with one of your commandline arguments:")
+  WINDOW.puts(e)
+  WINDOW.puts()
 
   Trollop::die("Check your command-line arguments")
 end
@@ -178,8 +181,8 @@ if(opts[:dns])
     dns_settings = CommandHelpers.parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domains => [], :domain => [] })
     dns_settings[:domains] = dns_settings[:domain] + dns_settings[:domains]
   rescue ArgumentError => e
-    window.puts("Sorry, we had trouble parsing your --dns string:")
-    window.puts(e)
+    WINDOW.puts("Sorry, we had trouble parsing your --dns string:")
+    WINDOW.puts(e)
     exit(1)
   end
 elsif(opts[:dnsport] || opts[:dnshost])
@@ -198,7 +201,6 @@ dns_settings[:domains] += ARGV
 # Start the DNS driver
 TunnelDrivers.start({
   :controller => controller,
-  :window     => window,
   :driver     => DriverDNS,
   :args       => [dns_settings[:host], dns_settings[:port], dns_settings[:domains]],
 })

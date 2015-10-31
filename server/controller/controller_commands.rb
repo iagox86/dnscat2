@@ -24,7 +24,7 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optval|
-        @commander.help(@window)
+        @commander.help(WINDOW)
       end,
     )
 
@@ -34,7 +34,7 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optarg|
-        @window.puts(optarg)
+        WINDOW.puts(optarg)
       end
     )
 
@@ -45,7 +45,7 @@ module ControllerCommands
       end,
 
       Proc.new do |opts, optarg|
-        CommandHelpers.display_windows(@window, opts[:all], @window)
+        CommandHelpers.display_windows(WINDOW, opts[:all], WINDOW)
       end,
     )
 
@@ -57,15 +57,15 @@ module ControllerCommands
 
       Proc.new do |opts, optarg|
         if(opts[:i].nil?)
-          CommandHelpers.display_windows(@window, opts[:all], @window)
+          CommandHelpers.display_windows(WINDOW, opts[:all], WINDOW)
           next
         end
 
         window = SWindow.get(opts[:i])
         if(window.nil?)
-          @window.puts("Windown #{opts[:i]} not found!")
-          @window.puts()
-          CommandHelpers.display_windows(@window, false, @window)
+          WINDOW.puts("Window #{opts[:i]} not found!")
+          WINDOW.puts()
+          CommandHelpers.display_windows(WINDOW, false, WINDOW)
           next
         end
 
@@ -80,14 +80,14 @@ module ControllerCommands
 
       Proc.new do |opts, optarg|
         if(optarg.length == 0)
-          @window.puts("Usage: set <name>=<value>")
-          @window.puts()
-          @window.puts("** Global options:")
-          @window.puts()
+          WINDOW.puts("Usage: set <name>=<value>")
+          WINDOW.puts()
+          WINDOW.puts("** Global options:")
+          WINDOW.puts()
           Settings::GLOBAL.each_setting() do |name, value, docs, default|
-            @window.puts("%s => %s [default = %s]" % [name, CommandHelpers.format_field(value), CommandHelpers.format_field(default)])
-            @window.puts(CommandHelpers.wrap(docs, 72, 4))
-            @window.puts()
+            WINDOW.puts("%s => %s [default = %s]" % [name, CommandHelpers.format_field(value), CommandHelpers.format_field(default)])
+            WINDOW.puts(CommandHelpers.wrap(docs, 72, 4))
+            WINDOW.puts()
           end
 
           next
@@ -101,15 +101,15 @@ module ControllerCommands
         end
 
         if(namevalue.length != 2)
-          @window.puts("Bad argument! Expected: 'set <name>=<value>' or 'set name value'!")
-          @window.puts()
+          WINDOW.puts("Bad argument! Expected: 'set <name>=<value>' or 'set name value'!")
+          WINDOW.puts()
           raise(Trollop::HelpNeeded)
         end
 
         begin
           Settings::GLOBAL.set(namevalue[0], namevalue[1], false)
         rescue Settings::ValidationError => e
-          @window.puts("Failed to set the new value: #{e}")
+          WINDOW.puts("Failed to set the new value: #{e}")
         end
       end
     )
@@ -142,11 +142,11 @@ module ControllerCommands
       Proc.new do |opts, optarg|
         session = find_session_by_window(optarg)
         if(!session)
-          @window.puts("Couldn't find window with id = #{optarg}")
+          WINDOW.puts("Couldn't find window with id = #{optarg}")
           next
         end
 
-        @window.puts("Session #{optarg} has been sent the kill signal!")
+        WINDOW.puts("Session #{optarg} has been sent the kill signal!")
         session.kill()
       end
     )
@@ -180,7 +180,7 @@ module ControllerCommands
 
       Proc.new do |opts, optarg|
         if(opts[:dns].nil?)
-          @window.puts("The --dns argument is currently required!")
+          WINDOW.puts("The --dns argument is currently required!")
           raise(Trollop::HelpNeeded)
         end
 
@@ -188,14 +188,13 @@ module ControllerCommands
           dns = CommandHelpers.parse_setting_string(opts[:dns], { :host => "0.0.0.0", :port => "53", :domains => [], :domain => [] })
           dns[:domains] = dns[:domains] + dns[:domain]
         rescue ArgumentError => e
-          @window.puts("Couldn't parse setting:")
-          @window.puts(e)
+          WINDOW.puts("Couldn't parse setting:")
+          WINDOW.puts(e)
           raise(Trollop::HelpNeeded)
         end
 
         TunnelDrivers.start({
           :controller => self,
-          :window     => @window,
           :driver     => DriverDNS,
           :args       => [dns[:host], dns[:port], dns[:domains]]
         })
@@ -210,12 +209,12 @@ module ControllerCommands
       Proc.new do |opts, optarg|
         # Try to stop it if it's a tunnel driver
         if(!TunnelDrivers.exists?(optarg))
-          @window.puts("No such driver: #{optarg}")
+          WINDOW.puts("No such driver: #{optarg}")
           next
         end
 
         TunnelDrivers.stop(optarg)
-        @window.puts("Stopped the tunnel driver: #{optarg}")
+        WINDOW.puts("Stopped the tunnel driver: #{optarg}")
       end
     )
 
@@ -226,7 +225,7 @@ module ControllerCommands
 
       Proc.new do |opts, optarg|
         TunnelDrivers.each_driver do |name, desc|
-          @window.puts("#{name} :: #{desc}")
+          WINDOW.puts("#{name} :: #{desc}")
         end
       end
     )

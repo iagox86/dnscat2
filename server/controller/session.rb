@@ -43,6 +43,7 @@ class Session
 
   def initialize(id, main_window)
     @state = STATE_NEW
+    @kill_reason = nil
     @their_seq = 0
     @my_seq    = @@isn.nil? ? rand(0xFFFF) : @@isn
     @options = 0
@@ -73,13 +74,17 @@ class Session
     end
   end
 
-  def kill()
+  def kill(reason = "No reason given")
     @window.with({:to_ancestors=>true, :to_descendants=>true}) do
       if(@state != STATE_KILLED)
         @state = STATE_KILLED
-        @window.puts("Session #{@window.id} has been killed")
+        @kill_reason = reason
+
+        @window.with({:to_ancestors => true}) do
+          @window.puts("Session #{@window.id} killed: #{reason}")
+        end
       else
-        @window.puts("Session #{@window.id} has been killed (again)")
+        @window.puts("Session #{@window.id} killed (again): #{reason}")
       end
     end
 
@@ -264,12 +269,7 @@ class Session
     }
 
     if(packet.body.subtype == Packet::EncBody::SUBTYPE_INIT)
-      if(@encryptor.set_their_public_key(packet.body.public_key_x, packet.body.public_key_y))
-        @window.puts("Generated cryptographic values:")
-        @window.puts(@encryptor)
-      else
-        @window.puts("TODO: They tried to set the same public key!")
-      end
+      @encryptor.set_their_public_key(packet.body.public_key_x, packet.body.public_key_y)
 
       # No matter what, respond with our public key
       params[:public_key_x] = @encryptor.my_public_key_x()
@@ -357,7 +357,7 @@ class Session
 
     # We can send a FIN and close right away if the session was killed
     if(@state == STATE_KILLED)
-      raise(Session::SessionKiller, "The session is no longer valid")
+      raise(Session::SessionKiller, @kill_reason)
     end
 
     # Unless it's an encrypted packet (which implies that we're still negotiating stuff), enforce encryption restraints
@@ -387,17 +387,12 @@ class Session
           response_packet = _handle_incoming(data, max_length)
         rescue Session::SessionKiller => e
           # Kill it
-          kill()
-
-          # Tell everybody
-          @window.with({:to_ancestors => true}) do
-            @window.puts("Session #{@window.id} killed: #{e.message}")
-          end
+          kill(e.message)
 
           # Respond with a FIN
           response_packet = Packet.create_fin(@options, {
             :session_id => @id,
-            :reason => e.message,
+            :reason => "Session killed: #{e.message}",
           })
         rescue DnscatException => e
           # Tell everybody

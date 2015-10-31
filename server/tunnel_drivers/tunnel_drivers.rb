@@ -14,7 +14,6 @@ class TunnelDrivers
 
   def TunnelDrivers.start(params = {})
     controller    = params[:controller] || raise(ArgumentError, "The :controller argument is required")
-    parent_window = params[:window]     || raise(ArgumentError, "The :window argument is required")
     driver_cls    = params[:driver]     || raise(ArgumentError, "The :driver argument is required")
     args          = params[:args]       || raise(ArgumentError, "The :args argument is required")
     if(!args.is_a?(Array))
@@ -22,7 +21,7 @@ class TunnelDrivers
     end
 
     begin
-      driver = driver_cls.new(parent_window, *args) do |data, max_length|
+      driver = driver_cls.new(WINDOW, *args) do |data, max_length|
         controller.feed(data, max_length)
       end
       @@drivers[driver.id] = driver
