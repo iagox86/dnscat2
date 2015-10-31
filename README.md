@@ -2,9 +2,9 @@
 
 Welcome to dnscat2, a DNS tunnel that WON'T make you sick and kill you!
 
-This tool is designed to create a command-and-control (C&C) channel over
-the DNS protocol, which is an effective tunnel out of almost every
-network.
+This tool is designed to create an encrypted command-and-control (C&C)
+channel over the DNS protocol, which is an effective tunnel out of
+almost every network.
 
 This README file should contain everything you need to get up and
 running! If you're interested in digging deeper into the protocol, how
@@ -62,6 +62,9 @@ things well. It can also potentially tunnel TCP, but that's only going
 to be added in the context of a pen-testing tool (that is, tunneling TCP
 into a network), not as a general purpose tunneling tool. That's been
 done, it's not interesting (to me).
+
+It's also encrypted by default. I don't believe any other public DNS
+tunnel encrypts all traffic!
 
 # Where to get it
 
@@ -285,6 +288,17 @@ Traversing the DNS hierarchy requires an authoritative domain, but will
 bypass most firewalls. Connecting directly to the server is more
 obvious for several reasons.
 
+By default, connections are automatically encrypted (turn it off on the
+client with `--no-encryption` and on the server with `--security=open`).
+When establishing a new connection, if you're paranoid about
+man-in-the-middle attacks, you have two options for verifying the peer:
+
+* Pass a pre-shared secret using the `--secret` argument on both sides
+  to validate the connection
+* Manually verify the "short authentication string" - a series of words
+  that are printed on both the client and server after encryption is
+  negotiated
+
 ### Running a server
 
 The server - which is typically run on the authoritative DNS server for
@@ -365,7 +379,70 @@ it can be given a specific ip address to connect to instead:
 Assuming there's a dnscat2 server running on that host/port, it'll
 create a session there.
 
-### Windows
+### Encryption
+
+dnscat2 is encrypted by default.
+
+I'm not a cryptographer, and by necessity I came up with the encryption
+scheme myself. As a result, I wouldn't trust this 100%. I think I did a
+*pretty* good job preventing attacks, but this hasn't been
+professionally audited. Use with caution.
+
+There is a ton of technical information about the encryption in the
+[protocol doc](/doc/protocol.md). But here are the basics.
+
+By default, both the client and the server support and will attempt
+encryption. Each connection uses a new keypair, negotiated by ECDH. All
+encryption is done by salsa20, and signatures use sha3.
+
+Encryption can be disabled on the client by passing `--no-encryption` on
+the commandline, or by compiling it using `make nocrypto`.
+
+The server will reject unencrypted connections by default. To allow
+unencrypted connections, pass `--security=open` to the server, or run
+`set security=open` on the console.
+
+By default, there's no protection against man-in-the-middle attacks.  As
+mentioned before, there are two different ways to gain MitM protection:
+a pre-shared secret or a "short authentication string".
+
+A pre-shared secret is passed on the commandline to both the client and
+the server, and is used to authenticate both the client to the server
+and the server to the client. It should be a somewhat strong value -
+something that can't be quickly guessed by an attacker (there's only a
+short window for the attacker to guess it, so it only has to hold up for
+a few seconds).
+
+The pre-shared secret is passed in via the `--secret` parameter on both
+the client and the server. The server can change it at runtime using
+`set secret=<new value>`, but that can have unexpected results if active
+clients are connected.
+
+Furthermore, the server can enforce *only* authenticated connections are
+allowed by using `--security=authenticated` or `set
+security=authenticated`. That's enabled by default if you pass the
+`--secret` parameter.
+
+If you don't require the extra effort of authenticating connections,
+then a "short authentication string" is displayed by both the client and
+the server. The short authentication string is a series of English words
+that are derived based on the secret values that both sides share.
+
+If the same set of English words are printed on both the client and the server,
+the connection can be reasonably considered to be secure.
+
+That's about all you need to know about the encryption! See the protocol
+doc for details! I'd love to hear any feedback on the crypto, as well.
+:)
+
+And finally, if you have any problems with the crypto, please let me
+know! By default a window called "crypto-debug" will be created at the
+start. If you have encryption problems, please send me that log! Or,
+better yet, run dnscat2 with the `--firehose` and `--packet-trace`
+arguments, and send me *EVERYTHING*! Don't worry about revealing private
+keys; they're only used for that one session.
+
+### dnscat2's Windows
 
 The dnscat2 UI is made up of a bunch of windows. The default window is
 called the 'main' window. You can get a list of windows by typing

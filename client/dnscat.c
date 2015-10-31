@@ -75,7 +75,7 @@ void usage(char *name, char *message)
 "                         the next message (by default, when a response is\n"
 "                         received, the next message is immediately transmitted.\n"
 " --max-retransmits <n>   Only re-transmit a message <n> times before giving up\n"
-"                         and assuming the server is dead (default: 10).\n"
+"                         and assuming the server is dead (default: 20).\n"
 " --retransmit-forever    Set if you want the client to re-transmit forever\n"
 "                         until a server turns up. This can be helpful, but also\n"
 "                         makes the server potentially run forever.\n"
