@@ -421,8 +421,8 @@ class Session
           nil
         end
       end
-    rescue Encryptor::Error => e
-      @window.puts("There was an error decrypting or encrypting data: #{e}")
+    rescue Encryptor::Error # => e
+      #@window.puts("There was an error decrypting or encrypting data: #{e}")
       return ''
     end
   end
