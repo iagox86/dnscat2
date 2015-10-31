@@ -24,7 +24,7 @@
 
 #include "controller.h"
 
-static int max_retransmits = 10;
+static int max_retransmits = 20;
 
 typedef struct _session_entry_t
 {

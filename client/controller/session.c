@@ -178,8 +178,8 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
           {
             if(session->new_encryptor)
             {
-              LOG_FATAL("The server didn't respond to our re-negotiation request!");
-              exit(1);
+              LOG_FATAL("The server didn't respond to our re-negotiation request! Waiting...");
+              return FALSE;
             }
 
             LOG_WARNING("Wow, this session is old! Time to re-negotiate encryption keys!");
@@ -463,8 +463,8 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 
     if(!encryptor_check_signature(session->encryptor, packet_buffer))
     {
-      LOG_FATAL("Server's signature was wrong!");
-      exit(1);
+      LOG_WARNING("Server's signature was wrong! Ignoring!");
+      return FALSE;
     }
 
     /* TODO: Verify their nonce */

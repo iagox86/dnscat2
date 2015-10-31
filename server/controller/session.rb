@@ -392,7 +392,7 @@ class Session
         rescue DnscatException => e
           # Tell everybody
           @window.with({:to_ancestors => true}) do
-            @window.puts("An error occurred (see #{@window.id} for stacktrace): #{e.message}")
+            @window.puts("An error occurred (see window #{@window.id} for stacktrace): #{e.message}")
           end
           @window.puts()
           @window.puts("If you think this might be a bug, please report this trace:")
