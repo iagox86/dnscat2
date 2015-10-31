@@ -1128,6 +1128,10 @@ static void bits2int(uECC_word_t *native,
                      uECC_Curve curve) {
     unsigned num_n_bytes = BITS_TO_BYTES(curve->num_n_bits);
     unsigned num_n_words = BITS_TO_WORDS(curve->num_n_bits);
+	int shift;
+	uECC_word_t carry;
+	uECC_word_t *ptr;
+
     if (bits_size > num_n_bytes) {
         bits_size = num_n_bytes;
     }
@@ -1136,9 +1140,9 @@ static void bits2int(uECC_word_t *native,
     if (bits_size * 8 <= (unsigned)curve->num_n_bits) {
         return;
     }
-    int shift = bits_size * 8 - curve->num_n_bits;
-    uECC_word_t carry = 0;
-    uECC_word_t *ptr = native + num_n_words;
+    shift = bits_size * 8 - curve->num_n_bits;
+    carry = 0;
+    ptr = native + num_n_words;
     while (ptr-- > native) {
         uECC_word_t temp = *ptr;
         *ptr = (temp >> shift) | carry;
