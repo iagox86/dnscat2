@@ -21,9 +21,6 @@
 
 #include "packet.h"
 
-/* Not every OS defines snprintf(), so make sure it's defined. */
-int snprintf(char *STR, size_t SIZE, const char *FORMAT, ...);
-
 packet_t *packet_parse(uint8_t *data, size_t length, options_t options)
 {
   packet_t *packet = (packet_t*) safe_malloc(sizeof(packet_t));
@@ -353,75 +350,34 @@ uint8_t *packet_to_bytes(packet_t *packet, size_t *length, options_t options)
   return buffer_create_string_and_destroy(buffer, length);
 }
 
-char *packet_to_s(packet_t *packet, options_t options)
-{
-  /* This is ugly, but I don't have a good automatic "printf" allocator. */
-  char *ret = safe_malloc(1024);
-
-#ifdef WIN32
-  if(packet->packet_type == PACKET_TYPE_SYN)
-  {
-    _snprintf_s(ret, 1024, 1024, "Type = SYN :: [0x%04x] session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
-  }
-  else if(packet->packet_type == PACKET_TYPE_MSG)
-  {
-    _snprintf_s(ret, 1024, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack, packet->body.msg.data_length);
-  }
-  else if(packet->packet_type == PACKET_TYPE_FIN)
-  {
-    _snprintf_s(ret, 1024, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
-  }
-  else if(packet->packet_type == PACKET_TYPE_PING)
-  {
-    _snprintf_s(ret, 1024, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
-  }
-#ifndef NO_ENCRYPTION
-  else if(packet->packet_type == PACKET_TYPE_ENC)
-  {
-    _snprintf_s(ret, 1024, 1024, "Type = ENC :: [0x%04x] session = 0x%04x", packet->packet_id, packet->session_id);
-  }
-#endif
-  else
-  {
-    _snprintf_s(ret, 1024, 1024, "Unknown packet type!");
-  }
-#else
-  if(packet->packet_type == PACKET_TYPE_SYN)
-  {
-    snprintf(ret, 1024, "Type = SYN :: [0x%04x] session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
-  }
-  else if(packet->packet_type == PACKET_TYPE_MSG)
-  {
-    snprintf(ret, 1024, "Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x, data = 0x%x bytes", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack, (unsigned int)packet->body.msg.data_length);
-  }
-  else if(packet->packet_type == PACKET_TYPE_FIN)
-  {
-    snprintf(ret, 1024, "Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
-  }
-  else if(packet->packet_type == PACKET_TYPE_PING)
-  {
-    snprintf(ret, 1024, "Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
-  }
-#ifndef NO_ENCRYPTION
-  else if(packet->packet_type == PACKET_TYPE_ENC)
-  {
-    snprintf(ret, 1024, "Type = ENC :: [0x%04x] session = 0x%04x", packet->packet_id, packet->session_id);
-  }
-#endif
-  else
-  {
-    snprintf(ret, 1024, "Unknown packet type!");
-  }
-#endif
-
-  return ret;
-}
-
 void packet_print(packet_t *packet, options_t options)
 {
-  char *str = packet_to_s(packet, options);
-  printf("%s\n", str);
-  safe_free(str);
+  if(packet->packet_type == PACKET_TYPE_SYN)
+  {
+    printf("Type = SYN :: [0x%04x] session = 0x%04x, seq = 0x%04x, options = 0x%04x", packet->packet_id, packet->session_id, packet->body.syn.seq, packet->body.syn.options);
+  }
+  else if(packet->packet_type == PACKET_TYPE_MSG)
+  {
+    printf("Type = MSG :: [0x%04x] session = 0x%04x, seq = 0x%04x, ack = 0x%04x, data = 0x%x bytes", packet->packet_id, packet->session_id, packet->body.msg.seq, packet->body.msg.ack, (unsigned int)packet->body.msg.data_length);
+  }
+  else if(packet->packet_type == PACKET_TYPE_FIN)
+  {
+    printf("Type = FIN :: [0x%04x] session = 0x%04x :: %s", packet->packet_id, packet->session_id, packet->body.fin.reason);
+  }
+  else if(packet->packet_type == PACKET_TYPE_PING)
+  {
+    printf("Type = PING :: [0x%04x] data = %s", packet->packet_id, packet->body.ping.data);
+  }
+#ifndef NO_ENCRYPTION
+  else if(packet->packet_type == PACKET_TYPE_ENC)
+  {
+    printf("Type = ENC :: [0x%04x] session = 0x%04x", packet->packet_id, packet->session_id);
+  }
+#endif
+  else
+  {
+    printf("Unknown packet type!");
+  }
 }
 
 void packet_destroy(packet_t *packet)

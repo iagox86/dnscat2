@@ -529,9 +529,8 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     /* Be extra cautious. */
     if(packet->packet_type < 0 || packet->packet_type >= PACKET_TYPE_COUNT_NOT_PING)
     {
-      char *packet_str = packet_to_s(packet, session->options);
-      LOG_FATAL("Received an illegal packet: %s", packet_str);
-      safe_free(packet_str);
+      LOG_FATAL("Received an illegal packet:");
+      packet_print(packet, session->options);
       exit(1);
     }
 
