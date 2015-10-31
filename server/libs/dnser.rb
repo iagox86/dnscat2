@@ -42,6 +42,8 @@ require 'ipaddr'
 require 'socket'
 require 'timeout'
 
+require 'libs/vash'
+
 class DNSer
   # Create a custom error message
   class DnsException < StandardError
@@ -523,6 +525,14 @@ class DNSer
 
         return Answer.new(@name, @type, @cls, ttl, record)
       end
+
+      def ==(other)
+        if(!other.is_a?(Question))
+          return false
+        end
+
+        return (@name == other.name) && (@type == other.type) && (@cls == other.cls)
+      end
     end
 
     # A DNS answer. A DNS response packet contains zero or more Answer records
@@ -541,6 +551,15 @@ class DNSer
         if(rr.is_a?(String))
           raise(ArgumentError, "'rr' can't be a string!")
         end
+      end
+
+      def ==(other)
+        if(!other.is_a?(Answer))
+          return false
+        end
+
+        # Note: we don't check TTL here, and checking RR probably doesn't work (but we don't actually need it)
+        return (@name == other.name) && (@type == other.type) && (@cls == other.cls) && (@rr == other.rr)
       end
 
       def Answer.parse(data)
@@ -698,6 +717,14 @@ class DNSer
 
       return results.join("\n")
     end
+
+    def ==(other)
+      if(!other.is_a?(Packet))
+        return false
+      end
+
+      return (@trn_id == other.trn_id) && (@opcode == other.opcode) && (@flags == other.flags) && (@questions == other.questions) && (@answers == other.answers)
+    end
   end
 
   # When a request comes in, a transaction is created and sent to the callback.
@@ -710,12 +737,13 @@ class DNSer
   class Transaction
     attr_reader :request, :response, :sent
 
-    def initialize(s, request, host, port)
+    def initialize(s, request, host, port, cache = nil)
       @s       = s
       @request = request
       @host    = host
       @port    = port
       @sent    = false
+      @cache   = cache
 
       @response = DNSer::Packet.new(
         @request.trn_id,
@@ -779,6 +807,15 @@ class DNSer
     def reply!()
       raise ArgumentError("Already sent!") if(@sent)
 
+      # Cache it if we have a cache
+      if(@cache)
+        @cache[@request.trn_id] = {
+          :request  => @request,
+          :response => @response,
+        }
+      end
+
+      # Send the response
       @s.send(@response.serialize(), 0, @host, @port)
       @sent = true
     end
@@ -786,10 +823,15 @@ class DNSer
 
   # Create a new DNSer and listen on the given host/port. This will throw an
   # exception if we aren't allowed to bind to the given port.
-  def initialize(host, port)
+  def initialize(host, port, cache=false)
     @s = UDPSocket.new()
     @s.bind(host, port)
     @thread = nil
+
+    # Create a cache if the user wanted one
+    if(cache)
+      @cache = Vash.new()
+    end
   end
 
   # This method returns immediately, but spawns a background thread. The thread
@@ -800,15 +842,38 @@ class DNSer
       begin
         loop do
           data = @s.recvfrom(65536)
-          request = DNSer::Packet.parse(data[0])
-          transaction = Transaction.new(@s, request, data[1][3], data[1][1])
 
-          begin
-            proc.call(transaction)
-          rescue StandardError => e
-            puts("Caught an error: #{e}")
-            puts(e.backtrace())
-            transaction.reply!(transaction.response_template({:rcode => DNSer::Packet::RCODE_SERVER_FAILURE}))
+          # Data is an array where the first element is the actual data, and the second is the host/port
+          request = DNSer::Packet.parse(data[0])
+
+          # Create a transaction object, which we can use to respond
+          transaction = Transaction.new(@s, request, data[1][3], data[1][1], @cache)
+
+          # If caching is enabled, deal with it
+          if(@cache)
+            # This is somewhat expensive, but we aren't using the cache for performance
+            @cache.cleanup!()
+
+            # See if the transaction is cached
+            cached = @cache[request.trn_id]
+
+            # Verify it deeper (for security reasons)
+            if(!cached.nil?)
+              if(request == cached[:request])
+                puts("CACHE HIT")
+                transaction.reply!(cached[:response])
+              end
+            end
+          end
+
+          if(!transaction.sent)
+            begin
+              proc.call(transaction)
+            rescue StandardError => e
+              puts("Caught an error: #{e}")
+              puts(e.backtrace())
+              transaction.reply!(transaction.response_template({:rcode => DNSer::Packet::RCODE_SERVER_FAILURE}))
+            end
           end
         end
       ensure
