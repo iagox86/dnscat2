@@ -10,7 +10,8 @@
 # controller.
 ##
 
-require 'libs/dnser.rb'
+require 'libs/dnser'
+require 'libs/settings'
 
 class DriverDNS
   attr_reader :id
@@ -188,15 +189,17 @@ class DriverDNS
         @window.puts("")
       else
         @window.puts("Assuming you have an authoritative DNS server, you can run")
-        @window.puts("the client anywhere with the following:")
+        @window.puts("the client anywhere with the following (--secret is optional):")
+        @window.puts()
         domains.each do |domain|
-          @window.puts("  ./dnscat2 #{domain}")
+          @window.puts("  ./dnscat2 --secret=#{Settings::GLOBAL.get('secret')} #{domain}")
         end
         @window.puts("")
       end
 
       @window.puts("To talk directly to the server without a domain name, run:")
-      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=#{port}")
+      @window.puts()
+      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=#{port} --secret=#{Settings::GLOBAL.get('secret')}")
       @window.puts("")
       @window.puts("Of course, you have to figure out <server> yourself! Clients")
       @window.puts("will connect directly on UDP port #{port}.")

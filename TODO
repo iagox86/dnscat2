@@ -1,4 +1,1 @@
-- Renegotiation
-- Make sure the server gives useful info about how to turn off encryption
-- Make sure the server's "example" runs contain --secret wherever possible
 - Update user-facing docs
