@@ -90,7 +90,7 @@ uint16_t encryptor_get_nonce(encryptor_t *encryptor)
 
 NBBOOL encryptor_should_we_renegotiate(encryptor_t *encryptor)
 {
-  return encryptor->nonce > 0xFF00;
+  return encryptor->nonce > 0xFFF0;
 }
 
 void encryptor_print(encryptor_t *encryptor)

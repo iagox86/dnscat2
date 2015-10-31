@@ -60,6 +60,9 @@ typedef struct
 
 #ifndef NO_ENCRYPTION
   encryptor_t *encryptor;
+
+  /* Used for renegotiation. */
+  encryptor_t *new_encryptor;
 #endif
 } session_t;
 

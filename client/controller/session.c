@@ -125,7 +125,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
 
     if(max_length <= 0)
     {
-      LOG_FATAL("There isn't enough room in this protocol to encrypt packets!\n");
+      LOG_FATAL("There isn't enough room in this protocol to encrypt packets!");
       exit(1);
     }
   }
@@ -170,6 +170,30 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
         break;
 
       case SESSION_STATE_ESTABLISHED:
+        /* Re-negotiate encryption if we have to */
+#ifndef NO_ENCRYPTION
+        if(should_we_encrypt(session))
+        {
+          if(encryptor_should_we_renegotiate(session->encryptor))
+          {
+            if(session->new_encryptor)
+            {
+              LOG_FATAL("The server didn't respond to our re-negotiation request!");
+              exit(1);
+            }
+
+            LOG_WARNING("Wow, this session is old! Time to re-negotiate encryption keys!");
+
+            /* Create a new encryptor. */
+            session->new_encryptor = encryptor_create(preshared_secret);
+
+            packet = packet_create_enc(session->id, 0);
+            packet_enc_set_init(packet, session->new_encryptor->my_public_key);
+
+            break;
+          }
+        }
+#endif
         /* Read data without consuming it (ie, leave it in the buffer till it's ACKed) */
         data = buffer_read_remaining_bytes(session->outgoing_buffer, &data_length, max_length - packet_get_msg_size(session->options), FALSE);
         LOG_INFO("In SESSION_STATE_ESTABLISHED, sending a MSG packet (SEQ = 0x%04x, ACK = 0x%04x, %zd bytes of data...)", session->my_seq, session->their_seq, data_length);
@@ -249,6 +273,38 @@ static NBBOOL _handle_enc_before_init(session_t *session, packet_t *packet)
   printf("\n");
   encryptor_print_sas(session->encryptor);
   printf("\n");
+
+  return TRUE;
+}
+
+static NBBOOL _handle_enc_renegotiate(session_t *session, packet_t *packet)
+{
+  if(packet->body.enc.subtype != PACKET_ENC_SUBTYPE_INIT)
+  {
+    LOG_FATAL("Received an unexpected encryption packet for this state: 0x%04x!", packet->body.enc.subtype);
+    exit(1);
+  }
+
+  if(!session->encryptor)
+  {
+    LOG_FATAL("Received an unexpected renegotiation from the server!");
+    exit(1);
+  }
+
+  if(!encryptor_set_their_public_key(session->new_encryptor, packet->body.enc.public_key))
+  {
+    LOG_FATAL("Failed to calculate a shared secret for renegotiation!");
+    exit(1);
+  }
+
+  LOG_WARNING("Server responded to re-negotiation request! Switching to new keys!");
+
+  /* Kill the old encryptor and replace it with the new one. */
+  encryptor_destroy(session->encryptor);
+  session->encryptor = session->new_encryptor;
+  session->new_encryptor = NULL;
+
+  encryptor_print(session->encryptor);
 
   return TRUE;
 }
@@ -466,8 +522,8 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
 #ifndef NO_ENCRYPTION
     handlers[PACKET_TYPE_ENC][SESSION_STATE_BEFORE_INIT]   = _handle_enc_before_init;
     handlers[PACKET_TYPE_ENC][SESSION_STATE_BEFORE_AUTH]   = _handle_enc_before_auth;
-    handlers[PACKET_TYPE_FIN][SESSION_STATE_NEW]           = _handle_error; /* TODO: Re-negotiation. */
-    handlers[PACKET_TYPE_FIN][SESSION_STATE_ESTABLISHED]   = _handle_error; /* TODO: Re-negotiation. */
+    handlers[PACKET_TYPE_ENC][SESSION_STATE_NEW]           = _handle_error;
+    handlers[PACKET_TYPE_ENC][SESSION_STATE_ESTABLISHED]   = _handle_enc_renegotiate;
 #endif
 
     /* Be extra cautious. */
@@ -496,7 +552,7 @@ void session_kill(session_t *session)
 {
   if(session->is_shutdown)
   {
-    LOG_WARNING("Tried to kill a session that's already dead: %d\n", session->id);
+    LOG_WARNING("Tried to kill a session that's already dead: %d", session->id);
     return;
   }
 

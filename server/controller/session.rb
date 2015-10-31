@@ -257,11 +257,6 @@ class Session
   end
 
   def _handle_enc(packet, max_length)
-    # TODO: Allow re-keying
-    if(@state != STATE_NEW)
-      raise(DnscatException, "Received an ENC packet in an invalid state (and re-negotiation isn't done yet!)")
-    end
-
     params = {
       :session_id => @id,
       :subtype    => packet.body.subtype,

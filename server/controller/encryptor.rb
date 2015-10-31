@@ -115,6 +115,10 @@ class Encryptor
       :their_nonce => -1,
     }
 
+    if(ready?())
+      @@window.puts("Wow, this session is old (or the client is needy)! Key re-negotiation requested!")
+    end
+
     @keys[:my_private_key]      = 1 + SecureRandom.random_number(ECDH_GROUP.order - 1)
     @keys[:my_public_key]       = ECDH_GROUP.generator.multiply_by_scalar(@keys[:my_private_key])
     @keys[:their_public_key_x]  = their_public_key_x
