@@ -809,7 +809,7 @@ class DNSer
 
       # Cache it if we have a cache
       if(@cache)
-        @cache[@request.trn_id] = {
+        @cache[@request.trn_id, 3] = {
           :request  => @request,
           :response => @response,
         }
@@ -859,6 +859,7 @@ class DNSer
 
             # Verify it deeper (for security reasons)
             if(!cached.nil?)
+              puts("POTENTIAL CACHE HIT")
               if(request == cached[:request])
                 puts("CACHE HIT")
                 transaction.reply!(cached[:response])

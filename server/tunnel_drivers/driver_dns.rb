@@ -166,7 +166,7 @@ class DriverDNS
     end
 
     # Do this as early as we can, so we can fail early
-    @dnser = DNSer.new(host, port)
+    @dnser = DNSer.new(host, port, true)
 
     @id = 'dns%d' % (@@id += 1)
     @window = SWindow.new(parent_window, false, {
