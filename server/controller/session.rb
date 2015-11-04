@@ -52,6 +52,9 @@ class Session
     @incoming_data = ''
     @outgoing_data = ''
 
+    # Stuff that's displayed after the window's name
+    @crypto_state = '[cleartext]'
+
     # Create this whether or not we're actually encrypting - it cleans up
     # the handler code
     @encryptor = Encryptor.new(Settings::GLOBAL.get('secret'))
@@ -64,7 +67,7 @@ class Session
     end
 
     @settings.create("name", Settings::TYPE_NO_STRIP, "(not set)", "Change the name of the window, and how it's displayed on the 'windows' list; this implicitly changes the prompt as well.") do |old_val, new_val|
-      @window.name = new_val
+      @window.name = new_val + ' ' + @crypto_state
       @settings.set("prompt", "%s %d> " % [new_val, @window.id])
     end
 
@@ -286,6 +289,18 @@ class Session
     else
       raise(DnscatException, "Don't know how to parse encryption subtype in: #{packet}")
     end
+
+    # Update the session info
+    if(@encryptor.authenticated?())
+      @crypto_state = "[encrypted and verified]"
+    elsif(@encryptor.ready?())
+      @crypto_state = "[encrypted, NOT verified]"
+    else
+      @crypto_state = "[cleartext]"
+    end
+
+    # Force a name update so the text gets added
+    @settings.set('name', @settings.get('name'))
 
     return Packet.create_enc(params)
   end
