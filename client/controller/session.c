@@ -266,9 +266,10 @@ static NBBOOL _handle_enc_before_init(session_t *session, packet_t *packet)
   else
     session->state = SESSION_STATE_NEW;
 
-  if(LOG_LEVEL_WARNING >= log_get_min_console_level())
+  if(LOG_LEVEL_INFO >= log_get_min_console_level())
     encryptor_print(session->encryptor);
 
+  printf("\n");
   printf("Encrypted session established! For added security, please verify the server also displays this string:\n");
   printf("\n");
   encryptor_print_sas(session->encryptor);
@@ -304,7 +305,7 @@ static NBBOOL _handle_enc_renegotiate(session_t *session, packet_t *packet)
   session->encryptor = session->new_encryptor;
   session->new_encryptor = NULL;
 
-  if(LOG_LEVEL_WARNING >= log_get_min_console_level())
+  if(LOG_LEVEL_INFO >= log_get_min_console_level())
     encryptor_print(session->encryptor);
 
   return TRUE;
