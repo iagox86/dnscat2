@@ -27,6 +27,7 @@ void log_init();
 
 void log_to_file(char *filename, log_level_t min_level);
 void log_set_min_console_level(log_level_t level);
+log_level_t log_get_min_console_level();
 
 void log_info(char *format, ...);
 void log_warning(char *format, ...);

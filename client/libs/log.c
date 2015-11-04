@@ -41,6 +41,11 @@ void log_set_min_console_level(log_level_t min_level)
   log_console_min = min_level;
 }
 
+log_level_t log_get_min_console_level()
+{
+  return log_console_min;
+}
+
 /* Most of this code is from the manpage for vsprintf() */
 static void log_internal(log_level_t level, char *format, va_list args)
 {

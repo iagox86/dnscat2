@@ -55,9 +55,10 @@ static uint8_t *remove_domain(char *str, char *domain)
       return NULL;
     }
 
+    /* The server returns an empty domain name for all errors. */
     if(!strcmp(str, domain))
     {
-      LOG_ERROR("The response was just the domain name: %s", str);
+      LOG_INFO("The response was just the domain name: %s", str);
       return NULL;
     }
 

@@ -3,7 +3,9 @@
  *
  * See LICENSE.md
  *
- * TODO!
+ * This isn't used yet.
+ *
+ * TODO: Update the docs when it is :)
  */
 
 #ifndef __DRIVER_LISTENER_H__

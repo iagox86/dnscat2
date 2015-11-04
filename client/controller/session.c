@@ -80,7 +80,7 @@ static NBBOOL can_i_transmit_yet(session_t *session)
 
 /* Polls the driver for data and puts it in our own buffer. This is necessary
  * because the session needs to ACK data and such. */
-static void poll_for_data(session_t *session)
+static void poll_driver_for_data(session_t *session)
 {
   size_t length = -1;
 
@@ -111,7 +111,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
   size_t    data_length  = -1;
 
   /* Suck in any data we can from the driver. */
-  poll_for_data(session);
+  poll_driver_for_data(session);
 
   /* Don't transmit too quickly without receiving anything. */
   if(!can_i_transmit_yet(session))
@@ -266,8 +266,8 @@ static NBBOOL _handle_enc_before_init(session_t *session, packet_t *packet)
   else
     session->state = SESSION_STATE_NEW;
 
-  /* TODO: Put this in a if_debug() block or something. */
-  encryptor_print(session->encryptor);
+  if(LOG_LEVEL_WARNING >= log_get_min_console_level())
+    encryptor_print(session->encryptor);
 
   printf("Encrypted session established! For added security, please verify the server also displays this string:\n");
   printf("\n");
@@ -304,7 +304,8 @@ static NBBOOL _handle_enc_renegotiate(session_t *session, packet_t *packet)
   session->encryptor = session->new_encryptor;
   session->new_encryptor = NULL;
 
-  encryptor_print(session->encryptor);
+  if(LOG_LEVEL_WARNING >= log_get_min_console_level())
+    encryptor_print(session->encryptor);
 
   return TRUE;
 }
@@ -445,8 +446,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
   NBBOOL send_right_away = FALSE;
 
   /* Suck in any data we can from the driver. */
-  /* TODO: I'm not 100% sure what this does, I should check it out. */
-  poll_for_data(session);
+  poll_driver_for_data(session);
 
   /* Make a copy of the data so we can mess around with it. */
   packet_bytes = safe_malloc(length);
@@ -467,7 +467,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
       return FALSE;
     }
 
-    /* TODO: Verify their nonce */
+    /* Decrypt the buffer. */
     encryptor_decrypt_buffer(session->encryptor, packet_buffer, NULL);
 
     /* Switch to the decrypted data. */
