@@ -1,3 +1,8 @@
+# 0.04
+
+* Added encryption, and made all connections encrypted by default
+* Some other minor UI or code cleanup changes
+
 # 0.03
 
 * Re-wrote large parts of the server into way cleaner code

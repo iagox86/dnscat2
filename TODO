@@ -1,4 +1,5 @@
 - Update user-facing docs
 - Add some UX to the 'windows' list saying the security level of each connection
   - Add the ability for the user to manually verify a connection (on the server)
+- Go through TODOs again
 
