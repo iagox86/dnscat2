@@ -192,14 +192,14 @@ class DriverDNS
         @window.puts("the client anywhere with the following (--secret is optional):")
         @window.puts()
         domains.each do |domain|
-          @window.puts("  ./dnscat2 --secret=#{Settings::GLOBAL.get('secret')} #{domain}")
+          @window.puts("  ./dnscat --secret=#{Settings::GLOBAL.get('secret')} #{domain}")
         end
         @window.puts("")
       end
 
       @window.puts("To talk directly to the server without a domain name, run:")
       @window.puts()
-      @window.puts("  ./dnscat2 --dns server=x.x.x.x,port=#{port} --secret=#{Settings::GLOBAL.get('secret')}")
+      @window.puts("  ./dnscat --dns server=x.x.x.x,port=#{port} --secret=#{Settings::GLOBAL.get('secret')}")
       @window.puts("")
       @window.puts("Of course, you have to figure out <server> yourself! Clients")
       @window.puts("will connect directly on UDP port #{port}.")
