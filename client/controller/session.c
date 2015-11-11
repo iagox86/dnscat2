@@ -261,19 +261,23 @@ static NBBOOL _handle_enc_before_init(session_t *session, packet_t *packet)
     exit(1);
   }
 
-  if(preshared_secret)
-    session->state = SESSION_STATE_BEFORE_AUTH;
-  else
-    session->state = SESSION_STATE_NEW;
-
   if(LOG_LEVEL_INFO >= log_get_min_console_level())
     encryptor_print(session->encryptor);
 
-  printf("\n");
-  printf("Encrypted session established! For added security, please verify the server also displays this string:\n");
-  printf("\n");
-  encryptor_print_sas(session->encryptor);
-  printf("\n");
+  if(preshared_secret)
+  {
+    session->state = SESSION_STATE_BEFORE_AUTH;
+  }
+  else
+  {
+    session->state = SESSION_STATE_NEW;
+
+    printf("\n");
+    printf("Encrypted session established! For added security, please verify the server also displays this string:\n");
+    printf("\n");
+    encryptor_print_sas(session->encryptor);
+    printf("\n");
+  }
 
   return TRUE;
 }
