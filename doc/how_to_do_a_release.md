@@ -50,30 +50,28 @@ Release versions on Linux can be compiled using:
 
     make release
 
-It even zips them for you! Releases on other platforms (like Windows)
-require some manual work at the moment. Please try to follow my naming
-scheme:
+Source distros can be packaged using:
 
-* dnscat2-v0.02beta-client-win32.zip
-* dnscat2-v0.02beta-client-x64.tar.bz2
-* dnscat2-v0.02beta-client-x86.tar.bz2
-* dnscat2-v0.02beta-client-source.tar.bz2
-* dnscat2-v0.02beta-client-source.zip
-* dnscat2-v0.02beta-server.tar.bz2
-* dnscat2-v0.02beta-server.zip
+    make source_release
 
-For binaries, the binaries in the archive should be simply "dnscat".
+It even zips them for you! They're put into the dist/ folder.
 
-For source, the full client or server directory should be named
-"dnscat2-client" or "dnscat2-server" and zipped:
+Releases on other platforms (like Windows) require some manual work at
+the moment. Please try to follow my naming scheme:
 
-    mv client dnscat2-client
-    tar -cvvjf dnscat2-v0.02beta-client-source.tar.bz2 dnscat2-client-source/
-    zip -r dnscat2-v0.02beta-client-source.zip dnscat2-client-source/
-    mv dnscat2-client client
+dnscat2-v0.04-client-source.tar.bz2
+dnscat2-v0.04-client-source.zip
+dnscat2-v0.04-client-win32.zip
+dnscat2-v0.04-client-x64.tar.bz2
+dnscat2-v0.04-client-x86.tar.bz2
+dnscat2-v0.04-server.tar.bz2
+dnscat2-v0.04-server.zip
 
-I don't provide a zip of the client and server source together because
-that's just what you get on github. :)
+For binaries, the binaries in the archive should be simply "dnscat" - no
+paths or anything like that.
+
+FWIW, I don't provide a zip of the client and server source together
+because that's exactly just what you get on github. :)
 
 ## Sign and upload the release files
 

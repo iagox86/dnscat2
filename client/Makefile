@@ -12,18 +12,6 @@ RELEASE_CFLAGS?=-Os
 CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security -g
 LIBS=-pie -Wl,-z,relro,-z,now
 
-# Can't use a '#' in the shell command
-VERSION=$(shell egrep '^.define VERSION' dnscat.c | head -n1 | cut -d\" -f2)
-
-OS=$(shell uname -s)
-ARCH=$(shell uname -p | sed 's/x86_64/x64/i' | sed 's/i.86/x86/i')
-
-ifeq ($(OS), Linux)
-  RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(ARCH)"
-else
-  RELEASE_FILENAME="dnscat2-$(VERSION)-client-$(OS)-$(ARCH)"
-endif
-
 OBJS=controller/packet.o \
 		 controller/session.o \
 		 controller/controller.o \
@@ -58,11 +46,7 @@ debug: dnscat
 	@echo "*** Debug build complete"
 
 release: CFLAGS += ${RELEASE_CFLAGS}
-release: clean dnscat
-	strip dnscat
-	tar -cjf ${RELEASE_FILENAME}.tar.bz2 dnscat
-	@echo "*** Release compiled: `pwd`/${RELEASE_FILENAME}"
-	@echo "*** By the way, did you update the version number in the server?"
+release: dnscat
 
 nocrypto: CFLAGS += -DNO_ENCRYPTION
 nocrypto: all
