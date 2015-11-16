@@ -42,7 +42,7 @@ require 'ipaddr'
 require 'socket'
 require 'timeout'
 
-require 'libs/vash'
+require '../server/libs/vash'
 
 class DNSer
   # Create a custom error message
