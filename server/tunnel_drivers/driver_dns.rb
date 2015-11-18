@@ -221,13 +221,13 @@ class DriverDNS
         # Determine the actual name, without the extra cruft
         name, domain = DriverDNS.figure_out_name(question.name, domains)
         if(name.nil?)
-          @window.puts("Skipping: name couldn't be determined")
+#          @window.puts("Skipping: name couldn't be determined")
           do_passthrough(transaction)
           next
         end
 
         if(name !~ /^[a-fA-F0-9.]*$/)
-          @window.puts("Skipping: name looks invalid")
+#          @window.puts("Skipping: name looks invalid")
           do_passthrough(transaction)
           next
         end
