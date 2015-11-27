@@ -10,9 +10,11 @@ require 'shellwords'
 
 require 'drivers/command_packet'
 require 'drivers/driver_command_commands'
+require 'drivers/driver_command_tunnels'
 
 class DriverCommand
   include DriverCommandCommands
+  include DriverCommandTunnels
 
   def request_id()
     id = @request_id
@@ -60,6 +62,7 @@ class DriverCommand
     @handlers = {}
 
     _register_commands()
+    _register_commands_tunnels()
 
     @window.on_input() do |data|
       # This replaces any $variables with 
