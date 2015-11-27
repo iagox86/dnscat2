@@ -8,8 +8,8 @@
 
 require 'shellwords'
 
+require 'drivers/command_packet'
 require 'drivers/driver_command_commands'
-require 'libs/command_packet'
 
 class DriverCommand
   include DriverCommandCommands

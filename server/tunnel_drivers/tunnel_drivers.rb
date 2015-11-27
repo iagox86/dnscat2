@@ -26,26 +26,24 @@ class TunnelDrivers
       end
       @@drivers[driver.id] = driver
     rescue Errno::EACCES => e
-      controller.window.with({:to_ancestors => true}) do
-        controller.window.puts("")
-        controller.window.puts("*** ERROR")
-        controller.window.puts("*")
-        controller.window.puts("* There was a problem creating the socket: #{e}")
-        controller.window.puts("*")
-        controller.window.puts("* If you're trying to run this on Linux, chances are you need to")
-        controller.window.puts("* run this as root, or give ruby permission to listen on port 53.")
-        controller.window.puts("*")
-        controller.window.puts("* Sadly, this is non-trivial; rvmsudo doesn't work, because it's")
-        controller.window.puts("* a shellscript and breaks ctrl-z; the best way is to use 'su' or")
-        controller.window.puts("* 'sudo', and to ensure that the appropriate gems are globally")
-        controller.window.puts("* installed.")
-        controller.window.puts("*")
-        controller.window.puts("* The process will run as usual, but if the 'windows' command doesn't")
-        controller.window.puts("* show any listeners, nobody will be able to connect to you!")
-        controller.window.puts("*")
-        controller.window.puts("*** ERROR")
-        controller.window.puts("")
-      end
+      puts("")
+      puts("*** ERROR")
+      puts("*")
+      puts("* There was a problem creating the socket: #{e}")
+      puts("*")
+      puts("* If you're trying to run this on Linux, chances are you need to")
+      puts("* run this as root, or give ruby permission to listen on port 53.")
+      puts("*")
+      puts("* Sadly, this is non-trivial; rvmsudo doesn't work, because it's")
+      puts("* a shellscript and breaks ctrl-z; the best way is to use 'su' or")
+      puts("* 'sudo', and to ensure that the appropriate gems are globally")
+      puts("* installed.")
+      puts("*")
+      puts("* The process will run as usual, but if the 'windows' command doesn't")
+      puts("* show any listeners, nobody will be able to connect to you!")
+      puts("*")
+      puts("*** ERROR")
+      puts("")
     end
   end
 

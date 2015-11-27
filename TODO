@@ -43,10 +43,16 @@ If both sides load tunnel_driver, then it just needs a simple protocol that work
 
 TUNNEL_CONNECT
 * Request:
-  * IP
+  * IP (NTString)
   * Port
 * Response:
-  * Status
+  * Tunnel ID
+
+TUNNEL_LISTEN
+* Request:
+  * IP (NTString)
+  * Port
+* Response:
   * Tunnel ID
 
 TUNNEL_CLOSE
