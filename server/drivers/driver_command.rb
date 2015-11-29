@@ -37,10 +37,12 @@ class DriverCommand
   end
 
   def _send_request(request)
-    @handlers[request.get(:request_id)] = {
-      :request => request,
-      :proc => proc
-    }
+    if(proc)
+      @handlers[request.get(:request_id)] = {
+        :request => request,
+        :proc => proc
+      }
+    end
 
     if(Settings::GLOBAL.get("packet_trace"))
       window = _get_pcap_window()
@@ -102,27 +104,27 @@ class DriverCommand
     end
 
     if(command_packet.get(:is_request))
-      @window.puts("ERROR: The client sent us a request! That's not valid (but")
-      @window.puts("it may be in the future, so this may be a version mismatch")
-      @window.puts("problem)")
+      if([CommandPacket::TUNNEL_DATA, CommandPacket::TUNNEL_CLOSE].include?(command_packet.get(:command_id)))
+        tunnel_data_incoming(command_packet)
+      else
+        @window.puts("ERROR: The client sent us an unexpected request!")
+      end
+    else
+      if(@handlers[command_packet.get(:request_id)].nil?)
+        @window.puts("Received a response that we have no record of sending:")
+        @window.puts("#{command_packet}")
+        @window.puts()
+        @window.puts("Here are the responses we're waiting for:")
+        @handlers.each_pair do |request_id, handler|
+          @window.puts("#{request_id}: #{handler[:request]}")
+        end
 
-      return
-    end
-
-    if(@handlers[command_packet.get(:request_id)].nil?)
-      @window.puts("Received a response that we have no record of sending:")
-      @window.puts("#{command_packet}")
-      @window.puts()
-      @window.puts("Here are the responses we're waiting for:")
-      @handlers.each_pair do |request_id, handler|
-        @window.puts("#{request_id}: #{handler[:request]}")
+        return
       end
 
-      return
+      handler = @handlers.delete(command_packet.get(:request_id))
+      handler[:proc].call(handler[:request], command_packet)
     end
-
-    handler = @handlers.delete(command_packet.get(:request_id))
-    handler[:proc].call(handler[:request], command_packet)
   end
 
   def feed(data)

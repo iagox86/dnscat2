@@ -25,6 +25,8 @@ class CommandPacket
   COMMAND_DOWNLOAD = 0x0003
   COMMAND_UPLOAD   = 0x0004
   COMMAND_SHUTDOWN = 0x0005
+  TUNNEL_CONNECT   = 0x1000
+  TUNNEL_DATA      = 0x1001
   COMMAND_ERROR    = 0xFFFF
 
   COMMAND_NAMES = {
@@ -34,6 +36,8 @@ class CommandPacket
     0x0003 => "COMMAND_DOWNLOAD",
     0x0004 => "COMMAND_UPLOAD",
     0x0005 => "COMMAND_SHUTDOWN",
+    0x1000 => "TUNNEL_CONNECT",
+    0x1001 => "TUNNEL_DATA",
     0xFFFF => "COMMAND_ERROR",
   }
 
@@ -62,6 +66,14 @@ class CommandPacket
     },
     COMMAND_SHUTDOWN => {
       :request  => [],
+      :response => [],
+    },
+    TUNNEL_CONNECT => {
+      :request  => [ :host, :port ],
+      :response => [ :tunnel_id ],
+    },
+    TUNNEL_DATA => {
+      :request  => [ :tunnel_id, :data ],
       :response => [],
     },
     COMMAND_ERROR => {
@@ -152,8 +164,21 @@ class CommandPacket
       else
         # n/a
       end
+
     when COMMAND_SHUTDOWN
       # n/a - there's no data in either direction
+
+    when TUNNEL_CONNECT
+      if(data[:is_request])
+        _null_terminated?(packet)
+        data[:host], packet = packet.unpack("Z*a*")
+
+        _at_least?(2)
+        data[:port], packet = packet.unpack("na*")
+      else
+        _at_least?(4)
+        data[:tunnel_id], packet = packet.unpack("Na*")
+      end
 
     when COMMAND_ERROR
       _at_least?(packet, 2)
@@ -245,8 +270,16 @@ class CommandPacket
       else
         # n/a
       end
+
     when COMMAND_SHUTDOWN
       # n/a - there's no data in either direction
+
+    when COMMAND_TUNNEL
+      if(@data[:is_request])
+        packet += [@data[:host], @data[:port]].pack("Z*n")
+      else
+        packet += [@data[:tunnel_id], @data[:data]].pack("Na*")
+      end
 
     when COMMAND_ERROR
       packet += [@data[:status], @data[:reason]].pack("nZ*")

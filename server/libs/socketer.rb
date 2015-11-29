@@ -21,15 +21,15 @@ class Socketer
       @on_data    = callbacks[:on_data]
       @on_error   = callbacks[:on_error]
 
-      @thread = Thread.new() do |t|
-        #puts("Starting recv thread...")
+      # Do the 'new connection' callback
+      if(@on_connect)
+        @on_connect.call(self, client.peeraddr[2], client.peeraddr[1])
+      end
+    end
 
+    def ready!()
+      @thread = Thread.new() do
         begin
-          # Do the 'new connection' callback
-          if(@on_connect)
-            @on_connect.call(self, client.peeraddr[2], client.peeraddr[1])
-          end
-
           loop do
             data = @client.recv(BUFFER)
 
@@ -52,10 +52,15 @@ class Socketer
             @on_error.call(self, "Connection error: #{e}")
           end
         end
-
-        @client.close()
-        #puts("Done")
       end
+    end
+
+    def stop!()
+      if(@thread)
+        @thread.exit()
+      end
+
+      @client.close()
     end
 
     def send(data)
@@ -111,6 +116,7 @@ end
 #  :on_connect => Proc.new() do |session, host, port|
 #    puts("Connection: #{session}")
 #    session.send("Welcome!\n")
+#    session.ready!()
 #  end,
 #  :on_data => Proc.new() do |session, data|
 #    puts("Data: #{session}")
@@ -123,10 +129,14 @@ end
 #listener.join()
 
 #puts("Connecting...")
-#connector = Socketer.connect("www.javaop.com", 80, {
+#connector = Socketer.connect("localhost", 1234, {
 #  :on_connect => Proc.new() do |session, host, port|
 #    puts("Connected to #{host}:#{port}!")
 #    session.send("HEAD / HTTP/1.0\r\nHost: www.javaop.com\r\n\r\n")
+#    Thread.new() do
+#      sleep(6)
+#      session.ready!()
+#    end
 #  end,
 #  :on_data => Proc.new() do |session, data|
 #    data.split(/\n/).each do |line|
@@ -138,4 +148,4 @@ end
 #  end
 #})
 
-sleep(1000)
+#sleep(1000)
