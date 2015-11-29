@@ -27,6 +27,7 @@ class CommandPacket
   COMMAND_SHUTDOWN = 0x0005
   TUNNEL_CONNECT   = 0x1000
   TUNNEL_DATA      = 0x1001
+  TUNNEL_CLOSE     = 0x1002
   COMMAND_ERROR    = 0xFFFF
 
   COMMAND_NAMES = {
@@ -38,6 +39,7 @@ class CommandPacket
     0x0005 => "COMMAND_SHUTDOWN",
     0x1000 => "TUNNEL_CONNECT",
     0x1001 => "TUNNEL_DATA",
+    0x1002 => "TUNNEL_CLOSE",
     0xFFFF => "COMMAND_ERROR",
   }
 
@@ -74,6 +76,10 @@ class CommandPacket
     },
     TUNNEL_DATA => {
       :request  => [ :tunnel_id, :data ],
+      :response => [],
+    },
+    TUNNEL_CLOSE => {
+      :request  => [ :tunnel_id ],
       :response => [],
     },
     COMMAND_ERROR => {
@@ -180,6 +186,22 @@ class CommandPacket
         data[:tunnel_id], packet = packet.unpack("Na*")
       end
 
+    when TUNNEL_DATA
+      if(data[:is_request])
+        _at_least?(4)
+        data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
+      else
+        # n/a
+      end
+
+    when TUNNEL_CLOSE
+      if(data[:is_request])
+        _at_least?(4)
+        data[:tunnel_id], packet = packet.unpack("Na*")
+      else
+        # n/a
+      end
+
     when COMMAND_ERROR
       _at_least?(packet, 2)
       data[:status], packet = packet.unpack("na*")
@@ -274,11 +296,25 @@ class CommandPacket
     when COMMAND_SHUTDOWN
       # n/a - there's no data in either direction
 
-    when COMMAND_TUNNEL
+    when TUNNEL_CONNECT
       if(@data[:is_request])
         packet += [@data[:host], @data[:port]].pack("Z*n")
       else
         packet += [@data[:tunnel_id], @data[:data]].pack("Na*")
+      end
+
+    when TUNNEL_DATA
+      if(@data[:is_request])
+        packet += [@data[:tunnel_id], @data[:data]].pack("Na*")
+      else
+        # n/a
+      end
+
+    when TUNNEL_CLOSE
+      if(@data[:is_request])
+        packet += [@data[:tunnel_id]].pack("N")
+      else
+        # n/a
       end
 
     when COMMAND_ERROR
