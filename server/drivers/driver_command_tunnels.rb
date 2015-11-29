@@ -35,6 +35,9 @@ module DriverCommandTunnels
           # TODO: Raise
           return
         end
+        remote_port = remote_port.to_i()
+
+        @window.puts("Listening on #{local_host}:#{local_port}, sending connections to #{remote_host}:#{remote_port}")
 
         Socketer.listen(local_host, local_port, {
           :on_connect => Proc.new() do |session, host, port|

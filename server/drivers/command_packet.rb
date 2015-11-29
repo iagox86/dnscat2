@@ -179,16 +179,16 @@ class CommandPacket
         _null_terminated?(packet)
         data[:host], packet = packet.unpack("Z*a*")
 
-        _at_least?(2)
+        _at_least?(packet, 2)
         data[:port], packet = packet.unpack("na*")
       else
-        _at_least?(4)
+        _at_least?(packet, 4)
         data[:tunnel_id], packet = packet.unpack("Na*")
       end
 
     when TUNNEL_DATA
       if(data[:is_request])
-        _at_least?(4)
+        _at_least?(packet, 4)
         data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
       else
         # n/a
@@ -196,7 +196,7 @@ class CommandPacket
 
     when TUNNEL_CLOSE
       if(data[:is_request])
-        _at_least?(4)
+        _at_least?(packet, 4)
         data[:tunnel_id], packet = packet.unpack("Na*")
       else
         # n/a
@@ -298,6 +298,8 @@ class CommandPacket
 
     when TUNNEL_CONNECT
       if(@data[:is_request])
+        puts("Host: #{@data[:host]} #{@data[:host].class}")
+        puts("Port: #{@data[:port]} #{@data[:port].class}")
         packet += [@data[:host], @data[:port]].pack("Z*n")
       else
         packet += [@data[:tunnel_id], @data[:data]].pack("Na*")

@@ -36,11 +36,11 @@ class DriverCommand
     })
   end
 
-  def _send_request(request)
-    if(proc)
+  def _send_request(request, callback = nil)
+    if(callback)
       @handlers[request.get(:request_id)] = {
         :request => request,
-        :proc => proc
+        :proc => callback
       }
     end
 

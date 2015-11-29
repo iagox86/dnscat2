@@ -55,7 +55,7 @@ module DriverCommandCommands
           :data       => (0...opts[:length]).map { ('A'.ord + rand(26)).chr }.join()
         })
 
-        _send_request(ping) do |request, response|
+        _send_request(ping, Proc.new() do |request, response|
           if(request.get(:data) != response.get(:data))
             @window.puts("The server didn't return the same ping data we sent!")
             @window.puts("Expected: #{request.get(:data)}")
@@ -63,7 +63,7 @@ module DriverCommandCommands
           else
             @window.puts("Pong!")
           end
-        end
+        end)
 
         @window.puts("Ping!")
       end,
@@ -93,9 +93,9 @@ module DriverCommandCommands
           :name       => opts[:name] || "shell"
         })
 
-        _send_request(shell) do |request, response|
+        _send_request(shell, Proc.new() do |request, response|
           @window.puts("Shell session created!")
-        end
+        end)
 
         @window.puts("Sent request to execute a shell")
       end,
@@ -127,9 +127,9 @@ module DriverCommandCommands
           :name => name,
         })
 
-        _send_request(exec) do |request, response|
+        _send_request(exec, Proc.new() do |request, response|
           @window.puts("Executed \"#{request.get(:command)}\"")
-        end
+        end)
 
         @window.puts("Sent request to execute \"#{command}\"")
       end,
@@ -171,12 +171,12 @@ module DriverCommandCommands
             :filename => remote_file,
           })
 
-          _send_request(download) do |request, response|
+          _send_request(download, Proc.new() do |request, response|
             File.open(local_file, "wb") do |f|
               f.write(response.get(:data))
               @window.puts("Wrote #{response.get(:data).length} bytes from #{request.get(:filename)} to #{local_file}!")
             end
-          end
+          end)
 
           @window.puts("Attempting to download #{remote_file} to #{local_file}")
         end
@@ -206,9 +206,9 @@ module DriverCommandCommands
             :data => data,
           })
 
-          _send_request(upload) do |request, response|
+          _send_request(upload, Proc.new() do |request, response|
             @window.puts("#{data.length} bytes uploaded from #{local_file} to #{remote_file}")
-          end
+          end)
 
           @window.puts("Attempting to upload #{local_file} to #{remote_file}")
         end
@@ -221,9 +221,9 @@ module DriverCommandCommands
       end,
 
       Proc.new do |opts, optarg|
-        _send_request(CommandPacket.create_shutdown_request(request_id())) do |request, response|
+        _send_request(CommandPacket.create_shutdown_request(request_id()), Proc.new() do |request, response|
           @window.puts("Shutdown response received")
-        end
+        end)
         @window.puts("Attempting to shut down remote session(s)...")
       end
     )
