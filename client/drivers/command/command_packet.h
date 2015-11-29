@@ -31,6 +31,10 @@ typedef enum
   COMMAND_UPLOAD    = 0x0004,
   COMMAND_SHUTDOWN  = 0x0005,
 
+  TUNNEL_CONNECT    = 0x1000,
+  TUNNEL_DATA       = 0x1001,
+  TUNNEL_CLOSE      = 0x1002,
+
   COMMAND_ERROR     = 0xFFFF,
 } command_packet_type_t;
 
@@ -51,6 +55,9 @@ typedef struct
         struct { char *filename; } download;
         struct { char *filename; uint8_t *data; uint32_t length; } upload;
         struct { int dummy; } shutdown;
+        struct { char *host; uint16_t port; } tunnel_connect;
+        struct { uint32_t tunnel_id; uint8_t *data; size_t length; } tunnel_data;
+        struct { uint32_t tunnel_id; } tunnel_close;
         struct { uint16_t status; char *reason; } error;
       } body;
     } request;
@@ -64,6 +71,9 @@ typedef struct
         struct { uint8_t *data; uint32_t length; } download;
         struct { int dummy; } upload;
         struct { int dummy; } shutdown;
+        struct { uint32_t tunnel_id; } tunnel_connect;
+        struct { int dummy; } tunnel_data;
+        struct { int dummy; } tunnel_close;
         struct { uint16_t status; char *reason; } error;
       } body;
     } response;
@@ -90,6 +100,13 @@ command_packet_t *command_packet_create_upload_request(uint16_t request_id, char
 command_packet_t *command_packet_create_upload_response(uint16_t request_id);
 
 command_packet_t *command_packet_create_shutdown_response(uint16_t request_id);
+
+command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, char *host, uint16_t port);
+command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint32_t tunnel_id);
+
+command_packet_t *command_packet_create_tunnel_data_request(uint16_t request_id, uint32_t tunnel_id, uint8_t *data, uint32_t length);
+
+command_packet_t *command_packet_create_tunnel_close_request(uint16_t request_id, uint32_t tunnel_id);
 
 command_packet_t *command_packet_create_error_request(uint16_t request_id, uint16_t status, char *reason);
 command_packet_t *command_packet_create_error_response(uint16_t request_id, uint16_t status, char *reason);
