@@ -23,11 +23,11 @@ Thread.abort_on_exception = true
 opts = Trollop::options do
   version(NAME + " " + VERSION)
 
-  opt :version, "Get the #{NAME} version",      :type => :boolean, :default => false
-  opt :host,    "The ip address to listen on",  :type => :string,  :default => "0.0.0.0"
-  opt :port,    "The port to listen on",        :type => :integer, :default => 53
-  opt :domain,  "The domain to check",          :type => :string,  :default => nil,      :required => true
-  opt :timeout, "The amount of time (seconds) to wait for a response", :type => :integer, :default => 5
+  opt :version, "Get the #{NAME} version",                             :type => :boolean, :default => false
+  opt :host,    "The ip address to listen on",                         :type => :string,  :default => "0.0.0.0"
+  opt :port,    "The port to listen on",                               :type => :integer, :default => 53
+  opt :domain,  "The domain to check",                                 :type => :string,  :default => nil,      :required => true
+  opt :timeout, "The amount of time (seconds) to wait for a response", :type => :integer, :default => 10
 end
 
 if(opts[:port] < 0 || opts[:port] > 65535)
@@ -58,8 +58,10 @@ dnser.on_request() do |transaction|
   end
 
   question = request.questions[0]
+  puts("Received: #{question}")
   if(question.type == DNSer::Packet::TYPE_A && question.name == domain)
     puts("You have the authoritative server!")
+    transaction.error!(DNSer::Packet::RCODE_NAME_ERROR)
     exit()
   else
     puts("Received a different request: #{question}")
@@ -69,7 +71,7 @@ dnser.on_request() do |transaction|
   transaction.error!(DNSer::Packet::RCODE_NAME_ERROR)
 end
 
-puts("Sending request for #{domain}!")
+puts("Sending: #{domain}!")
 DNSer.query(domain, { :type => DNSer::Packet::TYPE_A }) do |response|
   # Do nothing
 end
