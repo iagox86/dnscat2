@@ -1,3 +1,8 @@
+# 0.05
+
+* Added tools/dnstest.rb, a script to verify that the user actually own
+  the domain.
+
 # 0.04
 
 * Added encryption, and made all connections encrypted by default

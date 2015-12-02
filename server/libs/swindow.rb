@@ -281,9 +281,12 @@ class SWindow
     # Re-draw the history
     $stdout.puts(@history.join(""))
 
-    # Fill Readline's buffer with the typed history (this is a bit of a hack,
-    # but Readline doesn't support multiple history buffers)
-    Readline::HISTORY.clear()
+    # It appears that some versions of Readline don't support :clear, so only do this if we can
+    if(Readline::HISTORY.respond_to?(:clear))
+      # Fill Readline's buffer with the typed history (this is a bit of a hack,
+      # but Readline doesn't support multiple history buffers)
+      Readline::HISTORY.clear()
+    end
     @typed_history.each do |i|
       Readline::HISTORY << i
     end

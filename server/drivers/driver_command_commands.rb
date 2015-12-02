@@ -147,7 +147,7 @@ module DriverCommandCommands
 
     @commander.register_command("download",
       Trollop::Parser.new do
-        banner("Download a file off the remote host. Usage: download <from> [to]")
+        banner("Download a file from the other side. Usage: download <from> [to]")
       end,
 
       Proc.new do |opts, optarg|
@@ -185,7 +185,7 @@ module DriverCommandCommands
 
     @commander.register_command("upload",
       Trollop::Parser.new do
-        banner("Upload a file off the remote host. Usage: upload <from> <to>")
+        banner("Upload a file to the other side. Usage: upload <from> <to>")
       end,
 
       Proc.new do |opts, optarg|
