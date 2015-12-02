@@ -191,7 +191,9 @@ class CommandPacket
         _at_least?(packet, 4)
         data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
       else
-        # n/a
+        # TODO: I suspect I have to re-think how requests / responses are done
+        _at_least?(packet, 4)
+        data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
       end
 
     when TUNNEL_CLOSE

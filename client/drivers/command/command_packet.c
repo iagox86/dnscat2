@@ -508,7 +508,7 @@ void command_packet_print(command_packet_t *packet)
 }
 
 /* Needs to be freed with safe_free() */
-uint8_t *command_packet_to_bytes(command_packet_t *packet, uint32_t *length)
+uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
 {
   buffer_t *buffer = buffer_create(BO_BIG_ENDIAN);
   buffer_t *buffer_with_size = buffer_create(BO_BIG_ENDIAN);
@@ -626,5 +626,5 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, uint32_t *length)
   buffer_add_buffer(buffer_with_size, buffer);
   buffer_destroy(buffer);
 
-  return buffer_create_string_and_destroy(buffer_with_size, (size_t*)length);
+  return buffer_create_string_and_destroy(buffer_with_size, length);
 }

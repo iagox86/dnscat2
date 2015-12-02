@@ -101,6 +101,7 @@ module DriverCommandTunnels
   def tunnel_data_incoming(packet)
     tunnel_id = packet.get(:tunnel_id)
 
+    @window.puts("Got some incoming data!")
     case packet.get(:command_id)
     when CommandPacket::TUNNEL_DATA
       session = @sessions_by_tunnel[tunnel_id]
@@ -114,6 +115,7 @@ module DriverCommandTunnels
           :tunnel_id => tunnel_id,
         }))
       else
+        @window.puts("Sending #{packet.get(:data).length} bytes of data to a session")
         session.send(packet.get(:data))
       end
     when CommandPacket::TUNNEL_CLOSE

@@ -151,7 +151,8 @@ SELECT_RESPONSE_t tunnel_data_in(void *group, int s, uint8_t *data, size_t lengt
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
   uint8_t          *out_data = NULL;
-  uint32_t          out_length;
+  size_t            out_length;
+
 
   printf("Received data from the socket!\n");
 
@@ -187,6 +188,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   LOG_FATAL("Adding the tunnel to an array. THIS IS TERRIBLE. FIX BEFORE REMOVING THIS!");
   g_tunnels[tunnel->tunnel_id] = tunnel;
 
+  printf("tunnel = %p\n", tunnel);
   select_group_add_socket(driver->group, tunnel->s, SOCKET_TYPE_STREAM, tunnel);
   select_set_recv(driver->group, tunnel->s, tunnel_data_in);
 
@@ -288,7 +290,7 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
     if(out)
     {
       uint8_t *data;
-      uint32_t length;
+      size_t   length;
 
       printf("Response: ");
       command_packet_print(out);

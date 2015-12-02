@@ -119,6 +119,6 @@ void command_packet_destroy(command_packet_t *packet);
 void command_packet_print(command_packet_t *packet);
 
 /* Needs to be freed with safe_free() */
-uint8_t *command_packet_to_bytes(command_packet_t *packet, uint32_t *length);
+uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length);
 
 #endif
