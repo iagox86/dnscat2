@@ -78,6 +78,11 @@ static NBBOOL can_i_transmit_yet(session_t *session)
   return FALSE;
 }
 
+static void you_can_transmit_now(session_t *session)
+{
+  session->last_transmit = 0;
+}
+
 /* Polls the driver for data and puts it in our own buffer. This is necessary
  * because the session needs to ACK data and such. */
 static void poll_driver_for_data(session_t *session)
@@ -346,8 +351,12 @@ static NBBOOL _handle_syn_new(session_t *session, packet_t *packet)
   session->options   = (options_t) packet->body.syn.options;
 
   /* We can send a response right away */
-  session->last_transmit        = 0;
+  you_can_transmit_now(session);
+
+  /* We can reset the transmission counter. */
   session->missed_transmissions = 0;
+
+  /* Update the state. */
   session->state                = SESSION_STATE_ESTABLISHED;
 
   printf("Session established!\n");
@@ -380,7 +389,7 @@ static NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
          * right away. */
         if(transmit_instantly_on_data)
         {
-          session->last_transmit = 0;
+          you_can_transmit_now(session);
           session->missed_transmissions = 0;
           send_right_away = TRUE;
         }
@@ -402,6 +411,7 @@ static NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
       if(packet->body.msg.data_length > 0)
       {
         driver_data_received(session->driver, packet->body.msg.data, packet->body.msg.data_length);
+        you_can_transmit_now(session);
       }
     }
     else
@@ -420,7 +430,7 @@ static NBBOOL _handle_msg_established(session_t *session, packet_t *packet)
 static NBBOOL _handle_fin(session_t *session, packet_t *packet)
 {
   LOG_FATAL("Received FIN: (reason: '%s') - closing session", packet->body.fin.reason);
-  session->last_transmit = 0;
+  you_can_transmit_now(session);
   session->missed_transmissions = 0;
   session_kill(session);
 
