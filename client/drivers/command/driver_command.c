@@ -153,6 +153,8 @@ SELECT_RESPONSE_t tunnel_data_in(void *group, int s, uint8_t *data, size_t lengt
   uint8_t          *out_data = NULL;
   uint32_t          out_length;
 
+  printf("Received data from the socket!\n");
+
   out = command_packet_create_tunnel_data_request(g_request_id++, tunnel->tunnel_id, data, length);
   printf("Sending data across tunnel: ");
   command_packet_print(out);
@@ -202,6 +204,7 @@ static command_packet_t *handle_tunnel_data(driver_command_t *driver, command_pa
     LOG_ERROR("Couldn't find tunnel: %d", in->r.request.body.tunnel_data.tunnel_id);
     return NULL;
   }
+  printf("Received data to tunnel %d (%zd bytes)\n", in->r.request.body.tunnel_data.tunnel_id, in->r.request.body.tunnel_data.length);
   tcp_send(tunnel->s, in->r.request.body.tunnel_data.data, in->r.request.body.tunnel_data.length);
 
   return NULL;

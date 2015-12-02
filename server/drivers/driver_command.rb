@@ -36,7 +36,7 @@ class DriverCommand
     })
   end
 
-  def _send_request(request, callback = nil)
+  def _send_request(request, callback)
     if(callback)
       @handlers[request.get(:request_id)] = {
         :request => request,

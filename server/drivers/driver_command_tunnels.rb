@@ -32,6 +32,7 @@ module DriverCommandTunnels
 
         remote_host, remote_port = remote.split(/:/)
         if(remote_host == '' || remote_port == '')
+          @window.puts("Host or port missing!")
           # TODO: Raise
           return
         end
@@ -51,20 +52,20 @@ module DriverCommandTunnels
               :port       => remote_port,
             })
 
-            _send_request(packet) do |request, response|
+            _send_request(packet, Proc.new() do |request, response|
               @window.puts("Other side connected, stream #{response.get(:tunnel_id)}")
               @tunnels_by_session[session] = response.get(:tunnel_id)
               @sessions_by_tunnel[response.get(:tunnel_id)] = session
 
               # Tell the tunnel that we're ready to receive data
               session.ready!()
-            end
+            end)
           end,
 
           :on_data => Proc.new() do |session, data|
             tunnel_id = @tunnels_by_session[session]
 
-            @window.puts("Received data on the local socket! Sending to tunnel #{tunnel_id}...")
+            @window.puts("Received #{data.length} bytes on the local socket! Sending to tunnel #{tunnel_id}...")
 
             packet = CommandPacket.new({
               :is_request => true,
@@ -74,7 +75,7 @@ module DriverCommandTunnels
               :data => data,
             })
 
-            _send_request(packet)
+            _send_request(packet, nil)
           end,
           :on_error => Proc.new() do |session, msg|
             @window.puts("Error in listener tunnel: #{msg}")
