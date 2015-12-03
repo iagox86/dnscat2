@@ -610,30 +610,32 @@ Lastly, to kill a session, the `kill` command can be used:
 
 # History
 
-dnscat2 - the successor to dnscat, also written by me - is an attempt to
-right some of the wrongs that I committed while writing the original
-version of dnscat. The biggest problem being a total lack of testing or
-of forethought into the protocol.
+In the past, there were several DNS tunneling tools. One was called
+[dnscat](http://tadek.pietraszek.org/projects/DNScat/index.html), written by Tadek Pietraszek. The problem is, it's written in Java, and I really wanted something that could run basically everywhere.
 
-The original dnscat was heavily linked to the dns protocol. It tried to
-encode the various control fields - things like sequence number - into
-the DNS protocol directly.
+That version of dnscat was based on a tool called NSTX, whose page [no
+longer exists](http://freecode.com/projects/nstx/) and isn't even in the
+Wayback Machine, so I know nothing about it.
 
-dnscat2, on the other hand, treats everything as a stream of bytes, and
-uses logic to convert that stream of bytes into dns requests. Thus, it's
-a layered protocol, with DNS being a lower layer.
+Later, I wrote a C implementation and called it dnscat (without
+permission), since the previous Java version was unmaintained and I
+really liked the name (I toyed with calling it dnscat-ng, but -ng is a
+bit wordy for my taste). It worked, but there were a lot of problems.
+The client and server were the same tool, like netcat, which, because
+DNS is such a client/server model, didn't work out that well. The other
+problem was that I had linked it too much to the DNS protocol, so it
+could only run over DNS.
 
-I invented a protocol that I'm calling the dnscat protocol. You can find
-documentation about it in docs/protocol.md. It's a simple polling
-network protocol, where the client occasionally polls the server, and
-the server responds with a message (or an error code). The protocol is
-designed to be resilient to the various issues I had with dnscat1 - that
-is, it can handle out-of-order packets, dropped packets, and duplicated
-packets equally well.
+dnscat2 - the successor to dnscat - is an attempt to right some of the
+wrongs that I had committed.  dnscat2 has a separate server (Ruby) and
+client (C) and treats everything as a stream of bytes, and uses a
+driver, of sorts, to convert that stream of bytes into dns requests and
+back. Thus, it's a layered protocol, with DNS being a lower layer.
 
-Finally, one last change from the original dnscat is that I decided not
-to use the same program for both clients and servers. It turns out that
-dnscat servers are much more complex than clients, so it made sense to
-write the server in a higher level language (I chose Ruby), while still
-keeping the client (written in C) as functional/simple/portable as I
-possibly could.
+As a result, I invented a protocol that I'm calling the dnscat protocol.
+You can find documentation about it in docs/protocol.md. It's a simple
+polling network protocol, where the client occasionally polls the
+server, and the server responds with a message (or an error code). The
+protocol is designed to be resilient to the various issues I had with
+dnscat1 - that is, it can handle out-of-order packets, dropped packets,
+and duplicated packets equally well.
