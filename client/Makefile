@@ -28,6 +28,7 @@ OBJS=controller/packet.o \
 		 libs/crypto/salsa20.o \
 		 libs/crypto/sha3.o \
 		 libs/dns.o \
+		 libs/ll.o \
 		 libs/log.o \
 		 libs/memory.o \
 		 libs/select_group.o \
