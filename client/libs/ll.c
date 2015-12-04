@@ -5,14 +5,25 @@
  * (See LICENSE.md)
  */
 
-/*#include "libs/memory.h"*/
+#include "libs/memory.h"
+
+#if 0
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define safe_malloc malloc
+#define safe_free free
+#endif
 
 #include "ll.h"
 
-ll_t *ll_create()
+#define CMP(ll,a,b) ((ll->cmpfunc) ? (!ll->cmpfunc(a, b)) : (a == b))
+
+ll_t *ll_create(cmpfunc_t *cmpfunc)
 {
   ll_t *ll = (ll_t*) safe_malloc(sizeof(ll_t));
   ll->first = NULL;
+  ll->cmpfunc = cmpfunc;
 
   return ll;
 }
@@ -53,7 +64,7 @@ void *ll_remove(ll_t *ll, void *index)
 
   while(cur)
   {
-    if(cur->index == index)
+    if(CMP(ll, cur->index, index))
     {
       if(prev)
         prev->next = cur->next;
@@ -75,7 +86,7 @@ void *ll_find(ll_t *ll, void *index)
 
   while(cur)
   {
-    if(cur->index == index)
+    if(CMP(ll, cur->index, index))
       return cur->data;
     cur = (ll_element_t *)cur->next;
   }
@@ -99,10 +110,14 @@ void ll_destroy(ll_t *ll)
 }
 
 #if 0
-#include <stdio.h>
+int my_strcmp(const void *a, const void *b)
+{
+  return strcmp((const char*)a, (const char*)b);
+}
+
 int main(int argc, const char *argv[])
 {
-  ll_t *ll = ll_create();
+  ll_t *ll = ll_create(NULL);
 
   printf("\n");
   printf("nil: %p\n", ll_find(ll, (void*)0x123));
@@ -143,6 +158,50 @@ int main(int argc, const char *argv[])
   ll_remove(ll, (void*)0x456);
   ll_remove(ll, (void*)0x123);
   ll_remove(ll, (void*)0x789);
+  ll_destroy(ll);
+
+  /* --- */
+
+  ll = ll_create(my_strcmp);
+  printf("\n");
+  printf("nil: %p\n", ll_find(ll, (void*)0x123));
+
+  printf("\n");
+  ll_add(ll, "0x123", (void*)0x321);
+  printf("321: %p\n", ll_find(ll, "0x123"));
+  printf("nil: %p\n", ll_find(ll, "0x312"));
+
+  printf("\n");
+  ll_remove(ll, "0x123");
+  printf("nil: %p\n", ll_find(ll, "0x123"));
+
+  printf("\n");
+  ll_add(ll, "0x123", (void*)0x456);
+  ll_add(ll, "0x456", (void*)0x789);
+  printf("456: %p\n", ll_find(ll, "0x123"));
+  printf("789: %p\n", ll_find(ll, "0x456"));
+  ll_remove(ll, "0x123");
+  ll_remove(ll, "0x456");
+
+  printf("\n");
+  ll_add(ll, "0x123", (void*)0x456);
+  ll_add(ll, "0x456", (void*)0x789);
+  printf("456: %p\n", ll_find(ll, "0x123"));
+  printf("789: %p\n", ll_find(ll, "0x456"));
+  ll_remove(ll, "0x456");
+  ll_remove(ll, "0x123");
+
+  printf("\n");
+  ll_add(ll, "0x123", (void*)0x456);
+  ll_add(ll, "0x456", (void*)0x789);
+  ll_add(ll, "0x789", (void*)0xabc);
+  printf("456: %p\n", ll_find(ll,   "0x123"));
+  printf("789: %p\n", ll_find(ll,   "0x456"));
+  printf("abc: %p\n", ll_remove(ll, "0x789"));
+  printf("nil: %p\n", ll_remove(ll, "0x789"));
+  ll_remove(ll, "0x456");
+  ll_remove(ll, "0x123");
+  ll_remove(ll, "0x789");
 
   ll_destroy(ll);
 
