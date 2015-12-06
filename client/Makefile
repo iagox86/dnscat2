@@ -68,3 +68,9 @@ clean:
 dnscat: ${DNSCAT_DNS_OBJS}
 	${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
 	@echo "*** dnscat successfully compiled"
+
+COMMANDS=drivers/command/commands_standard.h \
+				 drivers/command/commands_tunnel.h
+
+drivers/command/driver_command.o: drivers/command/driver_command.c ${COMMANDS}
+	${CC} -c ${CFLAGS} -o drivers/command/driver_command.o drivers/command/driver_command.c
