@@ -1,3 +1,16 @@
+Bits and pieces:
+- Handle timeouts / closed ports when connecting
+- Manually close a tunnel on the server
+- Get a list of tunnels on the server
+- Fix up the UX to make it as nice as possible
+- Fix the serious memory leak (I don't think I'm freeing command packets in all situations)
+
+Before release
+- Update user-facing docs
+- Update protocol docs
+- Make sure it still compiles on Windows
+
+
 Server can forward ports like -L -R and -D from ssh
 
 local_forward - goes into the server and goes out the client (probably more common)

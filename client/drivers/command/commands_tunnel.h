@@ -106,8 +106,18 @@ static command_packet_t *handle_tunnel_data(driver_command_t *driver, command_pa
 
 static command_packet_t *handle_tunnel_close(driver_command_t *driver, command_packet_t *in)
 {
-  LOG_FATAL("The tunnel closed! We don't know what to do!!! Yet. :)");
-  exit(1);
+  tunnel_t *tunnel = (tunnel_t *)ll_remove(driver->tunnels, ll_32(in->r.request.body.tunnel_data.tunnel_id));
+
+  if(!tunnel)
+  {
+    LOG_WARNING("The server tried to close a tunnel that we don't know about: %d", in->r.request.body.tunnel_data.tunnel_id);
+    return NULL;
+  }
+
+  select_group_remove_socket(driver->group, tunnel->s);
+  tcp_close(tunnel->s);
+  LOG_WARNING("Closed tunnel %d", tunnel->tunnel_id);
+
   return NULL;
 }
 
