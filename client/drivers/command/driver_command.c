@@ -110,12 +110,13 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
       data = command_packet_to_bytes(out, &length);
       buffer_add_bytes(driver->outgoing_data, data, length);
       safe_free(data);
-      /*command_packet_destroy(out);*/
+      command_packet_destroy(out);
     }
     else
     {
       printf("Response: n/a\n");
     }
+    command_packet_destroy(in);
   }
 }
 

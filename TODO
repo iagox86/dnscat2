@@ -3,13 +3,12 @@ Bits and pieces:
 - Manually close a tunnel on the server
 - Get a list of tunnels on the server
 - Fix up the UX to make it as nice as possible
-- Fix the serious memory leak (I don't think I'm freeing command packets in all situations)
 
 Before release
 - Update user-facing docs
 - Update protocol docs
 - Make sure it still compiles on Windows
-
+- Check for memory leaks
 
 Server can forward ports like -L -R and -D from ssh
 
