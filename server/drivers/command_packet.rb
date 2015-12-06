@@ -130,7 +130,6 @@ class CommandPacket
     # Read and parse the packed_id (which is is_response + request_id)
     packed_id, packet = packet.unpack("na*")
     data[:is_request] = !((packed_id & 0x8000) == 0x8000)
-    puts("*** #{data[:is_request]}")
     data[:request_id] = packed_id & 0x7FFF
 
     # Unpack the command_id
