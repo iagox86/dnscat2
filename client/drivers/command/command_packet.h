@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 
+#include "libs/buffer.h"
 #include "libs/types.h"
 
 #ifdef WIN32
@@ -81,7 +82,7 @@ typedef struct
 } command_packet_t;
 
 /* Parse a packet from a byte stream. */
-command_packet_t *command_packet_parse(uint8_t *data, uint32_t length, NBBOOL is_request);
+command_packet_t *command_packet_read(buffer_t *buffer);
 
 /* Create a packet with the given characteristics. */
 command_packet_t *command_packet_create_ping_request(uint16_t request_id, char *data);

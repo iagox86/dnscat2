@@ -18,7 +18,6 @@ OBJS=controller/packet.o \
 		 drivers/driver.o \
 		 drivers/command/driver_command.o \
 		 drivers/command/command_packet.o \
-		 drivers/command/command_packet_stream.o \
 		 drivers/driver_console.o \
 		 drivers/driver_exec.o \
 		 drivers/driver_ping.o \

@@ -224,6 +224,7 @@ uint8_t *session_get_outgoing(session_t *session, size_t *packet_length, size_t 
     {
       printf("OUTGOING: ");
       packet_print(packet, session->options);
+      printf("\n");
     }
 
     packet_bytes = packet_to_bytes(packet, packet_length, session->options);
@@ -501,6 +502,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
   {
     printf("INCOMING: ");
     packet_print(packet, session->options);
+    printf("\n");
   }
 
   if(session->is_ping && packet->packet_type == PACKET_TYPE_PING)
@@ -546,6 +548,7 @@ NBBOOL session_data_incoming(session_t *session, uint8_t *data, size_t length)
     {
       LOG_FATAL("Received an illegal packet:");
       packet_print(packet, session->options);
+      printf("\n");
       exit(1);
     }
 

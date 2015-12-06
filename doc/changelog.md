@@ -2,6 +2,9 @@
 
 * Added tools/dnstest.rb, a script to verify that the user actually own
   the domain.
+* *BREAKING PROTOCL CHANGE*: Made a change to the command protocol: the
+  16-bit `request_id` field was changed into `packed_id`, which has a
+  1-bit `is_response` value and a 15-bit `request_id`.
 
 # 0.04
 

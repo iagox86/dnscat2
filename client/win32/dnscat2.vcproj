@@ -190,10 +190,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\drivers\command\command_packet_stream.c"
-				>
-			</File>
-			<File
 				RelativePath="..\controller\controller.c"
 				>
 			</File>
@@ -313,10 +309,6 @@
 			</File>
 			<File
 				RelativePath="..\drivers\command\command_packet.h"
-				>
-			</File>
-			<File
-				RelativePath="..\drivers\command\command_packet_stream.h"
 				>
 			</File>
 			<File

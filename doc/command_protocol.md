@@ -8,17 +8,17 @@ See LICENSE.md.
 
 # High-level
 
-When a client connects to a server, it can choose to use the comand protocol by setting OPT_COMMAND in the SYN packet. After that, all messages exchanged should use the command protocol. At some point, I might make that option default for dnscat2 clients, but for now it can be activated using --command. (Or will be, once I implement it).
+When a client connects to a server, it can choose to use the comand protocol by setting OPT_COMMAND in the SYN packet, which is the default when running the normal client.
 
-Dnscat2 command packets are used behind-the-scenes for dnscat2 servers and clients. It's not necessary to understand this protocol to use dnscat2, this is a reference for myself (and other hackers who might get involved).
+dnscat2 command packets are used behind-the-scenes for dnscat2 servers and clients. It's not necessary to understand this protocol to use dnscat2, this is a reference for myself (and other hackers who might get involved).
 
 Both the dnscat2 client and server can initiate a request, although it is expected that most (if not all) messages will be initiated by the server.
 
 Because dnscat2 already has a client and server component, it is confusing to refer to command-protocol actors as a client or a server, so refer to them as 'requester' and 'responder' in this document.
 
-A requester sends a dnscat2 command packet in one or more dnscat2 packets. Multiple requests can be sent, one after the other, without waiting for a response, but the requests can't be interleaves for obvious reasons.
+A requester sends a dnscat2 command packet in one or more dnscat2 packets. Multiple requests can be sent, one after the other, without waiting for a response, but the requests can't be interleaves for obvious reasons. Requests can be identified "on the wire" because the first bit of the `packed_id` field is 0; the first bit of resposnes is 1.
 
-The responder performs actions requested in the message, and responds, eventually, using the same request_id the requester used. Only one response should be sent for a given request. Unexpected responses should be ignored.
+The responder performs actions requested in the message, and responds, optionally, using the same request_id the requester used. No more than one response should be sent for a given request. Unexpected responses should be ignored.
 
 Errors are indicated in the status field, by setting the status to a non-zero value. Global errors (ie, errors that apply to every message type) start with a 1-bit (0x8000 - 0xFFFF). Errors without the first bit set are defined by the command itself.
 
@@ -29,11 +29,13 @@ There is no time limit on how long a response should take, nor is there a requir
 This is the structure of a dnscat2 command packet (note: all fields are network byte order / big endian / msb first):
 
 - (uint32_t) length (of the rest of the message)
-- (uint16_t) request_id
+- (uint16_t) packed_id
 - (uint16_t) command_id
 - (variable...) command fields
 
 The length field is the number of bytes coming in the rest of the packet. It is presumed that this will span one or more dnscat packets, so it's important that the client can save the chunks it's received.
+
+The `packed_id` field is actually two separate values: the first bit is `is_response`, and is set for responses. The remaining 15 bits are the `request_id`.
 
 The request_id field is echoed back by the client. If the initiator sends multiple concurrent requests, it can be used to determine which request this responds to. If concurrent requests aren't being used by the requester, this field can be safely ignored and set to 0. If using this field, good randomness isn't required; command_ids can be incremental, either per-dnscat2 session, or globally (although globally incremental leaks a tiny amount of information to clients, that's a very minor consideration).
 

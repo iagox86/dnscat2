@@ -123,18 +123,28 @@ class CommandPacket
     return (packet.length >= length)
   end
 
-  def CommandPacket.parse(packet, is_request)
+  def CommandPacket.parse(packet)
     _at_least?(packet, 4)
-    data = {
-      :is_request => is_request
-    }
+    data = {}
 
-    data[:request_id], data[:command_id], packet = packet.unpack("nna*")
+    # Read and parse the packed_id (which is is_response + request_id)
+    packed_id, packet = packet.unpack("na*")
+    data[:is_request] = !((packed_id & 0x8000) == 0x8000)
+    puts("*** #{data[:is_request]}")
+    data[:request_id] = packed_id & 0x7FFF
+
+    # Unpack the command_id
+    data[:command_id], packet = packet.unpack("na*")
 
     case data[:command_id]
     when COMMAND_PING
-      _null_terminated?(packet)
-      data[:data], packet = packet.unpack("Z*a*")
+      if(data[:is_request])
+        _null_terminated?(packet)
+        data[:data], packet = packet.unpack("Z*a*")
+      else
+        _null_terminated?(packet)
+        data[:data], packet = packet.unpack("Z*a*")
+      end
 
     when COMMAND_SHELL
       if(data[:is_request])
@@ -257,10 +267,15 @@ class CommandPacket
 
   # Convert to a byte string
   def serialize()
+    # Make sure the data is sane
     validate(@data)
 
-    packet = ""
-    packet += [@data[:request_id], @data[:command_id]].pack("nn")
+    # Generate the packed id
+    packed_id  = @data[:is_request] ? 0x0000 : 0x8000
+    packed_id |= @data[:request_id] & 0x7FFF
+
+    # Start building the packet
+    packet = [packed_id, @data[:command_id]].pack("nn")
 
     case @data[:command_id]
     when COMMAND_PING

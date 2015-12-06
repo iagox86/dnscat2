@@ -141,7 +141,7 @@ class DriverCommand
 
       # Otherwise, remove what we have from @data
       length, data, @incoming = @incoming.unpack("Na#{length}a*")
-      _handle_incoming(CommandPacket.parse(data, false))
+      _handle_incoming(CommandPacket.parse(data))
     end
 
     # Return the queue and clear it out

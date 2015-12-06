@@ -17,7 +17,6 @@
 #endif
 
 #include "command_packet.h"
-#include "command_packet_stream.h"
 #include "controller/session.h"
 #include "controller/controller.h"
 #include "drivers/driver_exec.h"
@@ -229,13 +228,12 @@ static command_packet_t *handle_error(driver_command_t *driver, command_packet_t
 
 void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_t length)
 {
-  command_packet_stream_feed(driver->stream, data, length);
+  buffer_add_bytes(driver->stream, data, length);
+  command_packet_t *in  = NULL;
+  command_packet_t *out = NULL;
 
-  while(command_packet_stream_ready(driver->stream))
+  while((in = command_packet_read(driver->stream)))
   {
-    command_packet_t *in = command_packet_stream_read(driver->stream);
-    command_packet_t *out = NULL;
-
     printf("Got a command: ");
     command_packet_print(in);
 
@@ -300,8 +298,10 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
       safe_free(data);
       /*command_packet_destroy(out);*/
     }
-
-    command_packet_destroy(in);
+    else
+    {
+      printf("Response: n/a\n");
+    }
   }
 }
 
@@ -318,7 +318,7 @@ driver_command_t *driver_command_create(select_group_t *group)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
-  driver->stream = command_packet_stream_create(TRUE);
+  driver->stream = buffer_create(BO_BIG_ENDIAN);
   driver->group = group;
   driver->is_shutdown = FALSE;
   driver->outgoing_data = buffer_create(BO_LITTLE_ENDIAN);
@@ -335,7 +335,7 @@ void driver_command_destroy(driver_command_t *driver)
     safe_free(driver->name);
 
   if(driver->stream)
-    command_packet_stream_destroy(driver->stream);
+    buffer_destroy(driver->stream);
   safe_free(driver);
 }
 
@@ -343,4 +343,3 @@ void driver_command_close(driver_command_t *driver)
 {
   driver->is_shutdown = TRUE;
 }
-
