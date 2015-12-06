@@ -77,11 +77,12 @@ module DriverCommandTunnels
 
             _send_request(packet, nil)
           end,
-          :on_error => Proc.new() do |session, msg|
-            @window.puts("Error in listener tunnel: #{msg}")
 
-            # Delete the tunnels, we're done with them
+          :on_error => Proc.new() do |session, msg, e|
+            # Delete the tunnel
             tunnel_id = @tunnels_by_session.delete(session)
+            @window.puts("Error in tunnel #{tunnel_id}: #{msg}")
+
             @sessions_by_tunnel.delete(tunnel_id)
 
             packet = CommandPacket.new({
@@ -91,7 +92,7 @@ module DriverCommandTunnels
               :tunnel_id => tunnel_id,
             })
 
-            _send_request(packet)
+            _send_request(packet, nil)
           end
         })
       end

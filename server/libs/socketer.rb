@@ -27,29 +27,34 @@ class Socketer
       end
     end
 
+    def _handle_exception(e, msg)
+      if(@on_error)
+        @on_error.call(self, "Error #{msg}: #{e}", e)
+      end
+      stop!()
+    end
+
     def ready!()
       @thread = Thread.new() do
         begin
           loop do
             data = @client.recv(BUFFER)
 
-            if(data.nil?)
-              if(@on_error)
-                @on_error.call(self, "Connection closed")
-              end
-
-              # Exit the loop
-              break
+            if(data.nil? || data.length == 0)
+              raise(IOError, "Connection closed")
             end
+
             if(@on_data)
               @on_data.call(self, data)
             end
           end
         rescue Exception => e
-          #puts(e)
-          #puts(e.backtrace)
-          if(@on_error)
-            @on_error.call(self, "Connection error: #{e}")
+          begin
+            _handle_exception(e, "receiving data")
+          rescue Exception => e
+            puts("Error in exception handler; please don't do that :)")
+            puts(e)
+            puts(e.backtrace)
           end
         end
       end
@@ -67,10 +72,9 @@ class Socketer
       begin
         @client.write(data)
       rescue Exception => e
-        if(@on_error)
-          @on_error.call(self, "Connection error: #{e}")
-        end
-        @thread.exit()
+        _handle_exception(e, "sending data")
+
+        stop!()
       end
     end
   end
@@ -102,9 +106,7 @@ class Socketer
           end
         end
       rescue Exception => e
-        if(callbacks[:on_error])
-          callbacks[:on_error].call(nil, "Error connecting to #{host}:#{port}: #{e}")
-        end
+        _handle_exception(e, "connecting to #{host}:#{port}")
       end
     end
   end
