@@ -106,7 +106,7 @@ module DriverCommandTunnels
     when CommandPacket::TUNNEL_DATA
       session = @sessions_by_tunnel[tunnel_id]
       if(session.nil?)
-        @window.puts("Got a packet for an unknown session! Sending a close signal.")
+        @window.puts("Got a packet for an unknown tunnel! Sending a close signal.")
 
         _send_request(CommandPacket.new({
           :is_request => true,
@@ -115,15 +115,21 @@ module DriverCommandTunnels
           :tunnel_id => tunnel_id,
         }))
       else
-        @window.puts("Sending #{packet.get(:data).length} bytes of data to a session")
+        @window.puts("Sending #{packet.get(:data).length} bytes of data to tunnel #{tunnel_id}")
         session.send(packet.get(:data))
       end
     when CommandPacket::TUNNEL_CLOSE
+      @window.puts("The client asked us to close a tunnel: #{tunnel_id}")
       # Delete the tunnels, we're done with them
       session = @sessions_by_tunnel.delete(tunnel_id)
+      if(session.nil?)
+        raise(DnscatException, "Client tried to close a tunnel that we didn't have open: #{tunnel_id}")
+      end
+
       @tunnels_by_session.delete(session)
+      session.stop!()
     else
-      @window.puts("Unknown command sent to tunnel_data_incoming: #{packet.get(:command_id)}")
+      raise(DnscatException, "Unknown command sent by the server: #{packet}")
     end
   end
 end

@@ -29,7 +29,6 @@
 #include "driver_command.h"
 
 static uint32_t g_tunnel_id = 0;
-static uint32_t g_request_id = 0;
 
 typedef struct
 {
@@ -37,6 +36,13 @@ typedef struct
   int               s;
   driver_command_t *driver;
 } tunnel_t;
+
+static uint32_t request_id()
+{
+  static uint32_t id = 0;
+
+  return id++;
+}
 
 static command_packet_t *handle_ping(driver_command_t *driver, command_packet_t *in)
 {
@@ -142,17 +148,16 @@ static command_packet_t *handle_shutdown(driver_command_t *driver, command_packe
   return command_packet_create_shutdown_response(in->request_id);
 }
 
-SELECT_RESPONSE_t tunnel_data_in(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
+static SELECT_RESPONSE_t tunnel_data_in(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
 {
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
   uint8_t          *out_data = NULL;
   size_t            out_length;
 
-
   printf("Received data from the socket!\n");
 
-  out = command_packet_create_tunnel_data_request(g_request_id++, tunnel->tunnel_id, data, length);
+  out = command_packet_create_tunnel_data_request(request_id(), tunnel->tunnel_id, data, length);
   printf("Sending data across tunnel: ");
   command_packet_print(out);
 
@@ -162,6 +167,27 @@ SELECT_RESPONSE_t tunnel_data_in(void *group, int s, uint8_t *data, size_t lengt
   command_packet_destroy(out);
 
   return SELECT_OK;
+}
+
+static SELECT_RESPONSE_t tunnel_data_closed(void *group, int s, void *param)
+{
+  tunnel_t         *tunnel   = (tunnel_t*) param;
+  command_packet_t *out      = NULL;
+  uint8_t          *out_data = NULL;
+  size_t            out_length;
+
+  printf("Socket was closed!\n");
+
+  out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id);
+  printf("Sending close across tunnel: ");
+  command_packet_print(out);
+
+  out_data = command_packet_to_bytes(out, &out_length);
+  buffer_add_bytes(tunnel->driver->outgoing_data, out_data, out_length);
+  safe_free(out_data);
+  command_packet_destroy(out);
+
+  return SELECT_CLOSE_REMOVE;
 }
 
 static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command_packet_t *in)
@@ -187,6 +213,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   printf("tunnel = %p\n", tunnel);
   select_group_add_socket(driver->group, tunnel->s, SOCKET_TYPE_STREAM, tunnel);
   select_set_recv(driver->group, tunnel->s, tunnel_data_in);
+  select_set_closed(driver->group, tunnel->s, tunnel_data_closed);
 
   out = command_packet_create_tunnel_connect_response(in->request_id, tunnel->tunnel_id);
 

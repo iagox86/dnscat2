@@ -104,15 +104,7 @@ class DriverCommand
     end
 
     if(command_packet.get(:is_request))
-      if([CommandPacket::TUNNEL_DATA, CommandPacket::TUNNEL_CLOSE].include?(command_packet.get(:command_id)))
-        tunnel_data_incoming(command_packet)
-      else
-        @window.puts("Received an illegal request (the server can only")
-        @window.puts("handle a few types of requests):")
-        @window.puts()
-        @window.puts("#{command_packet}")
-        @window.puts()
-      end
+      tunnel_data_incoming(command_packet)
     else
       handler = @handlers.delete(command_packet.get(:request_id))
       if(handler.nil?)
