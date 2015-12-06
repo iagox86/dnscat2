@@ -9,6 +9,7 @@
 #define __DRIVER_command_H__
 
 #include "command_packet.h"
+#include "libs/ll.h"
 #include "libs/select_group.h"
 #include "libs/types.h"
 
@@ -20,6 +21,7 @@ typedef struct
   select_group_t *group;
   buffer_t       *outgoing_data;
   NBBOOL          is_shutdown;
+  ll_t           *tunnels;
 } driver_command_t;
 
 driver_command_t *driver_command_create(select_group_t *group);

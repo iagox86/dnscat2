@@ -31,15 +31,12 @@
 static uint32_t g_tunnel_id = 0;
 static uint32_t g_request_id = 0;
 
-/* TODO: This is an UGLY way of doing this! Gotta fix it once this works. */
 typedef struct
 {
   uint32_t          tunnel_id;
   int               s;
   driver_command_t *driver;
 } tunnel_t;
-
-static tunnel_t *g_tunnels[65536];
 
 static command_packet_t *handle_ping(driver_command_t *driver, command_packet_t *in)
 {
@@ -185,7 +182,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
 
   /* TODO: This global tunnels thing is ugly. */
   LOG_FATAL("Adding the tunnel to an array. THIS IS TERRIBLE. FIX BEFORE REMOVING THIS!");
-  g_tunnels[tunnel->tunnel_id] = tunnel;
+  ll_add(driver->tunnels, ll_32(tunnel->tunnel_id), tunnel);
 
   printf("tunnel = %p\n", tunnel);
   select_group_add_socket(driver->group, tunnel->s, SOCKET_TYPE_STREAM, tunnel);
@@ -199,7 +196,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
 static command_packet_t *handle_tunnel_data(driver_command_t *driver, command_packet_t *in)
 {
   /* TODO: Find socket by tunnel_id */
-  tunnel_t *tunnel = g_tunnels[in->r.request.body.tunnel_data.tunnel_id];
+  tunnel_t *tunnel = (tunnel_t *)ll_find(driver->tunnels, ll_32(in->r.request.body.tunnel_data.tunnel_id));
   if(!tunnel)
   {
     LOG_ERROR("Couldn't find tunnel: %d", in->r.request.body.tunnel_data.tunnel_id);
@@ -213,6 +210,8 @@ static command_packet_t *handle_tunnel_data(driver_command_t *driver, command_pa
 
 static command_packet_t *handle_tunnel_close(driver_command_t *driver, command_packet_t *in)
 {
+  LOG_FATAL("The tunnel closed! We don't know what to do!!! Yet. :)");
+  exit(1);
   return NULL;
 }
 
@@ -318,10 +317,11 @@ driver_command_t *driver_command_create(select_group_t *group)
 {
   driver_command_t *driver = (driver_command_t*) safe_malloc(sizeof(driver_command_t));
 
-  driver->stream = buffer_create(BO_BIG_ENDIAN);
-  driver->group = group;
-  driver->is_shutdown = FALSE;
+  driver->stream        = buffer_create(BO_BIG_ENDIAN);
+  driver->group         = group;
+  driver->is_shutdown   = FALSE;
   driver->outgoing_data = buffer_create(BO_LITTLE_ENDIAN);
+  driver->tunnels       = ll_create(NULL);
 
   return driver;
 }

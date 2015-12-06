@@ -5,10 +5,11 @@
  * (See LICENSE.md)
  */
 
-#if 0
-#include "libs/memory.h"
-#endif
+#include <stdio.h>
 
+#include "libs/memory.h"
+
+#if 0
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 #define safe_free free
 #define FALSE 0
 #define TRUE 1
+#endif
 
 #include "ll.h"
 
@@ -82,6 +84,9 @@ static int compare(ll_t *ll, ll_index_t a, ll_index_t b)
       else
         return a.value.ptr == a.value.ptr;
   }
+
+  printf("We forgot to handle a linked-list type!\n");
+  exit(1);
 }
 
 void *ll_remove(ll_t *ll, ll_index_t index)
@@ -181,6 +186,7 @@ ll_index_t ll_ptr(void *value)
   return index;
 }
 
+#if 0
 int my_strcmp(const void *a, const void *b)
 {
   return strcmp((const char*)a, (const char*)b);
@@ -232,3 +238,4 @@ int main(int argc, const char *argv[])
 
   return 0;
 }
+#endif

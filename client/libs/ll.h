@@ -10,8 +10,6 @@
 #ifndef __LL_H__
 #define __LL_H__
 
-#include <stdint.h>
-
 typedef int(cmpfunc_t)(const void *, const void *);
 
 typedef enum
