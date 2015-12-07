@@ -76,8 +76,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   tunnel->s         = tcp_connect(in->r.request.body.tunnel_connect.host, in->r.request.body.tunnel_connect.port);
   tunnel->driver    = driver;
 
-  /* TODO: This global tunnels thing is ugly. */
-  LOG_FATAL("Adding the tunnel to an array. THIS IS TERRIBLE. FIX BEFORE REMOVING THIS!");
+  /* Add the driver to the global list. */
   ll_add(driver->tunnels, ll_32(tunnel->tunnel_id), tunnel);
 
   printf("tunnel = %p\n", tunnel);
@@ -85,7 +84,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   select_set_recv(driver->group, tunnel->s, tunnel_data_in);
   select_set_closed(driver->group, tunnel->s, tunnel_data_closed);
 
-  out = command_packet_create_tunnel_connect_response(in->request_id, tunnel->tunnel_id);
+  out = command_packet_create_tunnel_connect_response(in->request_id, TUNNEL_STATUS_OK, tunnel->tunnel_id);
 
   return out;
 }

@@ -39,6 +39,13 @@ typedef enum
   COMMAND_ERROR     = 0xFFFF,
 } command_packet_type_t;
 
+typedef enum
+{
+  TUNNEL_STATUS_OK      = 0x0000,
+  TUNNEL_STATUS_REFUSED = 0x0001,
+  TUNNEL_STATUS_TIMEOUT = 0x0002,
+} tunnel_status_t;
+
 typedef struct
 {
   uint16_t request_id;
@@ -56,7 +63,7 @@ typedef struct
         struct { char *filename; } download;
         struct { char *filename; uint8_t *data; uint32_t length; } upload;
         struct { int dummy; } shutdown;
-        struct { char *host; uint16_t port; } tunnel_connect;
+        struct { uint32_t options; char *host; uint16_t port; } tunnel_connect;
         struct { uint32_t tunnel_id; uint8_t *data; size_t length; } tunnel_data;
         struct { uint32_t tunnel_id; } tunnel_close;
         struct { uint16_t status; char *reason; } error;
@@ -72,7 +79,7 @@ typedef struct
         struct { uint8_t *data; uint32_t length; } download;
         struct { int dummy; } upload;
         struct { int dummy; } shutdown;
-        struct { uint32_t tunnel_id; } tunnel_connect;
+        struct { uint16_t status; uint32_t tunnel_id; } tunnel_connect;
         struct { int dummy; } tunnel_data;
         struct { int dummy; } tunnel_close;
         struct { uint16_t status; char *reason; } error;
@@ -102,8 +109,8 @@ command_packet_t *command_packet_create_upload_response(uint16_t request_id);
 
 command_packet_t *command_packet_create_shutdown_response(uint16_t request_id);
 
-command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, char *host, uint16_t port);
-command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint32_t tunnel_id);
+command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, uint32_t options, char *host, uint16_t port);
+command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint16_t status, uint32_t tunnel_id);
 
 command_packet_t *command_packet_create_tunnel_data_request(uint16_t request_id, uint32_t tunnel_id, uint8_t *data, uint32_t length);
 
