@@ -45,16 +45,17 @@ static SELECT_RESPONSE_t tunnel_data_closed(void *group, int s, void *param)
   uint8_t          *out_data = NULL;
   size_t            out_length;
 
-  printf("Socket was closed!\n");
+  printf("Socket was closed on the server side of tunnel %d!\n", tunnel->tunnel_id);
 
+  /* Queue up a packet letting the server know the connection is gone. */
   out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id);
-  printf("Sending close across tunnel: ");
-  command_packet_print(out);
-
   out_data = command_packet_to_bytes(out, &out_length);
   buffer_add_bytes(tunnel->driver->outgoing_data, out_data, out_length);
   safe_free(out_data);
   command_packet_destroy(out);
+
+  /* Remove the tunnel from the linked list of tunnels. */
+  ll_remove(tunnel->driver->tunnels, ll_32(tunnel->tunnel_id));
 
   return SELECT_CLOSE_REMOVE;
 }
