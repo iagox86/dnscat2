@@ -116,6 +116,14 @@ class DriverCommand
           @window.puts("#{request_id}: #{the_handler[:request]}")
         end
 
+        if(handler.get(:command_id) != response.get(:command_id) && command_packet.get(:command_id) != CommandPacket::ERROR)
+          @window.puts("Received a response of a different packet type (that's really weird, please report if you can reproduce!")
+          @window.puts("#{command_packet}")
+          @window.puts()
+          @window.puts("The original packet was:")
+          @window.puts("#{handler}")
+        end
+
         return
       end
 
