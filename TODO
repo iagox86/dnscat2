@@ -3,6 +3,7 @@ Bits and pieces:
 - Manually close a tunnel on the server
 - Get a list of tunnels on the server
 - Fix up the UX to make it as nice as possible
+- When a client disconnects, free the socket
 
 Before release
 - Update user-facing docs

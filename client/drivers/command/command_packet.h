@@ -41,9 +41,7 @@ typedef enum
 
 typedef enum
 {
-  TUNNEL_STATUS_OK      = 0x0000,
-  TUNNEL_STATUS_REFUSED = 0x0001,
-  TUNNEL_STATUS_TIMEOUT = 0x0002,
+  TUNNEL_STATUS_FAIL = 0x8000,
 } tunnel_status_t;
 
 typedef struct
@@ -110,7 +108,7 @@ command_packet_t *command_packet_create_upload_response(uint16_t request_id);
 command_packet_t *command_packet_create_shutdown_response(uint16_t request_id);
 
 command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, uint32_t options, char *host, uint16_t port);
-command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint16_t status, uint32_t tunnel_id);
+command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint32_t tunnel_id);
 
 command_packet_t *command_packet_create_tunnel_data_request(uint16_t request_id, uint32_t tunnel_id, uint8_t *data, uint32_t length);
 

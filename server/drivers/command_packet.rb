@@ -43,9 +43,8 @@ class CommandPacket
     0xFFFF => "COMMAND_ERROR",
   }
 
-  TUNNEL_STATUS_OK      = 0x0000
-  TUNNEL_STATUS_REFUSED = 0x0001
-  TUNNEL_STATUS_TIMEOUT = 0x0002
+  STATUS_OK             = 0x0000
+  TUNNEL_STATUS_FAIL    = 0x8000
 
   # These are used in initialize() to make sure the caller is passing in the
   # right fields
@@ -76,7 +75,7 @@ class CommandPacket
     },
     TUNNEL_CONNECT => {
       :request  => [ :options, :host, :port ],
-      :response => [ :status, :tunnel_id ],
+      :response => [ :tunnel_id ],
     },
     TUNNEL_DATA => {
       :request  => [ :tunnel_id, :data ],
@@ -198,13 +197,8 @@ class CommandPacket
         _at_least?(packet, 2)
         data[:port], packet = packet.unpack("na*")
       else
-        _at_least?(packet, 2)
-        data[:status], packet = packet.unpack("na*")
-
-        if(data[:status] == TUNNEL_STATUS_OK)
-          _at_least?(packet, 4)
-          data[:tunnel_id], packet = packet.unpack("Na*")
-        end
+        _at_least?(packet, 4)
+        data[:tunnel_id], packet = packet.unpack("Na*")
       end
 
     when TUNNEL_DATA
@@ -327,10 +321,7 @@ class CommandPacket
       if(@data[:is_request])
         packet += [@data[:options], @data[:host], @data[:port]].pack("NZ*n")
       else
-        packet += [@data[:status]].pack("n")
-        if(@data[:status] == TUNNEL_STATUS_OK)
-          packet += [@data[:tunnel_id]].pack("N")
-        end
+        packet += [@data[:tunnel_id]].pack("N")
       end
 
     when TUNNEL_DATA
