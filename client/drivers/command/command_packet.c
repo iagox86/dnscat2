@@ -90,12 +90,15 @@ static command_packet_t *command_packet_parse(uint8_t *data, uint32_t length)
     case TUNNEL_CONNECT:
       if(p->is_request)
       {
-        p->r.request.body.tunnel_connect.host = buffer_alloc_next_ntstring(buffer);
-        p->r.request.body.tunnel_connect.port = buffer_read_next_int16(buffer);
+        p->r.request.body.tunnel_connect.options = buffer_read_next_int32(buffer);
+        p->r.request.body.tunnel_connect.host    = buffer_alloc_next_ntstring(buffer);
+        p->r.request.body.tunnel_connect.port    = buffer_read_next_int16(buffer);
       }
       else
       {
-        p->r.response.body.tunnel_connect.tunnel_id = buffer_read_next_int32(buffer);
+        p->r.response.body.tunnel_connect.status = buffer_read_next_int16(buffer);
+        if(p->r.response.body.tunnel_connect.status == TUNNEL_STATUS_OK)
+          p->r.response.body.tunnel_connect.tunnel_id = buffer_read_next_int32(buffer);
       }
       break;
 
@@ -298,20 +301,22 @@ command_packet_t *command_packet_create_shutdown_response(uint16_t request_id)
   return packet;
 }
 
-command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, char *host, uint16_t port)
+command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, uint32_t options, char *host, uint16_t port)
 {
   command_packet_t *packet = command_packet_create(request_id, TUNNEL_CONNECT, TRUE);
 
+  packet->r.request.body.tunnel_connect.options = options;
   packet->r.request.body.tunnel_connect.host = safe_strdup(host);
   packet->r.request.body.tunnel_connect.port = port;
 
   return packet;
 }
 
-command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint32_t tunnel_id)
+command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint16_t status, uint32_t tunnel_id)
 {
   command_packet_t *packet = command_packet_create(request_id, TUNNEL_CONNECT, FALSE);
 
+  packet->r.response.body.tunnel_connect.status    = status;
   packet->r.response.body.tunnel_connect.tunnel_id = tunnel_id;
 
   return packet;
@@ -519,7 +524,12 @@ void command_packet_print(command_packet_t *packet)
       if(packet->is_request)
         printf("TUNNEL_CONNECT [request] :: request_id 0x%04x :: host %s :: port %d\n", packet->request_id, packet->r.request.body.tunnel_connect.host, packet->r.request.body.tunnel_connect.port);
       else
-        printf("TUNNEL_CONNECT [response] :: request_id 0x%04x :: tunnel_id %d\n", packet->request_id, packet->r.response.body.tunnel_connect.tunnel_id);
+      {
+        if(packet->r.response.body.tunnel_connect.status == TUNNEL_STATUS_OK)
+          printf("TUNNEL_CONNECT [response] :: request_id 0x%04x :: tunnel_id %d\n", packet->request_id, packet->r.response.body.tunnel_connect.tunnel_id);
+        else
+          printf("TUNNEL_CONNECT [response - error] :: request_id 0x%04x :: status %d\n", packet->request_id, packet->r.response.body.tunnel_connect.status);
+      }
       break;
 
     case TUNNEL_DATA:
@@ -615,12 +625,15 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
     case TUNNEL_CONNECT:
       if(packet->is_request)
       {
+        buffer_add_int32(buffer, packet->r.request.body.tunnel_connect.options);
         buffer_add_ntstring(buffer, packet->r.request.body.tunnel_connect.host);
         buffer_add_int16(buffer, packet->r.request.body.tunnel_connect.port);
       }
       else
       {
-        buffer_add_int32(buffer, packet->r.response.body.tunnel_connect.tunnel_id);
+        buffer_add_int16(buffer, packet->r.response.body.tunnel_connect.status);
+        if(packet->r.response.body.tunnel_connect.status == TUNNEL_STATUS_OK)
+          buffer_add_int32(buffer, packet->r.response.body.tunnel_connect.tunnel_id);
       }
       break;
 

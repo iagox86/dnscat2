@@ -43,6 +43,10 @@ class CommandPacket
     0xFFFF => "COMMAND_ERROR",
   }
 
+  TUNNEL_STATUS_OK      = 0x0000
+  TUNNEL_STATUS_REFUSED = 0x0001
+  TUNNEL_STATUS_TIMEOUT = 0x0002
+
   # These are used in initialize() to make sure the caller is passing in the
   # right fields
   VALIDATORS = {
@@ -71,8 +75,8 @@ class CommandPacket
       :response => [],
     },
     TUNNEL_CONNECT => {
-      :request  => [ :host, :port ],
-      :response => [ :tunnel_id ],
+      :request  => [ :options, :host, :port ],
+      :response => [ :status, :tunnel_id ],
     },
     TUNNEL_DATA => {
       :request  => [ :tunnel_id, :data ],
@@ -185,14 +189,22 @@ class CommandPacket
 
     when TUNNEL_CONNECT
       if(data[:is_request])
+        _at_least?(packet, 4)
+        data[:options], packet = packet.unpack("Na*")
+
         _null_terminated?(packet)
         data[:host], packet = packet.unpack("Z*a*")
 
         _at_least?(packet, 2)
         data[:port], packet = packet.unpack("na*")
       else
-        _at_least?(packet, 4)
-        data[:tunnel_id], packet = packet.unpack("Na*")
+        _at_least?(packet, 2)
+        data[:status], packet = packet.unpack("na*")
+
+        if(data[:status] == TUNNEL_STATUS_OK)
+          _at_least?(packet, 4)
+          data[:tunnel_id], packet = packet.unpack("Na*")
+        end
       end
 
     when TUNNEL_DATA
@@ -200,7 +212,6 @@ class CommandPacket
         _at_least?(packet, 4)
         data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
       else
-        # TODO: I suspect I have to re-think how requests / responses are done
         _at_least?(packet, 4)
         data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
       end
@@ -314,11 +325,12 @@ class CommandPacket
 
     when TUNNEL_CONNECT
       if(@data[:is_request])
-        puts("Host: #{@data[:host]} #{@data[:host].class}")
-        puts("Port: #{@data[:port]} #{@data[:port].class}")
-        packet += [@data[:host], @data[:port]].pack("Z*n")
+        packet += [@data[:options], @data[:host], @data[:port]].pack("NZ*n")
       else
-        packet += [@data[:tunnel_id], @data[:data]].pack("Na*")
+        packet += [@data[:status]].pack("n")
+        if(@data[:status] == TUNNEL_STATUS_OK)
+          packet += [@data[:tunnel_id]].pack("N")
+        end
       end
 
     when TUNNEL_DATA
@@ -326,6 +338,7 @@ class CommandPacket
         packet += [@data[:tunnel_id], @data[:data]].pack("Na*")
       else
         # n/a
+        raise(DnscatException, "Trying to send a response to a TUNNEL_DATA request isn't proper!")
       end
 
     when TUNNEL_CLOSE
@@ -333,6 +346,7 @@ class CommandPacket
         packet += [@data[:tunnel_id]].pack("N")
       else
         # n/a
+        raise(DnscatException, "Trying to send a response to a TUNNEL_CLOSE request isn't proper!")
       end
 
     when COMMAND_ERROR

@@ -45,16 +45,17 @@ static SELECT_RESPONSE_t tunnel_data_closed(void *group, int s, void *param)
   uint8_t          *out_data = NULL;
   size_t            out_length;
 
-  printf("Socket was closed!\n");
+  printf("Socket was closed on the server side of tunnel %d!\n", tunnel->tunnel_id);
 
+  /* Queue up a packet letting the server know the connection is gone. */
   out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id);
-  printf("Sending close across tunnel: ");
-  command_packet_print(out);
-
   out_data = command_packet_to_bytes(out, &out_length);
   buffer_add_bytes(tunnel->driver->outgoing_data, out_data, out_length);
   safe_free(out_data);
   command_packet_destroy(out);
+
+  /* Remove the tunnel from the linked list of tunnels. */
+  ll_remove(tunnel->driver->tunnels, ll_32(tunnel->tunnel_id));
 
   return SELECT_CLOSE_REMOVE;
 }
@@ -75,8 +76,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   tunnel->s         = tcp_connect(in->r.request.body.tunnel_connect.host, in->r.request.body.tunnel_connect.port);
   tunnel->driver    = driver;
 
-  /* TODO: This global tunnels thing is ugly. */
-  LOG_FATAL("Adding the tunnel to an array. THIS IS TERRIBLE. FIX BEFORE REMOVING THIS!");
+  /* Add the driver to the global list. */
   ll_add(driver->tunnels, ll_32(tunnel->tunnel_id), tunnel);
 
   printf("tunnel = %p\n", tunnel);
@@ -84,7 +84,7 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   select_set_recv(driver->group, tunnel->s, tunnel_data_in);
   select_set_closed(driver->group, tunnel->s, tunnel_data_closed);
 
-  out = command_packet_create_tunnel_connect_response(in->request_id, tunnel->tunnel_id);
+  out = command_packet_create_tunnel_connect_response(in->request_id, TUNNEL_STATUS_OK, tunnel->tunnel_id);
 
   return out;
 }

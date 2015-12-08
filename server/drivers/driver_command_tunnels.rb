@@ -48,6 +48,7 @@ module DriverCommandTunnels
               :is_request => true,
               :request_id => request_id(),
               :command_id => CommandPacket::TUNNEL_CONNECT,
+              :options    => 0,
               :host       => remote_host,
               :port       => remote_port,
             })
