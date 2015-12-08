@@ -54,12 +54,17 @@ module DriverCommandTunnels
             })
 
             _send_request(packet, Proc.new() do |request, response|
-              @window.puts("Other side connected, stream #{response.get(:tunnel_id)}")
-              @tunnels_by_session[session] = response.get(:tunnel_id)
-              @sessions_by_tunnel[response.get(:tunnel_id)] = session
+              if(response.get(:command_id) == CommandPacket::COMMAND_ERROR)
+                @window.puts("Tunnel error: #{response.get(:reason)}")
+                session.stop!()
+              else
+                @window.puts("Other side connected, stream #{response.get(:tunnel_id)}")
+                @tunnels_by_session[session] = response.get(:tunnel_id)
+                @sessions_by_tunnel[response.get(:tunnel_id)] = session
 
-              # Tell the tunnel that we're ready to receive data
-              session.ready!()
+                # Tell the tunnel that we're ready to receive data
+                session.ready!()
+              end
             end)
           end,
 

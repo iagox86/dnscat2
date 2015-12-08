@@ -76,15 +76,22 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   tunnel->s         = tcp_connect(in->r.request.body.tunnel_connect.host, in->r.request.body.tunnel_connect.port);
   tunnel->driver    = driver;
 
-  /* Add the driver to the global list. */
-  ll_add(driver->tunnels, ll_32(tunnel->tunnel_id), tunnel);
+  if(tunnel->s == -1)
+  {
+    out = command_packet_create_error_response(in->request_id, TUNNEL_STATUS_FAIL, "The dnscat2 client couldn't connect to the remote host!");
+  }
+  else
+  {
+    /* Add the driver to the global list. */
+    ll_add(driver->tunnels, ll_32(tunnel->tunnel_id), tunnel);
 
-  printf("tunnel = %p\n", tunnel);
-  select_group_add_socket(driver->group, tunnel->s, SOCKET_TYPE_STREAM, tunnel);
-  select_set_recv(driver->group, tunnel->s, tunnel_data_in);
-  select_set_closed(driver->group, tunnel->s, tunnel_data_closed);
+    printf("tunnel = %p\n", tunnel);
+    select_group_add_socket(driver->group, tunnel->s, SOCKET_TYPE_STREAM, tunnel);
+    select_set_recv(driver->group, tunnel->s, tunnel_data_in);
+    select_set_closed(driver->group, tunnel->s, tunnel_data_closed);
 
-  out = command_packet_create_tunnel_connect_response(in->request_id, TUNNEL_STATUS_OK, tunnel->tunnel_id);
+    out = command_packet_create_tunnel_connect_response(in->request_id, tunnel->tunnel_id);
+  }
 
   return out;
 }
