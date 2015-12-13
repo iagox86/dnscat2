@@ -16,6 +16,8 @@ class DriverCommand
   include DriverCommandCommands
   include DriverCommandTunnels
 
+  @@mutex = Mutex.new()
+
   def request_id()
     id = @request_id
     @request_id += 1
@@ -37,21 +39,24 @@ class DriverCommand
   end
 
   def _send_request(request, callback)
-    if(callback)
-      @handlers[request.get(:request_id)] = {
-        :request => request,
-        :proc => callback
-      }
-    end
+    # Make sure this is synchronous so threads don't fight
+    @@mutex.synchronize() do
+      if(callback)
+        @handlers[request.get(:request_id)] = {
+          :request => request,
+          :proc => callback
+        }
+      end
 
-    if(Settings::GLOBAL.get("packet_trace"))
-      window = _get_pcap_window()
-      window.puts("OUT: #{request}")
-    end
+      if(Settings::GLOBAL.get("packet_trace"))
+        window = _get_pcap_window()
+        window.puts("OUT: #{request}")
+      end
 
-    out = request.serialize()
-    out = [out.length, out].pack("Na*")
-    @outgoing += out
+      out = request.serialize()
+      out = [out.length, out].pack("Na*")
+      @outgoing += out
+    end
   end
 
   def initialize(window, settings)
