@@ -120,7 +120,7 @@ module DriverCommandTunnels
           :request_id => request_id(),
           :command_id => CommandPacket::TUNNEL_CLOSE,
           :tunnel_id => tunnel_id,
-        }))
+        }), nil)
       else
         @window.puts("Sending #{packet.get(:data).length} bytes of data to tunnel #{tunnel_id}")
         session.send(packet.get(:data))
@@ -130,7 +130,8 @@ module DriverCommandTunnels
       # Delete the tunnels, we're done with them
       session = @sessions_by_tunnel.delete(tunnel_id)
       if(session.nil?)
-        raise(DnscatException, "Client tried to close a tunnel that we didn't have open: #{tunnel_id}")
+        @window.puts("WARNING: Client tried to close a tunnel that wasn't open (it may have just disconnected)")
+        return
       end
 
       @tunnels_by_session.delete(session)
