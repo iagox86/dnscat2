@@ -149,6 +149,8 @@ class Encryptor
 
     if(@keys[:their_authenticator] != their_authenticator)
       @@window.puts("Tried to set a bad authenticator")
+      @@window.puts("Expected: #{@keys[:their_authenticator].unpack("H*")}")
+      @@window.puts("Received: #{their_authenticator.unpack("H*")}")
       raise(Encryptor::Error, "Authenticator (pre-shared secret) doesn't match!")
     end
 
