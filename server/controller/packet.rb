@@ -384,9 +384,11 @@ class Packet
     return Packet.new(params[:packet_id], MESSAGE_TYPE_ENC, params[:session_id], EncBody.new(params))
   end
 
-  def to_s()
+  def to_s(with_hex = true)
     result = "[0x%04x] session = %04x :: %s\n" % [@packet_id, @session_id, @body.to_s]
-    result += Hex.to_s(to_bytes(), 2)
+    if(with_hex)
+      result += Hex.to_s(to_bytes(), 2)
+    end
     return result
   end
 
