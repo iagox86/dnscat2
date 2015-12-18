@@ -112,6 +112,16 @@ void *ll_remove(ll_t *ll, ll_index_t index)
   return NULL;
 }
 
+void *ll_remove_first(ll_t *ll)
+{
+  ll_element_t *first = ll->first;
+
+  if(first)
+    ll->first = (ll_element_t *)first->next;
+
+  return first->data;
+}
+
 void *ll_find(ll_t *ll, ll_index_t index)
 {
   ll_element_t *cur = ll->first;

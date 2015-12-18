@@ -22,11 +22,13 @@
 #include "controller/controller.h"
 #include "controller/session.h"
 #include "libs/buffer.h"
+#include "libs/ll.h"
 #include "libs/log.h"
 #include "libs/memory.h"
 #include "libs/select_group.h"
 #include "libs/udp.h"
 #include "tunnel_drivers/driver_dns.h"
+#include "tunnel_drivers/tunnel_driver.h"
 
 /* Default options */
 #define NAME    "dnscat2"
@@ -40,6 +42,70 @@
 select_group_t *group         = NULL;
 driver_dns_t   *tunnel_driver = NULL;
 char           *system_dns    = NULL;
+
+typedef struct
+{
+  char *process;
+} exec_options_t;
+
+typedef struct
+{
+  driver_type_t type;
+  union
+  {
+    exec_options_t exec;
+  } options;
+} make_driver_t;
+
+make_driver_t *make_console()
+{
+  make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
+  make_driver->type = DRIVER_TYPE_CONSOLE;
+
+  return make_driver;
+}
+
+make_driver_t *make_command()
+{
+  make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
+  make_driver->type = DRIVER_TYPE_COMMAND;
+
+  return make_driver;
+}
+
+make_driver_t *make_ping()
+{
+  make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
+  make_driver->type = DRIVER_TYPE_PING;
+
+  return make_driver;
+}
+
+make_driver_t *make_exec(char *process)
+{
+  make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
+  make_driver->type = DRIVER_TYPE_CONSOLE;
+  make_driver->options.exec.process = process;
+
+  return make_driver;
+}
+
+typedef struct
+{
+  char     *host;
+  uint16_t  port;
+  char     *server;
+  char     *domain;
+} dns_options_t;
+
+typedef struct
+{
+  tunnel_driver_type_t type;
+  union
+  {
+    dns_options_t dns_options;
+  };
+} make_tunnel_driver_t;
 
 static void cleanup(void)
 {
@@ -295,7 +361,8 @@ int main(int argc, char *argv[])
 
   NBBOOL            tunnel_driver_created = FALSE;
   NBBOOL            driver_created        = FALSE;
-
+  ll_t             *drivers_to_create     = ll_create(NULL);
+  uint32_t          driver_index          = 0;
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
@@ -369,31 +436,31 @@ int main(int argc, char *argv[])
         /* i/o drivers */
         else if(!strcmp(option_name, "console"))
         {
-          driver_created = TRUE;
+          ll_add(drivers_to_create, ll_32(driver_index++), make_console());
 
-          session = session_create_console(group, "console");
-          controller_add_session(session);
+/*          session = session_create_console(group, "console");
+          controller_add_session(session); */
         }
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
-          driver_created = TRUE;
+          ll_add(drivers_to_create, ll_32(driver_index++), make_exec(optarg));
 
-          session = session_create_exec(group, optarg, optarg);
-          controller_add_session(session);
+/*          session = session_create_exec(group, optarg, optarg);
+          controller_add_session(session); */
         }
         else if(!strcmp(option_name, "command"))
         {
-          driver_created = TRUE;
+          ll_add(drivers_to_create, ll_32(driver_index++), make_command());
 
-          session = session_create_command(group, "command");
-          controller_add_session(session);
+/*          session = session_create_command(group, "command");
+          controller_add_session(session); */
         }
         else if(!strcmp(option_name, "ping"))
         {
-          driver_created = TRUE;
+          ll_add(drivers_to_create, ll_32(driver_index++), make_ping());
 
-          session = session_create_ping(group, "ping");
-          controller_add_session(session);
+/*          session = session_create_ping(group, "ping");
+          controller_add_session(session); */
         }
 
         /* Listener options. */

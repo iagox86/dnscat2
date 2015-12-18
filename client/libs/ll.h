@@ -50,6 +50,7 @@ typedef struct
 ll_t *ll_create(cmpfunc_t *cmpfunc);
 void *ll_add(ll_t *ll,    ll_index_t index, void *data);
 void *ll_remove(ll_t *ll, ll_index_t index);
+void *ll_remove_first(ll_t *ll);
 void *ll_find(ll_t *ll,   ll_index_t index);
 void ll_destroy(ll_t *ll);
 
