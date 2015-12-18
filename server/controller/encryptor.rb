@@ -12,6 +12,7 @@ require 'salsa20'
 require 'securerandom'
 require 'sha3'
 
+require 'controller/crypto_helper'
 require 'controller/encryptor_sas'
 require 'libs/dnscat_exception'
 require 'libs/swindow'
@@ -37,41 +38,17 @@ class Encryptor
   class Error < StandardError
   end
 
-  def Encryptor.bignum_to_binary(bn, size=32)
-    if(!bn.is_a?(Bignum))
-      raise(ArgumentError, "Expected: Bignum; received: #{bn.class}")
-    end
-
-    return [bn.to_s(16).rjust(size*2, "\0")].pack("H*")
-  end
-
-  def Encryptor.bignum_to_text(bn, size=32)
-    if(!bn.is_a?(Bignum))
-      raise(ArgumentError, "Expected: Bignum; received: #{bn.class}")
-    end
-
-    return Encryptor.bignum_to_binary(bn, size).unpack("H*").pop()
-  end
-
-  def Encryptor.binary_to_bignum(binary)
-    if(!binary.is_a?(String))
-      raise(ArgumentError, "Expected: String; received: #{binary.class}")
-    end
-
-    return binary.unpack("H*").pop().to_i(16)
-  end
-
   def _create_key(key_name)
-    return SHA3::Digest::SHA256.digest(Encryptor.bignum_to_binary(@keys[:shared_secret]) + key_name)
+    return SHA3::Digest::SHA256.digest(CryptoHelper.bignum_to_binary(@keys[:shared_secret]) + key_name)
   end
 
   def _create_authenticator(name, preshared_secret)
     return SHA3::Digest::SHA256.digest(name +
-      Encryptor.bignum_to_binary(@keys[:shared_secret]) +
-      Encryptor.bignum_to_binary(@keys[:their_public_key].x) +
-      Encryptor.bignum_to_binary(@keys[:their_public_key].y) +
-      Encryptor.bignum_to_binary(@keys[:my_public_key].x) +
-      Encryptor.bignum_to_binary(@keys[:my_public_key].y) +
+      CryptoHelper.bignum_to_binary(@keys[:shared_secret]) +
+      CryptoHelper.bignum_to_binary(@keys[:their_public_key].x) +
+      CryptoHelper.bignum_to_binary(@keys[:their_public_key].y) +
+      CryptoHelper.bignum_to_binary(@keys[:my_public_key].x) +
+      CryptoHelper.bignum_to_binary(@keys[:my_public_key].y) +
       preshared_secret
     )
   end
@@ -135,8 +112,8 @@ class Encryptor
     @keys[:my_write_key]        = _create_key("server_write_key")
     @keys[:my_mac_key]          = _create_key("server_mac_key")
 
-    @@window.puts("Setting their public key: #{Encryptor.bignum_to_text(@keys[:their_public_key_x])} #{Encryptor.bignum_to_text(@keys[:their_public_key_y])}")
-    @@window.puts("Setting my public key: #{Encryptor.bignum_to_text(@keys[:my_public_key].x)} #{Encryptor.bignum_to_text(@keys[:my_public_key].y)}")
+    @@window.puts("Setting their public key: #{CryptoHelper.bignum_to_text(@keys[:their_public_key_x])} #{CryptoHelper.bignum_to_text(@keys[:their_public_key_y])}")
+    @@window.puts("Setting my public key: #{CryptoHelper.bignum_to_text(@keys[:my_public_key].x)} #{CryptoHelper.bignum_to_text(@keys[:my_public_key].y)}")
 
     return true
   end
@@ -162,12 +139,12 @@ class Encryptor
     keys = keys || @keys
 
     out = []
-    out << "My private key:       #{Encryptor.bignum_to_text(@keys[:my_private_key])}"
-    out << "My public key [x]:    #{Encryptor.bignum_to_text(@keys[:my_public_key].x)}"
-    out << "My public key [y]:    #{Encryptor.bignum_to_text(@keys[:my_public_key].y)}"
-    out << "Their public key [x]: #{Encryptor.bignum_to_text(@keys[:their_public_key].x)}"
-    out << "Their public key [y]: #{Encryptor.bignum_to_text(@keys[:their_public_key].y)}"
-    out << "Shared secret:        #{Encryptor.bignum_to_text(@keys[:shared_secret])}"
+    out << "My private key:       #{CryptoHelper.bignum_to_text(@keys[:my_private_key])}"
+    out << "My public key [x]:    #{CryptoHelper.bignum_to_text(@keys[:my_public_key].x)}"
+    out << "My public key [y]:    #{CryptoHelper.bignum_to_text(@keys[:my_public_key].y)}"
+    out << "Their public key [x]: #{CryptoHelper.bignum_to_text(@keys[:their_public_key].x)}"
+    out << "Their public key [y]: #{CryptoHelper.bignum_to_text(@keys[:their_public_key].y)}"
+    out << "Shared secret:        #{CryptoHelper.bignum_to_text(@keys[:shared_secret])}"
     out << ""
     out << "Their authenticator:  #{@keys[:their_authenticator].unpack("H*")}"
     out << "My authenticator:     #{@keys[:my_authenticator].unpack("H*")}"
@@ -187,7 +164,7 @@ class Encryptor
   end
 
   def my_public_key_x_s()
-    return Encryptor.bignum_to_binary(@keys[:my_public_key].x)
+    return CryptoHelper.bignum_to_binary(@keys[:my_public_key].x)
   end
 
   def my_public_key_y()
@@ -195,7 +172,7 @@ class Encryptor
   end
 
   def my_public_key_y_s()
-    return Encryptor.bignum_to_binary(@keys[:my_public_key].y)
+    return CryptoHelper.bignum_to_binary(@keys[:my_public_key].y)
   end
 
   def my_nonce()

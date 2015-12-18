@@ -6,3 +6,4 @@
 source 'https://rubygems.org'
 
 gem 'trollop' # parsing commandline options
+gem 'ruby-pcap' # for the parser

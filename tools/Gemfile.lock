@@ -1,10 +1,12 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    ruby-pcap (0.7.9)
     trollop (2.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  ruby-pcap
   trollop

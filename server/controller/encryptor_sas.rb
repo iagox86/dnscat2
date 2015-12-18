@@ -271,11 +271,11 @@ module EncryptorSAS
 
   def get_sas()
     return SHA3::Digest::SHA256.digest("authstring" +
-      Encryptor.bignum_to_binary(@keys[:shared_secret]) +
-      Encryptor.bignum_to_binary(@keys[:their_public_key].x) +
-      Encryptor.bignum_to_binary(@keys[:their_public_key].y) +
-      Encryptor.bignum_to_binary(@keys[:my_public_key].x) +
-      Encryptor.bignum_to_binary(@keys[:my_public_key].y)
+      CryptoHelper.bignum_to_binary(@keys[:shared_secret]) +
+      CryptoHelper.bignum_to_binary(@keys[:their_public_key].x) +
+      CryptoHelper.bignum_to_binary(@keys[:their_public_key].y) +
+      CryptoHelper.bignum_to_binary(@keys[:my_public_key].x) +
+      CryptoHelper.bignum_to_binary(@keys[:my_public_key].y)
     )[0,6].bytes().map() { |b| SAS_WORDLIST[b] }.join(' ')
   end
 end

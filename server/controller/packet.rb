@@ -8,7 +8,7 @@
 # Builds and parses dnscat2 packets.
 ##
 
-require 'controller/encryptor'
+require 'controller/crypto_helper'
 require 'libs/dnscat_exception'
 require 'libs/hex'
 
@@ -254,8 +254,8 @@ class Packet
 
         public_key_x, public_key_y, data = data.unpack("a32a32a*")
 
-        params[:public_key_x] = Encryptor.binary_to_bignum(public_key_x)
-        params[:public_key_y] = Encryptor.binary_to_bignum(public_key_y)
+        params[:public_key_x] = CryptoHelper.binary_to_bignum(public_key_x)
+        params[:public_key_y] = CryptoHelper.binary_to_bignum(public_key_y)
 
       elsif(subtype == SUBTYPE_AUTH)
         exactly?(data, 32) || raise(DnscatException, "ENC packet is too short!")
@@ -276,7 +276,7 @@ class Packet
 
     def to_s()
       if(@subtype == SUBTYPE_INIT)
-        return "[[ENC|INIT]] :: flags = 0x%04x, pubkey = %s,%s" % [@flags, Encryptor.bignum_to_text(@public_key_x), Encryptor.bignum_to_text(@public_key_y)]
+        return "[[ENC|INIT]] :: flags = 0x%04x, pubkey = %s,%s" % [@flags, CryptoHelper.bignum_to_text(@public_key_x), CryptoHelper.bignum_to_text(@public_key_y)]
       elsif(@subtype == SUBTYPE_AUTH)
         return "[[ENC|AUTH]] :: flags = 0x%04x, authenticator = %s" % [@flags, @authenticator.unpack("H*").pop()]
       else
@@ -286,8 +286,8 @@ class Packet
 
     def to_bytes()
       if(@subtype == SUBTYPE_INIT)
-        public_key_x = Encryptor.bignum_to_binary(@public_key_x)
-        public_key_y = Encryptor.bignum_to_binary(@public_key_y)
+        public_key_x = CryptoHelper.bignum_to_binary(@public_key_x)
+        public_key_y = CryptoHelper.bignum_to_binary(@public_key_y)
 
         return [@subtype, @flags, public_key_x, public_key_y].pack("nna32a32")
       elsif(@subtype == SUBTYPE_AUTH)
