@@ -160,6 +160,88 @@ class DriverDNS
     @shown_pt = true
   end
 
+  def DriverDNS.packet_to_bytes(question, domains)
+    # Determine the actual name, without the extra cruft
+    name, _ = DriverDNS.figure_out_name(question.name, domains)
+
+    if(name.nil?)
+      return nil
+    end
+
+    if(name !~ /^[a-fA-F0-9.]*$/)
+      return nil
+    end
+
+    # Get rid of periods in the incoming name
+    name = name.gsub(/\./, '')
+    name = [name].pack("H*")
+
+    return name
+  end
+
+  def DriverDNS.get_max_length(question, domains)
+    # Determine the actual name, without the extra cruft
+    name, domain = DriverDNS.figure_out_name(question.name, domains)
+
+    if(name.nil?)
+      return nil
+    end
+
+    type_info = RECORD_TYPES[question.type]
+    if(type_info.nil?)
+      raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
+    end
+
+    # Figure out the length of the domain based on the record type
+    if(type_info[:requires_domain])
+      if(domain.nil?)
+        domain_length = ("dnscat.").length
+      else
+        domain_length = domain.length + 1 # +1 for the dot
+      end
+    else
+      domain_length = 0
+    end
+
+    # Figure out the max length of data we can handle
+    if(type_info[:requires_hex])
+      max_length = (type_info[:max_length] / 2) - domain_length
+    else
+      max_length = (type_info[:max_length]) - domain_length
+    end
+
+    return max_length
+  end
+
+  def DriverDNS.do_encoding(question, domains, response)
+    # Determine the actual name, without the extra cruft
+    _, domain = DriverDNS.figure_out_name(question.name, domains)
+
+    type_info = RECORD_TYPES[question.type]
+    if(type_info.nil?)
+      raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
+    end
+
+    # Encode the response as needed
+    response = type_info[:encoder].call(response)
+
+    # Append domain, if needed
+    if(type_info[:requires_domain])
+      if(domain.nil?)
+        response = (response == "" ? "dnscat" : ("dnscat." + response))
+      else
+        response = (response == "" ? domain : (response + "." + domain))
+      end
+    end
+
+    # Do another length sanity check (with the *actual* max length, since everything is encoded now)
+    if(response.is_a?(String) && response.length > type_info[:max_length])
+      raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report.")
+    end
+
+    return response
+  end
+
   def initialize(parent_window, host, port, domains)
     if(domains.nil?)
       domains = []
@@ -218,45 +300,16 @@ class DriverDNS
         question = request.questions[0]
         @window.puts("Received:  #{question.name} (#{question.type_s})")
 
-        # Determine the actual name, without the extra cruft
-        name, domain = DriverDNS.figure_out_name(question.name, domains)
+        name = DriverDNS.packet_to_bytes(question, domains)
         if(name.nil?)
-#          @window.puts("Skipping: name couldn't be determined")
           do_passthrough(transaction)
           next
         end
 
-        if(name !~ /^[a-fA-F0-9.]*$/)
-#          @window.puts("Skipping: name looks invalid")
+        max_length = DriverDNS.get_max_length(question, domains)
+        if(max_length.nil?)
           do_passthrough(transaction)
           next
-        end
-
-        # Get rid of periods in the incoming name
-        name = name.gsub(/\./, '')
-        name = [name].pack("H*")
-
-        type_info = RECORD_TYPES[question.type]
-        if(type_info.nil?)
-          raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
-        end
-
-        # Figure out the length of the domain based on the record type
-        if(type_info[:requires_domain])
-          if(domain.nil?)
-            domain_length = ("dnscat.").length
-          else
-            domain_length = domain.length + 1 # +1 for the dot
-          end
-        else
-          domain_length = 0
-        end
-
-        # Figure out the max length of data we can handle
-        if(type_info[:requires_hex])
-          max_length = (type_info[:max_length] / 2) - domain_length
-        else
-          max_length = (type_info[:max_length]) - domain_length
         end
 
         # Get the response
@@ -266,22 +319,7 @@ class DriverDNS
           raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
         end
 
-        # Encode the response as needed
-        response = type_info[:encoder].call(response)
-
-        # Append domain, if needed
-        if(type_info[:requires_domain])
-          if(domain.nil?)
-            response = (response == "" ? "dnscat" : ("dnscat." + response))
-          else
-            response = (response == "" ? domain : (response + "." + domain))
-          end
-        end
-
-        # Do another length sanity check (with the *actual* max length, since everything is encoded now)
-        if(response.is_a?(String) && response.length > type_info[:max_length])
-          raise(DnscatException, "The handler returned too much data (after encoding)! This shouldn't happen, please report.")
-        end
+        response = DriverDNS.do_encoding(question, domains, response)
 
         # Log the response
         @window.puts("Sending:  #{response}")
