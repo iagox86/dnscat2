@@ -361,8 +361,16 @@ int main(int argc, char *argv[])
 
   NBBOOL            tunnel_driver_created = FALSE;
   NBBOOL            driver_created        = FALSE;
+<<<<<<< HEAD
   ll_t             *drivers_to_create     = ll_create(NULL);
   uint32_t          driver_index          = 0;
+=======
+
+  NBBOOL            create_console = FALSE;
+  NBBOOL            create_command = TRUE;
+  char             *create_exec    = NULL;
+  NBBOOL            create_ping    = FALSE;
+>>>>>>> master
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
@@ -463,6 +471,7 @@ int main(int argc, char *argv[])
           controller_add_session(session); */
         }
 
+#if 0
         /* Listener options. */
         else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
         {
@@ -472,6 +481,7 @@ int main(int argc, char *argv[])
 
           /*input_type = TYPE_LISTENER;*/
         }
+#endif
 
         /* Tunnel driver options */
         else if(!strcmp(option_name, "dns"))
@@ -514,6 +524,31 @@ int main(int argc, char *argv[])
         usage(argv[0], "Unrecognized argument");
         break;
     }
+  }
+
+
+  if(create_console)
+  {
+    controller_add_session(session_create_console(group, "console"));
+    driver_created = TRUE;
+  }
+
+  if(create_exec)
+  {
+    controller_add_session(session_create_exec(group, create_exec, create_exec));
+    driver_created = TRUE;
+  }
+
+  if(create_command)
+  {
+    controller_add_session(session_create_command(group, "command"));
+    driver_created = TRUE;
+  }
+
+  if(create_ping)
+  {
+    controller_add_session(session_create_ping(group, "ping"));
+    driver_created = TRUE;
   }
 
   if(tunnel_driver_created && argv[optind])
