@@ -8,9 +8,6 @@
  * the same way that driver.h is.
  */
 
-#include "driver_dns.h"
-#include "types.h"
-
 typedef enum
 {
   TUNNEL_DRIVER_DNS,

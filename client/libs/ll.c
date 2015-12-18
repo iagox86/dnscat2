@@ -119,7 +119,7 @@ void *ll_remove_first(ll_t *ll)
   if(first)
     ll->first = (ll_element_t *)first->next;
 
-  return first->data;
+  return first ? first->data : NULL;
 }
 
 void *ll_find(ll_t *ll, ll_index_t index)

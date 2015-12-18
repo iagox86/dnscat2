@@ -57,7 +57,7 @@ typedef struct
   } options;
 } make_driver_t;
 
-make_driver_t *make_console()
+static make_driver_t *make_console()
 {
   make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
   make_driver->type = DRIVER_TYPE_CONSOLE;
@@ -65,7 +65,7 @@ make_driver_t *make_console()
   return make_driver;
 }
 
-make_driver_t *make_command()
+static make_driver_t *make_command()
 {
   make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
   make_driver->type = DRIVER_TYPE_COMMAND;
@@ -73,7 +73,7 @@ make_driver_t *make_command()
   return make_driver;
 }
 
-make_driver_t *make_ping()
+static make_driver_t *make_ping()
 {
   make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
   make_driver->type = DRIVER_TYPE_PING;
@@ -81,13 +81,56 @@ make_driver_t *make_ping()
   return make_driver;
 }
 
-make_driver_t *make_exec(char *process)
+static make_driver_t *make_exec(char *process)
 {
   make_driver_t *make_driver = (make_driver_t*) safe_malloc(sizeof(make_driver_t));
-  make_driver->type = DRIVER_TYPE_CONSOLE;
+  make_driver->type = DRIVER_TYPE_EXEC;
   make_driver->options.exec.process = process;
 
   return make_driver;
+}
+
+static int create_drivers(ll_t *drivers)
+{
+  int num_created = 0;
+  make_driver_t *this_driver;
+
+  while((this_driver = ll_remove_first(drivers)))
+  {
+    num_created++;
+    switch(this_driver->type)
+    {
+      case DRIVER_TYPE_CONSOLE:
+        printf("Creating a console session!\n");
+        controller_add_session(session_create_console(group, "console"));
+        break;
+
+      case DRIVER_TYPE_EXEC:
+        printf("Creating a exec('%s') session!\n", this_driver->options.exec.process);
+        controller_add_session(session_create_exec(group, this_driver->options.exec.process, this_driver->options.exec.process));
+        break;
+
+      case DRIVER_TYPE_COMMAND:
+        printf("Creating a command session!\n");
+        controller_add_session(session_create_command(group, "command"));
+        break;
+
+      case DRIVER_TYPE_PING:
+        printf("Creating a ping session!\n");
+        controller_add_session(session_create_ping(group, "ping"));
+        break;
+    }
+    safe_free(this_driver);
+  }
+
+  /* Default to creating a command session. */
+  if(num_created == 0)
+  {
+    num_created++;
+    controller_add_session(session_create_command(group, "command"));
+  }
+
+  return num_created;
 }
 
 typedef struct
@@ -360,21 +403,10 @@ int main(int argc, char *argv[])
   const char       *option_name;
 
   NBBOOL            tunnel_driver_created = FALSE;
-  NBBOOL            driver_created        = FALSE;
-<<<<<<< HEAD
   ll_t             *drivers_to_create     = ll_create(NULL);
-  uint32_t          driver_index          = 0;
-=======
-
-  NBBOOL            create_console = FALSE;
-  NBBOOL            create_command = TRUE;
-  char             *create_exec    = NULL;
-  NBBOOL            create_ping    = FALSE;
->>>>>>> master
+  uint32_t          drivers_created       = 0;
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
-
-  session_t        *session = NULL;
 
   group = select_group_create();
   system_dns = dns_get_system();
@@ -444,44 +476,32 @@ int main(int argc, char *argv[])
         /* i/o drivers */
         else if(!strcmp(option_name, "console"))
         {
-          ll_add(drivers_to_create, ll_32(driver_index++), make_console());
+          ll_add(drivers_to_create, ll_32(drivers_created++), make_console());
 
 /*          session = session_create_console(group, "console");
           controller_add_session(session); */
         }
         else if(!strcmp(option_name, "exec") || !strcmp(option_name, "e"))
         {
-          ll_add(drivers_to_create, ll_32(driver_index++), make_exec(optarg));
+          ll_add(drivers_to_create, ll_32(drivers_created++), make_exec(optarg));
 
 /*          session = session_create_exec(group, optarg, optarg);
           controller_add_session(session); */
         }
         else if(!strcmp(option_name, "command"))
         {
-          ll_add(drivers_to_create, ll_32(driver_index++), make_command());
+          ll_add(drivers_to_create, ll_32(drivers_created++), make_command());
 
 /*          session = session_create_command(group, "command");
           controller_add_session(session); */
         }
         else if(!strcmp(option_name, "ping"))
         {
-          ll_add(drivers_to_create, ll_32(driver_index++), make_ping());
+          ll_add(drivers_to_create, ll_32(drivers_created++), make_ping());
 
 /*          session = session_create_ping(group, "ping");
           controller_add_session(session); */
         }
-
-#if 0
-        /* Listener options. */
-        else if(!strcmp(option_name, "listen") || !strcmp(option_name, "l"))
-        {
-          LOG_FATAL("--listen isn't implemented yet! :(\n");
-          exit(1);
-          /*listen_port = atoi(optarg);*/
-
-          /*input_type = TYPE_LISTENER;*/
-        }
-#endif
 
         /* Tunnel driver options */
         else if(!strcmp(option_name, "dns"))
@@ -526,30 +546,8 @@ int main(int argc, char *argv[])
     }
   }
 
-
-  if(create_console)
-  {
-    controller_add_session(session_create_console(group, "console"));
-    driver_created = TRUE;
-  }
-
-  if(create_exec)
-  {
-    controller_add_session(session_create_exec(group, create_exec, create_exec));
-    driver_created = TRUE;
-  }
-
-  if(create_command)
-  {
-    controller_add_session(session_create_command(group, "command"));
-    driver_created = TRUE;
-  }
-
-  if(create_ping)
-  {
-    controller_add_session(session_create_ping(group, "ping"));
-    driver_created = TRUE;
-  }
+  create_drivers(drivers_to_create);
+  ll_destroy(drivers_to_create);
 
   if(tunnel_driver_created && argv[optind])
   {
@@ -576,13 +574,6 @@ int main(int argc, char *argv[])
     {
       tunnel_driver = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
-  }
-
-  /* If no i/o was set, create a command session. */
-  if(!driver_created)
-  {
-    session = session_create_command(group, "command");
-    controller_add_session(session);
   }
 
   /* Be sure we clean up at exit. */
