@@ -105,12 +105,25 @@ class CommandPacket
     return (packet.length >= length)
   end
 
-  def CommandPacket.parse(packet, is_request)
+  def CommandPacket.parse(stream, is_request)
+    # Make sure there's enough room for a length field
+    if(stream.length < 4)
+      return nil, stream
+    end
+
+    # Read the length field, then check if the stream is long enough
+    length = stream.unpack("N").pop()
+    if(stream.length < length + 4)
+      return nil, stream
+    end
+
+    # Parse out the full packet
+    length, packet, new_stream = stream.unpack("Na#{length}a*")
+
     _at_least?(packet, 4)
     data = {
       :is_request => is_request
     }
-
     data[:request_id], data[:command_id], packet = packet.unpack("nna*")
 
     case data[:command_id]
@@ -165,7 +178,7 @@ class CommandPacket
 
     _done?(packet)
 
-    return CommandPacket.new(data)
+    return CommandPacket.new(data), new_stream
   end
 
   # Verifies that all required fields for the type are present.

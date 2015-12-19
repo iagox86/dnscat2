@@ -50,7 +50,7 @@ class DNSer
   end
 
   class Packet
-    attr_accessor :trn_id, :opcode, :flags, :rcode, :questions, :answers
+    attr_accessor :trn_id, :opcode, :qr, :flags, :rcode, :questions, :answers
 
     # Request / response
     QR_QUERY    = 0x0000

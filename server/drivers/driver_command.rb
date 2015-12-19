@@ -125,21 +125,12 @@ class DriverCommand
   def feed(data)
     @incoming += data
     loop do
-      if(@incoming.length < 4)
+      command_packet, new_incoming = CommandPacket.parse(@incoming, false)
+      if(command_packet.nil?)
         break
       end
-
-      # Try to read a length + packet
-      length, data = @incoming.unpack("Na*")
-
-      # If there isn't enough data, give up
-      if(data.length < length)
-        break
-      end
-
-      # Otherwise, remove what we have from @data
-      length, data, @incoming = @incoming.unpack("Na#{length}a*")
-      _handle_incoming(CommandPacket.parse(data, false))
+      @incoming = new_incoming
+      _handle_incoming(command_packet)
     end
 
     # Return the queue and clear it out

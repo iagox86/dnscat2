@@ -32,6 +32,9 @@ class DriverDNS
       :encoder         => Proc.new() do |name|
          name.unpack("H*").pop
       end,
+      :decoder         => Proc.new() do |name|
+        [name].pack("H*")
+      end
     },
     DNSer::Packet::TYPE_MX => {
       :requires_domain => true,
@@ -40,6 +43,9 @@ class DriverDNS
       :encoder         => Proc.new() do |name|
          name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
       end,
+      :decoder         => Proc.new() do |name|
+        [name.gsub(/\./, '')].pack("H*")
+      end
     },
     DNSer::Packet::TYPE_CNAME => {
       :requires_domain => true,
@@ -48,6 +54,9 @@ class DriverDNS
       :encoder         => Proc.new() do |name|
          name.unpack("H*").pop.chars.each_slice(63).map(&:join).join(".")
       end,
+      :decoder         => Proc.new() do |name|
+        [name.gsub(/\./, '')].pack("H*")
+      end
     },
     DNSer::Packet::TYPE_A => {
       :requires_domain => false,
@@ -160,7 +169,31 @@ class DriverDNS
     @shown_pt = true
   end
 
-  def DriverDNS.packet_to_bytes(question, domains)
+  def DriverDNS.answer_to_bytes(answer, domains)
+    case answer.type
+    when DNSer::Packet::TYPE_CNAME
+      name = answer.rr.name
+    when DNSer::Packet::TYPE_MX
+      name = answer.rr.name
+    when DNSer::Packet::TYPE_TXT
+      name = answer.rr.data
+    else
+      raise(DnscatException, "We don't know how to parse that DNS packet type!")
+    end
+
+    type_info = RECORD_TYPES[answer.type]
+    if(type_info.nil?)
+      raise(DnscatException, "Couldn't figure out how to handle the record type! (please report this, it shouldn't happen): " + type)
+    end
+
+    if(type_info[:requires_domain])
+      name, _ = DriverDNS.figure_out_name(name, domains)
+    end
+
+    return type_info[:decoder].call(name)
+  end
+
+  def DriverDNS.question_to_bytes(question, domains)
     # Determine the actual name, without the extra cruft
     name, _ = DriverDNS.figure_out_name(question.name, domains)
 
@@ -300,7 +333,7 @@ class DriverDNS
         question = request.questions[0]
         @window.puts("Received:  #{question.name} (#{question.type_s})")
 
-        name = DriverDNS.packet_to_bytes(question, domains)
+        name = DriverDNS.question_to_bytes(question, domains)
         if(name.nil?)
           do_passthrough(transaction)
           next
