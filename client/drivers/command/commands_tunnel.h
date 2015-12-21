@@ -53,6 +53,7 @@ static SELECT_RESPONSE_t tunnel_closed(void *group, int s, void *param)
 
   /* Remove the tunnel from the linked list of tunnels. */
   ll_remove(tunnel->driver->tunnels, ll_32(tunnel->tunnel_id));
+  safe_free(tunnel);
 
   /* Close the socket. */
   tcp_close(tunnel->s);
@@ -73,6 +74,7 @@ static SELECT_RESPONSE_t tunnel_error(void *group, int s, int err, void *param)
 
   /* Remove the tunnel from the linked list of tunnels. */
   ll_remove(tunnel->driver->tunnels, ll_32(tunnel->tunnel_id));
+  safe_free(tunnel);
 
   /* Close the socket. */
   tcp_close(tunnel->s);
@@ -159,6 +161,7 @@ static command_packet_t *handle_tunnel_close(driver_command_t *driver, command_p
   select_group_remove_socket(driver->group, tunnel->s);
   tcp_close(tunnel->s);
   LOG_WARNING("Closed tunnel %d", tunnel->tunnel_id);
+  safe_free(tunnel);
 
   return NULL;
 }
