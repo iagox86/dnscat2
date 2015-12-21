@@ -5,6 +5,11 @@ Bits and pieces:
 - Fix up the UX to make it as nice as possible
 - When a client disconnects, free the socket
 - Add a 'reason' to the CLOSED message
+- Fix the 'shutdown' command:
+  #<NoMethodError: undefined method `create_shutdown_request' for CommandPacket:Class>
+  /usr/local/google/home/rbowes/tools/dnscat2/server/drivers/driver_command_commands.rb:224:in `block in _register_commands'
+  /usr/local/google/home/rbowes/tools/dnscat2/server/libs/commander.rb:132:in `call'
+  ...
 
 Before release
 - Update user-facing docs

@@ -79,17 +79,42 @@ class Socketer
     end
   end
 
+  def initialize(socket, thread)
+    @socket = socket
+    @thread = thread
+  end
+
+  def kill()
+    begin
+      @thread.exit()
+      @thread.join()
+      @socket.close()
+    rescue
+      # Ignore exceptions
+    end
+  end
+
+  def Socketer._handle_exception(e, msg, callbacks)
+    if(callbacks[:on_error])
+      callbacks[:on_error].call(self, "Error #{msg}: #{e}", e)
+    end
+  end
+
   def Socketer.listen(host, port, callbacks = {})
     # Create the socket right away so we'll know if it fails
     #puts("Listening on #{host}:#{port}...")
     s = TCPServer.new(host, port)
 
-    return Thread.new() do
-      loop do
-        # TODO: begin
-        Session.new(s.accept(), callbacks)
+    return Socketer.new(s, Thread.new() do
+      begin
+        loop do
+          Session.new(s.accept(), callbacks)
+        end
+      rescue StandardError => e
+        # TODO: I don't think this could possibly work
+        Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
       end
-    end
+    end)
   end
 
   def Socketer.connect(host, port, callbacks = {})
@@ -106,7 +131,7 @@ class Socketer
           end
         end
       rescue Exception => e
-        _handle_exception(e, "connecting to #{host}:#{port}")
+        Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
       end
     end
   end

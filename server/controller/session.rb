@@ -92,6 +92,9 @@ class Session
     end
 
     @window.close()
+    if(@driver)
+      @driver.stop()
+    end
   end
 
   def _next_outgoing(n)

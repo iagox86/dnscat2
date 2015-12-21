@@ -13,15 +13,23 @@ module DriverCommandTunnels
   def _register_commands_tunnels()
     @tunnels_by_session = {}
     @sessions_by_tunnel = {}
+    @tunnels = []
 
     @commander.register_command('listen',
       Trollop::Parser.new do
-        banner("Listens on a local port and sends the connection out the other side (like ssh -L). Usage: listen [<host>:]<port> <host>:<port>")
+        banner("Listens on a local port and sends the connection out the other side (like ssh -L). Usage: listen [<lhost>:]<lport> <rhost>:<rport>")
       end,
 
       Proc.new do |opts, optarg|
         local, remote = optarg.split(/ /)
 
+        if(remote.nil?)
+          @window.puts("Bad argument! Expected: 'listen [<lhost>:]<lport> <rhost>:<rport>'")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
+        end
+
+        # Split the local port at the :, if there is one
         if(local.include?(":"))
           local_host, local_port = local.split(/:/)
         else
@@ -30,77 +38,95 @@ module DriverCommandTunnels
         end
         local_port = local_port.to_i()
 
+        if(local_port <= 0 || local_port > 65535)
+          @window.puts("Bad argument! lport must be a valid port (between 0 and 65536)")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
+        end
+
         remote_host, remote_port = remote.split(/:/)
-        if(remote_host == '' || remote_port == '')
-          @window.puts("Host or port missing!")
-          # TODO: Raise
-          return
+        if(remote_host == '' || remote_port == '' || remote_port.nil?)
+          @window.puts("rhost or rport missing!")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
         end
         remote_port = remote_port.to_i()
 
+        if(remote_port <= 0 || remote_port > 65535)
+          @window.puts("Bad argument! rport must be a valid port (between 0 and 65536)")
+          @window.puts()
+          raise(Trollop::HelpNeeded)
+        end
+
         @window.puts("Listening on #{local_host}:#{local_port}, sending connections to #{remote_host}:#{remote_port}")
 
-        Socketer.listen(local_host, local_port, {
-          :on_connect => Proc.new() do |session, host, port|
-            @window.puts("Got a connection from #{host}:#{port}, asking the other side to connect for us...")
+        begin
+          @tunnels << Socketer.listen(local_host, local_port, {
+            :on_connect => Proc.new() do |session, host, port|
+              @window.puts("Got a connection from #{host}:#{port}, asking the other side to connect for us...")
 
-            packet = CommandPacket.new({
-              :is_request => true,
-              :request_id => request_id(),
-              :command_id => CommandPacket::TUNNEL_CONNECT,
-              :options    => 0,
-              :host       => remote_host,
-              :port       => remote_port,
-            })
+              packet = CommandPacket.new({
+                :is_request => true,
+                :request_id => request_id(),
+                :command_id => CommandPacket::TUNNEL_CONNECT,
+                :options    => 0,
+                :host       => remote_host,
+                :port       => remote_port,
+              })
 
-            _send_request(packet, Proc.new() do |request, response|
-              if(response.get(:command_id) == CommandPacket::COMMAND_ERROR)
-                @window.puts("Tunnel error: #{response.get(:reason)}")
-                session.stop!()
-              else
-                @window.puts("Other side connected, stream #{response.get(:tunnel_id)}")
-                @tunnels_by_session[session] = response.get(:tunnel_id)
-                @sessions_by_tunnel[response.get(:tunnel_id)] = session
+              _send_request(packet, Proc.new() do |request, response|
+                if(response.get(:command_id) == CommandPacket::COMMAND_ERROR)
+                  @window.puts("Tunnel error: #{response.get(:reason)}")
+                  session.stop!()
+                else
+                  @window.puts("Other side connected, stream #{response.get(:tunnel_id)}")
+                  @tunnels_by_session[session] = response.get(:tunnel_id)
+                  @sessions_by_tunnel[response.get(:tunnel_id)] = session
 
-                # Tell the tunnel that we're ready to receive data
-                session.ready!()
-              end
-            end)
-          end,
+                  # Tell the tunnel that we're ready to receive data
+                  session.ready!()
+                end
+              end)
+            end,
 
-          :on_data => Proc.new() do |session, data|
-            tunnel_id = @tunnels_by_session[session]
+            :on_data => Proc.new() do |session, data|
+              tunnel_id = @tunnels_by_session[session]
 
-            @window.puts("Received #{data.length} bytes on the local socket! Sending to tunnel #{tunnel_id}...")
+              @window.puts("Received #{data.length} bytes on the local socket! Sending to tunnel #{tunnel_id}...")
 
-            packet = CommandPacket.new({
-              :is_request => true,
-              :request_id => request_id(),
-              :command_id => CommandPacket::TUNNEL_DATA,
-              :tunnel_id => tunnel_id,
-              :data => data,
-            })
+              packet = CommandPacket.new({
+                :is_request => true,
+                :request_id => request_id(),
+                :command_id => CommandPacket::TUNNEL_DATA,
+                :tunnel_id => tunnel_id,
+                :data => data,
+              })
 
-            _send_request(packet, nil)
-          end,
+              _send_request(packet, nil)
+            end,
 
-          :on_error => Proc.new() do |session, msg, e|
-            # Delete the tunnel
-            tunnel_id = @tunnels_by_session.delete(session)
-            @window.puts("Error in tunnel #{tunnel_id}: #{msg}")
+            :on_error => Proc.new() do |session, msg, e|
+              # Delete the tunnel
+              tunnel_id = @tunnels_by_session.delete(session)
+              @window.puts("Error in tunnel #{tunnel_id}: #{msg}")
 
-            @sessions_by_tunnel.delete(tunnel_id)
+              @sessions_by_tunnel.delete(tunnel_id)
 
-            packet = CommandPacket.new({
-              :is_request => true,
-              :request_id => request_id(),
-              :command_id => CommandPacket::TUNNEL_CLOSE,
-              :tunnel_id => tunnel_id,
-            })
+              packet = CommandPacket.new({
+                :is_request => true,
+                :request_id => request_id(),
+                :command_id => CommandPacket::TUNNEL_CLOSE,
+                :tunnel_id => tunnel_id,
+              })
 
-            _send_request(packet, nil)
-          end
-        })
+              _send_request(packet, nil)
+            end
+          })
+        rescue Errno::EACCES => e
+          puts("Sorry, couldn't listen on that port: #{e}")
+        rescue Errno::EADDRINUSE => e
+          puts("Sorry, that address:port is already in use: #{e}")
+        end
       end
     )
   end
@@ -138,6 +164,15 @@ module DriverCommandTunnels
       session.stop!()
     else
       raise(DnscatException, "Unknown command sent by the server: #{packet}")
+    end
+  end
+
+  def tunnels_stop()
+    if(@tunnels.length > 0)
+      @window.puts("Stopping active tunnels...")
+      @tunnels.each do |t|
+        t.kill()
+      end
     end
   end
 end

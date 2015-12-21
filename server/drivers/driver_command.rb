@@ -162,4 +162,8 @@ class DriverCommand
     @outgoing = ''
     return result
   end
+
+  def stop()
+    tunnels_stop()
+  end
 end
