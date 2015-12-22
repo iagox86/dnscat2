@@ -15,6 +15,18 @@ module DriverCommandTunnels
     @sessions_by_tunnel = {}
     @tunnels = []
 
+    @commander.register_command('tunnels',
+      Trollop::Parser.new do
+        banner("Lists all current listeners")
+      end,
+
+      Proc.new do |opts, optarg|
+        @tunnels.each do |tunnel|
+          @window.puts(tunnel.to_s)
+        end
+      end
+    )
+
     @commander.register_command('listen',
       Trollop::Parser.new do
         banner("Listens on a local port and sends the connection out the other side (like ssh -L). Usage: listen [<lhost>:]<lport> <rhost>:<rport>")

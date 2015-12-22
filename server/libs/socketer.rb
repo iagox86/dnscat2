@@ -12,14 +12,20 @@
 require 'socket'
 
 class Socketer
+  attr_reader :lhost, :lport
+
   BUFFER = 65536
 
   class Session
+    attr_reader :host, :port
+
     def initialize(client, callbacks = {})
       @client     = client
       @on_connect = callbacks[:on_connect]
       @on_data    = callbacks[:on_data]
       @on_error   = callbacks[:on_error]
+      @host       = client.peeraddr[2]
+      @port       = client.peeraddr[1]
 
       # Do the 'new connection' callback
       if(@on_connect)
@@ -79,9 +85,15 @@ class Socketer
     end
   end
 
-  def initialize(socket, thread)
+  def initialize(socket, thread, lhost, lport)
     @socket = socket
     @thread = thread
+    @lhost  = lhost
+    @lport  = lport
+  end
+
+  def to_s()
+    return "Tunnel listening on %s:%d" % [@lhost, @lport]
   end
 
   def kill()
@@ -113,7 +125,7 @@ class Socketer
       rescue StandardError => e
         Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
       end
-    end)
+    end, host, port)
   end
 
   def Socketer.connect(host, port, callbacks = {})
