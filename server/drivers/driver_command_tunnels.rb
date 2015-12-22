@@ -63,7 +63,7 @@ module DriverCommandTunnels
         begin
           @tunnels << Socketer.listen(local_host, local_port, {
             :on_connect => Proc.new() do |session, host, port|
-              @window.puts("Got a connection from #{host}:#{port}, asking the other side to connect for us...")
+              @window.puts("Connection from #{host}:#{port}; forwarding to #{remote_host}:#{remote_port}...")
 
               packet = CommandPacket.new({
                 :is_request => true,
@@ -79,7 +79,7 @@ module DriverCommandTunnels
                   @window.puts("Tunnel error: #{response.get(:reason)}")
                   session.stop!()
                 else
-                  @window.puts("Other side connected, stream #{response.get(:tunnel_id)}")
+                  @window.puts("[Tunnel %d] connection successful!" % response.get(:tunnel_id))
                   @tunnels_by_session[session] = response.get(:tunnel_id)
                   @sessions_by_tunnel[response.get(:tunnel_id)] = session
 
@@ -91,8 +91,6 @@ module DriverCommandTunnels
 
             :on_data => Proc.new() do |session, data|
               tunnel_id = @tunnels_by_session[session]
-
-              @window.puts("Received #{data.length} bytes on the local socket! Sending to tunnel #{tunnel_id}...")
 
               packet = CommandPacket.new({
                 :is_request => true,
@@ -108,7 +106,7 @@ module DriverCommandTunnels
             :on_error => Proc.new() do |session, msg, e|
               # Delete the tunnel
               tunnel_id = @tunnels_by_session.delete(session)
-              @window.puts("Error in tunnel #{tunnel_id}: #{msg}")
+              @window.puts("[Tunnel %d] error: %s" % [tunnel_id, msg])
 
               @sessions_by_tunnel.delete(tunnel_id)
 
@@ -134,12 +132,11 @@ module DriverCommandTunnels
   def tunnel_data_incoming(packet)
     tunnel_id = packet.get(:tunnel_id)
 
-    @window.puts("Got some incoming data!")
     case packet.get(:command_id)
     when CommandPacket::TUNNEL_DATA
       session = @sessions_by_tunnel[tunnel_id]
       if(session.nil?)
-        @window.puts("Got a packet for an unknown tunnel! Sending a close signal.")
+        @window.puts("Received data for unknown tunnel: %d! Telling client to close it!" % tunnel_id)
 
         _send_request(CommandPacket.new({
           :is_request => true,
@@ -148,11 +145,10 @@ module DriverCommandTunnels
           :tunnel_id => tunnel_id,
         }), nil)
       else
-        @window.puts("Sending #{packet.get(:data).length} bytes of data to tunnel #{tunnel_id}")
         session.send(packet.get(:data))
       end
     when CommandPacket::TUNNEL_CLOSE
-      @window.puts("The client asked us to close a tunnel: #{tunnel_id}")
+      @window.puts("[Tunnel %d] closed by the other side!" % tunnel_id)
       # Delete the tunnels, we're done with them
       session = @sessions_by_tunnel.delete(tunnel_id)
       if(session.nil?)
