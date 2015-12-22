@@ -379,6 +379,45 @@ it can be given a specific ip address to connect to instead:
 Assuming there's a dnscat2 server running on that host/port, it'll
 create a session there.
 
+### Tunnels
+
+Yo dawg; I hear you like tunnels, so now you can tunnel a tunnel through
+your tunnel!
+
+It is currently possible to tunnel a connection through dnscat2, similar
+to "ssh -L"! Other modes ("ssh -D" and "ssh -R") are coming soon as
+well!
+
+After a session has started (a command session), the command "listen" is
+used to open a new tunnelled port. The syntax is roughly the same as ssh
+-L:
+
+    listen [lhost:]lport rhost:rport
+
+The local host is option, and will default to all interfaces (0.0.0.0).
+The local port and remote host/port are mandatory.
+
+The dnscat2 server will listen on lport. All connections received to
+that port are forwarded, via the dnscat2 client, to the remote host/port
+chosen.
+
+For example, this will listen on port 4444 (on the *server*) and forward
+traffic to google:
+
+    listen 4444 www.google.com:80
+
+Then, if you connect to http://localhost:4444, it'll come out the
+dnscat2 client and connect to google.com.
+
+Let's say you're using this on a pentest and you want to forward ssh
+connections through the dnscat2 client (running on somebody's corp
+network) to an internal device. You can!
+
+    listen 127.0.0.1:2222 10.10.10.10:22
+
+That'll only listen on the localhost interface on the dnscat2 server,
+and will forward connections via the tunnel to port 22 of 10.10.10.10.
+
 ### Encryption
 
 dnscat2 is encrypted by default.

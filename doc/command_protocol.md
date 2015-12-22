@@ -81,7 +81,9 @@ The remaining command fields are determined by the message type.
 
 # Commands
 
-The following commands are defined:
+## Standard commands
+
+The following standard commands are defined:
 
     #define COMMAND_PING     (0x0000)
     #define COMMAND_SHELL    (0x0001)
@@ -90,7 +92,7 @@ The following commands are defined:
     #define COMMAND_UPLOAD   (0x0004)
     #define COMMAND_ERROR    (0xFFFF)
 
-## COMMAND_PING
+### COMMAND_PING
 
 server->client or client->server
 
@@ -102,7 +104,7 @@ Structure (response):
 
 Asks the other party to echo back some data. Simply used for testing.
 
-## COMMAND_SHELL
+### COMMAND_SHELL
 
 server->client only
 
@@ -116,7 +118,7 @@ Ask a dnscat2 client to spawn a shell. The shell will be connected back
 to the dnscat2 server as if the client was run using `dnscat2 --exec sh`
 or `dnscat2 --exec cmd`.
 
-## COMMAND_EXEC
+### COMMAND_EXEC
 
 server->client only
 
@@ -130,7 +132,7 @@ Structure (response):
 Ask a dnscat2 client to run the given command, and bind the input to a
 new session.
 
-## COMMAND_DOWNLOAD
+### COMMAND_DOWNLOAD
 
 server->client only
 
@@ -146,7 +148,7 @@ remainder of the packet.
 If the file isn't found or accessible, a COMMAND_ERROR should be
 returned.
 
-## COMMAND_UPLOAD
+### COMMAND_UPLOAD
 
 server->client only
 
@@ -164,9 +166,12 @@ location. Like COMMAND_DOWNLOAD, the data is the remainder of the packet.
 If the file can't be written, a COMMAND_ERROR is returned. Otherwise,
 the response is simply blank, indicating success.
 
-## COMMAND_ERROR
+### COMMAND_ERROR
 
-server->client or client->server
+server->client or client->server, but always a response
+
+Structure (request):
+- n/a - there's no request
 
 Structure (response):
 - (uint16_t) status
@@ -174,3 +179,71 @@ Structure (response):
 
 Errors are mostly free-form, and must be sent as a response to something
 else.
+
+## Tunnel commands
+
+In addition to the standard commands, the following commands are used
+for tunneling connections via dnscat2:
+
+    #define TUNNEL_CONNECT   (0x1000)
+    #define TUNNEL_DATA      (0x1001)
+    #define TUNNEL_CLOSE     (0x1002)
+
+From a high-level, the dnscat2 server sends the dnscat2 client a
+`TUNNEL_CONNECT` message, which tells the client to connect to the given
+host:port. If the connection is successful, it returns a
+`TUNNEL_CONNECT` response with the `tunnel_id`. The `tunnel_id` is used
+for the lifespan of the connection to identify it.
+
+If the `TUNNEL_CONNECT` fails, then a `COMMAND_ERROR` with an
+appropriate message is returned.
+
+Once the connection is successful, `TUNNEL_DATA` can be sent in both
+directions. There is no response, it's assumed that the `TUNNEL_DATA`
+will make it across.
+
+If at any point the connection ends, then the dnscat2 client or dnscat2
+server can send a `TUNNEL_CLOSE` message to the other side. That message
+also has no response.
+
+### TUNNEL_CONNECT
+
+server->client (for now)
+
+Structure (request):
+- (uint32_t) options
+- (ntstring) host
+- (uint16_t) port
+
+Structure (response):
+- (uint32_t) tunnel_id
+
+Asks the dnscat2 client to make a connection to another server. If it's
+successful, the response contains the new `tunnel_id`. If the connection
+fails, then a `COMMAND_ERROR` message is returned as the response.
+
+### TUNNEL_DATA
+
+server->client or client->server
+
+Structure (request):
+- (uint32_t) tunnel_id
+- (variable) data
+
+Structure (response):
+- n/a - there's no response
+
+Can be sent in either direction for an active tunnel. Represents data
+moving across it.
+
+### TUNNEL_CLOSE
+
+server->client (for now)
+
+Structure (request):
+- (uint32_t) tunnel_id
+
+Structure (response):
+- n/a - there's no response
+
+Can be sent by either side to indicate that the connection is over.
