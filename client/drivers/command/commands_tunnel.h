@@ -16,6 +16,8 @@ typedef struct
   int               s;
   driver_command_t *driver;
   uint32_t          connect_request_id;
+  char             *host;
+  uint16_t          port;
 } tunnel_t;
 
 static void send_and_free(buffer_t *outgoing_data, command_packet_t *out)
@@ -34,6 +36,8 @@ static SELECT_RESPONSE_t tunnel_data_in(void *group, int s, uint8_t *data, size_
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
 
+  LOG_INFO("[Tunnel %d] Received %zd bytes of data from server; forwarding to client", tunnel->tunnel_id, length);
+
   out = command_packet_create_tunnel_data_request(request_id(), tunnel->tunnel_id, data, length);
   send_and_free(tunnel->driver->outgoing_data, out);
 
@@ -45,7 +49,7 @@ static SELECT_RESPONSE_t tunnel_closed(void *group, int s, void *param)
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
 
-  printf("Socket was closed on the server side of tunnel %d!\n", tunnel->tunnel_id);
+  LOG_WARNING("[Tunnel %d] connection to %s:%d closed by the server!", tunnel->tunnel_id, tunnel->host, tunnel->port);
 
   /* Queue up a packet letting the server know the connection is gone. */
   out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id);
@@ -53,6 +57,7 @@ static SELECT_RESPONSE_t tunnel_closed(void *group, int s, void *param)
 
   /* Remove the tunnel from the linked list of tunnels. */
   ll_remove(tunnel->driver->tunnels, ll_32(tunnel->tunnel_id));
+  safe_free(tunnel->host);
   safe_free(tunnel);
 
   /* Close the socket. */
@@ -66,7 +71,7 @@ static SELECT_RESPONSE_t tunnel_error(void *group, int s, int err, void *param)
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
 
-  printf("Error in tunnel %d! Errno: %d\n", tunnel->tunnel_id, err);
+  LOG_WARNING("[Tunnel %d] connection to %s:%d closed because of error %d", tunnel->tunnel_id, tunnel->host, tunnel->port, err);
 
   /* Queue up a packet letting the server know the connection is gone. */
   out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id);
@@ -74,6 +79,7 @@ static SELECT_RESPONSE_t tunnel_error(void *group, int s, int err, void *param)
 
   /* Remove the tunnel from the linked list of tunnels. */
   ll_remove(tunnel->driver->tunnels, ll_32(tunnel->tunnel_id));
+  safe_free(tunnel->host);
   safe_free(tunnel);
 
   /* Close the socket. */
@@ -87,7 +93,7 @@ static SELECT_RESPONSE_t tunnel_ready(void *group, int s, void *param)
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
 
-  printf("Tunnel %d successfully connected!\n", tunnel->tunnel_id);
+  LOG_WARNING("[Tunnel %d] connected to %s:%d!", tunnel->tunnel_id, tunnel->host, tunnel->port);
 
   /* Queue up a packet letting the server know the connection is ready. */
   out = command_packet_create_tunnel_connect_response(tunnel->connect_request_id, tunnel->tunnel_id);
@@ -104,15 +110,17 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
   if(!in->is_request)
     return NULL;
 
-  LOG_WARNING("Connecting to %s:%d...", in->r.request.body.tunnel_connect.host, in->r.request.body.tunnel_connect.port);
-
+  /* Set up the tunnel object. */
   tunnel = (tunnel_t*)safe_malloc(sizeof(tunnel_t));
   tunnel->tunnel_id          = g_tunnel_id++;
   tunnel->connect_request_id = in->request_id;
   tunnel->driver             = driver;
-  tunnel->s                  = tcp_connect_options(in->r.request.body.tunnel_connect.host, in->r.request.body.tunnel_connect.port, TRUE);
+  tunnel->host               = safe_strdup(in->r.request.body.tunnel_connect.host);
+  tunnel->port               = in->r.request.body.tunnel_connect.port;
+  LOG_WARNING("[Tunnel %d] connecting to %s:%d...", tunnel->tunnel_id, tunnel->host, tunnel->port);
 
-  printf("s = %d\n", tunnel->s);
+  /* Do the actual connection. */
+  tunnel->s                  = tcp_connect_options(in->r.request.body.tunnel_connect.host, in->r.request.body.tunnel_connect.port, TRUE);
 
   if(tunnel->s == -1)
   {
@@ -123,11 +131,15 @@ static command_packet_t *handle_tunnel_connect(driver_command_t *driver, command
     /* Add the driver to the global list. */
     ll_add(driver->tunnels, ll_32(tunnel->tunnel_id), tunnel);
 
+    /* Add the socket to the socket_group and set up various callbacks. */
     select_group_add_socket(driver->group, tunnel->s, SOCKET_TYPE_STREAM, tunnel);
     select_set_recv(driver->group, tunnel->s, tunnel_data_in);
     select_set_closed(driver->group, tunnel->s, tunnel_closed);
     select_set_ready(driver->group, tunnel->s, tunnel_ready);
     select_set_error(driver->group, tunnel->s, tunnel_error);
+
+    /* Don't respond to the packet... yet! */
+    out = NULL;
   }
 
   return out;
@@ -142,7 +154,8 @@ static command_packet_t *handle_tunnel_data(driver_command_t *driver, command_pa
     LOG_ERROR("Couldn't find tunnel: %d", in->r.request.body.tunnel_data.tunnel_id);
     return NULL;
   }
-  printf("Received data to tunnel %d (%zd bytes)\n", in->r.request.body.tunnel_data.tunnel_id, in->r.request.body.tunnel_data.length);
+
+  LOG_INFO("[Tunnel %d] Received %zd bytes of data from client; forwarding to server", tunnel->tunnel_id, in->r.request.body.tunnel_data.length);
   tcp_send(tunnel->s, in->r.request.body.tunnel_data.data, in->r.request.body.tunnel_data.length);
 
   return NULL;
@@ -154,13 +167,15 @@ static command_packet_t *handle_tunnel_close(driver_command_t *driver, command_p
 
   if(!tunnel)
   {
-    LOG_WARNING("The server tried to close a tunnel that we don't know about: %d", in->r.request.body.tunnel_data.tunnel_id);
+    LOG_ERROR("The server tried to close a tunnel that we don't know about: %d", in->r.request.body.tunnel_data.tunnel_id);
     return NULL;
   }
 
+  LOG_WARNING("[Tunnel %d] connection to %s:%d closed by the client!", tunnel->tunnel_id, tunnel->host, tunnel->port);
+
   select_group_remove_socket(driver->group, tunnel->s);
   tcp_close(tunnel->s);
-  LOG_WARNING("Closed tunnel %d", tunnel->tunnel_id);
+  safe_free(tunnel->host);
   safe_free(tunnel);
 
   return NULL;

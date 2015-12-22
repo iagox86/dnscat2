@@ -48,8 +48,12 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
 
   while((in = command_packet_read(driver->stream)))
   {
-    printf("Got a command: ");
-    command_packet_print(in);
+    /* TUNNEL_DATA commands are too noisy to print. */
+    if(in->command_id != TUNNEL_DATA)
+    {
+      printf("Got a command: ");
+      command_packet_print(in);
+    }
 
     switch(in->command_id)
     {
@@ -104,17 +108,16 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
       uint8_t *data;
       size_t   length;
 
-      printf("Response: ");
-      command_packet_print(out);
+      if(out->command_id != TUNNEL_DATA)
+      {
+        printf("Response: ");
+        command_packet_print(out);
+      }
 
       data = command_packet_to_bytes(out, &length);
       buffer_add_bytes(driver->outgoing_data, data, length);
       safe_free(data);
       command_packet_destroy(out);
-    }
-    else
-    {
-      printf("Response: n/a\n");
     }
     command_packet_destroy(in);
   }
