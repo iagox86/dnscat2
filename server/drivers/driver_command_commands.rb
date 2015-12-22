@@ -221,10 +221,22 @@ module DriverCommandCommands
       end,
 
       Proc.new do |opts, optarg|
-        _send_request(CommandPacket.create_shutdown_request(request_id()), Proc.new() do |request, response|
+        shutdown = CommandPacket.new({
+          :is_request => true,
+          :request_id => request_id(),
+          :command_id => CommandPacket::COMMAND_SHUTDOWN,
+        })
+
+        _send_request(shutdown, Proc.new() do |request, response|
           @window.puts("Shutdown response received")
         end)
         @window.puts("Attempting to shut down remote session(s)...")
+
+        # TODO: Doing cleanup here is a bit of a hack; unfortunately, the
+        # client doesn't tell us when it successfully shuts down, it just dies
+        # (it's non-trivial delaying the death, as well...), so we free up our
+        # resources here. :)
+        request_stop()
       end
     )
 

@@ -422,6 +422,15 @@ void command_packet_destroy(command_packet_t *packet)
       }
       break;
 
+    case COMMAND_SHUTDOWN:
+      if(packet->is_request)
+      {
+      }
+      else
+      {
+      }
+      break;
+
     case TUNNEL_CONNECT:
       if(packet->is_request)
       {

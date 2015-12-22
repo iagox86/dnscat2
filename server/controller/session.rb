@@ -93,7 +93,7 @@ class Session
 
     @window.close()
     if(@driver)
-      @driver.stop()
+      @driver.shutdown()
     end
   end
 
@@ -393,6 +393,10 @@ class Session
     begin
       return @encryptor.decrypt_and_encrypt(possibly_encrypted_data) do |data, was_encrypted|
         begin
+          if(@driver && @driver.stopped)
+            raise(Session::SessionKiller, "The driver requested it be stopped!")
+          end
+
           if(was_encrypted)
             max_length -= 8
           end

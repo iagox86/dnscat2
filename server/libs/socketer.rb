@@ -111,7 +111,6 @@ class Socketer
           Session.new(s.accept(), callbacks)
         end
       rescue StandardError => e
-        # TODO: I don't think this could possibly work
         Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
       end
     end)

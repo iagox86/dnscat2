@@ -16,6 +16,8 @@ class DriverCommand
   include DriverCommandCommands
   include DriverCommandTunnels
 
+  attr_reader :stopped
+
   @@mutex = Mutex.new()
 
   def request_id()
@@ -67,6 +69,7 @@ class DriverCommand
     @request_id = 0x0001
     @commander = Commander.new()
     @handlers = {}
+    @stopped = false
 
     _register_commands()
     _register_commands_tunnels()
@@ -92,14 +95,6 @@ class DriverCommand
     if(Settings::GLOBAL.get("packet_trace"))
       window = _get_pcap_window()
     end
-
-    # Sideload the auto-command if one is set (this should happen at the end of initialize())
-#    if(auto_command = Settings::GLOBAL.get("auto_command"))
-#      auto_command.split(";").each do |command|
-#        command = command.strip()
-#        @commander.feed(command + "\n")
-#      end
-#    end
   end
 
   def _handle_incoming(command_packet)
@@ -163,7 +158,11 @@ class DriverCommand
     return result
   end
 
-  def stop()
+  def request_stop()
+    @stopped = true
+  end
+
+  def shutdown()
     tunnels_stop()
   end
 end
