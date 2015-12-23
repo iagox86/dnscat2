@@ -190,6 +190,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\drivers\command\commands_standard.h"
+				>
+			</File>
+			<File
+				RelativePath="..\drivers\command\commands_tunnel.h"
+				>
+			</File>
+			<File
 				RelativePath="..\controller\controller.c"
 				>
 			</File>
@@ -227,6 +235,10 @@
 			</File>
 			<File
 				RelativePath="..\libs\crypto\encryptor.c"
+				>
+			</File>
+			<File
+				RelativePath="..\libs\ll.c"
 				>
 			</File>
 			<File
@@ -353,6 +365,10 @@
 			</File>
 			<File
 				RelativePath="..\libs\crypto\encryptor_sas_dict.h"
+				>
+			</File>
+			<File
+				RelativePath="..\libs\ll.h"
 				>
 			</File>
 			<File

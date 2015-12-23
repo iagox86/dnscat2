@@ -28,9 +28,9 @@
 
 #include "driver_command.h"
 
-uint32_t request_id()
+static uint16_t request_id()
 {
-  static uint32_t request_id = 0;
+  static uint16_t request_id = 0;
 
   return request_id++;
 }
@@ -42,9 +42,10 @@ uint32_t request_id()
 
 void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_t length)
 {
-  buffer_add_bytes(driver->stream, data, length);
   command_packet_t *in  = NULL;
   command_packet_t *out = NULL;
+
+  buffer_add_bytes(driver->stream, data, length);
 
   while((in = command_packet_read(driver->stream)))
   {

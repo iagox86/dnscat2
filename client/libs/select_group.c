@@ -49,6 +49,19 @@
 #define SG_IS_ACTIVE(sg,i) sg->select_list[i]->active
 #define SG_PARAM(sg,i) sg->select_list[i]->param
 
+static int getlastsocketerror(int s)
+{
+#ifdef WIN32
+  int len = 4;
+  int val;
+  getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&val, &len);
+
+  return val;
+#else
+  return getlasterror();
+#endif
+}
+
 static select_t *find_select_by_socket(select_group_t *group, int s)
 {
   size_t i;
@@ -294,7 +307,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
     if(size < 0)
     {
       if(SG_ERROR(group, i))
-        select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+        select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
       else
         select_group_remove_and_close_socket(group, s);
     }
@@ -356,7 +369,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       if(size < 0 || !success)
       {
         if(SG_ERROR(group, i))
-          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
         else
           select_group_remove_and_close_socket(group, s);
       }
@@ -389,7 +402,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       if(size < 0 || size == (size_t)-1)
       {
         if(SG_ERROR(group, i))
-          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
         else
           select_group_remove_and_close_socket(group, s);
       }
@@ -522,7 +535,7 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
         else
         {
           if(SG_ERROR(group, i))
-            select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+            select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
           else
             select_group_remove_and_close_socket(group, s);
         }
@@ -590,7 +603,7 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
         /* If there's no handler defined, default to closing and removing the
          * socket. */
         if(SG_ERROR(group, i))
-          select_handle_response(group, SG_SOCKET(group, i), SG_ERROR(group, i)(group, SG_SOCKET(group, i), getlasterror(), SG_PARAM(group, i)));
+          select_handle_response(group, SG_SOCKET(group, i), SG_ERROR(group, i)(group, SG_SOCKET(group, i), getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
         else
           select_handle_response(group, SG_SOCKET(group, i), SELECT_CLOSE_REMOVE);
       }

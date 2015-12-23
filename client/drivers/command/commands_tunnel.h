@@ -15,7 +15,7 @@ typedef struct
   uint32_t          tunnel_id;
   int               s;
   driver_command_t *driver;
-  uint32_t          connect_request_id;
+  uint16_t          connect_request_id;
   char             *host;
   uint16_t          port;
 } tunnel_t;

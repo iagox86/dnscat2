@@ -103,7 +103,11 @@ int tcp_connect_options(char *host, uint16_t port, int non_blocking)
   /* Connect */
   status = connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
 
+#ifdef WIN32
+  if(status < 0 && GetLastError() != WSAEWOULDBLOCK)
+#else
   if(status < 0 && errno != EINPROGRESS)
+#endif
   {
     nberror("tcp: couldn't connect to host");
 
@@ -115,7 +119,7 @@ int tcp_connect_options(char *host, uint16_t port, int non_blocking)
 
 int tcp_connect(char *host, uint16_t port)
 {
-	return tcp_connect_options(host, port, 0);
+  return tcp_connect_options(host, port, 0);
 }
 
 void tcp_set_nonblocking(int s)
