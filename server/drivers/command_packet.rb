@@ -82,7 +82,7 @@ class CommandPacket
       :response => [],
     },
     TUNNEL_CLOSE => {
-      :request  => [ :tunnel_id ],
+      :request  => [ :tunnel_id, :reason ],
       :response => [],
     },
     COMMAND_ERROR => {
@@ -214,6 +214,8 @@ class CommandPacket
       if(data[:is_request])
         _at_least?(packet, 4)
         data[:tunnel_id], packet = packet.unpack("Na*")
+        _null_terminated?(packet)
+        data[:reason], packet = packet.unpack("Z*a*")
       else
         # n/a
       end
@@ -329,15 +331,15 @@ class CommandPacket
         packet += [@data[:tunnel_id], @data[:data]].pack("Na*")
       else
         # n/a
-        raise(DnscatException, "Trying to send a response to a TUNNEL_DATA request isn't proper!")
+        raise(DnscatException, "Trying to send a response to a TUNNEL_DATA request isn't allowed!")
       end
 
     when TUNNEL_CLOSE
       if(@data[:is_request])
-        packet += [@data[:tunnel_id]].pack("N")
+        packet += [@data[:tunnel_id], @data[:reason]].pack("NZ*")
       else
         # n/a
-        raise(DnscatException, "Trying to send a response to a TUNNEL_CLOSE request isn't proper!")
+        raise(DnscatException, "Trying to send a response to a TUNNEL_CLOSE request isn't allowed!")
       end
 
     when COMMAND_ERROR

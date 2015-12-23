@@ -115,7 +115,8 @@ static command_packet_t *command_packet_parse(uint8_t *data, uint32_t length)
     case TUNNEL_CLOSE:
       if(p->is_request)
       {
-        p->r.request.body.tunnel_data.tunnel_id = buffer_read_next_int32(buffer);
+        p->r.request.body.tunnel_close.tunnel_id = buffer_read_next_int32(buffer);
+        p->r.request.body.tunnel_close.reason    = buffer_alloc_next_ntstring(buffer);
       }
       else
       {
@@ -331,11 +332,12 @@ command_packet_t *command_packet_create_tunnel_data_request(uint16_t request_id,
   return packet;
 }
 
-command_packet_t *command_packet_create_tunnel_close_request(uint16_t request_id, uint32_t tunnel_id)
+command_packet_t *command_packet_create_tunnel_close_request(uint16_t request_id, uint32_t tunnel_id, char *reason)
 {
   command_packet_t *packet = command_packet_create(request_id, TUNNEL_CLOSE, TRUE);
 
   packet->r.request.body.tunnel_close.tunnel_id = tunnel_id;
+  packet->r.request.body.tunnel_close.reason    = safe_strdup(reason);
 
   return packet;
 }
@@ -456,6 +458,8 @@ void command_packet_destroy(command_packet_t *packet)
     case TUNNEL_CLOSE:
       if(packet->is_request)
       {
+        if(packet->r.request.body.error.reason)
+          safe_free(packet->r.request.body.error.reason);
       }
       else
       {
@@ -544,7 +548,7 @@ void command_packet_print(command_packet_t *packet)
 
     case TUNNEL_CLOSE:
       if(packet->is_request)
-        printf("TUNNEL_CLOSE [request] :: request_id 0x%04x :: tunnel_id %d\n", packet->request_id, packet->r.request.body.tunnel_close.tunnel_id);
+        printf("TUNNEL_CLOSE [request] :: request_id 0x%04x :: tunnel_id %d :: reason %s\n", packet->request_id, packet->r.request.body.tunnel_close.tunnel_id, packet->r.request.body.tunnel_close.reason);
       else
         printf("TUNNEL_CLOSE [response] :: request_id 0x%04x :: this shouldn't actually exist\n", packet->request_id);
       break;
@@ -653,6 +657,7 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
       if(packet->is_request)
       {
         buffer_add_int32(buffer, packet->r.request.body.tunnel_close.tunnel_id);
+        buffer_add_ntstring(buffer, packet->r.request.body.tunnel_close.reason);
       }
       else
       {

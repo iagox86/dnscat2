@@ -63,7 +63,7 @@ typedef struct
         struct { int dummy; } shutdown;
         struct { uint32_t options; char *host; uint16_t port; } tunnel_connect;
         struct { uint32_t tunnel_id; uint8_t *data; size_t length; } tunnel_data;
-        struct { uint32_t tunnel_id; } tunnel_close;
+        struct { uint32_t tunnel_id; char *reason; } tunnel_close;
         struct { uint16_t status; char *reason; } error;
       } body;
     } request;
@@ -112,7 +112,7 @@ command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request
 
 command_packet_t *command_packet_create_tunnel_data_request(uint16_t request_id, uint32_t tunnel_id, uint8_t *data, uint32_t length);
 
-command_packet_t *command_packet_create_tunnel_close_request(uint16_t request_id, uint32_t tunnel_id);
+command_packet_t *command_packet_create_tunnel_close_request(uint16_t request_id, uint32_t tunnel_id, char *reason);
 
 command_packet_t *command_packet_create_error_request(uint16_t request_id, uint16_t status, char *reason);
 command_packet_t *command_packet_create_error_response(uint16_t request_id, uint16_t status, char *reason);

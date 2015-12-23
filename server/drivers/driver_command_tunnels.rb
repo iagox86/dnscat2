@@ -126,7 +126,8 @@ module DriverCommandTunnels
                 :is_request => true,
                 :request_id => request_id(),
                 :command_id => CommandPacket::TUNNEL_CLOSE,
-                :tunnel_id => tunnel_id,
+                :tunnel_id  => tunnel_id,
+                :reason     => "Error during the connection: %s" % msg,
               })
 
               _send_request(packet, nil)
@@ -154,13 +155,14 @@ module DriverCommandTunnels
           :is_request => true,
           :request_id => request_id(),
           :command_id => CommandPacket::TUNNEL_CLOSE,
-          :tunnel_id => tunnel_id,
+          :tunnel_id  => tunnel_id,
+          :reason     => "Unknown tunnel: %d" % tunnel_id
         }), nil)
       else
         session.send(packet.get(:data))
       end
     when CommandPacket::TUNNEL_CLOSE
-      @window.puts("[Tunnel %d] closed by the other side!" % tunnel_id)
+      @window.puts("[Tunnel %d] closed by the other side: %s!" % [tunnel_id, packet.get(:reason)])
       # Delete the tunnels, we're done with them
       session = @sessions_by_tunnel.delete(tunnel_id)
       if(session.nil?)

@@ -52,7 +52,7 @@ static SELECT_RESPONSE_t tunnel_closed(void *group, int s, void *param)
   LOG_WARNING("[Tunnel %d] connection to %s:%d closed by the server!", tunnel->tunnel_id, tunnel->host, tunnel->port);
 
   /* Queue up a packet letting the server know the connection is gone. */
-  out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id);
+  out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id, "Server closed the connection");
   send_and_free(tunnel->driver->outgoing_data, out);
 
   /* Remove the tunnel from the linked list of tunnels. */
@@ -74,7 +74,7 @@ static SELECT_RESPONSE_t tunnel_error(void *group, int s, int err, void *param)
   LOG_WARNING("[Tunnel %d] connection to %s:%d closed because of error %d", tunnel->tunnel_id, tunnel->host, tunnel->port, err);
 
   /* Queue up a packet letting the server know the connection is gone. */
-  out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id);
+  out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id, "Connection error");
   send_and_free(tunnel->driver->outgoing_data, out);
 
   /* Remove the tunnel from the linked list of tunnels. */
@@ -171,7 +171,7 @@ static command_packet_t *handle_tunnel_close(driver_command_t *driver, command_p
     return NULL;
   }
 
-  LOG_WARNING("[Tunnel %d] connection to %s:%d closed by the client!", tunnel->tunnel_id, tunnel->host, tunnel->port);
+  LOG_WARNING("[Tunnel %d] connection to %s:%d closed by the client: %s", tunnel->tunnel_id, tunnel->host, tunnel->port, in->r.request.body.tunnel_close.reason);
 
   select_group_remove_socket(driver->group, tunnel->s);
   tcp_close(tunnel->s);

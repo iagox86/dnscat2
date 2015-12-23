@@ -1,13 +1,7 @@
 Bits and pieces:
 - Get a list of tunnels on the server
-- Fix up the UX to make it as nice as possible
 - Add a 'reason' to the CLOSED message
-
-Before release
-- Update user-facing docs
-- Update protocol docs
-- Make sure it still compiles on Windows
-- Check for memory leaks
+- Give a better error message when the socket is in use (instructions on how to kill the session)
 
 Server can forward ports like -L -R and -D from ssh
 
