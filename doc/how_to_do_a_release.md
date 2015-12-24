@@ -59,13 +59,13 @@ It even zips them for you! They're put into the dist/ folder.
 Releases on other platforms (like Windows) require some manual work at
 the moment. Please try to follow my naming scheme:
 
-dnscat2-v0.04-client-source.tar.bz2
-dnscat2-v0.04-client-source.zip
-dnscat2-v0.04-client-win32.zip
-dnscat2-v0.04-client-x64.tar.bz2
-dnscat2-v0.04-client-x86.tar.bz2
-dnscat2-v0.04-server.tar.bz2
-dnscat2-v0.04-server.zip
+* dnscat2-v0.04-client-source.tar.bz2
+* dnscat2-v0.04-client-source.zip
+* dnscat2-v0.04-client-win32.zip
+* dnscat2-v0.04-client-x64.tar.bz2
+* dnscat2-v0.04-client-x86.tar.bz2
+* dnscat2-v0.04-server.tar.bz2
+* dnscat2-v0.04-server.zip
 
 For binaries, the binaries in the archive should be simply "dnscat" - no
 paths or anything like that.

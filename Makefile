@@ -23,13 +23,13 @@ all:
 
 clean:
 	@cd client && make clean
-	@rm -rf dist/*
 
 debug:
 	@cd client && make debug
 	@echo "Debug compile complete!"
 
-release: clean
+release:
+	@make clean
 	-mkdir dist/
 	@cd client && make release
 	@mv client/dnscat .
@@ -39,7 +39,8 @@ release: clean
 	@echo "*** By the way, did you update the version number in the server?"
 	@echo "Release compile complete!"
 
-source_release: clean
+source_release:
+	@make clean
 	-mkdir dist/
 	@cp -r client dnscat2_client
 	@tar -cvvjf dist/dnscat2-${VERSION}-client-source.tar.bz2 dnscat2_client
