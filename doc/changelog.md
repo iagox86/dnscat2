@@ -2,16 +2,13 @@
 
 * Implemented tunneling, similar to "ssh -L", which is accessed on the
   server via the `listen` command
+* Added tools/dnstest.rb, a script to verify that the user actually own
+  the domain.
 * Greatly improved performance when a lot of data is being transmitted
   from the server to the client
 * Fixed a bug where shared secrets (and other arguments) didn't work on
   the client if the user explicitly chose a driver type
 * Cleaned up the "create driver" logic on the client
-
-# 0.05
-
-* Added tools/dnstest.rb, a script to verify that the user actually own
-  the domain.
 * *BREAKING PROTOCL CHANGE*: Made a change to the command protocol: the
   16-bit `request_id` field was changed into `packed_id`, which has a
   1-bit `is_response` value and a 15-bit `request_id`.
