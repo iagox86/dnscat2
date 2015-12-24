@@ -134,9 +134,17 @@ module DriverCommandTunnels
             end
           })
         rescue Errno::EACCES => e
-          puts("Sorry, couldn't listen on that port: #{e}")
+          @window.puts("Sorry, couldn't listen on that port: #{e}")
         rescue Errno::EADDRINUSE => e
-          puts("Sorry, that address:port is already in use: #{e}")
+          @window.puts("Sorry, that address:port is already in use: #{e}")
+          @window.puts()
+          @window.puts("If you kill a session from the root window with the 'kill'")
+          @window.puts("command, it will free the socket. You can get a list of which")
+          @window.puts("sockets are being used with the 'tunnels' command!")
+          @window.puts()
+          @window.puts("I realize this is super awkward.. don't worry, it'll get")
+          @window.puts("better next version! Stay tuned!")
+
         end
       end
     )
