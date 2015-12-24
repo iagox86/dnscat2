@@ -83,6 +83,9 @@ opts = Trollop::options do
   opt :history_size,   "The number of lines of history that windows will maintain",
     :type => :integer, :default => 1000
 
+  opt :listener,       "DEBUG: Start a listener driver on the given port",
+    :type => :integer, :default => nil
+
   opt :firehose,       "If set, all output goes to stdout instead of being put in windows.",
     :type => :boolean, :default => false
 end

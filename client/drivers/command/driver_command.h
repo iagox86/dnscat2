@@ -9,18 +9,19 @@
 #define __DRIVER_command_H__
 
 #include "command_packet.h"
-#include "command_packet_stream.h"
+#include "libs/ll.h"
 #include "libs/select_group.h"
 #include "libs/types.h"
 
 typedef struct
 {
-  char                    *name;
-  uint16_t                 session_id;
-  command_packet_stream_t *stream;
-  select_group_t          *group;
-  buffer_t                *outgoing_data;
-  NBBOOL                   is_shutdown;
+  char           *name;
+  uint16_t        session_id;
+  buffer_t       *stream;
+  select_group_t *group;
+  buffer_t       *outgoing_data;
+  NBBOOL          is_shutdown;
+  ll_t           *tunnels;
 } driver_command_t;
 
 driver_command_t *driver_command_create(select_group_t *group);

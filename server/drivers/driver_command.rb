@@ -8,11 +8,17 @@
 
 require 'shellwords'
 
+require 'drivers/command_packet'
 require 'drivers/driver_command_commands'
-require 'libs/command_packet'
+require 'drivers/driver_command_tunnels'
 
 class DriverCommand
   include DriverCommandCommands
+  include DriverCommandTunnels
+
+  attr_reader :stopped
+
+  @@mutex = Mutex.new()
 
   def request_id()
     id = @request_id
@@ -34,20 +40,25 @@ class DriverCommand
     })
   end
 
-  def _send_request(request)
-    @handlers[request.get(:request_id)] = {
-      :request => request,
-      :proc => proc
-    }
+  def _send_request(request, callback)
+    # Make sure this is synchronous so threads don't fight
+    @@mutex.synchronize() do
+      if(callback)
+        @handlers[request.get(:request_id)] = {
+          :request => request,
+          :proc => callback
+        }
+      end
 
-    if(Settings::GLOBAL.get("packet_trace"))
-      window = _get_pcap_window()
-      window.puts("OUT: #{request}")
+      if(Settings::GLOBAL.get("packet_trace"))
+        window = _get_pcap_window()
+        window.puts("OUT: #{request}")
+      end
+
+      out = request.serialize()
+      out = [out.length, out].pack("Na*")
+      @outgoing += out
     end
-
-    out = request.serialize()
-    out = [out.length, out].pack("Na*")
-    @outgoing += out
   end
 
   def initialize(window, settings)
@@ -58,8 +69,10 @@ class DriverCommand
     @request_id = 0x0001
     @commander = Commander.new()
     @handlers = {}
+    @stopped = false
 
     _register_commands()
+    _register_commands_tunnels()
 
     @window.on_input() do |data|
       # This replaces any $variables with 
@@ -82,14 +95,6 @@ class DriverCommand
     if(Settings::GLOBAL.get("packet_trace"))
       window = _get_pcap_window()
     end
-
-    # Sideload the auto-command if one is set (this should happen at the end of initialize())
-#    if(auto_command = Settings::GLOBAL.get("auto_command"))
-#      auto_command.split(";").each do |command|
-#        command = command.strip()
-#        @commander.feed(command + "\n")
-#      end
-#    end
   end
 
   def _handle_incoming(command_packet)
@@ -99,27 +104,32 @@ class DriverCommand
     end
 
     if(command_packet.get(:is_request))
-      @window.puts("ERROR: The client sent us a request! That's not valid (but")
-      @window.puts("it may be in the future, so this may be a version mismatch")
-      @window.puts("problem)")
+      tunnel_data_incoming(command_packet)
+    else
+      handler = @handlers.delete(command_packet.get(:request_id))
+      if(handler.nil?)
+        @window.puts("Received a response that we have no record of sending:")
+        @window.puts("#{command_packet}")
+        @window.puts()
+        @window.puts("Here are the responses we're waiting for:")
+        @handlers.each_pair do |request_id, the_handler|
+          @window.puts("#{request_id}: #{the_handler[:request]}")
+        end
 
-      return
-    end
+        if(handler.get(:command_id) != response.get(:command_id) && command_packet.get(:command_id) != CommandPacket::ERROR)
+          @window.puts("Received a response of a different packet type (that's really weird, please report if you can reproduce!")
+          @window.puts("#{command_packet}")
+          @window.puts()
+          @window.puts("The original packet was:")
+          @window.puts("#{handler}")
+        end
 
-    if(@handlers[command_packet.get(:request_id)].nil?)
-      @window.puts("Received a response that we have no record of sending:")
-      @window.puts("#{command_packet}")
-      @window.puts()
-      @window.puts("Here are the responses we're waiting for:")
-      @handlers.each_pair do |request_id, handler|
-        @window.puts("#{request_id}: #{handler[:request]}")
+        return
       end
 
-      return
+      handler[:proc].call(handler[:request], command_packet)
     end
 
-    handler = @handlers.delete(command_packet.get(:request_id))
-    handler[:proc].call(handler[:request], command_packet)
   end
 
   def feed(data)
@@ -139,12 +149,20 @@ class DriverCommand
 
       # Otherwise, remove what we have from @data
       length, data, @incoming = @incoming.unpack("Na#{length}a*")
-      _handle_incoming(CommandPacket.parse(data, false))
+      _handle_incoming(CommandPacket.parse(data))
     end
 
     # Return the queue and clear it out
     result = @outgoing
     @outgoing = ''
     return result
+  end
+
+  def request_stop()
+    @stopped = true
+  end
+
+  def shutdown()
+    tunnels_stop()
   end
 end

@@ -190,7 +190,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\drivers\command\command_packet_stream.c"
+				RelativePath="..\drivers\command\commands_standard.h"
+				>
+			</File>
+			<File
+				RelativePath="..\drivers\command\commands_tunnel.h"
 				>
 			</File>
 			<File
@@ -231,6 +235,10 @@
 			</File>
 			<File
 				RelativePath="..\libs\crypto\encryptor.c"
+				>
+			</File>
+			<File
+				RelativePath="..\libs\ll.c"
 				>
 			</File>
 			<File
@@ -316,10 +324,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\drivers\command\command_packet_stream.h"
-				>
-			</File>
-			<File
 				RelativePath="..\controller\controller.h"
 				>
 			</File>
@@ -361,6 +365,10 @@
 			</File>
 			<File
 				RelativePath="..\libs\crypto\encryptor_sas_dict.h"
+				>
+			</File>
+			<File
+				RelativePath="..\libs\ll.h"
 				>
 			</File>
 			<File

@@ -4,28 +4,11 @@
  *
  * See LICENSE.md
  *
- * I don't think this is actually being used yet.
+ * This is currently only used for constants. It may be used more in the future,
+ * the same way that driver.h is.
  */
-
-#include "driver_dns.h"
-#include "types.h"
 
 typedef enum
 {
   TUNNEL_DRIVER_DNS,
-  TUNNEL_DRIVER_TCP
-} tunnel_driver_type;
-
-typedef struct
-{
-  tunnel_driver_type type;
-  union
-  {
-    driver_dns_t dns;
-    /* driver_tcp_t tcp; */
-  } driver;
-} t_tunnel_driver;
-
-void tunnel_driver_send(uint8_t *data, size_t size)
-{
-}
+} tunnel_driver_type_t;

@@ -37,6 +37,7 @@
 #define SG_PIPE(sg,i) sg->select_list[i]->pipe
 #endif
 #define SG_TYPE(sg,i) sg->select_list[i]->type
+#define SG_READY(sg,i) sg->select_list[i]->ready_callback
 #define SG_RECV(sg,i) sg->select_list[i]->recv_callback
 #define SG_LISTEN(sg,i) sg->select_list[i]->listen_callback
 #define SG_ERROR(sg,i) sg->select_list[i]->error_callback
@@ -44,9 +45,22 @@
 #define SG_WAITING(sg,i) sg->select_list[i]->waiting_for
 #define SG_BUFFER(sg,i) sg->select_list[i]->buffer
 #define SG_BUFFERED(sg,i) sg->select_list[i]->buffered
+#define SG_IS_READY(sg,i) sg->select_list[i]->ready
 #define SG_IS_ACTIVE(sg,i) sg->select_list[i]->active
 #define SG_PARAM(sg,i) sg->select_list[i]->param
 
+static int getlastsocketerror(int s)
+{
+#ifdef WIN32
+  int len = 4;
+  int val;
+  getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&val, &len);
+
+  return val;
+#else
+  return getlasterror();
+#endif
+}
 
 static select_t *find_select_by_socket(select_group_t *group, int s)
 {
@@ -107,6 +121,7 @@ void select_group_add_socket(select_group_t *group, int s, SOCKET_TYPE_t type, v
   memset(new_select, 0, sizeof(select_t));
   new_select->s = s;
   new_select->type = type;
+  new_select->ready = FALSE;
   new_select->active = TRUE;
   new_select->param = param;
 
@@ -157,6 +172,19 @@ void select_group_add_pipe(select_group_t *group, int identifier, HANDLE pipe, v
   }
 }
 #endif
+
+select_ready *select_set_ready(select_group_t *group, int s, select_ready *callback)
+{
+  select_t *select = find_select_by_socket(group, s);
+  select_ready *old = NULL;
+
+  if(select)
+  {
+    old = select->ready_callback;
+    select->ready_callback = callback;
+  }
+  return old;
+}
 
 select_recv *select_set_recv(select_group_t *group, int s, select_recv *callback)
 {
@@ -268,6 +296,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
   {
     /* Figure out how many bytes we're waiting on. */
     size_t require = SG_WAITING(group, i) - SG_BUFFERED(group, i);
+
     /* Read no more than what we need. */
     int size = recv(s, buffer, require, 0);
 
@@ -278,7 +307,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
     if(size < 0)
     {
       if(SG_ERROR(group, i))
-        select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+        select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
       else
         select_group_remove_and_close_socket(group, s);
     }
@@ -340,7 +369,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       if(size < 0 || !success)
       {
         if(SG_ERROR(group, i))
-          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
         else
           select_group_remove_and_close_socket(group, s);
       }
@@ -373,7 +402,7 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       if(size < 0 || size == (size_t)-1)
       {
         if(SG_ERROR(group, i))
-          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
         else
           select_group_remove_and_close_socket(group, s);
       }
@@ -404,7 +433,9 @@ static void handle_incoming_connection(select_group_t *group, size_t i)
 
 void select_group_do_select(select_group_t *group, int timeout_ms)
 {
-  fd_set select_set;
+  fd_set read_set;
+  fd_set write_set;
+  fd_set error_set;
   int select_return;
   size_t i;
   struct timeval select_timeout;
@@ -423,7 +454,9 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 #endif
 
   /* Clear the current socket set */
-  FD_ZERO(&select_set);
+  FD_ZERO(&read_set);
+  FD_ZERO(&write_set);
+  FD_ZERO(&error_set);
 
   /* Crawl over the list, adding the sockets. */
   for(i = 0; i < group->current_size; i++)
@@ -432,12 +465,27 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
     /* On Windows, don't add pipes. */
     if(SG_IS_ACTIVE(group, i) && SG_TYPE(group, i) != SOCKET_TYPE_PIPE)
     {
-      FD_SET(SG_SOCKET(group, i), &select_set);
+      if(SG_IS_READY(group, i))
+        FD_SET(SG_SOCKET(group, i), &read_set);
+      else
+        FD_SET(SG_SOCKET(group, i), &write_set);
+
+      FD_SET(SG_SOCKET(group, i), &error_set);
+
+      /* Count is only used to check if there are any sockets in the set; if
+       * there aren't, then sleep() is used instead of select(). */
       count++;
     }
 #else
     if(SG_IS_ACTIVE(group, i))
-      FD_SET(SG_SOCKET(group, i), &select_set);
+    {
+      if(SG_IS_READY(group, i))
+        FD_SET(SG_SOCKET(group, i), &read_set);
+      else
+        FD_SET(SG_SOCKET(group, i), &write_set);
+
+      FD_SET(SG_SOCKET(group, i), &error_set);
+    }
 #endif
   }
 
@@ -446,9 +494,9 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
   if(count == 0)
     Sleep(TIMEOUT_INTERVAL);
   else
-    select_return = select(group->biggest_socket + 1, &select_set, NULL, NULL, &select_timeout);
+    select_return = select(group->biggest_socket + 1, &read_set, &write_set, &error_set, &select_timeout);
 #else
-  select_return = select(group->biggest_socket + 1, &select_set, NULL, NULL, timeout_ms < 0 ? NULL : &select_timeout);
+  select_return = select(group->biggest_socket + 1, &read_set, &write_set, &error_set, timeout_ms < 0 ? NULL : &select_timeout);
 #endif
 /*  fprintf(stderr, "Select returned %d\n", select_return); */
 
@@ -487,7 +535,7 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
         else
         {
           if(SG_ERROR(group, i))
-            select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlasterror(), SG_PARAM(group, i)));
+            select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
           else
             select_group_remove_and_close_socket(group, s);
         }
@@ -496,8 +544,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
   }
 #endif
 
-  /* select_return is 0 when there's a timeout -- but because we're polling, we have to check if
-   * we crossed our timeout threshold. */
+  /* select_return is 0 when there's a timeout -- but because there's a timeout
+   * callback, we have to check if we crossed it. */
   if(select_return == 0)
   {
     if(timeout_ms >= 0)
@@ -518,17 +566,15 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
     if(group->timeout_callback)
       group->timeout_callback(group, group->timeout_param);
 #endif
-
     }
-
   }
   else
   {
     /* Loop through the sockets to find the one that had activity. */
     for(i = 0; i < group->current_size; i++)
     {
-      /* If the socket is active and it has data waiting, process it. */
-      if(SG_IS_ACTIVE(group, i) && FD_ISSET(SG_SOCKET(group, i), &select_set))
+      /* If the socket is active and it has data waiting to be read, process it. */
+      if(SG_IS_ACTIVE(group, i) && FD_ISSET(SG_SOCKET(group, i), &read_set))
       {
         if(SG_TYPE(group, i) == SOCKET_TYPE_LISTEN)
         {
@@ -539,13 +585,31 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
           handle_incoming_data(group, i);
         }
       }
-      else
+
+      /* If the socket became writable, update as appropriate. */
+      if(SG_IS_ACTIVE(group, i) && FD_ISSET(SG_SOCKET(group, i), &write_set))
       {
+        /* Call the connect callback. */
+        if(SG_READY(group, i))
+          select_handle_response(group, SG_SOCKET(group, i), SG_READY(group, i)(group, SG_SOCKET(group, i), SG_PARAM(group, i)));
+
+        /* Mark the socket as ready. */
+        SG_IS_READY(group, i) = TRUE;
+      }
+
+      /* If there's an error, handle it. */
+      if(SG_IS_ACTIVE(group, i) && FD_ISSET(SG_SOCKET(group, i), &error_set))
+      {
+        /* If there's no handler defined, default to closing and removing the
+         * socket. */
+        if(SG_ERROR(group, i))
+          select_handle_response(group, SG_SOCKET(group, i), SG_ERROR(group, i)(group, SG_SOCKET(group, i), getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
+        else
+          select_handle_response(group, SG_SOCKET(group, i), SELECT_CLOSE_REMOVE);
       }
     }
   }
 }
-
 
 NBBOOL select_group_wait_for_bytes(select_group_t *group, int s, size_t bytes)
 {

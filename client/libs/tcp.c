@@ -11,6 +11,7 @@
 #ifdef WIN32
 #include <winsock2.h>
 #else
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -60,45 +61,65 @@ void winsock_initialize()
 #endif
 }
 
-int tcp_connect(char *host, uint16_t port)
+int tcp_connect_options(char *host, uint16_t port, int non_blocking)
 {
   struct sockaddr_in serv_addr;
   struct hostent *server;
+  int s;
+  int status;
 
   /* Create the socket */
-  int s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
   if (s == -1)
-  {
     nbdie("tcp: couldn't create socket");
-  }
-  else
-  {
-    /* Look up the host */
-    server = gethostbyname(host);
-    if(!server)
-    {
-      s = -1;
-      fprintf(stderr, "Couldn't find host %s\n", host);
-    }
-    else
-    {
-      /* Set up the server address */
-      memset(&serv_addr, '\0', sizeof(serv_addr));
-      serv_addr.sin_family = AF_INET;
-      serv_addr.sin_port   = htons(port);
-      memcpy(&serv_addr.sin_addr, server->h_addr_list[0], server->h_length);
 
-      /* Connect */
-      if (connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
-      {
-        s = -1;
-        nberror("tcp: couldn't connect to host");
-      }
-    }
+  if(non_blocking)
+  {
+#ifdef WIN32
+    unsigned long mode = 1;
+    ioctlsocket(s, FIONBIO, &mode);
+#else
+    int flags = fcntl(s, F_GETFL, 0);
+    flags = flags | O_NONBLOCK;
+    fcntl(s, F_SETFL, flags);
+#endif
+  }
+
+  /* Look up the host */
+  server = gethostbyname(host);
+  if(!server)
+  {
+    fprintf(stderr, "Couldn't find host %s\n", host);
+    return -1;
+  }
+
+  /* Set up the server address */
+  memset(&serv_addr, '\0', sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port   = htons(port);
+  memcpy(&serv_addr.sin_addr, server->h_addr_list[0], server->h_length);
+
+  /* Connect */
+  status = connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+
+#ifdef WIN32
+  if(status < 0 && GetLastError() != WSAEWOULDBLOCK)
+#else
+  if(status < 0 && errno != EINPROGRESS)
+#endif
+  {
+    nberror("tcp: couldn't connect to host");
+
+    return -1;
   }
 
   return s;
+}
+
+int tcp_connect(char *host, uint16_t port)
+{
+  return tcp_connect_options(host, port, 0);
 }
 
 void tcp_set_nonblocking(int s)
@@ -228,5 +249,3 @@ int main(int argc, char *argv[])
   return 1;
 }
 #endif
-
-

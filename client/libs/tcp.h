@@ -20,6 +20,10 @@ void winsock_initialize();
  * returns -1 if it fails; otherwise, returns the new socket. */
 int    tcp_connect(char *host, uint16_t port);
 
+/* The same as tcp_connect, except it lets the user choose a non-blocking
+ * socket. */
+int tcp_connect_options(char *host, uint16_t port, int non_blocking);
+
 /* Set a socket as non-blocking. */
 void   tcp_set_nonblocking(int s);
 

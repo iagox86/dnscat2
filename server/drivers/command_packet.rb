@@ -25,6 +25,9 @@ class CommandPacket
   COMMAND_DOWNLOAD = 0x0003
   COMMAND_UPLOAD   = 0x0004
   COMMAND_SHUTDOWN = 0x0005
+  TUNNEL_CONNECT   = 0x1000
+  TUNNEL_DATA      = 0x1001
+  TUNNEL_CLOSE     = 0x1002
   COMMAND_ERROR    = 0xFFFF
 
   COMMAND_NAMES = {
@@ -34,8 +37,14 @@ class CommandPacket
     0x0003 => "COMMAND_DOWNLOAD",
     0x0004 => "COMMAND_UPLOAD",
     0x0005 => "COMMAND_SHUTDOWN",
+    0x1000 => "TUNNEL_CONNECT",
+    0x1001 => "TUNNEL_DATA",
+    0x1002 => "TUNNEL_CLOSE",
     0xFFFF => "COMMAND_ERROR",
   }
+
+  STATUS_OK             = 0x0000
+  TUNNEL_STATUS_FAIL    = 0x8000
 
   # These are used in initialize() to make sure the caller is passing in the
   # right fields
@@ -62,6 +71,18 @@ class CommandPacket
     },
     COMMAND_SHUTDOWN => {
       :request  => [],
+      :response => [],
+    },
+    TUNNEL_CONNECT => {
+      :request  => [ :options, :host, :port ],
+      :response => [ :tunnel_id ],
+    },
+    TUNNEL_DATA => {
+      :request  => [ :tunnel_id, :data ],
+      :response => [],
+    },
+    TUNNEL_CLOSE => {
+      :request  => [ :tunnel_id, :reason ],
       :response => [],
     },
     COMMAND_ERROR => {
@@ -105,18 +126,27 @@ class CommandPacket
     return (packet.length >= length)
   end
 
-  def CommandPacket.parse(packet, is_request)
+  def CommandPacket.parse(packet)
     _at_least?(packet, 4)
-    data = {
-      :is_request => is_request
-    }
+    data = {}
 
-    data[:request_id], data[:command_id], packet = packet.unpack("nna*")
+    # Read and parse the packed_id (which is is_response + request_id)
+    packed_id, packet = packet.unpack("na*")
+    data[:is_request] = !((packed_id & 0x8000) == 0x8000)
+    data[:request_id] = packed_id & 0x7FFF
+
+    # Unpack the command_id
+    data[:command_id], packet = packet.unpack("na*")
 
     case data[:command_id]
     when COMMAND_PING
-      _null_terminated?(packet)
-      data[:data], packet = packet.unpack("Z*a*")
+      if(data[:is_request])
+        _null_terminated?(packet)
+        data[:data], packet = packet.unpack("Z*a*")
+      else
+        _null_terminated?(packet)
+        data[:data], packet = packet.unpack("Z*a*")
+      end
 
     when COMMAND_SHELL
       if(data[:is_request])
@@ -152,8 +182,43 @@ class CommandPacket
       else
         # n/a
       end
+
     when COMMAND_SHUTDOWN
       # n/a - there's no data in either direction
+
+    when TUNNEL_CONNECT
+      if(data[:is_request])
+        _at_least?(packet, 4)
+        data[:options], packet = packet.unpack("Na*")
+
+        _null_terminated?(packet)
+        data[:host], packet = packet.unpack("Z*a*")
+
+        _at_least?(packet, 2)
+        data[:port], packet = packet.unpack("na*")
+      else
+        _at_least?(packet, 4)
+        data[:tunnel_id], packet = packet.unpack("Na*")
+      end
+
+    when TUNNEL_DATA
+      if(data[:is_request])
+        _at_least?(packet, 4)
+        data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
+      else
+        _at_least?(packet, 4)
+        data[:tunnel_id], data[:data], packet = packet.unpack("Na*a*")
+      end
+
+    when TUNNEL_CLOSE
+      if(data[:is_request])
+        _at_least?(packet, 4)
+        data[:tunnel_id], packet = packet.unpack("Na*")
+        _null_terminated?(packet)
+        data[:reason], packet = packet.unpack("Z*a*")
+      else
+        # n/a
+      end
 
     when COMMAND_ERROR
       _at_least?(packet, 2)
@@ -208,10 +273,15 @@ class CommandPacket
 
   # Convert to a byte string
   def serialize()
+    # Make sure the data is sane
     validate(@data)
 
-    packet = ""
-    packet += [@data[:request_id], @data[:command_id]].pack("nn")
+    # Generate the packed id
+    packed_id  = @data[:is_request] ? 0x0000 : 0x8000
+    packed_id |= @data[:request_id] & 0x7FFF
+
+    # Start building the packet
+    packet = [packed_id, @data[:command_id]].pack("nn")
 
     case @data[:command_id]
     when COMMAND_PING
@@ -245,8 +315,32 @@ class CommandPacket
       else
         # n/a
       end
+
     when COMMAND_SHUTDOWN
       # n/a - there's no data in either direction
+
+    when TUNNEL_CONNECT
+      if(@data[:is_request])
+        packet += [@data[:options], @data[:host], @data[:port]].pack("NZ*n")
+      else
+        packet += [@data[:tunnel_id]].pack("N")
+      end
+
+    when TUNNEL_DATA
+      if(@data[:is_request])
+        packet += [@data[:tunnel_id], @data[:data]].pack("Na*")
+      else
+        # n/a
+        raise(DnscatException, "Trying to send a response to a TUNNEL_DATA request isn't allowed!")
+      end
+
+    when TUNNEL_CLOSE
+      if(@data[:is_request])
+        packet += [@data[:tunnel_id], @data[:reason]].pack("NZ*")
+      else
+        # n/a
+        raise(DnscatException, "Trying to send a response to a TUNNEL_CLOSE request isn't allowed!")
+      end
 
     when COMMAND_ERROR
       packet += [@data[:status], @data[:reason]].pack("nZ*")

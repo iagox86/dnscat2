@@ -18,7 +18,6 @@ OBJS=controller/packet.o \
 		 drivers/driver.o \
 		 drivers/command/driver_command.o \
 		 drivers/command/command_packet.o \
-		 drivers/command/command_packet_stream.o \
 		 drivers/driver_console.o \
 		 drivers/driver_exec.o \
 		 drivers/driver_ping.o \
@@ -28,6 +27,7 @@ OBJS=controller/packet.o \
 		 libs/crypto/salsa20.o \
 		 libs/crypto/sha3.o \
 		 libs/dns.o \
+		 libs/ll.o \
 		 libs/log.o \
 		 libs/memory.o \
 		 libs/select_group.o \
@@ -68,3 +68,9 @@ clean:
 dnscat: ${DNSCAT_DNS_OBJS}
 	${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
 	@echo "*** dnscat successfully compiled"
+
+COMMANDS=drivers/command/commands_standard.h \
+				 drivers/command/commands_tunnel.h
+
+drivers/command/driver_command.o: drivers/command/driver_command.c ${COMMANDS}
+	${CC} -c ${CFLAGS} -o drivers/command/driver_command.o drivers/command/driver_command.c

@@ -293,6 +293,25 @@ side's data (by adding the length to the other side's `SEQ` number)
 while sending out its own data and updating its own `SEQ` number (by
 looking at the other side's `ACK` number).
 
+## Command protocol
+
+There's a secondary protocol that runs on top of the dnscat protocol
+known as the "command protocol". If `OPT_COMMAND` is set in the SYN
+header, then all messages are treated as command messages, and must
+follow the command protocol.
+
+Full information about the command protocol and everything it does can
+be found in [command_protocol.md](command_protocol.md)!
+
+## Tunneling
+
+As of December/2015, dnscat2 supports tunneling arbitrary connections
+via dnscat2.
+
+Tunneling is actually implemented as part of the command protocol, so
+check out the [command_protocol.md](command_protocol.md) document for
+full information!
+
 ## Encryption / signing
 
 It's important to start by noting: this isn't designed to be strong
@@ -518,7 +537,6 @@ for a brief period.
 
 Note that even with this feature, the server *MUST NOT* allow the same
 nonce to be used with the same key! That undermines all security!
-
 
 ### Algorithms
 
@@ -746,7 +764,7 @@ order). The following datatypes are used:
 
 #### Notes
 
-- If the SYN contained OPT_COMMAND, the 'data' field uses the command protocol. See command_protocol.md.
+- If the SYN contained OPT_COMMAND, the 'data' field uses the command protocol. See [command_protocol.md](command_protocol.md).
 
 ### MESSAGE_TYPE_FIN: [0x02]
 
