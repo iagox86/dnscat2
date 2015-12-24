@@ -1,3 +1,13 @@
+# 0.06
+
+* Implemented tunneling, similar to "ssh -L", which is accessed on the
+  server via the `listen` command
+* Greatly improved performance when a lot of data is being transmitted
+  from the server to the client
+* Fixed a bug where shared secrets (and other arguments) didn't work on
+  the client if the user explicitly chose a driver type
+* Cleaned up the "create driver" logic on the client
+
 # 0.05
 
 * Added tools/dnstest.rb, a script to verify that the user actually own
