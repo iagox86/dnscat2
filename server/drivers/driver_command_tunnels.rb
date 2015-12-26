@@ -13,24 +13,6 @@ module DriverCommandTunnels
   class ViaSocket
     @@instances = {}
 
-    def initialize(driver, name, thread, tunnel_id, v_socket, s_socket, callbacks)
-      @driver    = driver
-      @name      = name
-      @thread    = thread
-      @tunnel_id = tunnel_id
-      @v_socket  = v_socket
-      @s_socket  = s_socket
-
-      # If the response was good, then we can create a Socketer and hook up to it!
-      @session = Socketer::Session.new(@s_socket, "#{name} via tunnel #{tunnel_id}", callbacks)
-
-      # Get ready to receive data immediately
-      @@instances[tunnel_id] = self
-
-      # We're only ready AFTER we are prepared to receive data - this may do a callback instantly
-      @session.ready!()
-    end
-
     def ViaSocket.connect(driver, host, port, callbacks)
       packet = CommandPacket.new({
         :is_request => true,
@@ -77,18 +59,21 @@ module DriverCommandTunnels
           end
         end
 
-        # Create the socket; we don't have to do anything with it, it looks after itself!
-        ViaSocket.new(driver, "#{host}:#{port}", thread, tunnel_id, v_socket, s_socket, callbacks)
+        # Store the info we need
+        #ViaSocket.new(driver, "#{host}:#{port}", thread, tunnel_id, v_socket, s_socket, callbacks)
+
+        # If the response was good, then we can create a Socketer session and hook up to it!
+        session = Socketer::Session.new(s_socket, "#{host}:#{port} via tunnel #{tunnel_id}", callbacks)
+
+        @@instances[tunnel_id] = {
+          :thread  => thread,
+          :socket  => v_socket,
+          :session => session,
+        }
+
+        # We're only ready AFTER we are prepared to receive data - this may do a callback instantly
+        session.ready!()
       end)
-    end
-
-    def write(data)
-      @v_socket.write(data)
-    end
-
-    def close()
-      @v_socket.close()
-      @thread.exit()
     end
 
     def ViaSocket.handle(packet)
@@ -105,10 +90,11 @@ module DriverCommandTunnels
 
       case packet.get(:command_id)
       when CommandPacket::TUNNEL_DATA
-        instance.write(packet.get(:data))
+        instance[:socket].write(packet.get(:data))
 
       when CommandPacket::TUNNEL_CLOSE
-        instance.close()
+        instance[:socket].close()
+        instance[:thread].exit()
 
       else
         raise(DnscatException, "Unknown command sent by the server: #{packet}")
