@@ -10,98 +10,64 @@ require 'libs/command_helpers'
 require 'libs/socketer'
 
 module DriverCommandTunnels
-  class ViaSocket
-    @@instances = {}
+  def create_via_socket(host, port, callbacks)
+    # Create the tunnels variable if it doesn't exist
+    @tunnels = @tunnels || {}
 
-    def ViaSocket.connect(driver, host, port, callbacks)
-      packet = CommandPacket.new({
-        :is_request => true,
-        :request_id => driver.request_id(),
-        :command_id => CommandPacket::TUNNEL_CONNECT,
-        :options    => 0,
-        :host       => host,
-        :port       => port,
-      })
+    # Ask the client to make a connection for us
+    packet = CommandPacket.new({
+      :is_request => true,
+      :request_id => request_id(),
+      :command_id => CommandPacket::TUNNEL_CONNECT,
+      :options    => 0,
+      :host       => host,
+      :port       => port,
+    })
+
+    _send_request(packet, Proc.new() do |request, response|
+      # Handle an error response
+      if(response.get(:command_id) == CommandPacket::COMMAND_ERROR)
+        if(callbacks[:on_error])
+          callbacks[:on_error].call(self, "Connect failed: #{response.get(:reason)}", e)
+        end
+
+        next
+      end
 
       # Create a socket pair so we can use this with Socketer
       v_socket, s_socket = UNIXSocket.pair()
 
-      driver._send_request(packet, Proc.new() do |request, response|
-        # Handle an error response
-        if(response.get(:command_id) == CommandPacket::COMMAND_ERROR)
-          if(callbacks[:on_error])
-            callbacks[:on_error].call(self, "Connect failed: #{response.get(:reason)}", e)
-          end
+      # Get the tunnel_id
+      tunnel_id = response.get(:tunnel_id)
 
-          v_socket.close()
-          s_socket.close()
+      # Start a receive thread for the socket
+      thread = Thread.new() do
+        loop do
+          data = v_socket.recv(Socketer::BUFFER)
 
-          next
+          packet = CommandPacket.new({
+            :is_request => true,
+            :request_id => request_id(),
+            :command_id => CommandPacket::TUNNEL_DATA,
+            :tunnel_id  => tunnel_id,
+            :data => data,
+          })
+
+          _send_request(packet, nil)
         end
-
-        # Get the tunnel_id
-        tunnel_id = response.get(:tunnel_id)
-
-        # Start a receive thread for the socket
-        thread = Thread.new() do
-          loop do
-            data = v_socket.recv(Socketer::BUFFER)
-
-            packet = CommandPacket.new({
-              :is_request => true,
-              :request_id => driver.request_id(),
-              :command_id => CommandPacket::TUNNEL_DATA,
-              :tunnel_id  => tunnel_id,
-              :data => data,
-            })
-
-            driver._send_request(packet, nil)
-          end
-        end
-
-        # Store the info we need
-        #ViaSocket.new(driver, "#{host}:#{port}", thread, tunnel_id, v_socket, s_socket, callbacks)
-
-        # If the response was good, then we can create a Socketer session and hook up to it!
-        session = Socketer::Session.new(s_socket, "#{host}:#{port} via tunnel #{tunnel_id}", callbacks)
-
-        @@instances[tunnel_id] = {
-          :thread  => thread,
-          :socket  => v_socket,
-          :session => session,
-        }
-
-        # We're only ready AFTER we are prepared to receive data - this may do a callback instantly
-        session.ready!()
-      end)
-    end
-
-    def ViaSocket.handle(packet)
-      instance = @@instances[packet.get(:tunnel_id)]
-      if(instance.nil?)
-        return CommandPacket.new({
-          :is_request => true,
-          :request_id => request_id(),
-          :command_id => CommandPacket::TUNNEL_CLOSE,
-          :tunnel_id  => tunnel_id,
-          :reason     => "Unknown tunnel: %d" % tunnel_id
-        })
       end
 
-      case packet.get(:command_id)
-      when CommandPacket::TUNNEL_DATA
-        instance[:socket].write(packet.get(:data))
+      # If the response was good, then we can create a Socketer session and hook up to it!
+      session = Socketer::Session.new(s_socket, "#{host}:#{port} via tunnel #{tunnel_id}", callbacks)
 
-      when CommandPacket::TUNNEL_CLOSE
-        instance[:socket].close()
-        instance[:thread].exit()
+      @tunnels[tunnel_id] = {
+        :thread  => thread,
+        :socket  => v_socket,
+      }
 
-      else
-        raise(DnscatException, "Unknown command sent by the server: #{packet}")
-      end
-
-      return nil
-    end
+      # We're only ready AFTER we are prepared to receive data - this may do a callback instantly
+      session.ready!()
+    end)
   end
 
   def _register_commands_tunnels()
@@ -115,7 +81,7 @@ module DriverCommandTunnels
       end,
 
       Proc.new do |opts, optarg|
-        ViaSocket.connect(self, 'localhost', 4444, {
+        create_via_socket('localhost', 4444, {
           :on_ready => Proc.new() do |session, name|
             @window.puts("Connection successful: #{name}")
             session.send("GET / HTTP/1.0\r\n\r\n")
@@ -266,18 +232,41 @@ module DriverCommandTunnels
   end
 
   def tunnel_data_incoming(packet)
-    response = ViaSocket.handle(packet)
-    if(!response.nil?)
-      _send_request(response, nil)
+    case packet.get(:command_id)
+    when CommandPacket::TUNNEL_DATA
+      tunnel = @tunnels[packet.get(:tunnel_id)]
+      if(tunnel.nil?)
+        @window.puts("Unknown tunnel: %d" % packet.get(:tunnel_id))
+        _send_request(CommandPacket.new({
+          :is_request => true,
+          :request_id => request_id(),
+          :command_id => CommandPacket::TUNNEL_CLOSE,
+          :tunnel_id  => tunnel_id,
+          :reason     => "Unknown tunnel: %d" % tunnel_id
+        }), nil)
+      end
+
+      tunnel[:socket].write(packet.get(:data))
+
+    when CommandPacket::TUNNEL_CLOSE
+      tunnel = @tunnels[packet.get(:tunnel_id)]
+      if(tunnel.nil?)
+        @window.puts("Tried to close an unknown tunnel: %d" % packet.get(:tunnel_id))
+
+        tunnel[:socket].close()
+        tunnel[:thread].exit()
+      end
+    else
+      raise(DnscatException, "Unknown command sent by the server: #{packet}")
     end
   end
 
   def tunnels_stop()
-    if(@tunnels.length > 0)
-      @window.puts("Stopping active tunnels...")
-      @tunnels.each do |t|
-        t.kill()
-      end
-    end
+#    if(@tunnels.length > 0)
+#      @window.puts("Stopping active tunnels...")
+#      @tunnels.each do |t|
+#        t.kill()
+#      end
+#    end
   end
 end
