@@ -17,20 +17,14 @@ class Socketer
   BUFFER = 65536
 
   class Session
-    attr_reader :host, :port
+    attr_reader :name
 
-    def initialize(client, callbacks = {})
+    def initialize(client, name, callbacks = {})
       @client     = client
-      @on_connect = callbacks[:on_connect]
+      @on_ready   = callbacks[:on_ready]
       @on_data    = callbacks[:on_data]
       @on_error   = callbacks[:on_error]
-      @host       = client.peeraddr[2]
-      @port       = client.peeraddr[1]
-
-      # Do the 'new connection' callback
-      if(@on_connect)
-        @on_connect.call(self, client.peeraddr[2], client.peeraddr[1])
-      end
+      @name       = name
     end
 
     def _handle_exception(e, msg)
@@ -64,6 +58,11 @@ class Socketer
           end
         end
       end
+
+      # Do the 'new connection' callback
+      if(@on_ready)
+        @on_ready.call(self, name)
+      end
     end
 
     def stop!()
@@ -85,6 +84,8 @@ class Socketer
     end
   end
 
+  # We really only have the ability to create a socketer instance in order to
+  # clean up when we have to. This shouldn't be called externally.
   def initialize(socket, thread, lhost, lport)
     @socket = socket
     @thread = thread
@@ -98,8 +99,10 @@ class Socketer
 
   def kill()
     begin
-      @thread.exit()
-      @thread.join()
+      if(@thread)
+        @thread.exit()
+        @thread.join()
+      end
       @socket.close()
     rescue
       # Ignore exceptions
@@ -120,7 +123,7 @@ class Socketer
     return Socketer.new(s, Thread.new() do
       begin
         loop do
-          Session.new(s.accept(), callbacks)
+          Session.new(s.accept(), "%s:%d" % [client.peeraddr[2], client.peeraddr[1]], callbacks)
         end
       rescue StandardError => e
         Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
@@ -129,13 +132,11 @@ class Socketer
   end
 
   def Socketer.connect(host, port, callbacks = {})
-    #puts("Connecting to #{host}:#{port}...")
-
     return Thread.new() do
       begin
         s = TCPSocket.new(host, port)
         if(s)
-          Session.new(s, callbacks)
+          Session.new(s, "%s:%d" % [client.peeraddr[2], client.peeraddr[1]], callbacks)
         else
           if(callbacks[:on_error])
             callbacks[:on_error].call(nil, "Couldn't connect to #{host}:#{port}!")
