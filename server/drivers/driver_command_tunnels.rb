@@ -107,13 +107,15 @@ class ViaSocket
     @v_socket.close()
     @smanager.close()
 
-    @driver._send_request(CommandPacket.new({
-      :is_request => true,
-      :request_id => @driver.request_id(),
-      :command_id => CommandPacket::TUNNEL_CLOSE,
-      :tunnel_id  => @tunnel_id,
-      :reason     => "Socket closed",
-    }), nil)
+    if(send_close)
+      @driver._send_request(CommandPacket.new({
+        :is_request => true,
+        :request_id => @driver.request_id(),
+        :command_id => CommandPacket::TUNNEL_CLOSE,
+        :tunnel_id  => @tunnel_id,
+        :reason     => "Socket closed",
+      }), nil)
+    end
 
     # Close the thread last in case we're in it
     @thread.exit()
@@ -267,11 +269,11 @@ module DriverCommandTunnels
               end,
               :on_error => Proc.new() do |manager, msg, e|
                 puts("local_socket#on_error #{manager} #{msg} #{e}")
-                via_socket.close()
+                via_socket.close(true)
               end,
               :on_close => Proc.new() do |manager|
                 puts("local_socket#on_close #{manager}")
-                via_socket.close()
+                via_socket.close(true)
               end,
             })
 
