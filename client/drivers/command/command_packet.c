@@ -142,6 +142,8 @@ static command_packet_t *command_packet_parse(uint8_t *data, uint32_t length)
       exit(1);
   }
 
+  buffer_destroy(buffer);
+
   return p;
 }
 
