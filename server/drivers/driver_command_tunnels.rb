@@ -39,43 +39,49 @@ class ViaSocket
       end
 
       # Create a socket pair so we can use this with Socketer
+      # We talk to @v_socket a lot, so we keep a handle to it, but once
+      # the Socketer::Manager is started we no longer need s_socket
       @v_socket, s_socket = UNIXSocket.pair()
 
       # Get the tunnel_id
       @tunnel_id = response.get(:tunnel_id)
 
-      # If the response was good, then we can create a Socketer session and hook up to it!
-      @session = Socketer::Session.new(s_socket, "#{host}:#{port} via tunnel #{@tunnel_id}", callbacks)
+      # If the response was good, then we can create a Socketer Manager and hook up to it!
+      @smanager = Socketer::Manager.new(s_socket, callbacks)
 
       # Save ourselves in the list of instances
       @@via_sockets[@tunnel_id] = self
 
       # Start a receive thread for the socket
       @thread = Thread.new() do
-        loop do
-          data = @v_socket.recv(Socketer::BUFFER)
+        begin
+          loop do
+            data = @v_socket.recv(Socketer::BUFFER)
 
-          driver._send_request(CommandPacket.new({
-            :is_request => true,
-            :request_id => driver.request_id(),
-            :command_id => CommandPacket::TUNNEL_DATA,
-            :tunnel_id  => @tunnel_id,
-            :data       => data,
-          }), nil)
+            driver._send_request(CommandPacket.new({
+              :is_request => true,
+              :request_id => driver.request_id(),
+              :command_id => CommandPacket::TUNNEL_DATA,
+              :tunnel_id  => @tunnel_id,
+              :data       => data,
+            }), nil)
+          end
+        rescue StandardError => e
+          puts("Error in ViaSocket receive thread: #{e}")
         end
       end
 
       if(callbacks[:on_via])
-        callbacks[:on_via].call(@session, self)
+        callbacks[:on_via].call(@smanager, self)
       end
 
       # We're only ready AFTER we are prepared to receive data - this may do a callback instantly
-      @session.ready!()
+      @smanager.ready!()
     end)
   end
 
-  def wait_for_session()
-    while(@session.nil?)
+  def wait_for_smanager()
+    while(@smanager.nil?)
       # TODO: Get rid of this
       puts("Waiting for the tunnel to connect...")
       sleep(0.1)
@@ -83,13 +89,13 @@ class ViaSocket
   end
 
   def write(data)
-    wait_for_session()
+    wait_for_smanager()
 
-    @session.send(data)
+    @smanager.write(data)
   end
 
   def close()
-    @session.stop!()
+    @smanager.close()
     @thread.exit()
   end
 
@@ -186,15 +192,18 @@ module DriverCommandTunnels
       end,
 
       Proc.new do |opts, optarg|
-        ViaSocket.new(self, 'localhost', 4444, {
-          :on_ready => Proc.new() do |session, name|
-            @window.puts("Connection successful: #{name}")
-            session.send("GET / HTTP/1.0\r\n\r\n")
+        host = 'localhost'
+        port = 4444
+
+        ViaSocket.new(self, host, port, {
+          :on_ready => Proc.new() do |manager|
+            @window.puts("Connection successful: #{host}:#{port}")
+            manager.write("GET / HTTP/1.0\r\n\r\n")
           end,
-          :on_error => Proc.new() do |session, msg, e|
+          :on_error => Proc.new() do |manager, msg, e|
             @window.puts("ERROR: #{msg} #{e}")
           end,
-          :on_data => Proc.new() do |session, data|
+          :on_data => Proc.new() do |manager, data|
             @window.puts("Data received: #{data}")
           end,
         })
@@ -223,62 +232,40 @@ module DriverCommandTunnels
         @window.puts("Listening on #{lhost}:#{lport}, sending connections to #{rhost}:#{rport}")
 
         begin
-          # This listens on the server side, and creates a new ViaSocket for each connection
-          Socketer.listen(lhost, lport, {
-            # This indent-level is the callbacks for the SERVER socket (the
-            # socket that the local server is listening on)
-            :on_connect => Proc.new() do |session, name|
-              @window.puts("Connection from #{name}; forwarding to #{rhost}:#{rport}...")
+          Socketer::Listener.new(lhost, lport, Proc.new() do |s|
+            local_socket = nil
+            via_socket = nil
 
-              # These are the callbacks for the REMOTE socket (the fake socket that's on the client side)
-              ViaSocket.new(self, rhost, rport, {
-                :on_via => Proc.new() do |v_session, via_socket|
-                  # Index the via_socket in such a way that the SERVER socketer instance can find it
-                  puts("Saving socket #{via_socket} under session #{session}")
-                  @via_sockets[session] = via_socket
-                end,
-                :on_ready => Proc.new() do |v_session, v_name|
-                  via_socket = @via_sockets[session]
-                  @window.puts("[Tunnel #{via_socket.tunnel_id}] Tunnel ready: #{v_name}")
-                  # Tell the SERVER session that we're ready to start receiving data
-                  session.ready!()
-                end,
-                :on_data => Proc.new() do |v_session, v_data|
-                  via_socket = @via_sockets[session]
-                  @window.puts("[Tunnel #{via_socket.tunnel_id}] Data arrived from the other side! #{v_data.length} bytes")
-                  # Write data from the REMOTE socket to the SERVER socket
-                  session.send(v_data)
-                end,
-                :on_error => Proc.new() do |v_session, v_msg, v_e|
-                  via_socket = @via_sockets[session]
-                  @window.puts("[Tunnel #{via_socket.tunnel_id}] Tunnel closed: #{v_msg} #{v_e}")
-                  v_session.close!()
-                  session.close!()
-                end,
-              })
-            end,
+            local_socket = Socketer::Manager.new(s, {
+              :on_ready => Proc.new() do |manager|
+                puts("local_socket is ready!")
+              end,
+              :on_data => Proc.new() do |manager, data|
+                puts("local_socket got data!")
+                via_socket.write(data)
+              end,
+              :on_error => Proc.new() do |manager, msg, e|
+                puts("local_socket had an error: #{msg} #{e}")
+                via_socket.close()
+              end,
+            })
 
-            :on_data => Proc.new() do |session, data|
-              via_socket = @via_sockets[session]
-              if(via_socket.nil?)
-                @window.puts("[Tunnel #{tunnel_id}] Unknown session!")
-                next
-              end
+            via_socket = ViaSocket.new(self, rhost, rport, {
+              :on_ready => Proc.new() do |manager|
+                puts("via_socket is ready!")
+                local_socket.ready!()
+              end,
+              :on_data => Proc.new() do |manager, data|
+                puts("via_socket got data!")
+                local_socket.write(data)
+              end,
+              :on_error => Proc.new() do |manager, msg, e|
+                puts("via_socket had an error: #{msg} #{e}")
+                local_socket.close()
+              end,
+            })
 
-              via_socket.write(data)
-            end,
-
-            :on_error => Proc.new() do |session, msg, e|
-              puts("Looking up socket for session #{session}...")
-              via_socket = @via_sockets[session]
-              if(via_socket.nil?)
-                @window.puts("[Tunnel ???] Unknown session had an error: #{msg} #{e}")
-                next
-              end
-
-              via_socket.close()
-            end
-          })
+          end)
         rescue Errno::EACCES => e
           @window.puts("Sorry, couldn't listen on that port: #{e}")
         rescue Errno::EADDRINUSE => e

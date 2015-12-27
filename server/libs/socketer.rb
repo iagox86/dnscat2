@@ -16,34 +16,33 @@ class Socketer
 
   BUFFER = 65536
 
-  class Session
+  class Manager
     attr_reader :name
 
-    def initialize(client, name, callbacks = {})
-      @client     = client
+    def initialize(s, callbacks = {})
+      @s          = s
       @on_connect = callbacks[:on_connect]
       @on_ready   = callbacks[:on_ready]
       @on_data    = callbacks[:on_data]
       @on_error   = callbacks[:on_error]
-      @name       = name
 
-      if(@on_connect)
-        @on_connect.call(self, name)
-      end
+#      if(@on_connect)
+#        @on_connect.call(self)
+#      end
     end
 
     def _handle_exception(e, msg)
       if(@on_error)
         @on_error.call(self, "Error #{msg}: #{e}", e)
       end
-      stop!()
+      close()
     end
 
     def ready!()
       @thread = Thread.new() do
         begin
           loop do
-            data = @client.recv(BUFFER)
+            data = @s.recv(BUFFER)
 
             if(data.nil? || data.length == 0)
               raise(IOError, "Connection closed")
@@ -53,10 +52,11 @@ class Socketer
               @on_data.call(self, data)
             end
           end
-        rescue Exception => e
+        rescue StandardError => e
+          puts(e.backtrace)
           begin
             _handle_exception(e, "receiving data")
-          rescue Exception => e
+          rescue StandardError => e
             puts("Error in exception handler; please don't do that :)")
             puts(e)
             puts(e.backtrace)
@@ -70,87 +70,54 @@ class Socketer
       end
     end
 
-    def stop!()
+    def close()
       if(@thread)
         @thread.exit()
       end
 
-      @client.close()
+      @s.close()
     end
 
-    def send(data)
+    def write(data)
       begin
-        @client.write(data)
+        @s.write(data)
       rescue Exception => e
         _handle_exception(e, "sending data")
 
-        stop!()
+        close()
       end
     end
   end
 
-  # We really only have the ability to create a socketer instance in order to
-  # clean up when we have to. This shouldn't be called externally.
-  def initialize(socket, thread, lhost, lport)
-    @socket = socket
-    @thread = thread
-    @lhost  = lhost
-    @lport  = lport
-  end
-
-  def to_s()
-    return "Tunnel listening on %s:%d" % [@lhost, @lport]
-  end
-
-  def kill()
-    begin
-      if(@thread)
-        @thread.exit()
-        @thread.join()
-      end
-      @socket.close()
-    rescue
-      # Ignore exceptions
-    end
-  end
-
-  def Socketer._handle_exception(e, msg, callbacks)
-    if(callbacks[:on_error])
-      callbacks[:on_error].call(self, "Error #{msg}: #{e}", e)
-      puts(e.backtrace)
-    end
-  end
-
-  def Socketer.listen(host, port, callbacks = {})
-    # Create the socket right away so we'll know if it fails
-    #puts("Listening on #{host}:#{port}...")
-    s = TCPServer.new(host, port)
-
-    return Socketer.new(s, Thread.new() do
-      begin
-        loop do
-          c = s.accept()
-          Session.new(c, "%s:%d" % [c.peeraddr[2], c.peeraddr[1]], callbacks)
-        end
-      rescue StandardError => e
-        Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
-      end
-    end, host, port)
-  end
-
-  def Socketer.connect(host, port, callbacks = {})
-    return Thread.new() do
-      begin
-        s = TCPSocket.new(host, port)
-        if(s)
-          Session.new(s, "%s:%d" % [s.peeraddr[2], s.peeraddr[1]], callbacks)
-        else
-          if(callbacks[:on_error])
-            callbacks[:on_error].call(nil, "Couldn't connect to #{host}:#{port}!")
+  class Listener
+    def initialize(lhost, lport, callback)
+      # Start the socket right away so we can catch errors quickly
+      @s     = TCPServer.new(lhost, lport)
+      @lhost = lhost
+      @lport = lport
+      @thread = Thread.new() do
+        begin
+          loop do
+            callback.call(@s.accept())
           end
+        rescue StandardError => e
+          puts("Error in Listener: #{e}")
         end
-      rescue Exception => e
-        Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
+      end
+    end
+
+    def to_s()
+      return "Socketer::Listener on %s:%d" % [@lhost, @lport]
+    end
+
+    def kill()
+      begin
+        if(@thread)
+          @thread.exit()
+        end
+        @s.close()
+      rescue
+        # Ignore exceptions
       end
     end
   end
