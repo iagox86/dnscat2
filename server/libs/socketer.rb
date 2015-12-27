@@ -10,25 +10,24 @@
 ##
 
 require 'socket'
+require 'thread'
 
 class Socketer
   attr_reader :lhost, :lport
 
   BUFFER = 65536
+  MUTEX  = Mutex.new()
 
   class Manager
     attr_reader :name
 
     def initialize(s, callbacks = {})
       @s          = s
-      @on_connect = callbacks[:on_connect]
       @on_ready   = callbacks[:on_ready]
       @on_data    = callbacks[:on_data]
       @on_error   = callbacks[:on_error]
-
-#      if(@on_connect)
-#        @on_connect.call(self)
-#      end
+      @on_close   = callbacks[:on_close]
+      @closed     = false
     end
 
     def _handle_exception(e, msg)
@@ -52,6 +51,8 @@ class Socketer
               @on_data.call(self, data)
             end
           end
+        rescue IOError => e
+          close()
         rescue StandardError => e
           puts(e.backtrace)
           begin
@@ -71,14 +72,34 @@ class Socketer
     end
 
     def close()
-      if(@thread)
-        @thread.exit()
+      MUTEX.synchronize() do
+        if(@closed)
+          puts("Already closed!")
+          return
+        end
+
+        puts("Closing: #{@s}")
+        @closed = true
+      end
+
+      if(@on_close)
+        @on_close.call(self)
       end
 
       @s.close()
+
+      # This should be last, because there's a good chance we're in this thread
+      if(@thread)
+        @thread.exit()
+      end
     end
 
     def write(data)
+      if(@closed)
+        puts("Trying to write to a closed socket!")
+        return
+      end
+
       begin
         @s.write(data)
       rescue Exception => e
@@ -92,9 +113,11 @@ class Socketer
   class Listener
     def initialize(lhost, lport, callback)
       # Start the socket right away so we can catch errors quickly
-      @s     = TCPServer.new(lhost, lport)
-      @lhost = lhost
-      @lport = lport
+      @s      = TCPServer.new(lhost, lport)
+      @lhost  = lhost
+      @lport  = lport
+      @closed = false
+
       @thread = Thread.new() do
         begin
           loop do
@@ -110,7 +133,13 @@ class Socketer
       return "Socketer::Listener on %s:%d" % [@lhost, @lport]
     end
 
-    def kill()
+    def close()
+      if(@closed)
+        puts("Already closed: #{@s}")
+        return
+      end
+      @closed = true
+
       begin
         if(@thread)
           @thread.exit()

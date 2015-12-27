@@ -17,6 +17,8 @@ class ViaSocket
   def initialize(driver, host, port, callbacks)
     @tunnel_id = nil
     @session   = nil
+    @closed    = false
+    @driver    = driver
 
     # Ask the client to make a connection for us
     packet = CommandPacket.new({
@@ -94,8 +96,26 @@ class ViaSocket
     @smanager.write(data)
   end
 
-  def close()
+  def close(send_close = false)
+    if(@closed)
+      puts("This via_socket is already closed!")
+      return
+    end
+    @closed = true
+
+    puts("Closing #{@v_socket}")
+    @v_socket.close()
     @smanager.close()
+
+    @driver._send_request(CommandPacket.new({
+      :is_request => true,
+      :request_id => @driver.request_id(),
+      :command_id => CommandPacket::TUNNEL_CLOSE,
+      :tunnel_id  => @tunnel_id,
+      :reason     => "Socket closed",
+    }), nil)
+
+    # Close the thread last in case we're in it
     @thread.exit()
   end
 
@@ -110,7 +130,7 @@ class ViaSocket
 
       driver._send_request(CommandPacket.new({
         :is_request => true,
-        :request_id => request_id(),
+        :request_id => driver.request_id(),
         :command_id => CommandPacket::TUNNEL_CLOSE,
         :tunnel_id  => tunnel_id,
         :reason     => "Unknown tunnel: %d" % tunnel_id
@@ -133,6 +153,7 @@ class ViaSocket
 
     when CommandPacket::TUNNEL_CLOSE
       puts("Recieved TUNNEL_CLOSE")
+      puts("Closing via_socket in ViaSocket.handle_packet()")
       via_socket.close()
     else
       raise(DnscatException, "Unknown command sent by the server: #{packet}")
@@ -245,7 +266,11 @@ module DriverCommandTunnels
                 via_socket.write(data)
               end,
               :on_error => Proc.new() do |manager, msg, e|
-                puts("local_socket had an error: #{msg} #{e}")
+                puts("local_socket#on_error #{manager} #{msg} #{e}")
+                via_socket.close()
+              end,
+              :on_close => Proc.new() do |manager|
+                puts("local_socket#on_close #{manager}")
                 via_socket.close()
               end,
             })
@@ -260,7 +285,11 @@ module DriverCommandTunnels
                 local_socket.write(data)
               end,
               :on_error => Proc.new() do |manager, msg, e|
-                puts("via_socket had an error: #{msg} #{e}")
+                puts("via_socket#on_error #{manager} #{msg} #{e}")
+                local_socket.close()
+              end,
+              :on_close => Proc.new() do |manager|
+                puts("via_socket#on_close #{manager}")
                 local_socket.close()
               end,
             })
