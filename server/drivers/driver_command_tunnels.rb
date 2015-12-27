@@ -6,15 +6,17 @@
 # See: LICENSE.md
 ##
 
+require 'uri'
+
 require 'libs/command_helpers'
 require 'libs/socketer'
 
 class ViaSocket
-  attr_reader :tunnel_id
+  attr_reader :tunnel_id, :s
 
   @@via_sockets = {}
 
-  def initialize(driver, host, port, callbacks)
+  def initialize(driver, host, port, on_error = nil)
     @tunnel_id = nil
     @session   = nil
     @closed    = false
@@ -33,23 +35,19 @@ class ViaSocket
     driver._send_request(packet, Proc.new() do |request, response|
       # Handle an error response
       if(response.get(:command_id) == CommandPacket::COMMAND_ERROR)
-        if(callbacks[:on_error])
-          callbacks[:on_error].call(nil, "Connect failed: #{response.get(:reason)}", e)
+        if(!on_error.nil?)
+          on_error.call(nil, "Connect failed: #{response.get(:reason)}", e)
         end
 
+        close(true)
         next
       end
 
-      # Create a socket pair so we can use this with Socketer
-      # We talk to @v_socket a lot, so we keep a handle to it, but once
-      # the Socketer::Manager is started we no longer need s_socket
-      @v_socket, s_socket = UNIXSocket.pair()
+      # Create a socket pair
+      @v_socket, @s = UNIXSocket.pair()
 
       # Get the tunnel_id
       @tunnel_id = response.get(:tunnel_id)
-
-      # If the response was good, then we can create a Socketer Manager and hook up to it!
-      @smanager = Socketer::Manager.new(s_socket, callbacks)
 
       # Save ourselves in the list of instances
       @@via_sockets[@tunnel_id] = self
@@ -70,16 +68,15 @@ class ViaSocket
           end
         rescue StandardError => e
           puts("Error in ViaSocket receive thread: #{e}")
+          close()
         end
       end
-
-      if(callbacks[:on_via])
-        callbacks[:on_via].call(@smanager, self)
-      end
-
-      # We're only ready AFTER we are prepared to receive data - this may do a callback instantly
-      @smanager.ready!()
     end)
+  end
+
+  def ViaSocket.socket(driver, host, port)
+    via_socket = ViaSocket.new(driver, host, port)
+    return via_socket.s
   end
 
   def wait_for_smanager()
@@ -105,7 +102,6 @@ class ViaSocket
 
     puts("Closing #{@v_socket}")
     @v_socket.close()
-    @smanager.close()
 
     if(send_close)
       @driver._send_request(CommandPacket.new({
@@ -119,10 +115,6 @@ class ViaSocket
 
     # Close the thread last in case we're in it
     @thread.exit()
-  end
-
-  def _sneak_in_data(data)
-    @v_socket.write(data)
   end
 
   def ViaSocket.get(driver, tunnel_id)
@@ -151,7 +143,7 @@ class ViaSocket
     case packet.get(:command_id)
     when CommandPacket::TUNNEL_DATA
       puts("Received TUNNEL_DATA")
-      via_socket._sneak_in_data(packet.get(:data))
+      @v_socket.write(packet.get(:data))
 
     when CommandPacket::TUNNEL_CLOSE
       puts("Recieved TUNNEL_CLOSE")
@@ -215,19 +207,40 @@ module DriverCommandTunnels
       end,
 
       Proc.new do |opts, optarg|
-        host = 'localhost'
-        port = 4444
+        uri = URI(optarg)
 
-        ViaSocket.new(self, host, port, {
+        if(uri.nil?)
+          @window.puts("Sorry, that URL was invalid! They need to start with 'http://'")
+          next
+        end
+
+        if(uri.scheme.downcase != 'http')
+          @window.puts("Sorry, we only support http requests right now (and possibly forevermore)")
+          next
+        end
+
+        page = ''
+        ViaSocket.new(self, uri.host, uri.port, {
           :on_ready => Proc.new() do |manager|
-            @window.puts("Connection successful: #{host}:#{port}")
-            manager.write("GET / HTTP/1.0\r\n\r\n")
+            @window.puts("Connection successful: #{uri.host}:#{uri.port}")
+
+            request = [
+              "GET #{uri.path}?#{uri.query} HTTP/1.1",
+              "Host: #{uri.host}:#{uri.port}",
+              "Connection: close",
+              "Cache-Control: max-age=0",
+              "User-Agent: #{NAME} v#{VERSION}",
+              "DNT: 1",
+              "",
+            ]
+
+            manager.write(request.join("\r\n") + "\r\n")
           end,
-          :on_error => Proc.new() do |manager, msg, e|
-            @window.puts("ERROR: #{msg} #{e}")
+          :on_close => Proc.new() do |manager, msg, e|
+            puts("Received %d bytes!" % page.length)
           end,
           :on_data => Proc.new() do |manager, data|
-            @window.puts("Data received: #{data}")
+            page += data
           end,
         })
       end
@@ -277,7 +290,12 @@ module DriverCommandTunnels
               end,
             })
 
-            via_socket = ViaSocket.new(self, rhost, rport, {
+            via_socket = ViaSocket.socket(self, rhost, rport, Proc.new() do
+              # on_error
+            end)
+
+            # If the response was good, then we can create a Socketer Manager and hook up to it!
+            smanager = Socketer::Manager.new(via_socket, {
               :on_ready => Proc.new() do |manager|
                 puts("via_socket is ready!")
                 local_socket.ready!()
@@ -295,6 +313,10 @@ module DriverCommandTunnels
                 local_socket.close()
               end,
             })
+
+
+            # We're only ready AFTER we are prepared to receive data - this may do a callback instantly
+            smanager.ready!()
 
           end)
         rescue Errno::EACCES => e
