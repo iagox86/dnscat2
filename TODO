@@ -1,0 +1,1 @@
+- If the server has an error while processing a CommandPacket, send back an ERROR packet
