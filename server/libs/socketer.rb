@@ -21,10 +21,15 @@ class Socketer
 
     def initialize(client, name, callbacks = {})
       @client     = client
+      @on_connect = callbacks[:on_connect]
       @on_ready   = callbacks[:on_ready]
       @on_data    = callbacks[:on_data]
       @on_error   = callbacks[:on_error]
       @name       = name
+
+      if(@on_connect)
+        @on_connect.call(self, name)
+      end
     end
 
     def _handle_exception(e, msg)
@@ -112,6 +117,7 @@ class Socketer
   def Socketer._handle_exception(e, msg, callbacks)
     if(callbacks[:on_error])
       callbacks[:on_error].call(self, "Error #{msg}: #{e}", e)
+      puts(e.backtrace)
     end
   end
 
@@ -123,7 +129,8 @@ class Socketer
     return Socketer.new(s, Thread.new() do
       begin
         loop do
-          Session.new(s.accept(), "%s:%d" % [client.peeraddr[2], client.peeraddr[1]], callbacks)
+          c = s.accept()
+          Session.new(c, "%s:%d" % [c.peeraddr[2], c.peeraddr[1]], callbacks)
         end
       rescue StandardError => e
         Socketer._handle_exception(e, "connecting to #{host}:#{port}", callbacks)
@@ -136,7 +143,7 @@ class Socketer
       begin
         s = TCPSocket.new(host, port)
         if(s)
-          Session.new(s, "%s:%d" % [client.peeraddr[2], client.peeraddr[1]], callbacks)
+          Session.new(s, "%s:%d" % [s.peeraddr[2], s.peeraddr[1]], callbacks)
         else
           if(callbacks[:on_error])
             callbacks[:on_error].call(nil, "Couldn't connect to #{host}:#{port}!")
