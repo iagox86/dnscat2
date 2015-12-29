@@ -307,16 +307,14 @@ static void handle_incoming_data(select_group_t *group, size_t i)
     if(size < 0)
     {
       if(SG_ERROR(group, i))
-        select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
-      else
-        select_group_remove_and_close_socket(group, s);
+        SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i));
+      select_group_remove_and_close_socket(group, s);
     }
     else if(size == 0)
     {
       if(SG_CLOSED(group, i))
-        select_handle_response(group, s, SG_CLOSED(group, i)(group, s, SG_PARAM(group, i)));
-      else
-        select_group_remove_and_close_socket(group, s);
+        SG_CLOSED(group, i)(group, s, SG_PARAM(group, i));
+      select_group_remove_and_close_socket(group, s);
     }
     else
     {
@@ -369,17 +367,15 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       if(size < 0 || !success)
       {
         if(SG_ERROR(group, i))
-          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
-        else
-          select_group_remove_and_close_socket(group, s);
+          SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i));
+        select_group_remove_and_close_socket(group, s);
       }
       else if(size == 0)
       {
 /* fprintf(stderr, "Closed!\n"); */
         if(SG_CLOSED(group, i))
-          select_handle_response(group, s, SG_CLOSED(group, i)(group, s, SG_PARAM(group, i)));
-        else
-          select_group_remove_and_close_socket(group, s);
+          SG_CLOSED(group, i)(group, s, SG_PARAM(group, i));
+        select_group_remove_and_close_socket(group, s);
       }
       else
       {
@@ -402,16 +398,14 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       if(size < 0 || size == (size_t)-1)
       {
         if(SG_ERROR(group, i))
-          select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
-        else
-          select_group_remove_and_close_socket(group, s);
+          SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i));
+        select_group_remove_and_close_socket(group, s);
       }
       else if(size == 0)
       {
         if(SG_CLOSED(group, i))
-          select_handle_response(group, s, SG_CLOSED(group, i)(group, s, SG_PARAM(group, i)));
-        else
-          select_group_remove_and_close_socket(group, s);
+          SG_CLOSED(group, i)(group, s, SG_PARAM(group, i));
+        select_group_remove_and_close_socket(group, s);
       }
       else
       {
@@ -528,16 +522,14 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
         if(GetLastError() == ERROR_BROKEN_PIPE) /* Pipe closed */
         {
           if(SG_CLOSED(group, i))
-            select_handle_response(group, s, SG_CLOSED(group, i)(group, s, SG_PARAM(group, i)));
-          else
-            select_group_remove_and_close_socket(group, s);
+            SG_CLOSED(group, i)(group, s, SG_PARAM(group, i));
+          select_group_remove_and_close_socket(group, s);
         }
         else
         {
           if(SG_ERROR(group, i))
-            select_handle_response(group, s, SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
-          else
-            select_group_remove_and_close_socket(group, s);
+            SG_ERROR(group, i)(group, s, getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i));
+          select_group_remove_and_close_socket(group, s);
         }
       }
     }
@@ -603,9 +595,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
         /* If there's no handler defined, default to closing and removing the
          * socket. */
         if(SG_ERROR(group, i))
-          select_handle_response(group, SG_SOCKET(group, i), SG_ERROR(group, i)(group, SG_SOCKET(group, i), getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i)));
-        else
-          select_handle_response(group, SG_SOCKET(group, i), SELECT_CLOSE_REMOVE);
+          SG_ERROR(group, i)(group, SG_SOCKET(group, i), getlastsocketerror(SG_SOCKET(group, i)), SG_PARAM(group, i));
+        select_group_remove_and_close_socket(group, SG_SOCKET(group, i));
       }
     }
   }
@@ -716,136 +707,5 @@ HANDLE get_stdin_handle()
 
   /* Return the fake stdin. */
   return stdin_read;
-}
-#endif
-
-#if 0
-#include <stdio.h>
-/*#define _POSIX_C_SOURCE*/
-#include "udp.h"
-#include "tcp.h"
-SELECT_RESPONSE_t test_timeout(void *group, int s, void *param)
-{
-  printf("Timeout called for socket %d\n", s);
-
-  return SELECT_OK;
-}
-
-SELECT_RESPONSE_t test_recv(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param)
-{
-  int i;
-
-  if(addr)
-    printf("Socket %d received %d bytes from %s:%d\n", s, length, addr, port);
-
-  if(data[0] == 'q')
-    return SELECT_REMOVE;
-  else if(data[0] == 'x')
-    return SELECT_CLOSE_REMOVE;
-  else if(data[0] == 'c')
-    close(s);
-
-  for(i = 0; i < length; i++)
-  {
-    printf("%c", data[i] < 0x20 ? '.' : data[i]);
-  }
-  printf("\n");
-
-  return SELECT_OK;
-}
-
-SELECT_RESPONSE_t test_error(void *group, int s, int err, void *param)
-{
-  fprintf(stderr, "Error in socket %d: %s\n", s, strerror(err));
-  return SELECT_CLOSE_REMOVE;
-}
-
-SELECT_RESPONSE_t test_closed(void *group, int s, void *param)
-{
-  printf("Socket %d: connection closed.\n", s);
-  return SELECT_CLOSE_REMOVE;
-}
-
-SELECT_RESPONSE_t test_listen(void *group, int s, void *param)
-{
-  char *address;
-  uint16_t port;
-  int new = tcp_accept(s, &address, &port);
-
-  printf("Accepting connection from %s:%d\n", address, port);
-
-  select_group_add_socket(group, new, SOCKET_TYPE_STREAM, NULL);
-  select_set_recv(group, new, test_recv);
-  select_set_error(group, new, test_error);
-/*  select_set_closed(group, new, test_closed); */
-
-  return SELECT_OK;
-}
-
-int main(int argc, char **argv)
-{
-  select_group_t *group;
-
-  int udp = udp_create_socket(2222, "0.0.0.0");
-  int tcp = tcp_connect("www.google.ca", 80);
-  int listen = tcp_listen("0.0.0.0", 4444);
-
-  char *test = "GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n";
-
-  printf("Listening on udp/2222\n");
-  printf("Connecting to Google on tcp/80\n");
-  printf("Listening on tcp/4444\n\n");
-
-  /* Check if everything was created right. */
-  if(udp < 0)
-  {
-    printf("UDP socket failed to create!\n");
-    exit(1);
-  }
-  if(tcp < 0)
-  {
-    printf("TCP socket failed to create!\n");
-    exit(1);
-  }
-  if(listen < 0)
-  {
-    printf("Listen socket failed to create!\n");
-    exit(1);
-  }
-
-  tcp_send(tcp, test, strlen(test));
-
-  group = select_group_create();
-  select_group_add_socket(group, udp,           SOCKET_TYPE_DATAGRAM, NULL);
-  select_group_add_socket(group, tcp,           SOCKET_TYPE_STREAM, NULL);
-  select_group_add_socket(group, listen,        SOCKET_TYPE_LISTEN, NULL);
-  select_group_add_socket(group, STDIN_FILENO,  SOCKET_TYPE_STREAM, NULL);
-
-  select_set_recv(group, udp,           test_recv);
-  select_set_recv(group, tcp,           test_recv);
-  select_set_recv(group, STDIN_FILENO,  test_recv);
-
-  select_set_listen(group, listen, test_listen);
-
-  select_set_error(group, udp, test_error);
-  select_set_error(group, tcp, test_error);
-  select_set_error(group, listen, test_error);
-  select_set_error(group, STDIN_FILENO,  test_error);
-
-  select_set_closed(group, udp, test_closed);
-  select_set_closed(group, tcp, test_closed);
-  select_set_closed(group, listen, test_closed);
-  select_set_closed(group, STDIN_FILENO,  test_closed);
-
-  select_group_wait_for_bytes(group, tcp, 25);
-
-  while(1)
-  {
-    select_group_do_select(group, -1, -1);
-  }
-
-  select_group_destroy(group);
-
-  return 0;
 }
 #endif

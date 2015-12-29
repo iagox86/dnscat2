@@ -35,12 +35,10 @@
 
 #define HEXCHAR(c) ((c) < 10 ? ((c)+'0') : (((c)-10) + 'a'))
 
-static SELECT_RESPONSE_t dns_data_closed(void *group, int socket, void *param)
+static void dns_data_closed(void *group, int socket, void *param)
 {
   LOG_FATAL("DNS socket closed!");
   exit(0);
-
-  return SELECT_OK;
 }
 
 static uint8_t *remove_domain(char *str, char *domain)

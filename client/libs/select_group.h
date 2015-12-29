@@ -90,9 +90,11 @@ typedef SELECT_RESPONSE_t(select_ready)(void *group, int s, void *param);
 /* 'addr' will only be filled in for datagram requests. */
 typedef SELECT_RESPONSE_t(select_recv)(void *group, int s, uint8_t *data, size_t length, char *addr, uint16_t port, void *param);
 typedef SELECT_RESPONSE_t(select_listen)(void *group, int s, void *param);
-typedef SELECT_RESPONSE_t(select_error)(void *group, int s, int err, void *param);
-typedef SELECT_RESPONSE_t(select_closed)(void *group, int s, void *param);
 typedef SELECT_RESPONSE_t(select_timeout)(void *group, void *param);
+
+/* Defining select_error and select_closed as void, since the socket is always removed. */
+typedef void(select_error)(void *group, int s, int err, void *param);
+typedef void(select_closed)(void *group, int s, void *param);
 
 /* This struct is for internal use. */
 typedef struct

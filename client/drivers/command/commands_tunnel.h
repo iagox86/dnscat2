@@ -44,7 +44,7 @@ static SELECT_RESPONSE_t tunnel_data_in(void *group, int s, uint8_t *data, size_
   return SELECT_OK;
 }
 
-static SELECT_RESPONSE_t tunnel_closed(void *group, int s, void *param)
+static void tunnel_closed(void *group, int s, void *param)
 {
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
@@ -62,11 +62,9 @@ static SELECT_RESPONSE_t tunnel_closed(void *group, int s, void *param)
 
   /* Close the socket. */
   tcp_close(tunnel->s);
-
-  return SELECT_REMOVE;
 }
 
-static SELECT_RESPONSE_t tunnel_error(void *group, int s, int err, void *param)
+static void tunnel_error(void *group, int s, int err, void *param)
 {
   tunnel_t         *tunnel   = (tunnel_t*) param;
   command_packet_t *out      = NULL;
@@ -77,15 +75,12 @@ static SELECT_RESPONSE_t tunnel_error(void *group, int s, int err, void *param)
   out = command_packet_create_tunnel_close_request(request_id(), tunnel->tunnel_id, "Connection error");
   send_and_free(tunnel->driver->outgoing_data, out);
 
-  /* Remove the tunnel from the linked list of tunnels. */
+  /* Remove the tunnel from the linked list of tunnels and close/free everything. */
   ll_remove(tunnel->driver->tunnels, ll_32(tunnel->tunnel_id));
+  tcp_close(tunnel->s);
   safe_free(tunnel->host);
   safe_free(tunnel);
 
-  /* Close the socket. */
-  tcp_close(tunnel->s);
-
-  return SELECT_REMOVE;
 }
 
 static SELECT_RESPONSE_t tunnel_ready(void *group, int s, void *param)

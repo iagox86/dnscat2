@@ -31,15 +31,13 @@ static SELECT_RESPONSE_t console_stdin_recv(void *group, int socket, uint8_t *da
   return SELECT_OK;
 }
 
-static SELECT_RESPONSE_t console_stdin_closed(void *group, int socket, void *d)
+static void console_stdin_closed(void *group, int socket, void *d)
 {
   /* When the stdin pipe is closed, the stdin driver signals the end. */
   driver_console_t *driver = (driver_console_t*) d;
 
   /* Record that we've been shut down - we'll continue reading to the end of the buffer, still. */
   driver->is_shutdown = TRUE;
-
-  return SELECT_CLOSE_REMOVE;
 }
 
 void driver_console_data_received(driver_console_t *driver, uint8_t *data, size_t length)

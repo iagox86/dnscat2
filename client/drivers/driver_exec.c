@@ -43,15 +43,13 @@ static SELECT_RESPONSE_t exec_callback(void *group, int socket, uint8_t *data, s
   return SELECT_OK;
 }
 
-static SELECT_RESPONSE_t exec_closed_callback(void *group, int socket, void *d)
+static void exec_closed_callback(void *group, int socket, void *d)
 {
   /* When the stdin pipe is closed, the stdin driver signals the end. */
   driver_exec_t *driver = (driver_exec_t*) d;
 
   /* Record that we've been shut down - we'll continue reading to the end of the buffer, still. */
   driver->is_shutdown = TRUE;
-
-  return SELECT_CLOSE_REMOVE;
 }
 
 void driver_exec_data_received(driver_exec_t *driver, uint8_t *data, size_t length)
