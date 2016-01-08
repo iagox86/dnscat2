@@ -129,8 +129,11 @@ static inline uint64_t bswap_64(uint64_t x) {
 }
 #elif defined(__FreeBSD__)
 # define bswap_64(x) bswap64(x)
+#elif defined(__APPLE__)
+# include <libkern/OSByteOrder.h>
+# define bswap_64 OSSwapInt64
 #else
-#error "bswap_64 unsupported"
+# error "bswap_64 unsupported"
 #endif
 
 #ifdef CPU_BIG_ENDIAN
