@@ -8,6 +8,8 @@
 ##
 
 class DriverConsole
+  attr_reader :stopped
+  
   def initialize(window, settings)
     @window = window
     @settings = settings
