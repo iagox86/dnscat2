@@ -38,7 +38,7 @@ end
 if(opts[:solution].include?('.'))
   Trollop::die :solution, "must not contain period; SHOULD only contain [a-z]{4} :)"
 end
-solution = opts[:solution]
+solution = opts[:solution].upcase()
 
 puts("Starting #{NAME} #{VERSION} DNS server on #{opts[:host]}:#{opts[:port]}")
 
@@ -58,7 +58,11 @@ dnser.on_request() do |transaction|
       next
     end
 
-    guess = request.questions[0].name.split(/\./)[0].upcase()
+    if(request.questions[0].type != DNSer::Packet::TYPE_TXT)
+      next
+    end
+    guess, domain = request.questions[0].name.split(/\./, 2)
+    guess.upcase!()
 
     if(guess == solution)
       puts("WINNER!!!")
@@ -88,9 +92,13 @@ dnser.on_request() do |transaction|
           answer += "X"
         end
       end
+
+      if(answer == "")
+        answer = "No correct character; keep trying!"
+      end
     else
       puts("Invalid; sending instructions: #{guess}")
-      answer = "Instructions: guess the #{solution.length} string! 'O' = right, 'X' = right, but wrong position"
+      answer = "Instructions: guess the #{solution.length}-character string: dig -t txt [guess].#{domain}! 'O' = correct, 'X' = correct, but wrong position"
     end
 
     answer = DNSer::Packet::Answer.new(request.questions[0], DNSer::Packet::TYPE_TXT, DNSer::Packet::CLS_IN, 100, DNSer::Packet::TXT.new(answer))
