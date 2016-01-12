@@ -68,8 +68,7 @@ dnser.on_request() do |transaction|
       puts("WINNER!!!")
       answer = opts[:win]
     elsif(guess.length == solution.length)
-      puts("Guess: #{guess}")
-
+      saved_guess = guess
       tmp_solution = solution.chars.to_a()
       guess = guess.chars.to_a()
       answer = ""
@@ -96,6 +95,8 @@ dnser.on_request() do |transaction|
       if(answer == "")
         answer = "No correct character; keep trying!"
       end
+
+      puts("Guess: #{saved_guess} => #{answer}")
     else
       puts("Invalid; sending instructions: #{guess}")
       answer = "Instructions: guess the #{solution.length}-character string: dig -t txt [guess].#{domain}! 'O' = correct, 'X' = correct, but wrong position"
