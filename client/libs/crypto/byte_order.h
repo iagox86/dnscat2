@@ -127,8 +127,10 @@ static inline uint64_t bswap_64(uint64_t x) {
 	r.l[1] = bswap_32(w.l[0]);
 	return r.ll;
 }
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 # define bswap_64(x) bswap64(x)
+#elif defined(__OpenBSD__)
+# define bswap_64(x) swap64(x)
 #elif defined(__APPLE__)
 # include <libkern/OSByteOrder.h>
 # define bswap_64 OSSwapInt64
