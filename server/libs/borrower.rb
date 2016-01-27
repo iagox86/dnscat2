@@ -13,16 +13,6 @@
 #require 'socket'
 
 class Borrower
-  class BorrowerStub
-    def initialize(*args)
-      method_missing(*args)
-    end
-
-    def method_missing(*args)
-      raise(NotImplementedError, "This object has been 'borrowed', but 'I Aten't Dead'! Use the #with_real() method to use this. :)")
-    end
-  end
-
   class BorrowerObjectStub
     def initialize(obj)
       @obj = obj
