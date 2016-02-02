@@ -11,92 +11,90 @@ require 'uri'
 require 'libs/command_helpers'
 require 'libs/socketer'
 
-module DriverCommandTunnels
-  def create_via_socket(host, port, on_ready)
-    tunnel_id = nil
+class ViaSocket
+  attr_accessor :socket
+
+  def initialize(driver, window, host, port, on_ready = nil)
+    @driver = driver
 
     # Ask the client to make a connection for us
     packet = CommandPacket.new({
       :is_request => true,
-      :request_id => request_id(),
+      :request_id => @driver.request_id(),
       :command_id => CommandPacket::TUNNEL_CONNECT,
       :options    => 0,
       :host       => host,
       :port       => port,
     })
 
-    _send_request(packet, Proc.new() do |request, response|
+    # Create the socket pair before sending the request; this way, self.socket
+    # will be available right away
+    @v_socket, @socket = UNIXSocket.pair()
+
+    @driver._send_request(packet, Proc.new() do |request, response|
       # Handle an error response
       if(response.get(:command_id) == CommandPacket::COMMAND_ERROR)
         @window.puts("Connect failed: #{response.get(:reason)} #{e}")
         next
       end
 
-      # Create a socket pair
-      v_socket, socket = UNIXSocket.pair()
-
       # Get the tunnel_id
-      tunnel_id = response.get(:tunnel_id)
+      @tunnel_id = response.get(:tunnel_id)
 
       # Start a receive thread for the socket
-      thread = Thread.new() do
+      @thread = Thread.new() do
         begin
           loop do
-            data = v_socket.recv(Socketer::BUFFER)
+            data = @v_socket.recv(Socketer::BUFFER)
 
-            _send_request(CommandPacket.new({
+            @driver._send_request(CommandPacket.new({
               :is_request => true,
-              :request_id => request_id(),
+              :request_id => @driver.request_id(),
               :command_id => CommandPacket::TUNNEL_DATA,
-              :tunnel_id  => tunnel_id,
+              :tunnel_id  => @tunnel_id,
               :data       => data,
             }), nil)
           end
         rescue StandardError => e
           puts("Error in via_socket receive thread: #{e}")
-          close_via_socket(tunnel_id)
+          close()
         end
       end
 
-
-      # We need to save the socket in our list of instances so we can feed
-      # data to it later
-      @via_sockets = @via_sockets || {}
-      @via_sockets[tunnel_id] = {
-        :v_socket => v_socket,
-        :thread   => thread,
-      }
-
       # Pass the socket back to the caller
-      on_ready.call(socket, tunnel_id)
+      if(!on_ready.nil?)
+        on_ready.call(@socket, @tunnel_id)
+      end
     end)
   end
 
-  def close_via_socket(tunnel_id, send_close = false)
-    via_socket = @via_sockets.delete(tunnel_id)
-    if(via_socket.nil?)
-      @window.puts("Tried to close a socket that doesn't exist: tunnel %d" % tunnel_id)
+  def close()
+    if(@closed)
       return
     end
+    @closed = true
 
-    if(send_close)
-      _send_request(CommandPacket.new({
-        :is_request => true,
-        :request_id => request_id(),
-        :command_id => CommandPacket::TUNNEL_CLOSE,
-        :tunnel_id  => tunnel_id,
-        :reason     => "Socket closed",
-      }), nil)
+    @driver._send_request(CommandPacket.new({
+      :is_request => true,
+      :request_id => @driver.request_id(),
+      :command_id => CommandPacket::TUNNEL_CLOSE,
+      :tunnel_id  => @tunnel_id,
+      :reason     => "Socket closed",
+    }), nil)
+
+    if(!@thread.nil?)
+      @thread.exit()
+      @thread = nil
     end
 
-    via_socket[:v_socket].close()
-
-    # Note: do this last in case we're in this thread. :)
-    if(via_socket[:thread])
-      via_socket[:thread].exit()
+    if(!@v_socket.nil?)
+      @v_socket.close()
+      @v_socket = nil
     end
   end
+end
 
+module DriverCommandTunnels
   def _parse_host_ports(str)
     local, remote = str.split(/ /)
 
@@ -160,33 +158,6 @@ module DriverCommandTunnels
           next
         end
 
-        page = ''
-        create_via_socket(uri.host, uri.port, Proc.new() do |socket, tunnel_id|
-          Socketer::Manager.new(socket, {
-            :on_ready => Proc.new() do |manager|
-              @window.puts("Connection successful: #{uri.host}:#{uri.port}")
-
-              request = [
-                "GET #{uri.path}?#{uri.query} HTTP/1.0",
-                "Host: #{uri.host}:#{uri.port}",
-                "Connection: close",
-                "Cache-Control: max-age=0",
-                "User-Agent: #{NAME} v#{VERSION}",
-                "DNT: 1",
-                "",
-              ]
-
-              manager.write(request.join("\r\n") + "\r\n")
-            end,
-            :on_close => Proc.new() do |manager, msg, e|
-              puts("Received %d bytes!" % page.length)
-              puts(page)
-            end,
-            :on_data => Proc.new() do |manager, data|
-              page += data
-            end,
-          }).ready!()
-        end)
       end
     )
 
