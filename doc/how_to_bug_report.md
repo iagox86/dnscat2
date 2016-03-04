@@ -42,12 +42,12 @@ On the server, there are a few helpful options:
 
 Here's the command:
 
-    \# ruby -d dnscat2.rb --packet-trace --firehose --security=open [other options]
+    # ruby -d dnscat2.rb --packet-trace --firehose --security=open [other options]
 
 You can also redirect it into a file, though running commands might be
 tricky:
 
-    \# ruby -d dnscat2.rb --packet-trace --firehose --security=open [other options] 2>&1 | tee server-logfile.txt
+    # ruby -d dnscat2.rb --packet-trace --firehose --security=open [other options] 2>&1 | tee server-logfile.txt
 
 ## Getting client logs...
 
@@ -80,7 +80,7 @@ then run a packet capture.
 I find it helpful to manually set a less-common but legit DNS server
 manually, such as 4.2.2.5 or 8.8.4.4, then to filter on those:
 
-    \# tcpdump -s0 -w dnscat2-traffic.pcap host 4.2.2.5
+    # tcpdump -s0 -w dnscat2-traffic.pcap host 4.2.2.5
 
 That should generate dnscat2-traffic.pcap (depending on your OS, it
 might be put somewhere weird; Gentoo runs tcpdump in a chroot
