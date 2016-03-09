@@ -363,8 +363,6 @@ static void handle_incoming_data(select_group_t *group, size_t i)
       size = read(s, buffer, MAX_RECV); /* read is better than recv, because it can handle stdin */
 #endif
 
-/*fprintf(stderr, "Read %d bytes from socket %d\n", size, s); */
-
       /* Handle error conditions. */
       if(size < 0 || !success)
       {
@@ -465,9 +463,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
     /* On Windows, don't add pipes. */
     if(SG_IS_ACTIVE(group, i) && SG_TYPE(group, i) != SOCKET_TYPE_PIPE)
     {
-      if(SG_IS_READY(group, i))
-        FD_SET(SG_SOCKET(group, i), &read_set);
-      else
+      FD_SET(SG_SOCKET(group, i), &read_set);
+      if(!SG_IS_READY(group, i))
         FD_SET(SG_SOCKET(group, i), &write_set);
 
       FD_SET(SG_SOCKET(group, i), &error_set);
@@ -479,9 +476,8 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
 #else
     if(SG_IS_ACTIVE(group, i))
     {
-      if(SG_IS_READY(group, i))
-        FD_SET(SG_SOCKET(group, i), &read_set);
-      else
+      FD_SET(SG_SOCKET(group, i), &read_set);
+      if(!SG_IS_READY(group, i))
         FD_SET(SG_SOCKET(group, i), &write_set);
 
       FD_SET(SG_SOCKET(group, i), &error_set);

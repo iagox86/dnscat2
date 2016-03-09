@@ -215,9 +215,9 @@ class SWindow
       end
     end
 
-    if(@to_child || @to_descendants)
+    if(@to_children || @to_descendants)
       @children.each do |c|
-        c.with({:to_descendants => @to_descendants, :to_child => false, :to_parent => false, :to_ancestors => false}) do
+        c.with({:to_descendants => @to_descendants, :to_children => false, :to_parent => false, :to_ancestors => false}) do
           c.send(func, *args)
         end
       end

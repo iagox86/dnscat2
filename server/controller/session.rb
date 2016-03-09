@@ -51,6 +51,7 @@ class Session
     @id = id
     @incoming_data = ''
     @outgoing_data = ''
+    @driver = nil
 
     # Stuff that's displayed after the window's name
     @crypto_state = '[cleartext]'
