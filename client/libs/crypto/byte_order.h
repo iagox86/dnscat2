@@ -112,7 +112,7 @@ static inline uint32_t bswap_32(uint32_t x) {
 	(((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 #endif /* bswap_32 */
 
-#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC__ > 4 || __GNUC_MINOR__ >= 3)
+#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC__ >= 4 || __GNUC_MINOR__ >= 3)
 # define bswap_64(x) __builtin_bswap64(x)
 #elif (_MSC_VER > 1300) && (defined(CPU_IA32) || defined(CPU_X64)) /* MS VC */
 # define bswap_64(x) _byteswap_uint64((__int64)x)
