@@ -1,3 +1,9 @@
+# 0.07
+
+* Fixed a bug where 'shell' sessions would completely fail to work
+* Created a document on how to send bug reports
+* Other miscellaneous changes
+
 # 0.06
 
 * Implemented tunneling, similar to "ssh -L", which is accessed on the
