@@ -25,6 +25,7 @@ class CommandPacket
   COMMAND_DOWNLOAD = 0x0003
   COMMAND_UPLOAD   = 0x0004
   COMMAND_SHUTDOWN = 0x0005
+  COMMAND_DELAY    = 0x0006
   TUNNEL_CONNECT   = 0x1000
   TUNNEL_DATA      = 0x1001
   TUNNEL_CLOSE     = 0x1002
@@ -37,6 +38,7 @@ class CommandPacket
     0x0003 => "COMMAND_DOWNLOAD",
     0x0004 => "COMMAND_UPLOAD",
     0x0005 => "COMMAND_SHUTDOWN",
+    0x0006 => "COMMAND_DELAY",
     0x1000 => "TUNNEL_CONNECT",
     0x1001 => "TUNNEL_DATA",
     0x1002 => "TUNNEL_CLOSE",
@@ -71,6 +73,10 @@ class CommandPacket
     },
     COMMAND_SHUTDOWN => {
       :request  => [],
+      :response => [],
+    },
+    COMMAND_DELAY => {
+      :request  => [ :delay ],
       :response => [],
     },
     TUNNEL_CONNECT => {
@@ -185,6 +191,12 @@ class CommandPacket
 
     when COMMAND_SHUTDOWN
       # n/a - there's no data in either direction
+
+    when COMMAND_DELAY
+      if (data[:is_request])
+        _at_least?(packet, 4)
+        data[:delay], packet = packet.unpack("Na*")
+      end
 
     when TUNNEL_CONNECT
       if(data[:is_request])
@@ -318,6 +330,11 @@ class CommandPacket
 
     when COMMAND_SHUTDOWN
       # n/a - there's no data in either direction
+
+    when COMMAND_DELAY
+      if (@data[:is_request])
+        packet += [@data[:delay]].pack("N")
+      end
 
     when TUNNEL_CONNECT
       if(@data[:is_request])

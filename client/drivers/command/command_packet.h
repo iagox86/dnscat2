@@ -31,6 +31,7 @@ typedef enum
   COMMAND_DOWNLOAD  = 0x0003,
   COMMAND_UPLOAD    = 0x0004,
   COMMAND_SHUTDOWN  = 0x0005,
+  COMMAND_DELAY     = 0x0006,
 
   TUNNEL_CONNECT    = 0x1000,
   TUNNEL_DATA       = 0x1001,
@@ -61,6 +62,7 @@ typedef struct
         struct { char *filename; } download;
         struct { char *filename; uint8_t *data; uint32_t length; } upload;
         struct { int dummy; } shutdown;
+        struct { uint32_t delay; } delay;
         struct { uint32_t options; char *host; uint16_t port; } tunnel_connect;
         struct { uint32_t tunnel_id; uint8_t *data; size_t length; } tunnel_data;
         struct { uint32_t tunnel_id; char *reason; } tunnel_close;
@@ -77,6 +79,7 @@ typedef struct
         struct { uint8_t *data; uint32_t length; } download;
         struct { int dummy; } upload;
         struct { int dummy; } shutdown;
+        struct { int dummy; } delay;
         struct { uint16_t status; uint32_t tunnel_id; } tunnel_connect;
         struct { int dummy; } tunnel_data;
         struct { int dummy; } tunnel_close;
@@ -106,6 +109,8 @@ command_packet_t *command_packet_create_upload_request(uint16_t request_id, char
 command_packet_t *command_packet_create_upload_response(uint16_t request_id);
 
 command_packet_t *command_packet_create_shutdown_response(uint16_t request_id);
+
+command_packet_t *command_packet_create_delay_response(uint16_t request_id);
 
 command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, uint32_t options, char *host, uint16_t port);
 command_packet_t *command_packet_create_tunnel_connect_response(uint16_t request_id, uint32_t tunnel_id);
