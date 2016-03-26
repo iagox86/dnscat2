@@ -398,7 +398,7 @@ int main(int argc, char *argv[])
     {0,              0,                 0, 0}  /* End */
   };
 
-  char              c;
+  int               c;
   int               option_index;
   const char       *option_name;
 
@@ -422,7 +422,7 @@ int main(int argc, char *argv[])
 
   /* Parse the command line options. */
   opterr = 0;
-  while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != EOF)
+  while((c = getopt_long_only(argc, argv, "", long_options, &option_index)) != -1)
   {
     switch(c)
     {
