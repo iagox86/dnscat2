@@ -240,6 +240,30 @@ module DriverCommandCommands
       end
     )
 
+    @commander.register_command("delay",
+      Trollop::Parser.new do
+        banner("Change the delay of the remote session")
+      end,
+
+      Proc.new do |opts, optarg|
+	if optarg.nil? || optarg.to_i < 1
+          @window.puts("Usage: delay <seconds>\n\nYou can only use values greater than one second.")
+        else
+          delay = CommandPacket.new({
+            :is_request => true,
+            :request_id => request_id(),
+            :command_id => CommandPacket::COMMAND_DELAY,
+            :delay => optarg.to_i * 1000,
+          })
+
+          _send_request(delay, Proc.new() do |request, response|
+            @window.puts("Delay response received")
+          end)
+          @window.puts("Attempting to change delay to #{optarg.to_i}s...")
+	end
+      end
+    )
+
     # This is almost the same as 'set' from 'controller', except it uses the
     # local settings and recurses into global if necessary
     @commander.register_command("set",

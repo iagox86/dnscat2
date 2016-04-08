@@ -87,6 +87,13 @@ static command_packet_t *command_packet_parse(uint8_t *data, uint32_t length)
     case COMMAND_SHUTDOWN:
       break;
 
+    case COMMAND_DELAY:
+      if(p->is_request)
+      {
+        p->r.request.body.delay.delay = buffer_read_next_int32(buffer);
+      }
+      break;
+
     case TUNNEL_CONNECT:
       if(p->is_request)
       {
@@ -300,6 +307,13 @@ command_packet_t *command_packet_create_shutdown_response(uint16_t request_id)
   return packet;
 }
 
+command_packet_t *command_packet_create_delay_response(uint16_t request_id)
+{
+  command_packet_t *packet = command_packet_create(request_id, COMMAND_DELAY, FALSE);
+
+  return packet;
+}
+
 command_packet_t *command_packet_create_tunnel_connect_request(uint16_t request_id, uint32_t options, char *host, uint16_t port)
 {
   command_packet_t *packet = command_packet_create(request_id, TUNNEL_CONNECT, TRUE);
@@ -433,6 +447,9 @@ void command_packet_destroy(command_packet_t *packet)
       }
       break;
 
+    case COMMAND_DELAY:
+      break;
+
     case TUNNEL_CONNECT:
       if(packet->is_request)
       {
@@ -528,6 +545,13 @@ void command_packet_print(command_packet_t *packet)
         printf("COMMAND_SHUTDOWN [request] :: request_id 0x%04x\n", packet->request_id);
       else
         printf("COMMAND_SHUTDOWN [response] :: request_id 0x%04x\n", packet->request_id);
+      break;
+
+    case COMMAND_DELAY:
+      if(packet->is_request)
+        printf("COMMAND_DELAY [request] :: request_id 0x%04x :: delay %d\n", packet->request_id, packet->r.request.body.delay.delay);
+      else
+        printf("COMMAND_DELAY [response] :: request_id 0x%04x\n", packet->request_id);
       break;
 
     case TUNNEL_CONNECT:
@@ -627,6 +651,13 @@ uint8_t *command_packet_to_bytes(command_packet_t *packet, size_t *length)
       break;
 
     case COMMAND_SHUTDOWN:
+      break;
+
+    case COMMAND_DELAY:
+      if(packet->is_request)
+      {
+        buffer_add_int32(buffer, packet->r.request.body.delay.delay);
+      }
       break;
 
     case TUNNEL_CONNECT:

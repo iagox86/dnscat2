@@ -112,6 +112,16 @@ static command_packet_t *handle_shutdown(driver_command_t *driver, command_packe
   return command_packet_create_shutdown_response(in->request_id);
 }
 
+static command_packet_t *handle_delay(driver_command_t *driver, command_packet_t *in)
+{
+  if(!in->is_request)
+    return NULL;
+
+  session_set_delay(in->r.request.body.delay.delay);
+
+  return command_packet_create_delay_response(in->request_id);
+}
+
 static command_packet_t *handle_error(driver_command_t *driver, command_packet_t *in)
 {
   if(!in->is_request)

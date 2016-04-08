@@ -1,6 +1,8 @@
 # 0.07
 
 * Fixed a bug where 'shell' sessions would completely fail to work
+* Introduce `COMMAND_DELAY` to allow operators to change the client's
+  session delay on-the-fly
 * Created a document on how to send bug reports
 * Other miscellaneous changes
 

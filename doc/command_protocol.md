@@ -90,6 +90,8 @@ The following standard commands are defined:
     #define COMMAND_EXEC     (0x0002)
     #define COMMAND_DOWNLOAD (0x0003)
     #define COMMAND_UPLOAD   (0x0004)
+    #define COMMAND_SHUTDOWN (0x0005)
+    #define COMMAND_DELAY    (0x0006)
     #define COMMAND_ERROR    (0xFFFF)
 
 ### COMMAND_PING
@@ -165,6 +167,20 @@ location. Like COMMAND_DOWNLOAD, the data is the remainder of the packet.
 
 If the file can't be written, a COMMAND_ERROR is returned. Otherwise,
 the response is simply blank, indicating success.
+
+### COMMAND_DELAY
+
+server->client only
+
+Structure (request):
+- (uint32_t) delay
+
+Structure (response):
+- n/a
+
+Request that the client changes the value of its session delay, i.e.
+check-in with the server at a different frequency. The response is
+simply blank, indicating success.
 
 ### COMMAND_ERROR
 

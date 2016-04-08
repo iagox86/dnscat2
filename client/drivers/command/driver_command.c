@@ -82,6 +82,10 @@ void driver_command_data_received(driver_command_t *driver, uint8_t *data, size_
         out = handle_shutdown(driver, in);
         break;
 
+      case COMMAND_DELAY:
+        out = handle_delay(driver, in);
+        break;
+
       case TUNNEL_CONNECT:
         out = handle_tunnel_connect(driver, in);
         break;
