@@ -29,7 +29,7 @@ require 'securerandom'
 
 # version info
 NAME = "dnscat2"
-VERSION = "0.06"
+VERSION = "0.07"
 
 # Don't ignore unhandled errors in threads
 Thread.abort_on_exception = true

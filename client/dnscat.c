@@ -32,7 +32,7 @@
 
 /* Default options */
 #define NAME    "dnscat2"
-#define VERSION "v0.06"
+#define VERSION "v0.07"
 
 /* Default options */
 #define DEFAULT_DNS_HOST NULL
