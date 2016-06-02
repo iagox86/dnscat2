@@ -105,31 +105,36 @@ class DriverCommand
 
     if(command_packet.get(:is_request))
       tunnel_data_incoming(command_packet)
-    else
-      handler = @handlers.delete(command_packet.get(:request_id))
-      if(handler.nil?)
-        @window.puts("Received a response that we have no record of sending:")
-        @window.puts("#{command_packet}")
-        @window.puts()
-        @window.puts("Here are the responses we're waiting for:")
-        @handlers.each_pair do |request_id, the_handler|
-          @window.puts("#{request_id}: #{the_handler[:request]}")
-        end
-
-        if(handler.get(:command_id) != response.get(:command_id) && command_packet.get(:command_id) != CommandPacket::ERROR)
-          @window.puts("Received a response of a different packet type (that's really weird, please report if you can reproduce!")
-          @window.puts("#{command_packet}")
-          @window.puts()
-          @window.puts("The original packet was:")
-          @window.puts("#{handler}")
-        end
-
-        return
-      end
-
-      handler[:proc].call(handler[:request], command_packet)
+      return
     end
 
+    handler = @handlers.delete(command_packet.get(:request_id))
+    if(handler.nil?)
+      @window.puts("Received a response that we have no record of sending:")
+      @window.puts("#{command_packet}")
+      @window.puts()
+      @window.puts("Here are the responses we're waiting for:")
+      @handlers.each_pair do |request_id, the_handler|
+        @window.puts("#{request_id}: #{the_handler[:request]}")
+      end
+      return
+    end
+
+    if(command_packet.get(:command_id) == CommandPacket::COMMAND_ERROR)
+      @window.puts("Client returned an error: #{command_packet.get(:status)} :: #{command_packet.get(:reason)}")
+      return
+    end
+
+    if(handler[:request].get(:command_id) != command_packet.get(:command_id))
+      @window.puts("Received a response of a different packet type (that's really weird, please report if you can reproduce!")
+      @window.puts("#{command_packet}")
+      @window.puts()
+      @window.puts("The original packet was:")
+      @window.puts("#{handler}")
+      return
+    end
+
+    handler[:proc].call(handler[:request], command_packet)
   end
 
   def feed(data)
