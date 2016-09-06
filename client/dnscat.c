@@ -17,6 +17,8 @@
 #else
 #include <getopt.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
+#include <signal.h>
 #endif
 
 #include "controller/controller.h"
@@ -416,6 +418,15 @@ int main(int argc, char *argv[])
 
   /* This is required for win32 support. */
   winsock_initialize();
+
+#ifndef WIN32  
+  /* set the SIGCHLD handler to SIG_IGN causing zombie child processes to be reaped automatically */
+  if(signal(SIGCHLD, SIG_IGN) == SIG_ERR) 
+  {
+    perror("Couldn't set SIGCHLD handler to SIG_IGN");
+    exit(1);
+  }  
+#endif
 
   /* Set the default log level */
   log_set_min_console_level(min_log_level);
