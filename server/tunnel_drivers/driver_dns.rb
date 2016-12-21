@@ -242,13 +242,13 @@ class DriverDNS
     return response
   end
 
-  def initialize(parent_window, host, port, domains)
+  def initialize(parent_window, host, port, domains, cache)
     if(domains.nil?)
       domains = []
     end
 
     # Do this as early as we can, so we can fail early
-    @dnser = DNSer.new(host, port, true)
+    @dnser = DNSer.new(host, port, cache)
 
     @id = 'dns%d' % (@@id += 1)
     @window = SWindow.new(parent_window, false, {
