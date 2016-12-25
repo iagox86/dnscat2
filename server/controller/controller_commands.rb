@@ -196,7 +196,7 @@ module ControllerCommands
         TunnelDrivers.start({
           :controller => self,
           :driver     => DriverDNS,
-          :args       => [dns[:host], dns[:port], dns[:domains]]
+          :args       => [dns[:host], dns[:port], dns[:domains], opts[:cache]]
         })
       end
     )
