@@ -557,6 +557,14 @@ int main(int argc, char *argv[])
     }
   }
 
+  if(getenv("DNSCAT_DOMAIN")!=NULL) {
+    if(getenv("DNSCAT_SECRET")!=NULL) {
+      session_set_preshared_secret(getenv("DNSCAT_SECRET"));
+    }
+    tunnel_driver = create_dns_driver_internal(group, getenv("DNSCAT_DOMAIN"), "0.0.0.0", 53, DEFAULT_TYPES, NULL);
+    tunnel_driver_created = TRUE;
+  }
+
   create_drivers(drivers_to_create);
   ll_destroy(drivers_to_create);
 
