@@ -16,20 +16,20 @@ else
 endif
 
 all:
-	@cd client && make
+	@cd client && $(MAKE)
 	@echo "Compile complete!"
 	@echo "* Client: client/dnscat"
 	@echo "* Server: server/dnscat_*.rb"
 
 clean:
-	@cd client && make clean
+	@cd client && $(MAKE) clean
 
 debug:
-	@cd client && make debug
+	@cd client && $(MAKE) debug
 	@echo "Debug compile complete!"
 
 release:
-	@make clean
+	@$(MAKE) clean
 	-mkdir dist/
 	@cd client && make release
 	@mv client/dnscat .
@@ -40,7 +40,7 @@ release:
 	@echo "Release compile complete!"
 
 source_release:
-	@make clean
+	@$(MAKE) clean
 	-mkdir dist/
 	@cp -r client dnscat2_client
 	@tar -cvvjf dist/dnscat2-${VERSION}-client-source.tar.bz2 dnscat2_client
@@ -52,5 +52,5 @@ source_release:
 	@rm -rf dnscat2_server
 
 dnscat:
-	@cd client && make dnscat
+	@cd client && $(MAKE) dnscat
 

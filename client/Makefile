@@ -9,8 +9,15 @@
 CC?=gcc
 DEBUG_CFLAGS?=-DTESTMEMORY -Werror -O0
 RELEASE_CFLAGS?=-Os
-CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE -fstack-protector-all -Wformat -Wformat-security -g
-LIBS=-pie -Wl,-z,relro,-z,now
+CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE  -Wformat -Wformat-security -g
+LIBS=-pie -Wl,-z,relro,-z,now 
+LDFLAGS=
+
+OS=$(shell uname -s)
+ifeq ($(OS),SunOS)
+# Solaris CC
+LDFLAGS       = -lsocket -lnsl
+endif
 
 OBJS=controller/packet.o \
 		 controller/session.o \
@@ -66,7 +73,7 @@ clean:
 	-rm -rf win32/*.vcproj.*
 
 dnscat: ${DNSCAT_DNS_OBJS}
-	${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS}
+	${CC} ${CFLAGS} -o dnscat ${DNSCAT_DNS_OBJS} ${LDFLAGS}
 	@echo "*** dnscat successfully compiled"
 
 COMMANDS=drivers/command/commands_standard.h \

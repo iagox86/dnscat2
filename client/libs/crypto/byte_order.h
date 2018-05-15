@@ -134,6 +134,9 @@ static inline uint64_t bswap_64(uint64_t x) {
 #elif defined(__APPLE__)
 # include <libkern/OSByteOrder.h>
 # define bswap_64 OSSwapInt64
+#elif defined(__sun)
+# include <sys/byteorder.h>
+# define bswap_64 BSWAP64
 #else
 # error "bswap_64 unsupported"
 #endif
