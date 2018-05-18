@@ -392,8 +392,8 @@ int main(int argc, char *argv[])
 #endif
 
     /* Debug options */
-    {"d",            no_argument, 0, 0}, /* More debug */
-    {"q",            no_argument, 0, 0}, /* Less debug */
+    {"debug",            no_argument, 0, 0}, /* More debug */
+    {"quiet",            no_argument, 0, 0}, /* Less debug */
     {"packet-trace", no_argument, 0, 0}, /* Trace packets */
 
     /* Sentry */
@@ -527,7 +527,7 @@ int main(int argc, char *argv[])
         }
 
         /* Debug options */
-        else if(!strcmp(option_name, "d"))
+        else if(!strcmp(option_name, "debug"))
         {
           if(min_log_level > 0)
           {
@@ -535,7 +535,7 @@ int main(int argc, char *argv[])
             log_set_min_console_level(min_log_level);
           }
         }
-        else if(!strcmp(option_name, "q"))
+        else if(!strcmp(option_name, "quiet"))
         {
           min_log_level++;
           log_set_min_console_level(min_log_level);
