@@ -287,7 +287,7 @@ driver_dns_t *create_dns_driver_internal(select_group_t *group, char *domain, ch
   }
 
   printf("Creating DNS driver:\n");
-  printf(" domain = %s\n", domain);
+  printf(" domain = %s\n", (domain ? domain :""));
   printf(" host   = %s\n", host);
   printf(" port   = %u\n", port);
   printf(" type   = %s\n", type);
