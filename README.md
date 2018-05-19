@@ -118,6 +118,10 @@ On Windows, load client/win32/dnscat2.vcproj into Visual Studio and hit
 free legit copy of a newer version, I'll likely be sticking with that
 one. :)
 
+**NB: You need a recent gcc compiler**. On Solaris 10, the gcc that ships with 
+it-  3.4.3 produces buggy code in encryption routines and you will expericence crashes.
+Try with [CSW gcc 5.5.0](https://www.opencsw.org/packages/CSWgcc5core/)
+
 If compilation fails, please file a bug on my [github
 page](https://github.com/iagox86/dnscat2/issues)! Please send details
 about your system.
