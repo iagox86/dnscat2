@@ -7,9 +7,9 @@
 # Should work for Linux and BSD make.
 
 CC?=gcc
-DEBUG_CFLAGS?=-DTESTMEMORY -Werror -O0
+DEBUG_CFLAGS?=-DTESTMEMORY -Werror -O0 -g -ggdb
 RELEASE_CFLAGS?=-Os
-CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE  -Wformat -Wformat-security -g
+CFLAGS?=--std=c89 -I. -Wall -D_DEFAULT_SOURCE  -Wformat -Wformat-security 
 LIBS=-pie -Wl,-z,relro,-z,now 
 LDFLAGS=
 
