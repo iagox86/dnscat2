@@ -23,7 +23,7 @@ messages, and, finally, a breakdown of the messages themselves.
 
 # License
 
-See LICENSE.md.
+See [LICENSE.md](../LICENSE.md).
 
 # Challenges
 
