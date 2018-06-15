@@ -73,10 +73,12 @@ static char *buffer_read_dns_name_at(buffer_t *buffer, uint32_t offset, uint32_t
   {
     if(piece_length & 0x80)
     {
-      if(piece_length == 0xc0)
+      if(piece_length & 0xc0)
       {
         uint8_t relative_pos = buffer_read_int8_at(buffer, offset + pos);
         char *new_data;
+
+	relative_pos |= ((piece_length & 0x03) << 8);
         pos++;
 
         new_data = buffer_read_dns_name_at(buffer, relative_pos, NULL);
