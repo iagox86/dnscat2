@@ -24,6 +24,8 @@
 #define MAX_DNS_LENGTH   255
 #define WILDCARD_PREFIX  "dnscat"
 
+int rebeacon=0;
+
 /* The max length is a little complicated:
  * 255 because that's the max DNS length
  * Halved, because we encode in hex
@@ -454,12 +456,18 @@ void driver_dns_destroy(driver_dns_t *driver)
   safe_free(driver);
 }
 
-void driver_dns_go(driver_dns_t *driver)
+int driver_dns_go(driver_dns_t *driver)
 {
+  int x;
   /* Do a fake timeout at the start so we can get going more quickly. */
   timeout_callback(driver->group, driver);
 
   /* Loop forever and poke the socket. */
-  while(TRUE)
-    select_group_do_select(driver->group, 50);
+  while(rebeacon==0) {
+    x=select_group_do_select(driver->group, 50);
+    /* printf("TEST %d %d\n", rebeacon, x);  */
+  }
+  rebeacon=0;
+
+  printf("OUT\n");
 }

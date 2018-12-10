@@ -219,7 +219,7 @@ NBBOOL select_group_remove_and_close_socket(select_group_t *group, int s);
  * Note that the timeout (and therefore the timeout callback) only fires if _every_ socket is idle.
  * If timeout_ms < 0, it will block indefinitely (till data arrives on any socket). Because of polling,
  * on Windows, timeout_ms actually has a resolution defined by TIMEOUT_INTERVAL. */
-void select_group_do_select(select_group_t *group, int timeout_ms);
+int select_group_do_select(select_group_t *group, int timeout_ms);
 
 /* Wait for the given number of bytes to arrive on the socket, rather than any number of bytes. This doesn't
  * work for datagram sockets.

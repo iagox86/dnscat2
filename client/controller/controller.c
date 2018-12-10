@@ -172,7 +172,8 @@ uint8_t *controller_get_outgoing(size_t *length, size_t max_length)
   {
     /* TODO: Drop to a "probe for sessions" mode instead. */
     LOG_FATAL("There are no active sessions left! Goodbye!");
-    exit(0);
+    rebeacon=1;
+    /* exit(0); */
     return NULL;
   }
 
