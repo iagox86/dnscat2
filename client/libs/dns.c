@@ -138,7 +138,7 @@ static char *buffer_read_next_dns_name(buffer_t *buffer)
 static char *buffer_read_ipv4_address_at(buffer_t *buffer, uint32_t offset, char result[16])
 {
 #ifdef WIN32
-  printf("NOT IMPLEMENTED!\n");
+  printf("NOT IMPLEMENTED IPv4!\n");
   exit(1);
 #else
   uint8_t addr[4];
@@ -182,7 +182,7 @@ static buffer_t *buffer_add_ipv4_address(buffer_t *buffer, char *address)
 static char *buffer_read_ipv6_address_at(buffer_t *buffer, uint32_t offset, char result[40])
 {
 #ifdef WIN32
-  printf("NOT IMPLEMENTED!\n");
+  printf("NOT IMPLEMENTED IPv6!\n");
   exit(1);
 #else
   uint8_t addr[16];
