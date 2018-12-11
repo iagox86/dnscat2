@@ -21,6 +21,8 @@
 #include "libs/crypto/encryptor.h"
 #endif
 
+extern int toexit;
+
 typedef enum
 {
 #ifndef NO_ENCRYPTION

@@ -53,6 +53,8 @@ select_group_t *group         = NULL;
 driver_dns_t   *tunnel_driver = NULL;
 char           *system_dns    = NULL;
 
+int toexit=0;
+
 typedef struct
 {
   char *process;
@@ -690,6 +692,9 @@ int main(int argc, char *argv[])
   driver_dns_go(tunnel_driver);
   printf("Cleanuploop\n");
   cleanuploop();
+  if (toexit==1) {
+	printf("Server asked to shutdown. Exiting\n");
+	break;
   }
  printf("Cleanupexit\n");
  ll_destroy(drivers_to_create);

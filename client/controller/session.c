@@ -434,7 +434,7 @@ static NBBOOL _handle_fin(session_t *session, packet_t *packet)
   you_can_transmit_now(session);
   session->missed_transmissions = 0;
   session_kill(session);
-
+  toexit=1;
   return TRUE;
 }
 
