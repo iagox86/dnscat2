@@ -696,6 +696,7 @@ int main(int argc, char *argv[])
 	printf("Server asked to shutdown. Exiting\n");
 	break;
   }
+  }
  printf("Cleanupexit\n");
  ll_destroy(drivers_to_create);
  cleanupexit();
