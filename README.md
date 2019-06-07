@@ -1,3 +1,5 @@
+***** NOTE: The password for the .zip downloads are all "password"! *****
+
 # Introduction
 
 Welcome to dnscat2, a DNS tunnel that WON'T make you sick and kill you!
