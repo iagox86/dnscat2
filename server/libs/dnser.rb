@@ -804,7 +804,7 @@ class DNSer
       @sent = true
     end
 
-    def reply!()
+    def reply!(_="")
       raise ArgumentError("Already sent!") if(@sent)
 
       # Cache it if we have a cache
