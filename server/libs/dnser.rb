@@ -675,7 +675,9 @@ class DNSer
                 ].pack("nnnnnn")
 
       questions.each do |q|
-        result += q.serialize()
+        unless  q.nil? then
+          result += q.serialize()
+        end
       end
 
       answers.each do |a|
@@ -841,6 +843,8 @@ class DNSer
     @thread = Thread.new() do |t|
       begin
         loop do
+          goterror=false
+	  begin
           data = @s.recvfrom(65536)
 
           # Data is an array where the first element is the actual data, and the second is the host/port
@@ -866,8 +870,13 @@ class DNSer
               end
             end
           end
+          rescue Exception => e
+            puts("Caught an error: #{e}")
+            puts(e.backtrace())
+            goterror=true
+          end
 
-          if(!transaction.sent)
+          if(!goterror and !transaction.sent)
             begin
               proc.call(transaction)
             rescue StandardError => e
