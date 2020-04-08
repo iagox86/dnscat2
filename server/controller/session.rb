@@ -149,9 +149,9 @@ class Session
     options = 0
 
     # Ignore errant SYNs - they are, at worst, retransmissions that we don't care about
-    if(@state != STATE_NEW)
-      raise(DnscatException, "Duplicate SYN received!")
-    end
+    #if(@state != STATE_NEW)
+    #  raise(DnscatException, "Duplicate SYN received!")
+    #end
 
     _do_display_crypto_values()
 
