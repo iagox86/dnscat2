@@ -842,39 +842,43 @@ class DNSer
       begin
         loop do
           data = @s.recvfrom(65536)
+          begin   
+            # Data is an array where the first element is the actual data, and the second is the host/port
+            request = DNSer::Packet.parse(data[0])
 
-          # Data is an array where the first element is the actual data, and the second is the host/port
-          request = DNSer::Packet.parse(data[0])
+            # Create a transaction object, which we can use to respond
+            transaction = Transaction.new(@s, request, data[1][3], data[1][1], @cache)
 
-          # Create a transaction object, which we can use to respond
-          transaction = Transaction.new(@s, request, data[1][3], data[1][1], @cache)
+            # If caching is enabled, deal with it
+            if(@cache)
+              # This is somewhat expensive, but we aren't using the cache for performance
+              @cache.cleanup!()
 
-          # If caching is enabled, deal with it
-          if(@cache)
-            # This is somewhat expensive, but we aren't using the cache for performance
-            @cache.cleanup!()
+              # See if the transaction is cached
+              cached = @cache[request.trn_id]
 
-            # See if the transaction is cached
-            cached = @cache[request.trn_id]
-
-            # Verify it deeper (for security reasons)
-            if(!cached.nil?)
-              puts("POTENTIAL CACHE HIT")
-              if(request == cached[:request])
-                puts("CACHE HIT")
-                transaction.reply!(cached[:response])
+              # Verify it deeper (for security reasons)
+              if(!cached.nil?)
+                puts("POTENTIAL CACHE HIT")
+                if(request == cached[:request])
+                  puts("CACHE HIT")
+                  transaction.reply!(cached[:response])
+                end
               end
             end
-          end
 
-          if(!transaction.sent)
-            begin
-              proc.call(transaction)
-            rescue StandardError => e
-              puts("Caught an error: #{e}")
-              puts(e.backtrace())
-              transaction.reply!(transaction.response_template({:rcode => DNSer::Packet::RCODE_SERVER_FAILURE}))
+            if(!transaction.sent)
+              begin
+                proc.call(transaction)
+              rescue StandardError => e
+                puts("Caught an error: #{e}")
+                puts(e.backtrace())
+                transaction.reply!(transaction.response_template({:rcode => DNSer::Packet::RCODE_SERVER_FAILURE}))
+              end
             end
+          rescue StandardError => e
+            puts("Caught an error: #{e}")
+            puts(e.backtrace())
           end
         end
       ensure
