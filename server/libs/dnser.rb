@@ -376,7 +376,7 @@ class DNSer
       attr_accessor :preference, :name
 
       def initialize(name, preference = 10)
-        if(!name.is_a?(String) || !preference.is_a?(Fixnum))
+        if(!name.is_a?(String) || !preference.is_a?(Integer))
           raise ArgumentError("Creating an MX record wrong! Please file a bug!")
         end
         @name = name
