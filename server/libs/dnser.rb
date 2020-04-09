@@ -842,6 +842,7 @@ class DNSer
       begin
         loop do
           data = @s.recvfrom(65536)
+          
           begin   
             # Data is an array where the first element is the actual data, and the second is the host/port
             request = DNSer::Packet.parse(data[0])
@@ -859,7 +860,6 @@ class DNSer
 
               # Verify it deeper (for security reasons)
               if(!cached.nil?)
-                puts("POTENTIAL CACHE HIT")
                 if(request == cached[:request])
                   puts("CACHE HIT")
                   transaction.reply!(cached[:response])
