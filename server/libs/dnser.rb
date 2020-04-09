@@ -859,7 +859,7 @@ class DNSer
 
             # Verify it deeper (for security reasons)
             if(!cached.nil?)
-              puts("POTENTIAL CACHE HIT")
+              #puts("POTENTIAL CACHE HIT")
               if(request == cached[:request])
                 puts("CACHE HIT")
                 transaction.reply!(cached[:response])
