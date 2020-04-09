@@ -39,4 +39,7 @@ class DriverConsole
 
     return out
   end
+
+  def shutdown()
+  end
 end
