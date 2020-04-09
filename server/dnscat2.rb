@@ -10,7 +10,9 @@
 ##
 
 $LOAD_PATH << File.dirname(__FILE__) # A hack to make this work on 1.8/1.9
-
+trap "SIGINT" do
+  puts "Ctrl-C is disabled, use exit"
+end
 # Create the window right away so other includes can create their own windows if they want
 require 'libs/swindow'
 WINDOW = SWindow.new(nil, true, { :prompt => "dnscat2> ", :name => "main" })
