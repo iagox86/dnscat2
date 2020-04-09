@@ -10,16 +10,16 @@
 
 class CryptoHelper
   def CryptoHelper.bignum_to_binary(bn, size=32)
-    if(!bn.is_a?(Bignum))
-      raise(ArgumentError, "Expected: Bignum; received: #{bn.class}")
+    if(!bn.is_a?(Integer))
+      raise(ArgumentError, "Expected: Integer; received: #{bn.class}")
     end
 
     return [bn.to_s(16).rjust(size*2, "\0")].pack("H*")
   end
 
   def CryptoHelper.bignum_to_text(bn, size=32)
-    if(!bn.is_a?(Bignum))
-      raise(ArgumentError, "Expected: Bignum; received: #{bn.class}")
+    if(!bn.is_a?(Integer))
+      raise(ArgumentError, "Expected: Integer; received: #{bn.class}")
     end
 
     return CryptoHelper.bignum_to_binary(bn, size).unpack("H*").pop()

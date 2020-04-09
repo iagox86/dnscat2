@@ -225,8 +225,8 @@ class Packet
         @public_key_x = params[:public_key_x] || raise(DnscatException, "params[:public_key_x] is required!")
         @public_key_y = params[:public_key_y] || raise(DnscatException, "params[:public_key_y] is required!")
 
-        if(!@public_key_x.is_a?(Bignum) || !@public_key_y.is_a?(Bignum))
-          raise(DnscatException, "Public keys have to be Bignums! (Seen: #{@public_key_x.class} #{@public_key_y.class})")
+        if(!@public_key_x.is_a?(Integer) || !@public_key_y.is_a?(Integer))
+          raise(DnscatException, "Public keys have to be Integers! (Seen: #{@public_key_x.class} #{@public_key_y.class})")
         end
       elsif(@subtype == SUBTYPE_AUTH)
         @authenticator = params[:authenticator] || raise(DnscatException, "params[:authenticator] is required!")
