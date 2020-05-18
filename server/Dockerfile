@@ -1,9 +1,16 @@
-FROM ruby:2.1-onbuild
-MAINTAINER Mark Percival <m@mdp.im>
+FROM ruby:2.1-onbu
+MAINTAINER Mofisto
 
 EXPOSE 53/udp
-
-CMD ["ruby ./dnscat2.rb"]
+RUN apt-get update -qq  && apt-get install gem ruby-dev libpq-dev -y
+RUN mkdir /myapp
+WORKDIR /myapp
+COPY Gemfile /myapp/Gemfile
+RUN bundle install
+]
 
 # Run it
-#   docker run -p 53:53/udp -it --rm mpercival/dnscat2 ruby ./dnscat2.rb foo.org
+#   docker run -p 53:53/udp -it -v "$PWD":/usr/src/myapp -w /usr/src/myapp --rm dnscat2 ruby ./dnscat2.rb Examples.com
+# Tips
+#You should currently be on dnscat2 / server
+#   docker build -t dnscat2 .
