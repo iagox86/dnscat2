@@ -242,7 +242,7 @@ class DriverDNS
     return response
   end
 
-  def initialize(parent_window, host, port, domains, cache)
+  def initialize(parent_window, host, port, domains, cache, &block)
     if(domains.nil?)
       domains = []
     end
@@ -313,7 +313,7 @@ class DriverDNS
         end
 
         # Get the response
-        response = proc.call(name, max_length)
+        response = block.call(name, max_length)
 
         if(response.length > max_length)
           raise(DnscatException, "The handler returned too much data! This shouldn't happen, please report. (max = #{max_length}, returned = #{response.length}")
