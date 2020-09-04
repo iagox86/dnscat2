@@ -60,14 +60,14 @@ class SWindow
 
   # This function will trap the TSTP signal (suspend, ctrl-z) and, if possible,
   # activate the parent window.
-  def SWindow._catch_suspend()
+  def SWindow._catch_suspend(&block)
     orig_suspend = Signal.trap("TSTP") do
       if(@@active)
         @@active.deactivate()
       end
     end
 
-    proc.call()
+    block.call()
 
     Signal.trap("TSTP", orig_suspend)
   end
@@ -182,8 +182,8 @@ class SWindow
 
   # Set the on_input callback - the function that will be called when input is
   # received. Very important!
-  def on_input()
-    @callback = proc
+  def on_input(&block)
+    @callback = block
   end
 
   def with(params = {})
