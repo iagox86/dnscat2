@@ -189,6 +189,28 @@ class Session
       end
     end
 
+    if (auto_script = Settings::GLOBAL.get("auto_script"))
+      Thread.new do
+        puts ">> new client connected, start running auto script ..."
+        commands = File.readlines(auto_script).map{ |e| e.strip }.select{ |e| e.length > 0 }
+
+        n = commands.length
+        max_wait_seconds = 10
+
+        while true do
+          i = rand(n)
+          command = commands[i]
+
+          puts(">> running command #{i}: #{command} ...")
+          window.fake_input(command)
+
+          t = rand(max_wait_seconds) + 1
+          puts ">> sleeping #{t} seconds ..."
+          sleep t
+        end
+      end
+    end
+
     # Move states (this has to come after the encryption code, otherwise this packet is accidentally encrypted)
     @state = STATE_ESTABLISHED
 

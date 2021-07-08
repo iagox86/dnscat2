@@ -76,6 +76,8 @@ opts = Trollop::options do
 
   opt :auto_command,   "Send this to each client that connects",
     :type => :string,  :default => ""
+  opt :auto_script,   "Run this script for each client that connects",
+    :type => :string,  :default => ""
   opt :auto_attach,    "Automatically attach to new sessions",
     :type => :boolean, :default => false
   opt :packet_trace,   "Display incoming/outgoing dnscat packets",
@@ -146,6 +148,10 @@ begin
 
   Settings::GLOBAL.create("auto_command", Settings::TYPE_BLANK_IS_NIL, opts[:auto_command], "The command (or semicolon-separated list of commands) will automatically be executed for each new session as if they were typed at the keyboard.") do |old_val, new_val|
     WINDOW.puts("auto_command => #{new_val}")
+  end
+
+  Settings::GLOBAL.create("auto_script", Settings::TYPE_BLANK_IS_NIL, opts[:auto_script], "The script file that will automatically be executed for each new session as if they were typed at the keyboard.") do |old_val, new_val|
+    WINDOW.puts("auto_script => #{new_val}")
   end
 
   Settings::GLOBAL.create("process", Settings::TYPE_BLANK_IS_NIL, opts[:process] || "", "If set, this process is spawned for each new console session ('--console' on the client), and it handles the session instead of getting the i/o from the keyboard.") do |old_val, new_val|
