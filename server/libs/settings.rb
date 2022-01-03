@@ -157,13 +157,13 @@ class Settings
 
   # Create a new setting, or replace an old one. This must be done before a
   # setting is used.
-  def create(name, type, default_value, docs)
+  def create(name, type, default_value, docs, &block)
     name = name.to_s()
 
     @settings[name] = @settings[name] || {}
 
     @settings[name][:type]    = type
-    @settings[name][:watcher] = proc
+    @settings[name][:watcher] = block
     @settings[name][:docs]    = docs
     @settings[name][:default] = @@mutators[type].call(default_value.to_s())
 

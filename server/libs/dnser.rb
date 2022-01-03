@@ -837,13 +837,13 @@ class DNSer
   # This method returns immediately, but spawns a background thread. The thread
   # will recveive and parse DNS packets, create a transaction, and pass it to
   # the caller's block.
-  def on_request()
+  def on_request(&block)
     @thread = Thread.new() do |t|
       begin
         loop do
           data = @s.recvfrom(65536)
-          
-          begin   
+
+          begin
             # Data is an array where the first element is the actual data, and the second is the host/port
             request = DNSer::Packet.parse(data[0])
 
@@ -869,7 +869,7 @@ class DNSer
 
             if(!transaction.sent)
               begin
-                proc.call(transaction)
+                block.call(transaction)
               rescue StandardError => e
                 puts("Caught an error: #{e}")
                 puts(e.backtrace())
@@ -912,7 +912,7 @@ class DNSer
   # Send out a query, asynchronously. This immediately returns, then, when the
   # query is finished, the callback block is called with a DNSer::Packet that
   # represents the response (or nil, if there was a timeout).
-  def DNSer.query(hostname, params = {})
+  def DNSer.query(hostname, params = {}, &block)
     server   = params[:server]   || "8.8.8.8"
     port     = params[:port]     || 53
     type     = params[:type]     || DNSer::Packet::TYPE_A
@@ -930,10 +930,10 @@ class DNSer
 
         timeout(timeout) do
           response = s.recv(65536)
-          proc.call(DNSer::Packet.parse(response))
+          block.call(DNSer::Packet.parse(response))
         end
       rescue Timeout::Error
-        proc.call(nil)
+        block.call(nil)
       rescue Exception => e
         puts("There was an exception sending a query for #{hostname} to #{server}:#{port}: #{e}")
       ensure
