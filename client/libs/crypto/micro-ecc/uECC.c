@@ -1,4 +1,5 @@
 /* Copyright 2014, Kenneth MacKay. Licensed under the BSD 2-clause license. */
+#pragma GCC diagnostic ignored "-Wchar-subscripts"
 
 #include "uECC.h"
 #include "uECC_vli.h"
