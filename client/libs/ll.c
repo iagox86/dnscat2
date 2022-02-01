@@ -82,7 +82,7 @@ static int compare(ll_t *ll, ll_index_t a, ll_index_t b)
       if(ll->cmpfunc)
         return ll->cmpfunc(a.value.ptr, b.value.ptr);
       else
-        return a.value.ptr == a.value.ptr;
+        return a.value.ptr == b.value.ptr;
   }
 
   printf("We forgot to handle a linked-list type!\n");
