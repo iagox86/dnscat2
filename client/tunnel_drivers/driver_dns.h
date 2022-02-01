@@ -31,6 +31,8 @@
 /* The maximum number of types that can be selected amongst. */
 #define DNS_MAX_TYPES 32
 
+extern int rebeacon;
+
 typedef struct
 {
   int              s;
@@ -49,6 +51,6 @@ typedef struct
 
 driver_dns_t *driver_dns_create(select_group_t *group, char *domain, char *host, uint16_t port, char *types, char *server);
 void          driver_dns_destroy();
-void          driver_dns_go(driver_dns_t *driver);
+int          driver_dns_go(driver_dns_t *driver);
 
 #endif
