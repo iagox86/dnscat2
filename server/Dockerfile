@@ -1,9 +1,17 @@
-FROM ruby:2.1-onbuild
+FROM ruby:3.2.1
 MAINTAINER Mark Percival <m@mdp.im>
+
+# Install dependencies
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update -qq \
+    && apt-get install gem libpq-dev -y \
+    && mkdir -p /app \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . /app
+WORKDIR /app
+RUN bundle install
 
 EXPOSE 53/udp
 
-CMD ["ruby ./dnscat2.rb"]
-
-# Run it
-#   docker run -p 53:53/udp -it --rm mpercival/dnscat2 ruby ./dnscat2.rb foo.org
+ENTRYPOINT ["ruby", "dnscat2.rb"]
